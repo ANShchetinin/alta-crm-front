@@ -1,37 +1,57 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, MoreVertical } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { getOrderStatuses, getOrders, moveOrder } from '../api/kanban';
+import type { OrderStatus, Order } from '../api/kanban';
 import '../styles/kanban.css';
-
-const getColumns = (t: any) => [
-  { id: 1, title: t('kanban.col.new'), color: '#3b82f6' },
-  { id: 2, title: t('kanban.col.progress'), color: '#f59e0b' },
-  { id: 3, title: t('kanban.col.completed'), color: '#10b981' }
-];
-
-const MOCK_CARDS = [
-  { id: 101, statusId: 1, client: 'ООО Ромашка', price: '150 000 ₽', desc: 'Установка 10 окон' },
-  { id: 102, statusId: 1, client: 'Иван Петров', price: '25 000 ₽', desc: 'Остекление балкона' },
-  { id: 103, statusId: 2, client: 'ЖК Светлый', price: '450 000 ₽', desc: 'Фасадные работы' },
-];
 
 const Kanban = () => {
   const { t } = useTranslation();
-  const [cards, setCards] = useState(MOCK_CARDS);
+  const [columns, setColumns] = useState<OrderStatus[]>([]);
+  const [cards, setCards] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Very basic mock drag and drop
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statuses, orders] = await Promise.all([
+          getOrderStatuses(),
+          getOrders()
+        ]);
+        setColumns(statuses.sort((a, b) => a.sortOrder - b.sortOrder));
+        setCards(orders);
+      } catch (error) {
+        console.error("Failed to fetch kanban data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   const handleDragStart = (e: React.DragEvent, id: number) => {
     e.dataTransfer.setData('cardId', id.toString());
   };
 
-  const handleDrop = (e: React.DragEvent, statusId: number) => {
+  const handleDrop = async (e: React.DragEvent, statusId: number) => {
     const cardId = parseInt(e.dataTransfer.getData('cardId'));
+    // Optimistic UI update
     setCards(cards.map(c => c.id === cardId ? { ...c, statusId } : c));
+    try {
+      await moveOrder(cardId, statusId);
+    } catch (err) {
+      console.error("Failed to move order", err);
+      // Revert if needed, ignored for simplicity
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
+
+  if (loading) {
+    return <div style={{padding: 24}}>Loading board...</div>;
+  }
 
   return (
     <div className="kanban-wrapper">
@@ -43,7 +63,7 @@ const Kanban = () => {
       </div>
 
       <div className="kanban-board">
-        {getColumns(t).map(col => (
+        {columns.map(col => (
           <div 
             key={col.id} 
             className="kanban-column glass-panel"
@@ -52,8 +72,8 @@ const Kanban = () => {
           >
             <div className="column-header">
               <div className="column-title">
-                <span className="dot" style={{ backgroundColor: col.color }}></span>
-                <h3>{col.title}</h3>
+                <span className="dot" style={{ backgroundColor: col.color || '#3b82f6' }}></span>
+                <h3>{col.name}</h3>
                 <span className="count">{cards.filter(c => c.statusId === col.id).length}</span>
               </div>
               <button className="btn-icon"><MoreVertical size={16} /></button>
@@ -67,10 +87,10 @@ const Kanban = () => {
                   draggable
                   onDragStart={(e) => handleDragStart(e, card.id)}
                 >
-                  <div className="card-client">{card.client}</div>
-                  <div className="card-desc">{card.desc}</div>
+                  <div className="card-client">Client #{card.clientId}</div>
+                  <div className="card-desc">{card.description}</div>
                   <div className="card-footer">
-                    <span className="card-price">{card.price}</span>
+                    <span className="card-price">{card.totalPrice} ₽</span>
                     <div className="avatar-small">A</div>
                   </div>
                 </div>

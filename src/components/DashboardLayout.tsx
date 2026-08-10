@@ -2,14 +2,17 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Box, LogOut, Settings, Sun, Moon, Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
 import '../styles/dashboard.css';
 
 const DashboardLayout = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { theme, setTheme, language, setLanguage } = useAppStore();
+  const { logout } = useAuthStore();
 
   const handleLogout = () => {
+    logout();
     navigate('/login');
   };
 

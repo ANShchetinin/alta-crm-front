@@ -3,24 +3,33 @@ import { useNavigate } from 'react-router-dom';
 import { LogIn, Key, Mail, Globe, Sun, Moon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { loginCall } from '../api/auth';
 import '../styles/login.css';
 
 const Login = () => {
   const { t } = useTranslation();
   const { theme, setTheme, language, setLanguage } = useAppStore();
+  const { setToken } = useAuthStore();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Mock login logic for now
-    setTimeout(() => {
-      setIsLoading(false);
+    setErrorMsg('');
+    try {
+      const token = await loginCall(email, password);
+      setToken(token);
       navigate('/kanban');
-    }, 1000);
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -43,6 +52,7 @@ const Login = () => {
         </div>
 
         <form onSubmit={handleLogin} className="login-form">
+          {errorMsg && <div className="error-message" style={{color: 'var(--danger)', fontSize: '0.85rem', textAlign: 'center'}}>{errorMsg}</div>}
           <div className="input-group">
             <Mail className="input-icon" size={18} />
             <input

@@ -4,7 +4,13 @@ import Login from './pages/Login';
 import Kanban from './pages/Kanban';
 import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
+import { useAuthStore } from './store/useAuthStore';
 import './i18n';
+
+const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+  const token = useAuthStore(state => state.token);
+  return token ? <>{children}</> : <Navigate to="/login" replace />;
+};
 
 function App() {
   const theme = useAppStore(state => state.theme);
@@ -22,7 +28,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         
-        <Route path="/" element={<DashboardLayout />}>
+        <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
           <Route index element={<Navigate to="/kanban" replace />} />
           <Route path="kanban" element={<Kanban />} />
           {/* add more routes later (clients, storage) */}
