@@ -5,17 +5,14 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { getOrders, getOrderStatuses } from '../api/kanban';
-import { getLowStockMaterials } from '../api/storage';
-import type { Material } from '../api/storage';
 import pkg from '../../package.json';
 import '../styles/dashboard.css';
 
 const DashboardLayout = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount } = useAppStore();
+  const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials } = useAppStore();
   const { logout } = useAuthStore();
-  const [lowStockMaterials, setLowStockMaterials] = useState<Material[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
@@ -32,12 +29,7 @@ const DashboardLayout = () => {
       } catch (err) {
         console.error("Failed to fetch new orders count", err);
       }
-      try {
-        const lowStock = await getLowStockMaterials();
-        setLowStockMaterials(lowStock.filter(m => m.minQuantity && m.minQuantity > 0));
-      } catch (err) {
-        console.error("Failed to fetch low stock materials", err);
-      }
+      fetchLowStockMaterials();
     };
     fetchNewOrdersCount();
   }, []);
@@ -142,7 +134,7 @@ const DashboardLayout = () => {
               {showNotifications && (
                 <div className="glass-panel" style={{
                   position: 'absolute', top: '100%', right: 0, marginTop: '8px', width: '300px', 
-                  zIndex: 50, padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px'
+                  zIndex: 9999, padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px'
                 }}>
                   <h4 style={{ margin: '0 0 8px 0' }}>Уведомления</h4>
                   {lowStockMaterials.length === 0 ? (

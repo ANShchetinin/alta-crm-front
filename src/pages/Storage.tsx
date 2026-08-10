@@ -3,10 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Search, Plus } from 'lucide-react';
 import type { Material } from '../api/storage';
 import { getMaterials, createMaterial, updateMaterial } from '../api/storage';
+import { useAppStore } from '../store/useAppStore';
 import '../styles/clients.css'; // Reusing the list/table/modal layout
 
 export const Storage = () => {
   const { t } = useTranslation();
+  const { fetchLowStockMaterials } = useAppStore();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -71,6 +73,7 @@ export const Storage = () => {
       }
       setIsModalOpen(false);
       fetchMaterials();
+      fetchLowStockMaterials();
     } catch (err) {
       console.error(err);
     }
