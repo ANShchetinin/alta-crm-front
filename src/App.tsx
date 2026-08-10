@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
 import Login from './pages/Login';
 import Kanban from './pages/Kanban';
+import { Clients } from './pages/Clients';
 import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
@@ -31,7 +32,8 @@ function App() {
         <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
           <Route index element={<Navigate to="/kanban" replace />} />
           <Route path="kanban" element={<Kanban />} />
-          {/* add more routes later (clients, storage) */}
+          <Route path="clients" element={<Clients />} />
+          {/* add more routes later (storage) */}
         </Route>
       </Routes>
     </BrowserRouter>
