@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Client, getClients, createClient, updateClient, deleteClient } from '../api/clients';
+import type { Client } from '../api/clients';
+import { getClients, createClient, updateClient, deleteClient } from '../api/clients';
 
 export const Clients = () => {
   const { t } = useTranslation();
