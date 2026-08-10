@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Search, Plus, Edit2, Trash2 } from 'lucide-react';
 import type { Client } from '../api/clients';
 import { getClients, createClient, updateClient, deleteClient } from '../api/clients';
+import '../styles/clients.css';
 
 export const Clients = () => {
   const { t } = useTranslation();
@@ -74,89 +76,80 @@ export const Clients = () => {
   };
 
   if (loading) {
-    return <div className="p-8 text-white">Loading...</div>;
+    return <div className="p-8">Loading...</div>;
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="clients-wrapper">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
-        <h1 className="text-3xl font-bold text-white tracking-tight">
-          {t('clients.title')}
-        </h1>
+      <div className="clients-header">
+        <h1>{t('clients.title')}</h1>
         
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+        <div className="clients-actions">
+          <div className="search-input-wrapper">
+            <Search className="search-icon" size={18} />
             <input 
               type="text" 
               placeholder={t('clients.search')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50 backdrop-blur-md w-full sm:w-64 transition-all"
+              className="search-input"
             />
           </div>
-          <button 
-            onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white rounded-xl font-medium transition-all shadow-lg shadow-purple-500/25 active:scale-95 whitespace-nowrap"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            {t('clients.addClient')}
+          <button onClick={openAddModal} className="btn btn-primary">
+            <Plus size={18} />
+            <span>{t('clients.addClient')}</span>
           </button>
         </div>
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto rounded-2xl border border-white/10 bg-black/20 backdrop-blur-xl">
-        <table className="w-full text-left border-collapse">
+      <div className="clients-table-container glass-panel">
+        <table className="clients-table">
           <thead>
-            <tr className="border-b border-white/10">
-              <th className="p-4 text-sm font-medium text-white/50 uppercase tracking-wider">{t('clients.columns.name')}</th>
-              <th className="p-4 text-sm font-medium text-white/50 uppercase tracking-wider">{t('clients.columns.phone')}</th>
-              <th className="p-4 text-sm font-medium text-white/50 uppercase tracking-wider">{t('clients.columns.createdAt')}</th>
-              <th className="p-4 text-sm font-medium text-white/50 uppercase tracking-wider w-24 text-right">{t('clients.columns.actions')}</th>
+            <tr>
+              <th>{t('clients.columns.name')}</th>
+              <th>{t('clients.columns.phone')}</th>
+              <th>{t('clients.columns.createdAt')}</th>
+              <th style={{textAlign: 'right'}}>{t('clients.columns.actions')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody>
             {filteredClients.length === 0 ? (
               <tr>
-                <td colSpan={4} className="p-8 text-center text-white/50">
+                <td colSpan={4} style={{textAlign: 'center', opacity: 0.5}}>
                   No clients found.
                 </td>
               </tr>
             ) : (
               filteredClients.map(client => (
-                <tr key={client.id} className="hover:bg-white/5 transition-colors group">
-                  <td className="p-4">
-                    <div className="font-medium text-white">{client.name}</div>
+                <tr key={client.id}>
+                  <td>
+                    <div className="client-name">{client.name}</div>
                   </td>
-                  <td className="p-4 text-white/80">{client.phone}</td>
-                  <td className="p-4 text-white/50 text-sm">
-                    {new Date(client.createdAt).toLocaleDateString()}
+                  <td>
+                    <div className="client-phone">{client.phone}</div>
                   </td>
-                  <td className="p-4 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <td>
+                    <div className="client-date">
+                      {new Date(client.createdAt).toLocaleDateString()}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="client-actions">
                       <button 
                         onClick={() => openEditModal(client)}
-                        className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                        title="Edit"
+                        className="action-btn"
+                        title={t('clients.modal.editTitle')}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
+                        <Edit2 size={16} />
                       </button>
                       <button 
                         onClick={() => handleDelete(client.id)}
-                        className="p-2 text-white/50 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                        className="action-btn delete"
                         title="Delete"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>
@@ -169,44 +162,37 @@ export const Clients = () => {
 
       {/* Modal Overlay */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#1a1b2e]/90 border border-white/10 p-6 rounded-2xl w-full max-w-md shadow-2xl backdrop-blur-xl">
-            <h2 className="text-xl font-bold text-white mb-6">
-              {editingClient ? t('clients.modal.editTitle') : t('clients.modal.addTitle')}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-1">{t('clients.modal.name')}</label>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>{editingClient ? t('clients.modal.editTitle') : t('clients.modal.addTitle')}</h2>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label>{t('clients.modal.name')}</label>
                 <input 
                   type="text" 
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-1">{t('clients.modal.phone')}</label>
+              <div className="form-group">
+                <label>{t('clients.modal.phone')}</label>
                 <input 
                   type="text" 
                   required
                   value={formData.phone}
                   onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                 />
               </div>
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="modal-actions">
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+                  className="btn btn-ghost"
                 >
                   {t('clients.modal.cancel')}
                 </button>
-                <button 
-                  type="submit" 
-                  className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white rounded-xl shadow-lg shadow-purple-500/25 transition-all"
-                >
+                <button type="submit" className="btn btn-primary">
                   {t('clients.modal.save')}
                 </button>
               </div>
