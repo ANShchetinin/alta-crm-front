@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, MoreVertical, Trash2, ChevronDown, Paperclip, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl, deleteOrder, createOrderStatus, deleteOrderStatus } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl, deleteOrder, createOrderStatus, deleteOrderStatus, reorderOrderStatuses } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment } from '../api/kanban';
 import { getClients } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -76,7 +76,9 @@ const Kanban = () => {
   };
 
   const handleDrop = async (e: React.DragEvent, statusId: number) => {
-    const cardId = parseInt(e.dataTransfer.getData('cardId'));
+    const cardIdStr = e.dataTransfer.getData('cardId');
+    if (!cardIdStr) return;
+    const cardId = parseInt(cardIdStr);
     const updatedCards = cards.map(c => c.id === cardId ? { ...c, statusId } : c);
     setCards(updatedCards);
     
@@ -282,7 +284,48 @@ const Kanban = () => {
           <div 
             key={col.id} 
             className="kanban-column glass-panel"
-            onDrop={(e) => handleDrop(e, col.id)}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData('columnId', col.id.toString());
+            }}
+            onDrop={async (e) => {
+              e.preventDefault();
+              const cardId = e.dataTransfer.getData('cardId');
+              if (cardId) {
+                handleDrop(e, col.id);
+                return;
+              }
+              const sourceColumnIdStr = e.dataTransfer.getData('columnId');
+              if (sourceColumnIdStr) {
+                const sourceId = parseInt(sourceColumnIdStr);
+                const targetId = col.id;
+                if (sourceId !== targetId) {
+                  const sourceIndex = columns.findIndex(c => c.id === sourceId);
+                  const targetIndex = columns.findIndex(c => c.id === targetId);
+                  if (sourceIndex > -1 && targetIndex > -1) {
+                    const newColumns = [...columns];
+                    const [removed] = newColumns.splice(sourceIndex, 1);
+                    newColumns.splice(targetIndex, 0, removed);
+                    
+                    newColumns.forEach((c, index) => {
+                      c.sortOrder = index + 1;
+                    });
+                    setColumns(newColumns);
+                    
+                    const firstStatus = newColumns.find(s => s.sortOrder === 1);
+                    if (firstStatus) {
+                      setNewOrdersCount(cards.filter(o => o.statusId === firstStatus.id).length);
+                    }
+                    
+                    try {
+                      await reorderOrderStatuses(newColumns.map(c => c.id));
+                    } catch (err) {
+                      console.error("Failed to reorder columns", err);
+                    }
+                  }
+                }
+              }
+            }}
             onDragOver={handleDragOver}
           >
             <div className="column-header">
@@ -306,7 +349,10 @@ const Kanban = () => {
                   key={card.id} 
                   className="kanban-card"
                   draggable
-                  onDragStart={(e) => handleDragStart(e, card.id)}
+                  onDragStart={(e) => {
+                    e.stopPropagation();
+                    handleDragStart(e, card.id);
+                  }}
                   onClick={() => openEditModal(card)}
                 >
                   <div className="card-client">

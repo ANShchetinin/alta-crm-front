@@ -51,6 +51,10 @@ export const deleteOrderStatus = async (id: number): Promise<void> => {
   await api.delete(`/order-statuses/${id}`);
 };
 
+export const reorderOrderStatuses = async (statusIds: number[]): Promise<void> => {
+  await api.put('/order-statuses/reorder', statusIds);
+};
+
 export const getOrders = async (): Promise<Order[]> => {
   const response = await api.get('/orders');
   return response.data;
