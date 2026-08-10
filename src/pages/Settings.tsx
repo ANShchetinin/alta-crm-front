@@ -1,14 +1,11 @@
-import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Globe, Moon, Sun, User } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import { useAuthStore } from '../store/useAuthStore';
 import '../styles/clients.css'; // Reusing standard wrapper/header styles
 
 export const Settings = () => {
   const { t } = useTranslation();
   const { theme, setTheme, language, setLanguage } = useAppStore();
-  const { logout } = useAuthStore();
   
   // Decoded user data could be obtained from the JWT token, but for now we'll mock it or get it if it's in the store
   const userEmail = "admin@ecoline.ru";
