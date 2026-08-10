@@ -1,8 +1,11 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Box, LogOut, Settings, Sun, Moon, Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { getOrders, getOrderStatuses } from '../api/kanban';
+import pkg from '../../package.json';
 import '../styles/dashboard.css';
 
 const DashboardLayout = () => {
@@ -10,6 +13,25 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const { theme, setTheme, language, setLanguage } = useAppStore();
   const { logout } = useAuthStore();
+  const [newOrdersCount, setNewOrdersCount] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchNewOrdersCount = async () => {
+      try {
+        const statuses = await getOrderStatuses();
+        // Assuming "Новые" or "New" is usually sortOrder === 1
+        const firstStatus = statuses.find(s => s.sortOrder === 1);
+        if (firstStatus) {
+          const orders = await getOrders();
+          const count = orders.filter(o => o.statusId === firstStatus.id).length;
+          setNewOrdersCount(count);
+        }
+      } catch (err) {
+        console.error("Failed to fetch new orders count", err);
+      }
+    };
+    fetchNewOrdersCount();
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -36,7 +58,24 @@ const DashboardLayout = () => {
         <nav className="sidebar-nav">
           <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <LayoutDashboard size={20} />
-            <span>{t('nav.orders')}</span>
+            <span style={{ flex: 1 }}>{t('nav.orders')}</span>
+            {newOrdersCount > 0 && (
+              <span style={{
+                backgroundColor: 'var(--primary)',
+                color: 'white',
+                borderRadius: '50%',
+                minWidth: '20px',
+                height: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                padding: '0 6px'
+              }}>
+                {newOrdersCount}
+              </span>
+            )}
           </NavLink>
           <NavLink to="/clients" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <Users size={20} />
@@ -57,6 +96,9 @@ const DashboardLayout = () => {
             <LogOut size={20} />
             <span>{t('nav.signout')}</span>
           </button>
+          <div style={{ textAlign: 'center', marginTop: '12px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            v{pkg.version}
+          </div>
         </div>
       </aside>
 
