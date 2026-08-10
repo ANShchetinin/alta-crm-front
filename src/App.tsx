@@ -3,6 +3,7 @@ import DashboardLayout from './components/DashboardLayout';
 import Login from './pages/Login';
 import Kanban from './pages/Kanban';
 import { Clients } from './pages/Clients';
+import { Storage } from './pages/Storage';
 import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
@@ -33,7 +34,7 @@ function App() {
           <Route index element={<Navigate to="/kanban" replace />} />
           <Route path="kanban" element={<Kanban />} />
           <Route path="clients" element={<Clients />} />
-          {/* add more routes later (storage) */}
+          <Route path="storage" element={<Storage />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -42,7 +42,22 @@ const resources = {
       "clients.modal.name": "Full Name",
       "clients.modal.phone": "Phone Number",
       "clients.modal.cancel": "Cancel",
-      "clients.modal.save": "Save"
+      "clients.modal.save": "Save",
+      "storage.title": "Storage",
+      "storage.search": "Search materials...",
+      "storage.addMaterial": "Add Material",
+      "storage.noMaterials": "No materials found.",
+      "storage.columns.name": "Name",
+      "storage.columns.unit": "Unit",
+      "storage.columns.quantity": "In Stock",
+      "storage.columns.costPrice": "Cost Price",
+      "storage.modal.addTitle": "Add Material",
+      "storage.modal.name": "Name",
+      "storage.modal.unit": "Unit (kg, pcs)",
+      "storage.modal.quantity": "Quantity",
+      "storage.modal.costPrice": "Cost Price",
+      "storage.modal.cancel": "Cancel",
+      "storage.modal.save": "Save"
     }
   },
   ru: {
@@ -85,7 +100,22 @@ const resources = {
       "clients.modal.name": "Полное имя",
       "clients.modal.phone": "Номер телефона",
       "clients.modal.cancel": "Отмена",
-      "clients.modal.save": "Сохранить"
+      "clients.modal.save": "Сохранить",
+      "storage.title": "Склад",
+      "storage.search": "Поиск материалов...",
+      "storage.addMaterial": "Добавить материал",
+      "storage.noMaterials": "Материалы не найдены.",
+      "storage.columns.name": "Наименование",
+      "storage.columns.unit": "Ед. изм.",
+      "storage.columns.quantity": "В наличии",
+      "storage.columns.costPrice": "Себестоимость",
+      "storage.modal.addTitle": "Новый материал",
+      "storage.modal.name": "Наименование",
+      "storage.modal.unit": "Ед. измерения (шт, кг, м)",
+      "storage.modal.quantity": "Количество",
+      "storage.modal.costPrice": "Себестоимость",
+      "storage.modal.cancel": "Отмена",
+      "storage.modal.save": "Сохранить"
     }
   }
 };
