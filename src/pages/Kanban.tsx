@@ -34,6 +34,7 @@ const Kanban = () => {
   const [orderProfit, setOrderProfit] = useState<number | null>(null);
   const [orderMargin, setOrderMargin] = useState<number | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -89,6 +90,7 @@ const Kanban = () => {
     });
     setOrderProfit(null);
     setOrderMargin(null);
+    setPendingFiles([]);
     setIsModalOpen(true);
   };
 
@@ -105,6 +107,7 @@ const Kanban = () => {
     });
     setOrderProfit(order.profit ?? null);
     setOrderMargin(order.profitMargin ?? null);
+    setPendingFiles([]);
     setIsModalOpen(true);
   };
 
@@ -129,7 +132,12 @@ const Kanban = () => {
       if (editingOrderId) {
         await updateOrder(editingOrderId, payload);
       } else {
-        await createOrder(payload);
+        const created = await createOrder(payload);
+        if (pendingFiles.length > 0) {
+          for (const f of pendingFiles) {
+            await uploadAttachment(created.id, f);
+          }
+        }
       }
       setIsModalOpen(false);
       fetchData(); 
@@ -153,24 +161,31 @@ const Kanban = () => {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !editingOrderId) return;
+    if (!file) return;
 
-    setUploadingFile(true);
-    try {
-      const newAttachment = await uploadAttachment(editingOrderId, file);
-      setFormData(prev => ({
-        ...prev,
-        attachments: [...prev.attachments, newAttachment]
-      }));
-      // Optional: refresh cards immediately so the board state matches
-      fetchData();
-    } catch (err) {
-      console.error("Failed to upload file", err);
-    } finally {
-      setUploadingFile(false);
-      // Reset input
+    if (editingOrderId) {
+      setUploadingFile(true);
+      try {
+        const newAttachment = await uploadAttachment(editingOrderId, file);
+        setFormData(prev => ({
+          ...prev,
+          attachments: [...prev.attachments, newAttachment]
+        }));
+        fetchData();
+      } catch (err) {
+        console.error("Failed to upload file", err);
+      } finally {
+        setUploadingFile(false);
+        e.target.value = '';
+      }
+    } else {
+      setPendingFiles(prev => [...prev, file]);
       e.target.value = '';
     }
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const addMaterialRow = () => {
@@ -348,37 +363,43 @@ const Kanban = () => {
 
               <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
 
-              {/* Attachments Section - Only available when editing an existing order */}
-              {editingOrderId && (
-                <div style={{marginBottom: '24px'}}>
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
-                    <h3 style={{margin: 0, fontSize: '1.1rem'}}>{t('kanban.modal.attachments')}</h3>
-                    <label className="file-upload-btn">
-                      <Paperclip size={14} />
-                      {uploadingFile ? t('kanban.modal.uploading') : t('kanban.modal.attachFile')}
-                      <input type="file" onChange={handleFileUpload} disabled={uploadingFile} />
-                    </label>
-                  </div>
-                  
-                  {formData.attachments.length > 0 ? (
-                    <div className="attachments-list">
-                      {formData.attachments.map(att => (
-                        <div key={att.id} className="attachment-item">
-                          <span style={{fontSize: '0.9rem'}}>{att.fileName}</span>
-                          <a href={getAttachmentUrl(att.id)} target="_blank" rel="noreferrer" download style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
-                            <Download size={14} /> {t('kanban.modal.download')}
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic'}}>
-                      {t('kanban.modal.noAttachments')}
-                    </div>
-                  )}
-                  <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
+              {/* Attachments Section */}
+              <div style={{marginBottom: '24px'}}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
+                  <h3 style={{margin: 0, fontSize: '1.1rem'}}>{t('kanban.modal.attachments')}</h3>
+                  <label className="file-upload-btn">
+                    <Paperclip size={14} />
+                    {uploadingFile ? t('kanban.modal.uploading') : t('kanban.modal.attachFile')}
+                    <input type="file" onChange={handleFileUpload} disabled={uploadingFile} />
+                  </label>
                 </div>
-              )}
+                
+                {formData.attachments.length > 0 || pendingFiles.length > 0 ? (
+                  <div className="attachments-list">
+                    {formData.attachments.map(att => (
+                      <div key={att.id} className="attachment-item">
+                        <span style={{fontSize: '0.9rem'}}>{att.fileName}</span>
+                        <a href={getAttachmentUrl(att.id)} target="_blank" rel="noreferrer" download style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                          <Download size={14} /> {t('kanban.modal.download')}
+                        </a>
+                      </div>
+                    ))}
+                    {pendingFiles.map((pf, index) => (
+                      <div key={`pending-${index}`} className="attachment-item" style={{borderStyle: 'dashed'}}>
+                        <span style={{fontSize: '0.9rem'}}>{pf.name} (pending)</span>
+                        <button type="button" onClick={() => removePendingFile(index)} style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center'}}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic'}}>
+                    {t('kanban.modal.noAttachments')}
+                  </div>
+                )}
+                <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
+              </div>
 
               <div style={{display: 'flex', gap: '16px'}}>
                 <div className="form-group" style={{flex: 1}}>
