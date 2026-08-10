@@ -26,6 +26,11 @@ export const getOrders = async (): Promise<Order[]> => {
   return response.data;
 };
 
+export const createOrder = async (order: Partial<Order>): Promise<Order> => {
+  const response = await api.post('/orders', order);
+  return response.data;
+};
+
 export const moveOrder = async (orderId: number, statusId: number): Promise<Order> => {
   const response = await api.patch(`/orders/${orderId}/move?statusId=${statusId}`);
   return response.data;
