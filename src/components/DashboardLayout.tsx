@@ -1,10 +1,12 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Box, LogOut, Settings, Sun, Moon, Globe } from 'lucide-react';
+import { LayoutDashboard, Users, Box, LogOut, Settings, Sun, Moon, Globe, Bell } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { getOrders, getOrderStatuses } from '../api/kanban';
+import { getLowStockMaterials } from '../api/storage';
+import type { Material } from '../api/storage';
 import pkg from '../../package.json';
 import '../styles/dashboard.css';
 
@@ -13,6 +15,8 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount } = useAppStore();
   const { logout } = useAuthStore();
+  const [lowStockMaterials, setLowStockMaterials] = useState<Material[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     const fetchNewOrdersCount = async () => {
@@ -27,6 +31,12 @@ const DashboardLayout = () => {
         }
       } catch (err) {
         console.error("Failed to fetch new orders count", err);
+      }
+      try {
+        const lowStock = await getLowStockMaterials();
+        setLowStockMaterials(lowStock.filter(m => m.minQuantity && m.minQuantity > 0));
+      } catch (err) {
+        console.error("Failed to fetch low stock materials", err);
       }
     };
     fetchNewOrdersCount();
@@ -116,6 +126,41 @@ const DashboardLayout = () => {
             <button className="btn-icon" onClick={toggleTheme} title="Toggle Theme">
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
+            <div style={{ position: 'relative' }}>
+              <button className="btn-icon" onClick={() => setShowNotifications(!showNotifications)} title="Уведомления">
+                <Bell size={20} />
+                {lowStockMaterials.length > 0 && (
+                  <span style={{
+                    position: 'absolute', top: -2, right: -2, backgroundColor: 'var(--danger)', color: 'white',
+                    borderRadius: '50%', width: 16, height: 16, fontSize: '0.65rem', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
+                  }}>
+                    {lowStockMaterials.length}
+                  </span>
+                )}
+              </button>
+              {showNotifications && (
+                <div className="glass-panel" style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: '8px', width: '300px', 
+                  zIndex: 50, padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px'
+                }}>
+                  <h4 style={{ margin: '0 0 8px 0' }}>Уведомления</h4>
+                  {lowStockMaterials.length === 0 ? (
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Нет новых уведомлений</div>
+                  ) : (
+                    lowStockMaterials.map(m => (
+                      <div key={m.id} style={{
+                        padding: '12px', background: 'rgba(255,0,0,0.1)', borderLeft: '3px solid var(--danger)',
+                        borderRadius: 'var(--radius-md)', fontSize: '0.9rem'
+                      }}>
+                        <strong>{m.name}</strong> заканчивается!
+                        <br/> Остаток: {m.quantityInStock} {m.unit} (Мин: {m.minQuantity})
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
             <div className="user-profile" style={{marginLeft: '12px', borderLeft: '1px solid var(--glass-border)', paddingLeft: '16px'}}>
               <div className="avatar">A</div>
               <span>Admin User</span>

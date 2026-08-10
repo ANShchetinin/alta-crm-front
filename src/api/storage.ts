@@ -5,11 +5,17 @@ export interface Material {
   name: string;
   unit: string;
   quantityInStock: number;
+  minQuantity?: number;
   costPrice: number;
 }
 
 export const getMaterials = async (): Promise<Material[]> => {
   const response = await api.get('/materials');
+  return response.data;
+};
+
+export const getLowStockMaterials = async (): Promise<Material[]> => {
+  const response = await api.get('/materials/low-stock');
   return response.data;
 };
 

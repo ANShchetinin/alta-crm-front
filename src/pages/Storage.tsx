@@ -13,7 +13,7 @@ export const Storage = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({ name: '', unit: '', quantityInStock: '', costPrice: '' });
+  const [formData, setFormData] = useState({ name: '', unit: '', quantityInStock: '', costPrice: '', minQuantity: '' });
 
   useEffect(() => {
     fetchMaterials();
@@ -37,7 +37,7 @@ export const Storage = () => {
 
   const openAddModal = () => {
     setEditingId(null);
-    setFormData({ name: '', unit: '', quantityInStock: '', costPrice: '' });
+    setFormData({ name: '', unit: '', quantityInStock: '', costPrice: '', minQuantity: '' });
     setIsModalOpen(true);
   };
 
@@ -47,7 +47,8 @@ export const Storage = () => {
       name: material.name,
       unit: material.unit,
       quantityInStock: material.quantityInStock.toString(),
-      costPrice: material.costPrice.toString()
+      costPrice: material.costPrice.toString(),
+      minQuantity: material.minQuantity ? material.minQuantity.toString() : '0'
     });
     setIsModalOpen(true);
   };
@@ -59,6 +60,7 @@ export const Storage = () => {
         name: formData.name,
         unit: formData.unit,
         quantityInStock: parseFloat(formData.quantityInStock),
+        minQuantity: parseFloat(formData.minQuantity || '0'),
         costPrice: parseFloat(formData.costPrice)
       };
       
@@ -110,6 +112,7 @@ export const Storage = () => {
               <th>{t('storage.columns.name')}</th>
               <th>{t('storage.columns.unit')}</th>
               <th>{t('storage.columns.quantity')}</th>
+              <th>Мин. остаток</th>
               <th style={{textAlign: 'right'}}>{t('storage.columns.costPrice')}</th>
             </tr>
           </thead>
@@ -131,6 +134,9 @@ export const Storage = () => {
                   </td>
                   <td>
                     <div className="client-name">{material.quantityInStock}</div>
+                  </td>
+                  <td>
+                    <div className="client-phone">{material.minQuantity || 0}</div>
                   </td>
                   <td style={{textAlign: 'right', fontWeight: 600, color: 'var(--success)'}}>
                     {material.costPrice} ₽
@@ -176,6 +182,17 @@ export const Storage = () => {
                   step="0.001"
                   value={formData.quantityInStock}
                   onChange={(e) => setFormData({...formData, quantityInStock: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Минимальный остаток (для уведомлений)</label>
+                <input 
+                  type="number" 
+                  required
+                  min="0"
+                  step="0.001"
+                  value={formData.minQuantity}
+                  onChange={(e) => setFormData({...formData, minQuantity: e.target.value})}
                 />
               </div>
               <div className="form-group">
