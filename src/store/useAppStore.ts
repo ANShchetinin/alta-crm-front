@@ -7,8 +7,10 @@ type Language = 'en' | 'ru';
 interface AppState {
   theme: Theme;
   language: Language;
+  newOrdersCount: number;
   setTheme: (theme: Theme) => void;
   setLanguage: (lang: Language) => void;
+  setNewOrdersCount: (count: number) => void;
 }
 
 const getInitialTheme = (): Theme => {
@@ -24,6 +26,7 @@ const getInitialLanguage = (): Language => {
 export const useAppStore = create<AppState>((set) => ({
   theme: getInitialTheme(),
   language: getInitialLanguage(),
+  newOrdersCount: 0,
   
   setTheme: (theme) => {
     localStorage.setItem('altacrm_theme', theme);
@@ -34,5 +37,9 @@ export const useAppStore = create<AppState>((set) => ({
     localStorage.setItem('altacrm_lang', lang);
     i18n.changeLanguage(lang);
     set({ language: lang });
+  },
+  
+  setNewOrdersCount: (count) => {
+    set({ newOrdersCount: count });
   }
 }));

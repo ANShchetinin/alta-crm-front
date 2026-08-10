@@ -7,11 +7,13 @@ import { getClients } from '../api/clients';
 import type { Client } from '../api/clients';
 import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
+import { useAppStore } from '../store/useAppStore';
 import '../styles/kanban.css';
 import '../styles/clients.css'; 
 
 const Kanban = () => {
   const { t } = useTranslation();
+  const { setNewOrdersCount } = useAppStore();
   const [columns, setColumns] = useState<OrderStatus[]>([]);
   const [cards, setCards] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,10 +54,16 @@ const Kanban = () => {
         getClients(),
         getMaterials()
       ]);
-      setColumns(statuses.sort((a, b) => a.sortOrder - b.sortOrder));
+      const sortedColumns = statuses.sort((a, b) => a.sortOrder - b.sortOrder);
+      setColumns(sortedColumns);
       setCards(orders);
       setClients(clientsData);
       setAllMaterials(materialsData);
+      
+      const firstStatus = sortedColumns.find(s => s.sortOrder === 1);
+      if (firstStatus) {
+        setNewOrdersCount(orders.filter(o => o.statusId === firstStatus.id).length);
+      }
     } catch (error) {
       console.error("Failed to fetch kanban data", error);
     } finally {
@@ -69,7 +77,15 @@ const Kanban = () => {
 
   const handleDrop = async (e: React.DragEvent, statusId: number) => {
     const cardId = parseInt(e.dataTransfer.getData('cardId'));
-    setCards(cards.map(c => c.id === cardId ? { ...c, statusId } : c));
+    const updatedCards = cards.map(c => c.id === cardId ? { ...c, statusId } : c);
+    setCards(updatedCards);
+    
+    // Update badge count if needed
+    const firstStatus = columns.find(s => s.sortOrder === 1);
+    if (firstStatus) {
+      setNewOrdersCount(updatedCards.filter(o => o.statusId === firstStatus.id).length);
+    }
+
     try {
       await moveOrder(cardId, statusId);
     } catch (err) {

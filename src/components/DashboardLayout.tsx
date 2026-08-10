@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Box, LogOut, Settings, Sun, Moon, Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { getOrders, getOrderStatuses } from '../api/kanban';
@@ -11,9 +11,8 @@ import '../styles/dashboard.css';
 const DashboardLayout = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { theme, setTheme, language, setLanguage } = useAppStore();
+  const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount } = useAppStore();
   const { logout } = useAuthStore();
-  const [newOrdersCount, setNewOrdersCount] = useState<number>(0);
 
   useEffect(() => {
     const fetchNewOrdersCount = async () => {
@@ -61,7 +60,7 @@ const DashboardLayout = () => {
             <span style={{ flex: 1 }}>{t('nav.orders')}</span>
             {newOrdersCount > 0 && (
               <span style={{
-                backgroundColor: 'var(--primary)',
+                backgroundColor: 'var(--danger)',
                 color: 'white',
                 borderRadius: '50%',
                 minWidth: '20px',
