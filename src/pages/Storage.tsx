@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Plus } from 'lucide-react';
 import type { Material } from '../api/storage';
-import { getMaterials, createMaterial } from '../api/storage';
+import { getMaterials, createMaterial, updateMaterial } from '../api/storage';
 import '../styles/clients.css'; // Reusing the list/table/modal layout
 
 export const Storage = () => {
@@ -12,6 +12,7 @@ export const Storage = () => {
   const [search, setSearch] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({ name: '', unit: '', quantityInStock: '', costPrice: '' });
 
   useEffect(() => {
@@ -35,19 +36,37 @@ export const Storage = () => {
   );
 
   const openAddModal = () => {
+    setEditingId(null);
     setFormData({ name: '', unit: '', quantityInStock: '', costPrice: '' });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (material: Material) => {
+    setEditingId(material.id);
+    setFormData({
+      name: material.name,
+      unit: material.unit,
+      quantityInStock: material.quantityInStock.toString(),
+      costPrice: material.costPrice.toString()
+    });
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createMaterial({
+      const payload = {
         name: formData.name,
         unit: formData.unit,
         quantityInStock: parseFloat(formData.quantityInStock),
         costPrice: parseFloat(formData.costPrice)
-      });
+      };
+      
+      if (editingId) {
+        await updateMaterial(editingId, payload);
+      } else {
+        await createMaterial(payload);
+      }
       setIsModalOpen(false);
       fetchMaterials();
     } catch (err) {
@@ -103,7 +122,7 @@ export const Storage = () => {
               </tr>
             ) : (
               filteredMaterials.map(material => (
-                <tr key={material.id}>
+                <tr key={material.id} onClick={() => openEditModal(material)} style={{cursor: 'pointer'}}>
                   <td>
                     <div className="client-name">{material.name}</div>
                   </td>
@@ -127,7 +146,7 @@ export const Storage = () => {
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h2>{t('storage.modal.addTitle')}</h2>
+            <h2>{editingId ? t('storage.modal.editTitle', 'Редактировать материал') : t('storage.modal.addTitle')}</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label>{t('storage.modal.name')}</label>
