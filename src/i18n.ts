@@ -57,7 +57,17 @@ const resources = {
       "storage.modal.quantity": "Quantity",
       "storage.modal.costPrice": "Cost Price",
       "storage.modal.cancel": "Cancel",
-      "storage.modal.save": "Save"
+      "storage.modal.save": "Save",
+      "settings.title": "Settings",
+      "settings.profile": "My Profile",
+      "settings.role": "Role",
+      "settings.preferences": "App Preferences",
+      "settings.language": "Language",
+      "settings.changeLanguage": "Switch to Русский",
+      "settings.theme": "Theme",
+      "settings.themeDark": "Dark Theme (Space)",
+      "settings.themeLight": "Light Theme (Glass)",
+      "settings.changeTheme": "Toggle Theme"
     }
   },
   ru: {
@@ -115,7 +125,17 @@ const resources = {
       "storage.modal.quantity": "Количество",
       "storage.modal.costPrice": "Себестоимость",
       "storage.modal.cancel": "Отмена",
-      "storage.modal.save": "Сохранить"
+      "storage.modal.save": "Сохранить",
+      "settings.title": "Настройки",
+      "settings.profile": "Мой профиль",
+      "settings.role": "Роль",
+      "settings.preferences": "Настройки приложения",
+      "settings.language": "Язык интерфейса",
+      "settings.changeLanguage": "Switch to English",
+      "settings.theme": "Оформление",
+      "settings.themeDark": "Темная тема (Космос)",
+      "settings.themeLight": "Светлая тема (Стекло)",
+      "settings.changeTheme": "Сменить тему"
     }
   }
 };
