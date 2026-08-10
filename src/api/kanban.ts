@@ -7,6 +7,15 @@ export interface OrderStatus {
   sortOrder: number;
 }
 
+export interface OrderMaterial {
+  id?: number;
+  materialId: number;
+  materialName?: string;
+  quantity: number;
+  fixedCostPrice?: number;
+  fixedSalePrice?: number;
+}
+
 export interface Order {
   id: number;
   clientId: number;
@@ -14,6 +23,11 @@ export interface Order {
   address: string;
   description: string;
   totalPrice: number;
+  installationPrice?: number;
+  materials?: OrderMaterial[];
+  materialsCost?: number;
+  profit?: number;
+  profitMargin?: number;
 }
 
 export const getOrderStatuses = async (): Promise<OrderStatus[]> => {
@@ -28,6 +42,11 @@ export const getOrders = async (): Promise<Order[]> => {
 
 export const createOrder = async (order: Partial<Order>): Promise<Order> => {
   const response = await api.post('/orders', order);
+  return response.data;
+};
+
+export const updateOrder = async (orderId: number, order: Partial<Order>): Promise<Order> => {
+  const response = await api.put(`/orders/${orderId}`, order);
   return response.data;
 };
 
