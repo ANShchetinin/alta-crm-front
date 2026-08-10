@@ -94,6 +94,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
+  position: relative;
+  z-index: 100;
 }
 
 .user-profile {

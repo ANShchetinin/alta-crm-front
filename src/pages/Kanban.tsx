@@ -13,7 +13,7 @@ import '../styles/clients.css';
 
 const Kanban = () => {
   const { t } = useTranslation();
-  const { setNewOrdersCount } = useAppStore();
+  const { setNewOrdersCount, fetchLowStockMaterials } = useAppStore();
   const [columns, setColumns] = useState<OrderStatus[]>([]);
   const [cards, setCards] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,6 +164,7 @@ const Kanban = () => {
       }
       setIsModalOpen(false);
       fetchData(); 
+      fetchLowStockMaterials();
     } catch (err) {
       console.error("Failed to save order", err);
     }
@@ -176,6 +177,7 @@ const Kanban = () => {
         await deleteOrder(editingOrderId);
         setIsModalOpen(false);
         fetchData();
+        fetchLowStockMaterials();
       } catch (err) {
         console.error("Failed to delete order", err);
       }
