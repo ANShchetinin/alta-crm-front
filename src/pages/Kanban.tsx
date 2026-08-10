@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, MoreVertical, Trash2, ChevronDown, Paperclip, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl, deleteOrder } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment } from '../api/kanban';
 import { getClients } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -135,6 +135,19 @@ const Kanban = () => {
       fetchData(); 
     } catch (err) {
       console.error("Failed to save order", err);
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!editingOrderId) return;
+    if (window.confirm("Are you sure you want to delete this order?")) {
+      try {
+        await deleteOrder(editingOrderId);
+        setIsModalOpen(false);
+        fetchData();
+      } catch (err) {
+        console.error("Failed to delete order", err);
+      }
     }
   };
 
@@ -339,10 +352,10 @@ const Kanban = () => {
               {editingOrderId && (
                 <div style={{marginBottom: '24px'}}>
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
-                    <h3 style={{margin: 0, fontSize: '1.1rem'}}>Files & Attachments</h3>
+                    <h3 style={{margin: 0, fontSize: '1.1rem'}}>{t('kanban.modal.attachments')}</h3>
                     <label className="file-upload-btn">
                       <Paperclip size={14} />
-                      {uploadingFile ? 'Uploading...' : 'Attach File'}
+                      {uploadingFile ? t('kanban.modal.uploading') : t('kanban.modal.attachFile')}
                       <input type="file" onChange={handleFileUpload} disabled={uploadingFile} />
                     </label>
                   </div>
@@ -353,14 +366,14 @@ const Kanban = () => {
                         <div key={att.id} className="attachment-item">
                           <span style={{fontSize: '0.9rem'}}>{att.fileName}</span>
                           <a href={getAttachmentUrl(att.id)} target="_blank" rel="noreferrer" download style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
-                            <Download size={14} /> Download
+                            <Download size={14} /> {t('kanban.modal.download')}
                           </a>
                         </div>
                       ))}
                     </div>
                   ) : (
                     <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic'}}>
-                      No files attached to this order yet.
+                      {t('kanban.modal.noAttachments')}
                     </div>
                   )}
                   <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
@@ -411,17 +424,29 @@ const Kanban = () => {
                 </div>
               )}
 
-              <div className="modal-actions" style={{marginTop: '32px'}}>
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)}
-                  className="btn btn-ghost"
-                >
-                  {t('kanban.modal.cancel')}
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {t('kanban.modal.save')}
-                </button>
+              <div className="modal-actions" style={{marginTop: '32px', display: 'flex', justifyContent: 'space-between'}}>
+                {editingOrderId ? (
+                  <button 
+                    type="button" 
+                    onClick={handleDeleteOrder}
+                    className="btn btn-ghost"
+                    style={{color: 'var(--danger)'}}
+                  >
+                    <Trash2 size={16} style={{marginRight: '6px'}} /> {t('kanban.modal.delete')}
+                  </button>
+                ) : <div></div>}
+                <div style={{display: 'flex', gap: '12px'}}>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsModalOpen(false)}
+                    className="btn btn-ghost"
+                  >
+                    {t('kanban.modal.cancel')}
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    {t('kanban.modal.save')}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
