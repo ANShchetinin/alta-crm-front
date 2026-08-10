@@ -20,9 +20,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 || error.response?.status === 403) {
-      // Auto logout if token is expired or invalid
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
+      // Don't auto-logout if we are already trying to login
+      if (error.config?.url && !error.config.url.includes('/auth/login')) {
+        useAuthStore.getState().logout();
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
