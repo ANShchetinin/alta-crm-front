@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Plus, MoreVertical, Trash2 } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, ChevronDown, Paperclip, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder } from '../api/kanban';
-import type { OrderStatus, Order, OrderMaterial } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl } from '../api/kanban';
+import type { OrderStatus, Order, OrderMaterial, OrderAttachment } from '../api/kanban';
 import { getClients } from '../api/clients';
 import type { Client } from '../api/clients';
 import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
 import '../styles/kanban.css';
-import '../styles/clients.css'; // Reuse modal styles
+import '../styles/clients.css'; 
 
 const Kanban = () => {
   const { t } = useTranslation();
@@ -27,12 +27,13 @@ const Kanban = () => {
     description: '',
     totalPrice: '',
     installationPrice: '',
-    materials: [] as OrderMaterial[]
+    materials: [] as OrderMaterial[],
+    attachments: [] as OrderAttachment[]
   });
 
-  // State for read-only calculated values from backend when editing
   const [orderProfit, setOrderProfit] = useState<number | null>(null);
   const [orderMargin, setOrderMargin] = useState<number | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -83,7 +84,8 @@ const Kanban = () => {
       description: '',
       totalPrice: '',
       installationPrice: '',
-      materials: []
+      materials: [],
+      attachments: []
     });
     setOrderProfit(null);
     setOrderMargin(null);
@@ -98,7 +100,8 @@ const Kanban = () => {
       description: order.description,
       totalPrice: order.totalPrice.toString(),
       installationPrice: order.installationPrice ? order.installationPrice.toString() : '0',
-      materials: order.materials ? [...order.materials] : []
+      materials: order.materials ? [...order.materials] : [],
+      attachments: order.attachments ? [...order.attachments] : []
     });
     setOrderProfit(order.profit ?? null);
     setOrderMargin(order.profitMargin ?? null);
@@ -129,9 +132,31 @@ const Kanban = () => {
         await createOrder(payload);
       }
       setIsModalOpen(false);
-      fetchData(); // reload board to get new profit/margin calc
+      fetchData(); 
     } catch (err) {
       console.error("Failed to save order", err);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingOrderId) return;
+
+    setUploadingFile(true);
+    try {
+      const newAttachment = await uploadAttachment(editingOrderId, file);
+      setFormData(prev => ({
+        ...prev,
+        attachments: [...prev.attachments, newAttachment]
+      }));
+      // Optional: refresh cards immediately so the board state matches
+      fetchData();
+    } catch (err) {
+      console.error("Failed to upload file", err);
+    } finally {
+      setUploadingFile(false);
+      // Reset input
+      e.target.value = '';
     }
   };
 
@@ -203,9 +228,16 @@ const Kanban = () => {
                   <div className="card-desc">{card.description}</div>
                   <div className="card-footer">
                     <span className="card-price">{card.totalPrice} ₽</span>
-                    {card.profitMargin != null && card.profitMargin > 0 && (
-                      <span style={{fontSize: '0.75rem', color: 'var(--success)'}}>+{card.profitMargin.toFixed(1)}%</span>
-                    )}
+                    <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                      {card.attachments && card.attachments.length > 0 && (
+                        <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
+                          <Paperclip size={12} /> {card.attachments.length}
+                        </div>
+                      )}
+                      {card.profitMargin != null && card.profitMargin > 0 && (
+                        <span style={{fontSize: '0.75rem', color: 'var(--success)'}}>+{card.profitMargin.toFixed(1)}%</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -214,26 +246,28 @@ const Kanban = () => {
         ))}
       </div>
 
-      {/* Modal Overlay */}
       {isModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto'}}>
+          <div className="modal-content" style={{maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto'}}>
             <h2>{editingOrderId ? 'Edit Order' : t('kanban.addOrder')}</h2>
             <form onSubmit={handleCreateSubmit}>
+              
               <div className="form-group">
                 <label>{t('kanban.modal.client')}</label>
-                <select 
-                  required
-                  value={formData.clientId}
-                  onChange={(e) => setFormData({...formData, clientId: e.target.value})}
-                  className="search-input"
-                  style={{ width: '100%', paddingLeft: '12px' }}
-                >
-                  <option value="" disabled>{t('kanban.modal.selectClient')}</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id} style={{color: 'black'}}>{c.name}</option>
-                  ))}
-                </select>
+                <div className="custom-select-wrapper">
+                  <select 
+                    required
+                    value={formData.clientId}
+                    onChange={(e) => setFormData({...formData, clientId: e.target.value})}
+                    className="custom-select"
+                  >
+                    <option value="" disabled>{t('kanban.modal.selectClient')}</option>
+                    {clients.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="custom-select-icon" size={16} />
+                </div>
               </div>
 
               <div className="form-group">
@@ -243,6 +277,8 @@ const Kanban = () => {
                   required
                   value={formData.address}
                   onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  className="search-input"
+                  style={{width: '100%', paddingLeft: '12px'}}
                 />
               </div>
 
@@ -253,30 +289,34 @@ const Kanban = () => {
                   required
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  className="search-input"
+                  style={{width: '100%', paddingLeft: '12px'}}
                 />
               </div>
 
-              <hr style={{margin: '20px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
+              <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
               
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
-                <h3 style={{margin: 0}}>{t('kanban.modal.materials')}</h3>
-                <button type="button" onClick={addMaterialRow} className="btn btn-ghost" style={{padding: '4px 8px', fontSize: '0.85rem'}}>
-                  <Plus size={14} /> {t('kanban.modal.addMaterial')}
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+                <h3 style={{margin: 0, fontSize: '1.1rem'}}>{t('kanban.modal.materials')}</h3>
+                <button type="button" onClick={addMaterialRow} className="btn btn-ghost" style={{padding: '6px 12px', fontSize: '0.85rem'}}>
+                  <Plus size={14} style={{marginRight: '4px'}} /> {t('kanban.modal.addMaterial')}
                 </button>
               </div>
 
               {formData.materials.map((mat, index) => (
-                <div key={index} style={{display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center'}}>
-                  <select 
-                    value={mat.materialId} 
-                    onChange={(e) => updateMaterialRow(index, 'materialId', e.target.value)}
-                    className="search-input"
-                    style={{flex: 2, paddingLeft: '8px'}}
-                  >
-                    {allMaterials.map(m => (
-                      <option key={m.id} value={m.id} style={{color: 'black'}}>{m.name} ({m.costPrice}₽)</option>
-                    ))}
-                  </select>
+                <div key={index} style={{display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center'}}>
+                  <div className="custom-select-wrapper" style={{flex: 2}}>
+                    <select 
+                      value={mat.materialId} 
+                      onChange={(e) => updateMaterialRow(index, 'materialId', e.target.value)}
+                      className="custom-select"
+                    >
+                      {allMaterials.map(m => (
+                        <option key={m.id} value={m.id}>{m.name} ({m.costPrice}₽)</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="custom-select-icon" size={16} />
+                  </div>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -285,16 +325,49 @@ const Kanban = () => {
                     onChange={(e) => updateMaterialRow(index, 'quantity', e.target.value)}
                     style={{flex: 1}}
                     placeholder="Qty"
+                    className="custom-number-input"
                   />
-                  <button type="button" onClick={() => removeMaterialRow(index)} style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer'}}>
+                  <button type="button" onClick={() => removeMaterialRow(index)} style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '8px'}}>
                     <Trash2 size={18} />
                   </button>
                 </div>
               ))}
 
-              <hr style={{margin: '20px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
+              <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
 
-              <div style={{display: 'flex', gap: '15px'}}>
+              {/* Attachments Section - Only available when editing an existing order */}
+              {editingOrderId && (
+                <div style={{marginBottom: '24px'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
+                    <h3 style={{margin: 0, fontSize: '1.1rem'}}>Files & Attachments</h3>
+                    <label className="file-upload-btn">
+                      <Paperclip size={14} />
+                      {uploadingFile ? 'Uploading...' : 'Attach File'}
+                      <input type="file" onChange={handleFileUpload} disabled={uploadingFile} />
+                    </label>
+                  </div>
+                  
+                  {formData.attachments.length > 0 ? (
+                    <div className="attachments-list">
+                      {formData.attachments.map(att => (
+                        <div key={att.id} className="attachment-item">
+                          <span style={{fontSize: '0.9rem'}}>{att.fileName}</span>
+                          <a href={getAttachmentUrl(att.id)} target="_blank" rel="noreferrer" download style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                            <Download size={14} /> Download
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic'}}>
+                      No files attached to this order yet.
+                    </div>
+                  )}
+                  <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
+                </div>
+              )}
+
+              <div style={{display: 'flex', gap: '16px'}}>
                 <div className="form-group" style={{flex: 1}}>
                   <label>{t('kanban.modal.installationPrice')}</label>
                   <input 
@@ -304,6 +377,7 @@ const Kanban = () => {
                     step="0.01"
                     value={formData.installationPrice}
                     onChange={(e) => setFormData({...formData, installationPrice: e.target.value})}
+                    className="custom-number-input"
                   />
                 </div>
                 <div className="form-group" style={{flex: 1}}>
@@ -315,28 +389,29 @@ const Kanban = () => {
                     step="0.01"
                     value={formData.totalPrice}
                     onChange={(e) => setFormData({...formData, totalPrice: e.target.value})}
+                    className="custom-number-input"
                   />
                 </div>
               </div>
 
               {editingOrderId && orderProfit !== null && (
-                <div style={{display: 'flex', gap: '15px', marginBottom: '20px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px'}}>
+                <div style={{display: 'flex', gap: '16px', marginTop: '12px', marginBottom: '24px', padding: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-lg)'}}>
                   <div style={{flex: 1}}>
-                    <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)'}}>{t('kanban.modal.profit')}</div>
-                    <div style={{fontWeight: 600, color: orderProfit >= 0 ? 'var(--success)' : 'var(--danger)'}}>
+                    <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px'}}>{t('kanban.modal.profit')}</div>
+                    <div style={{fontWeight: 600, fontSize: '1.2rem', color: orderProfit >= 0 ? 'var(--success)' : 'var(--danger)'}}>
                       {orderProfit} ₽
                     </div>
                   </div>
                   <div style={{flex: 1}}>
-                    <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)'}}>{t('kanban.modal.margin')}</div>
-                    <div style={{fontWeight: 600, color: (orderMargin || 0) >= 0 ? 'var(--success)' : 'var(--danger)'}}>
+                    <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px'}}>{t('kanban.modal.margin')}</div>
+                    <div style={{fontWeight: 600, fontSize: '1.2rem', color: (orderMargin || 0) >= 0 ? 'var(--success)' : 'var(--danger)'}}>
                       {orderMargin}%
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="modal-actions" style={{marginTop: '20px'}}>
+              <div className="modal-actions" style={{marginTop: '32px'}}>
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}

@@ -16,6 +16,12 @@ export interface OrderMaterial {
   fixedSalePrice?: number;
 }
 
+export interface OrderAttachment {
+  id: number;
+  fileName: string;
+  contentType: string;
+}
+
 export interface Order {
   id: number;
   clientId: number;
@@ -25,6 +31,7 @@ export interface Order {
   totalPrice: number;
   installationPrice?: number;
   materials?: OrderMaterial[];
+  attachments?: OrderAttachment[];
   materialsCost?: number;
   profit?: number;
   profitMargin?: number;
@@ -53,4 +60,19 @@ export const updateOrder = async (orderId: number, order: Partial<Order>): Promi
 export const moveOrder = async (orderId: number, statusId: number): Promise<Order> => {
   const response = await api.patch(`/orders/${orderId}/move?statusId=${statusId}`);
   return response.data;
+};
+
+export const uploadAttachment = async (orderId: number, file: File): Promise<OrderAttachment> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post(`/orders/${orderId}/attachments`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const getAttachmentUrl = (attachmentId: number): string => {
+  return `${api.defaults.baseURL}/orders/attachments/${attachmentId}`;
 };
