@@ -42,6 +42,15 @@ export const getOrderStatuses = async (): Promise<OrderStatus[]> => {
   return response.data;
 };
 
+export const createOrderStatus = async (data: Partial<OrderStatus>): Promise<OrderStatus> => {
+  const response = await api.post('/order-statuses', data);
+  return response.data;
+};
+
+export const deleteOrderStatus = async (id: number): Promise<void> => {
+  await api.delete(`/order-statuses/${id}`);
+};
+
 export const getOrders = async (): Promise<Order[]> => {
   const response = await api.get('/orders');
   return response.data;
