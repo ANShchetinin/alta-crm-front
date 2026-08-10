@@ -121,3 +121,8 @@
   overflow-x: hidden;
   border-radius: var(--radius-lg);
 }
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

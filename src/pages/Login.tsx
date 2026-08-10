@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, Key, Mail } from 'lucide-react';
+import { LogIn, Key, Mail, Globe, Sun, Moon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useAppStore } from '../store/useAppStore';
 import '../styles/login.css';
 
 const Login = () => {
+  const { t } = useTranslation();
+  const { theme, setTheme, language, setLanguage } = useAppStore();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,13 +25,21 @@ const Login = () => {
 
   return (
     <div className="login-container animate-fade-in">
+      <div className="theme-lang-controls" style={{position: 'absolute', top: 24, right: 24, display: 'flex', gap: 12}}>
+         <button className="btn-icon" onClick={() => setLanguage(language === 'ru' ? 'en' : 'ru')} style={{color: 'var(--text-primary)'}}>
+            <Globe size={20} /> <span style={{fontSize: '12px', marginLeft: 4, fontWeight: 'bold'}}>{language.toUpperCase()}</span>
+         </button>
+         <button className="btn-icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} style={{color: 'var(--text-primary)'}}>
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+         </button>
+      </div>
       <div className="glass-panel login-card">
         <div className="login-header">
           <div className="logo-wrapper">
             <span className="logo-icon">▲</span>
           </div>
-          <h1>AltaCRM</h1>
-          <p>Sign in to your workspace</p>
+          <h1>{t('app.name')}</h1>
+          <p>{t('login.title')}</p>
         </div>
 
         <form onSubmit={handleLogin} className="login-form">
@@ -36,7 +48,7 @@ const Login = () => {
             <input
               type="email"
               className="input-field with-icon"
-              placeholder="Email address"
+              placeholder={t('login.email')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -48,7 +60,7 @@ const Login = () => {
             <input
               type="password"
               className="input-field with-icon"
-              placeholder="Password"
+              placeholder={t('login.password')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -56,12 +68,12 @@ const Login = () => {
           </div>
 
           <button type="submit" className="btn btn-primary login-btn" disabled={isLoading}>
-            {isLoading ? <span className="spinner"></span> : <><LogIn size={18} /> Sign In</>}
+            {isLoading ? <span className="spinner"></span> : <><LogIn size={18} /> {t('login.button')}</>}
           </button>
         </form>
         
         <div className="login-footer">
-          <p>Don't have an account? <a href="#">Request access</a></p>
+          <p>{t('login.noAccount')} <a href="#">{t('login.requestAccess')}</a></p>
         </div>
       </div>
     </div>
