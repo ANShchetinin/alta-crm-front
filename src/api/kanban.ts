@@ -47,6 +47,11 @@ export const createOrderStatus = async (data: Partial<OrderStatus>): Promise<Ord
   return response.data;
 };
 
+export const updateOrderStatus = async (id: number, data: Partial<OrderStatus>): Promise<OrderStatus> => {
+  const response = await api.put(`/order-statuses/${id}`, data);
+  return response.data;
+};
+
 export const deleteOrderStatus = async (id: number): Promise<void> => {
   await api.delete(`/order-statuses/${id}`);
 };

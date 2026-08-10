@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, MoreVertical, Trash2, ChevronDown, Paperclip, Download } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl, deleteOrder, createOrderStatus, deleteOrderStatus, reorderOrderStatuses } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment } from '../api/kanban';
 import { getClients } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -39,6 +39,7 @@ const Kanban = () => {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
+  const [editingColumnId, setEditingColumnId] = useState<number | null>(null);
   const [newColumnName, setNewColumnName] = useState('');
   const [newColumnColor, setNewColumnColor] = useState('#3b82f6');
 
@@ -210,21 +211,43 @@ const Kanban = () => {
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleAddColumn = async (e: React.FormEvent) => {
+  const handleSaveColumn = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createOrderStatus({
-        name: newColumnName,
-        color: newColumnColor,
-        sortOrder: columns.length + 1
-      });
+      if (editingColumnId) {
+        await updateOrderStatus(editingColumnId, {
+          name: newColumnName,
+          color: newColumnColor
+        });
+      } else {
+        await createOrderStatus({
+          name: newColumnName,
+          color: newColumnColor,
+          sortOrder: columns.length + 1
+        });
+      }
       setIsColumnModalOpen(false);
+      setEditingColumnId(null);
       setNewColumnName('');
       setNewColumnColor('#3b82f6');
       fetchData();
     } catch (err) {
-      console.error("Failed to add column", err);
+      console.error("Failed to save column", err);
     }
+  };
+
+  const openColumnEditModal = (col: OrderStatus) => {
+    setEditingColumnId(col.id);
+    setNewColumnName(col.name);
+    setNewColumnColor(col.color || '#3b82f6');
+    setIsColumnModalOpen(true);
+  };
+
+  const openColumnAddModal = () => {
+    setEditingColumnId(null);
+    setNewColumnName('');
+    setNewColumnColor('#3b82f6');
+    setIsColumnModalOpen(true);
   };
 
   const handleDeleteColumn = async (id: number) => {
@@ -334,13 +357,18 @@ const Kanban = () => {
                 <h3>{col.name}</h3>
                 <span className="count">{cards.filter(c => c.statusId === col.id).length}</span>
               </div>
-              {cards.filter(c => c.statusId === col.id).length === 0 ? (
-                <button className="btn-icon" onClick={() => handleDeleteColumn(col.id)} title={t('kanban.modal.delete')}>
-                  <Trash2 size={16} />
+              <div style={{display: 'flex', gap: '4px'}}>
+                <button className="btn-icon" onClick={() => openColumnEditModal(col)} title={t('kanban.editColumn')}>
+                  <Edit2 size={16} />
                 </button>
-              ) : (
-                <button className="btn-icon"><MoreVertical size={16} /></button>
-              )}
+                {cards.filter(c => c.statusId === col.id).length === 0 ? (
+                  <button className="btn-icon" onClick={() => handleDeleteColumn(col.id)} title={t('kanban.modal.delete')}>
+                    <Trash2 size={16} />
+                  </button>
+                ) : (
+                  <button className="btn-icon"><MoreVertical size={16} /></button>
+                )}
+              </div>
             </div>
 
             <div className="column-content">
@@ -380,7 +408,7 @@ const Kanban = () => {
         
         <button 
           className="kanban-column add-column-btn glass-panel" 
-          onClick={() => setIsColumnModalOpen(true)}
+          onClick={openColumnAddModal}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '320px', cursor: 'pointer', opacity: 0.7, border: '2px dashed var(--glass-border)' }}
         >
           <Plus size={24} style={{ marginRight: '8px' }} />
@@ -591,8 +619,8 @@ const Kanban = () => {
       {isColumnModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content" style={{maxWidth: '400px'}}>
-            <h2>{t('kanban.addColumn')}</h2>
-            <form onSubmit={handleAddColumn}>
+            <h2>{editingColumnId ? t('kanban.editColumn') : t('kanban.addColumn')}</h2>
+            <form onSubmit={handleSaveColumn}>
               <div className="form-group">
                 <label>{t('kanban.columnName')}</label>
                 <input 
