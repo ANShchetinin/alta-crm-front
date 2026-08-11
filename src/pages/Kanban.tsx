@@ -129,12 +129,12 @@ const Kanban = () => {
   const openEditModal = (order: Order) => {
     setEditingOrderId(order.id);
     setFormData({
-      clientId: order.clientId.toString(),
+      clientId: order.clientId ? order.clientId.toString() : '',
       assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
-      address: order.address,
-      description: order.description,
-      totalPrice: order.totalPrice.toString(),
-      installationPrice: order.installationPrice ? order.installationPrice.toString() : '0',
+      address: order.address || '',
+      description: order.description || '',
+      totalPrice: order.totalPrice != null ? order.totalPrice.toString() : '0',
+      installationPrice: order.installationPrice != null ? order.installationPrice.toString() : '0',
       installationDate: order.installationDate || '',
       materials: order.materials ? [...order.materials] : [],
       attachments: order.attachments ? [...order.attachments] : []
@@ -455,7 +455,7 @@ const Kanban = () => {
         <button 
           className="kanban-column add-column-btn glass-panel" 
           onClick={openColumnAddModal}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '320px', cursor: 'pointer', opacity: 0.7, border: '2px dashed var(--glass-border)' }}
+          style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', minWidth: '320px', cursor: 'pointer', opacity: 0.7, border: '2px dashed var(--glass-border)' }}
         >
           <Plus size={24} style={{ marginRight: '8px' }} />
           <span style={{ fontSize: '1.1rem', fontWeight: 500 }}>{t('kanban.addColumn')}</span>

@@ -39,7 +39,7 @@ export const Clients = () => {
 
   const openAddModal = () => {
     setEditingClient(null);
-    setFormData({ name: '', phone: '' });
+    setFormData({ name: '', phone: '+7' });
     setIsModalOpen(true);
   };
 
