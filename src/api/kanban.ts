@@ -26,6 +26,7 @@ export interface Order {
   id: number;
   clientId: number;
   statusId: number;
+  assigneeId?: number;
   address: string;
   description: string;
   totalPrice: number;
