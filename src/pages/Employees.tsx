@@ -40,7 +40,7 @@ export const Employees = () => {
 
   const openAddModal = () => {
     setEditingEmployee(null);
-    setFormData({ name: '', phone: '', position: '' });
+    setFormData({ name: '', phone: '+7', position: '' });
     setIsModalOpen(true);
   };
 
