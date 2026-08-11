@@ -385,8 +385,15 @@ const Kanban = () => {
                   }}
                   onClick={() => openEditModal(card)}
                 >
-                  <div className="card-client">
-                    {clients.find(cl => cl.id === card.clientId)?.name || `Client #${card.clientId}`}
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+                    <div className="card-client" style={{marginBottom: 0}}>
+                      {clients.find(cl => cl.id === card.clientId)?.name || `Client #${card.clientId}`}
+                    </div>
+                    {card.createdAt && (
+                      <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
+                        {new Date(card.createdAt).toLocaleDateString('ru-RU')}
+                      </div>
+                    )}
                   </div>
                   <div className="card-desc">{card.description}</div>
                   <div className="card-footer">
