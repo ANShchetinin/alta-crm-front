@@ -7,6 +7,8 @@ import { getClients } from '../api/clients';
 import type { Client } from '../api/clients';
 import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
+import { getEmployees } from '../api/employees';
+import type { Employee } from '../api/employees';
 import { useAppStore } from '../store/useAppStore';
 import '../styles/kanban.css';
 import '../styles/clients.css'; 
@@ -18,6 +20,7 @@ const Kanban = () => {
   const [cards, setCards] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [allMaterials, setAllMaterials] = useState<Material[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,6 +28,7 @@ const Kanban = () => {
 
   const [formData, setFormData] = useState({
     clientId: '',
+    assigneeId: '',
     address: '',
     description: '',
     totalPrice: '',
@@ -50,17 +54,19 @@ const Kanban = () => {
 
   const fetchData = async () => {
     try {
-      const [statuses, orders, clientsData, materialsData] = await Promise.all([
+      const [statuses, orders, clientsData, materialsData, employeesData] = await Promise.all([
         getOrderStatuses(),
         getOrders(),
         getClients(),
-        getMaterials()
+        getMaterials(),
+        getEmployees()
       ]);
       const sortedColumns = statuses.sort((a, b) => a.sortOrder - b.sortOrder);
       setColumns(sortedColumns);
       setCards(orders);
       setClients(clientsData);
       setAllMaterials(materialsData);
+      setEmployees(employeesData);
       
       const firstStatus = sortedColumns.find(s => s.sortOrder === 1);
       if (firstStatus) {
@@ -105,6 +111,7 @@ const Kanban = () => {
     setEditingOrderId(null);
     setFormData({
       clientId: '',
+      assigneeId: '',
       address: '',
       description: '',
       totalPrice: '',
@@ -123,6 +130,7 @@ const Kanban = () => {
     setEditingOrderId(order.id);
     setFormData({
       clientId: order.clientId.toString(),
+      assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
       address: order.address,
       description: order.description,
       totalPrice: order.totalPrice.toString(),
@@ -143,6 +151,7 @@ const Kanban = () => {
     
     const payload = {
       clientId: parseInt(formData.clientId),
+      assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
       statusId: editingOrderId ? cards.find(c => c.id === editingOrderId)?.statusId || columns[0].id : columns[0].id,
       address: formData.address,
       description: formData.description,
@@ -401,8 +410,13 @@ const Kanban = () => {
                   </div>
                   <div className="card-desc">{card.description}</div>
                   {card.installationDate && (
-                    <div style={{fontSize: '0.8rem', color: 'var(--primary)', marginBottom: '8px', fontWeight: 500}}>
+                    <div style={{fontSize: '0.8rem', color: 'var(--primary)', marginBottom: '4px', fontWeight: 500}}>
                       Монтаж: {new Date(card.installationDate).toLocaleDateString('ru-RU')}
+                    </div>
+                  )}
+                  {card.assigneeId && (
+                    <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px'}}>
+                      Отв: {employees.find(e => e.id === card.assigneeId)?.name || '...'}
                     </div>
                   )}
                   <div className="card-footer">
@@ -452,6 +466,23 @@ const Kanban = () => {
                     <option value="" disabled>{t('kanban.modal.selectClient')}</option>
                     {clients.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="custom-select-icon" size={16} />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>{t('kanban.modal.assignee') || 'Ответственный'}</label>
+                <div className="custom-select-wrapper">
+                  <select 
+                    value={formData.assigneeId}
+                    onChange={(e) => setFormData({...formData, assigneeId: e.target.value})}
+                    className="custom-select"
+                  >
+                    <option value="">{t('kanban.modal.selectAssignee') || 'Без ответственного'}</option>
+                    {employees.map(e => (
+                      <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
                     ))}
                   </select>
                   <ChevronDown className="custom-select-icon" size={16} />

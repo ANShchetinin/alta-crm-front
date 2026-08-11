@@ -5,6 +5,7 @@ import Kanban from './pages/Kanban';
 import { Clients } from './pages/Clients';
 import { Storage } from './pages/Storage';
 import { Settings } from './pages/Settings';
+import { Employees } from './pages/Employees';
 import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
@@ -35,6 +36,7 @@ function App() {
           <Route index element={<Navigate to="/kanban" replace />} />
           <Route path="kanban" element={<Kanban />} />
           <Route path="clients" element={<Clients />} />
+          <Route path="employees" element={<Employees />} />
           <Route path="storage" element={<Storage />} />
           <Route path="settings" element={<Settings />} />
         </Route>

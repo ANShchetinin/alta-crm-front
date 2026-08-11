@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Box, LogOut, Settings, Sun, Moon, Globe, Bell } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -81,6 +81,10 @@ const DashboardLayout = () => {
           <NavLink to="/clients" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <Users size={20} />
             <span>{t('nav.clients')}</span>
+          </NavLink>
+          <NavLink to="/employees" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <UserCircle size={20} />
+            <span>{t('nav.employees') || 'Сотрудники'}</span>
           </NavLink>
           <NavLink to="/storage" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <Box size={20} />
