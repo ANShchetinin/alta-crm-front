@@ -465,7 +465,7 @@ const Kanban = () => {
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content" style={{maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto'}}>
-            <h2>{editingOrderId ? 'Edit Order' : t('kanban.addOrder')}</h2>
+            <h2>{editingOrderId ? t('kanban.editOrder') : t('kanban.addOrder')}</h2>
             <form onSubmit={handleCreateSubmit}>
               
               <div className="form-group">
