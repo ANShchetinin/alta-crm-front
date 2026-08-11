@@ -129,12 +129,12 @@ const Kanban = () => {
   const openEditModal = (order: Order) => {
     setEditingOrderId(order.id);
     setFormData({
-      clientId: order.clientId.toString(),
+      clientId: order.clientId ? order.clientId.toString() : '',
       assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
-      address: order.address,
-      description: order.description,
-      totalPrice: order.totalPrice.toString(),
-      installationPrice: order.installationPrice ? order.installationPrice.toString() : '0',
+      address: order.address || '',
+      description: order.description || '',
+      totalPrice: order.totalPrice != null ? order.totalPrice.toString() : '0',
+      installationPrice: order.installationPrice != null ? order.installationPrice.toString() : '0',
       installationDate: order.installationDate || '',
       materials: order.materials ? [...order.materials] : [],
       attachments: order.attachments ? [...order.attachments] : []
