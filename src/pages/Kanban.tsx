@@ -411,14 +411,28 @@ const Kanban = () => {
                   <div className="card-desc">{card.description}</div>
                   {card.installationDate && (
                     <div style={{fontSize: '0.8rem', color: 'var(--primary)', marginBottom: '4px', fontWeight: 500}}>
-                      Монтаж: {new Date(card.installationDate).toLocaleDateString('ru-RU')}
+                      {t('kanban.modal.installationDate')}: {new Date(card.installationDate).toLocaleDateString('ru-RU')}
                     </div>
                   )}
                   {card.assigneeId && (
-                    <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px'}}>
-                      Отв: {employees.find(e => e.id === card.assigneeId)?.name || '...'}
+                    <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px'}}>
+                      {t('kanban.card.assignee')}: {employees.find(e => e.id === card.assigneeId)?.name || '...'}
                     </div>
                   )}
+                  {(() => {
+                    const materialsCost = card.materials?.reduce((sum, m) => {
+                      const mat = allMaterials.find(x => x.id === m.materialId);
+                      return sum + (mat ? (mat.costPrice * m.quantity) : 0);
+                    }, 0) || 0;
+                    if (materialsCost > 0) {
+                      return (
+                        <div style={{fontSize: '0.8rem', color: 'var(--warning)', marginBottom: '8px', fontWeight: 500}}>
+                          {t('kanban.card.materialsCost')}: {materialsCost} ₽
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                   <div className="card-footer">
                     <span className="card-price">{card.totalPrice} ₽</span>
                     <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
