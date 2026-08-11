@@ -30,6 +30,7 @@ export interface Order {
   description: string;
   totalPrice: number;
   installationPrice?: number;
+  installationDate?: string;
   createdAt?: string;
   materials?: OrderMaterial[];
   attachments?: OrderAttachment[];

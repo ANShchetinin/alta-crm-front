@@ -29,6 +29,7 @@ const Kanban = () => {
     description: '',
     totalPrice: '',
     installationPrice: '',
+    installationDate: '',
     materials: [] as OrderMaterial[],
     attachments: [] as OrderAttachment[]
   });
@@ -108,6 +109,7 @@ const Kanban = () => {
       description: '',
       totalPrice: '',
       installationPrice: '',
+      installationDate: '',
       materials: [],
       attachments: []
     });
@@ -125,6 +127,7 @@ const Kanban = () => {
       description: order.description,
       totalPrice: order.totalPrice.toString(),
       installationPrice: order.installationPrice ? order.installationPrice.toString() : '0',
+      installationDate: order.installationDate || '',
       materials: order.materials ? [...order.materials] : [],
       attachments: order.attachments ? [...order.attachments] : []
     });
@@ -145,6 +148,7 @@ const Kanban = () => {
       description: formData.description,
       totalPrice: parseFloat(formData.totalPrice || '0'),
       installationPrice: parseFloat(formData.installationPrice || '0'),
+      installationDate: formData.installationDate || undefined,
       materials: formData.materials.map(m => ({
         materialId: m.materialId,
         quantity: typeof m.quantity === 'string' ? parseFloat(m.quantity) : m.quantity
@@ -396,6 +400,11 @@ const Kanban = () => {
                     )}
                   </div>
                   <div className="card-desc">{card.description}</div>
+                  {card.installationDate && (
+                    <div style={{fontSize: '0.8rem', color: 'var(--primary)', marginBottom: '8px', fontWeight: 500}}>
+                      Монтаж: {new Date(card.installationDate).toLocaleDateString('ru-RU')}
+                    </div>
+                  )}
                   <div className="card-footer">
                     <span className="card-price">{card.totalPrice} ₽</span>
                     <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
@@ -575,6 +584,16 @@ const Kanban = () => {
                     value={formData.totalPrice}
                     onChange={(e) => setFormData({...formData, totalPrice: e.target.value})}
                     className="custom-number-input"
+                  />
+                </div>
+                <div className="form-group" style={{flex: 1}}>
+                  <label>{t('kanban.modal.installationDate') || 'Дата монтажа'}</label>
+                  <input 
+                    type="date" 
+                    value={formData.installationDate}
+                    onChange={(e) => setFormData({...formData, installationDate: e.target.value})}
+                    className="search-input"
+                    style={{width: '100%', paddingLeft: '12px'}}
                   />
                 </div>
               </div>
