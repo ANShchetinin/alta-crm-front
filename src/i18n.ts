@@ -17,6 +17,7 @@ const resources = {
       "nav.clients": "Clients",
       "nav.employees": "Employees",
       "nav.storage": "Storage",
+      "nav.reports": "Reports",
       "nav.settings": "Settings",
       "nav.signout": "Sign Out",
       "kanban.title": "Orders",
@@ -106,7 +107,20 @@ const resources = {
       "settings.theme": "Theme",
       "settings.themeDark": "Dark Theme (Space)",
       "settings.themeLight": "Light Theme (Glass)",
-      "settings.changeTheme": "Toggle Theme"
+      "settings.changeTheme": "Toggle Theme",
+      "reports.title": "Reports",
+      "reports.searchPlaceholder": "Search by client or address...",
+      "reports.allTime": "All time",
+      "reports.totalIncome": "Total Income",
+      "reports.totalExpenses": "Total Expenses",
+      "reports.totalProfit": "Net Profit",
+      "reports.chartTitle": "Income and Expenses Chart",
+      "reports.columns.date": "Date",
+      "reports.columns.client": "Client",
+      "reports.columns.address": "Address",
+      "reports.columns.income": "Income",
+      "reports.columns.expenses": "Expenses",
+      "reports.columns.profit": "Profit"
     }
   },
   ru: {
@@ -124,6 +138,7 @@ const resources = {
       "nav.clients": "Клиенты",
       "nav.employees": "Сотрудники",
       "nav.storage": "Склад",
+      "nav.reports": "Отчеты",
       "nav.settings": "Настройки",
       "nav.signout": "Выйти",
       "kanban.title": "Заявки",
@@ -213,7 +228,20 @@ const resources = {
       "settings.theme": "Оформление",
       "settings.themeDark": "Темная тема (Космос)",
       "settings.themeLight": "Светлая тема (Стекло)",
-      "settings.changeTheme": "Сменить тему"
+      "settings.changeTheme": "Сменить тему",
+      "reports.title": "Отчеты",
+      "reports.searchPlaceholder": "Поиск по клиенту или адресу...",
+      "reports.allTime": "За все время",
+      "reports.totalIncome": "Доходы",
+      "reports.totalExpenses": "Расходы",
+      "reports.totalProfit": "Прибыль",
+      "reports.chartTitle": "График доходов и расходов",
+      "reports.columns.date": "Дата",
+      "reports.columns.client": "Клиент",
+      "reports.columns.address": "Адрес",
+      "reports.columns.income": "Доход",
+      "reports.columns.expenses": "Расход",
+      "reports.columns.profit": "Прибыль"
     }
   }
 };

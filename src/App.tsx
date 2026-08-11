@@ -6,6 +6,7 @@ import { Clients } from './pages/Clients';
 import { Storage } from './pages/Storage';
 import { Settings } from './pages/Settings';
 import { Employees } from './pages/Employees';
+import { Reports } from './pages/Reports';
 import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
@@ -38,6 +39,7 @@ function App() {
           <Route path="clients" element={<Clients />} />
           <Route path="employees" element={<Employees />} />
           <Route path="storage" element={<Storage />} />
+          <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
