@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download } from 'lucide-react';
+import { AddressSuggestions } from 'react-dadata';
+import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
 import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment } from '../api/kanban';
@@ -505,13 +507,16 @@ const Kanban = () => {
 
               <div className="form-group">
                 <label>{t('kanban.modal.address')}</label>
-                <input 
-                  type="text" 
-                  required
-                  value={formData.address}
-                  onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  className="search-input"
-                  style={{width: '100%', paddingLeft: '12px'}}
+                <AddressSuggestions
+                  token={import.meta.env.VITE_DADATA_API_KEY || ''}
+                  defaultQuery={formData.address}
+                  onChange={(suggestion) => setFormData({...formData, address: suggestion?.value || formData.address})}
+                  inputProps={{
+                    placeholder: t('kanban.modal.address'),
+                    className: "search-input",
+                    style: {width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box'},
+                    onChange: (e: any) => setFormData({...formData, address: e.target.value})
+                  }}
                 />
               </div>
 
