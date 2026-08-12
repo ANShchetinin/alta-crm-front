@@ -12,6 +12,7 @@ import type { Material } from '../api/storage';
 import { getEmployees } from '../api/employees';
 import type { Employee } from '../api/employees';
 import { useAppStore } from '../store/useAppStore';
+import { useSearchParams } from 'react-router-dom';
 import '../styles/kanban.css';
 import '../styles/clients.css'; 
 
@@ -24,6 +25,8 @@ const Kanban = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [allMaterials, setAllMaterials] = useState<Material[]>([]);
+  
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
@@ -74,6 +77,33 @@ const Kanban = () => {
       if (firstStatus) {
         setNewOrdersCount(orders.filter(o => o.statusId === firstStatus.id).length);
       }
+      
+      const orderIdParam = searchParams.get('orderId');
+      if (orderIdParam) {
+        const orderToOpen = orders.find(o => o.id === parseInt(orderIdParam));
+        if (orderToOpen) {
+          // Open edit modal directly
+          setEditingOrderId(orderToOpen.id);
+          setFormData({
+            clientId: orderToOpen.clientId ? orderToOpen.clientId.toString() : '',
+            assigneeId: orderToOpen.assigneeId ? orderToOpen.assigneeId.toString() : '',
+            address: orderToOpen.address || '',
+            description: orderToOpen.description || '',
+            totalPrice: orderToOpen.totalPrice != null ? orderToOpen.totalPrice.toString() : '0',
+            installationPrice: orderToOpen.installationPrice != null ? orderToOpen.installationPrice.toString() : '0',
+            installationDate: orderToOpen.installationDate || '',
+            materials: orderToOpen.materials ? [...orderToOpen.materials] : [],
+            attachments: orderToOpen.attachments ? [...orderToOpen.attachments] : []
+          });
+          setOrderProfit(orderToOpen.profit ?? null);
+          setOrderMargin(orderToOpen.profitMargin ?? null);
+          setPendingFiles([]);
+          setIsModalOpen(true);
+        }
+        searchParams.delete('orderId');
+        setSearchParams(searchParams, { replace: true });
+      }
+
     } catch (error) {
       console.error("Failed to fetch kanban data", error);
     } finally {

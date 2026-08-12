@@ -68,6 +68,11 @@ export const getOrders = async (): Promise<Order[]> => {
   return response.data;
 };
 
+export const getOrdersByClient = async (clientId: number): Promise<Order[]> => {
+  const response = await api.get(`/orders/client/${clientId}`);
+  return response.data;
+};
+
 export const createOrder = async (order: Partial<Order>): Promise<Order> => {
   const response = await api.post('/orders', order);
   return response.data;
