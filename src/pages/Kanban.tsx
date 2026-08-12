@@ -39,6 +39,7 @@ const Kanban = () => {
     totalPrice: '',
     installationPrice: '',
     installationDate: '',
+    measurementDate: '',
     materials: [] as OrderMaterial[],
     attachments: [] as OrderAttachment[]
   });
@@ -92,6 +93,7 @@ const Kanban = () => {
             totalPrice: orderToOpen.totalPrice != null ? orderToOpen.totalPrice.toString() : '0',
             installationPrice: orderToOpen.installationPrice != null ? orderToOpen.installationPrice.toString() : '0',
             installationDate: orderToOpen.installationDate || '',
+            measurementDate: orderToOpen.measurementDate || '',
             materials: orderToOpen.materials ? [...orderToOpen.materials] : [],
             attachments: orderToOpen.attachments ? [...orderToOpen.attachments] : []
           });
@@ -149,6 +151,7 @@ const Kanban = () => {
       totalPrice: '',
       installationPrice: '',
       installationDate: '',
+      measurementDate: '',
       materials: [],
       attachments: []
     });
@@ -168,6 +171,7 @@ const Kanban = () => {
       totalPrice: order.totalPrice != null ? order.totalPrice.toString() : '0',
       installationPrice: order.installationPrice != null ? order.installationPrice.toString() : '0',
       installationDate: order.installationDate || '',
+      measurementDate: order.measurementDate || '',
       materials: order.materials ? [...order.materials] : [],
       attachments: order.attachments ? [...order.attachments] : []
     });
@@ -190,6 +194,7 @@ const Kanban = () => {
       totalPrice: parseFloat(formData.totalPrice || '0'),
       installationPrice: parseFloat(formData.installationPrice || '0'),
       installationDate: formData.installationDate || undefined,
+      measurementDate: formData.measurementDate || undefined,
       materials: formData.materials.map(m => ({
         materialId: m.materialId,
         quantity: typeof m.quantity === 'string' ? parseFloat(m.quantity) : m.quantity
@@ -441,30 +446,41 @@ const Kanban = () => {
                     )}
                   </div>
                   <div className="card-desc">{card.description}</div>
-                  {card.installationDate && (
-                    <div style={{fontSize: '0.8rem', color: 'var(--primary)', marginBottom: '4px', fontWeight: 500}}>
-                      {t('kanban.modal.installationDate')}: {new Date(card.installationDate).toLocaleDateString('ru-RU')}
-                    </div>
-                  )}
-                  {card.assigneeId && (
-                    <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px'}}>
-                      {t('kanban.card.assignee')}: {employees.find(e => e.id === card.assigneeId)?.name || '...'}
-                    </div>
-                  )}
-                  {(() => {
-                    const materialsCost = card.materials?.reduce((sum, m) => {
-                      const mat = allMaterials.find(x => x.id === m.materialId);
-                      return sum + (mat ? (mat.costPrice * m.quantity) : 0);
-                    }, 0) || 0;
-                    if (materialsCost > 0) {
-                      return (
-                        <div style={{fontSize: '0.8rem', color: 'var(--warning)', marginBottom: '8px', fontWeight: 500}}>
-                          {t('kanban.card.materialsCost')}: {materialsCost} ₽
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px'}}>
+                    {card.installationDate && (
+                      <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 500}}>
+                        <span>{t('kanban.modal.installationDate')}:</span>
+                        <span>{new Date(card.installationDate).toLocaleDateString('ru-RU')}</span>
+                      </div>
+                    )}
+                    {card.measurementDate && (
+                      <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500}}>
+                        <span>Дата замера:</span>
+                        <span>{new Date(card.measurementDate).toLocaleDateString('ru-RU')}</span>
+                      </div>
+                    )}
+                    {card.assigneeId && (
+                      <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>
+                        <span>{t('kanban.card.assignee')}:</span>
+                        <span style={{textAlign: 'right'}}>{employees.find(e => e.id === card.assigneeId)?.name || '...'}</span>
+                      </div>
+                    )}
+                    {(() => {
+                      const materialsCost = card.materials?.reduce((sum, m) => {
+                        const mat = allMaterials.find(x => x.id === m.materialId);
+                        return sum + (mat ? (mat.costPrice * m.quantity) : 0);
+                      }, 0) || 0;
+                      if (materialsCost > 0) {
+                        return (
+                          <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--warning)', fontWeight: 500}}>
+                            <span>{t('kanban.card.materialsCost')}:</span>
+                            <span>{materialsCost} ₽</span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
                   <div className="card-footer">
                     <span className="card-price">{card.totalPrice} ₽</span>
                     <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
@@ -641,7 +657,7 @@ const Kanban = () => {
                 <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
               </div>
 
-              <div style={{display: 'flex', gap: '16px'}}>
+              <div style={{display: 'flex', gap: '16px', marginBottom: '16px'}}>
                 <div className="form-group" style={{flex: 1}}>
                   <label>{t('kanban.modal.installationPrice')}</label>
                   <input 
@@ -664,6 +680,18 @@ const Kanban = () => {
                     value={formData.totalPrice}
                     onChange={(e) => setFormData({...formData, totalPrice: e.target.value})}
                     className="custom-number-input"
+                  />
+                </div>
+              </div>
+              <div style={{display: 'flex', gap: '16px'}}>
+                <div className="form-group" style={{flex: 1}}>
+                  <label>Дата замера</label>
+                  <input 
+                    type="date" 
+                    value={formData.measurementDate}
+                    onChange={(e) => setFormData({...formData, measurementDate: e.target.value})}
+                    className="search-input"
+                    style={{width: '100%', paddingLeft: '12px'}}
                   />
                 </div>
                 <div className="form-group" style={{flex: 1}}>
