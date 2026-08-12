@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, Key, Mail, Globe, Sun, Moon } from 'lucide-react';
+import { LogIn, Key, Mail, Globe, Sun, Moon, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -14,6 +14,7 @@ const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -65,16 +66,25 @@ const Login = () => {
             />
           </div>
 
-          <div className="input-group">
+          <div className="input-group" style={{ position: 'relative' }}>
             <Key className="input-icon" size={18} />
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               className="input-field with-icon"
               placeholder={t('login.password')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              style={{ paddingRight: '40px' }}
             />
+            <button 
+              type="button"
+              className="btn-icon"
+              style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
 
           <button type="submit" className="btn btn-primary login-btn" disabled={isLoading}>

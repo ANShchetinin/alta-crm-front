@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -12,10 +12,12 @@ const DashboardLayout = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials } = useAppStore();
-  const { logout } = useAuthStore();
+  const { logout, role } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
+    if (role === 'SUPERADMIN') return;
+
     const fetchNewOrdersCount = async () => {
       try {
         const statuses = await getOrderStatuses();
@@ -57,47 +59,57 @@ const DashboardLayout = () => {
         </div>
 
         <nav className="sidebar-nav">
-          <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <LayoutDashboard size={20} />
-            <span style={{ flex: 1 }}>{t('nav.orders')}</span>
-            {newOrdersCount > 0 && (
-              <span style={{
-                backgroundColor: 'var(--danger)',
-                color: 'white',
-                borderRadius: '50%',
-                minWidth: '20px',
-                height: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.75rem',
-                fontWeight: 'bold',
-                padding: '0 6px'
-              }}>
-                {newOrdersCount}
-              </span>
-            )}
-          </NavLink>
-          <NavLink to="/clients" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <Users size={20} />
-            <span>{t('nav.clients')}</span>
-          </NavLink>
-          <NavLink to="/employees" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <UserCircle size={20} />
-            <span>{t('nav.employees') || 'Сотрудники'}</span>
-          </NavLink>
-          <NavLink to="/storage" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <Box size={20} />
-            <span>{t('nav.storage')}</span>
-          </NavLink>
-          <NavLink to="/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <PieChart size={20} />
-            <span>{t('nav.reports') || 'Отчеты'}</span>
-          </NavLink>
-          <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <Settings size={20} />
-            <span>{t('nav.settings')}</span>
-          </NavLink>
+          {role !== 'SUPERADMIN' && (
+            <>
+              <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <LayoutDashboard size={20} />
+                <span style={{ flex: 1 }}>{t('nav.orders')}</span>
+                {newOrdersCount > 0 && (
+                  <span style={{
+                    backgroundColor: 'var(--danger)',
+                    color: 'white',
+                    borderRadius: '50%',
+                    minWidth: '20px',
+                    height: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                    padding: '0 6px'
+                  }}>
+                    {newOrdersCount}
+                  </span>
+                )}
+              </NavLink>
+              <NavLink to="/clients" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <Users size={20} />
+                <span>{t('nav.clients')}</span>
+              </NavLink>
+              <NavLink to="/employees" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <UserCircle size={20} />
+                <span>{t('nav.employees') || 'Сотрудники'}</span>
+              </NavLink>
+              <NavLink to="/storage" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <Box size={20} />
+                <span>{t('nav.storage')}</span>
+              </NavLink>
+              <NavLink to="/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <PieChart size={20} />
+                <span>{t('nav.reports') || 'Отчеты'}</span>
+              </NavLink>
+              <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <Settings size={20} />
+                <span>{t('nav.settings')}</span>
+              </NavLink>
+            </>
+          )}
+          {role === 'SUPERADMIN' && (
+            <NavLink to="/tenants" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px' }}>
+              <Building2 size={20} />
+              <span>Компании (Admin)</span>
+            </NavLink>
+          )}
         </nav>
 
         <div className="sidebar-footer">
