@@ -508,7 +508,7 @@ const Kanban = () => {
               <div className="form-group">
                 <label>{t('kanban.modal.address')}</label>
                 <AddressSuggestions
-                  token="66396b2e45d9ff46356592aae66a087ead7d082e"
+                  token={import.meta.env.VITE_DADATA_API_KEY || ''}
                   defaultQuery={formData.address}
                   onChange={(suggestion) => setFormData({...formData, address: suggestion?.value || formData.address})}
                   inputProps={{
