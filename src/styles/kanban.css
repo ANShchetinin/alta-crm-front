@@ -280,3 +280,20 @@
 .file-upload-btn input[type="file"] {
   display: none;
 }
+
+/* DaData dark theme overrides */
+.react-dadata__suggestions {
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--glass-border) !important;
+  color: var(--text-primary) !important;
+}
+.react-dadata__suggestion:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+.react-dadata__suggestion--current {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+.react-dadata__suggestion-subtitle {
+  color: var(--text-secondary) !important;
+}
+
