@@ -1,32 +1,64 @@
-# React + TypeScript + Vite
+# AltaCRM Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+AltaCRM — это B2B SaaS CRM-система для управления клиентами, заказами (Канбан-доска) и складским учетом, спроектированная с поддержкой Multi-Tenancy (изоляция данных по компаниям/арендаторам). 
+Данный репозиторий содержит клиентскую (frontend) часть приложения.
 
-Currently, two official plugins are available:
+## 🛠 Технологический стек
+- **Библиотека**: React 18
+- **Язык**: TypeScript
+- **Сборщик**: Vite
+- **Стилизация**: CSS Modules / Vanilla CSS
+- **Состояние**: Zustand
+- **Маршрутизация**: React Router v6
+- **Иконки**: Lucide React
+- **Интернационализация**: i18next (React-i18next)
+- **HTTP клиент**: Axios
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 Особенности
+- **Multi-Tenancy UI**: Полностью изолированные рабочие пространства в зависимости от авторизованного пользователя и его JWT токена.
+- **Интерфейс суперадмина**: Специальный дашборд для управления компаниями (создание новых тенантов, просмотр статистики), скрывающий рабочие модули CRM.
+- **Канбан-доска**: Интерактивная доска заказов с поддержкой Drag-and-Drop (HTML5 Drag and Drop API).
+- **Складской учет**: Управление материалами и контроль остатков (списание материалов при добавлении в заказ).
+- **История клиентов**: Быстрый переход к истории заказов конкретного клиента.
+- **Подсказки адресов**: Интеграция с Dadata для автодополнения адресов при создании заявок.
+- **Адаптивность**: Отзывчивый дизайн (Responsive UI) с поддержкой тёмной/светлой темы.
 
-## React Compiler
+## ⚙️ Установка и запуск (Local Development)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Требования
+- Node.js (рекомендуется v20+)
+- npm или yarn
 
-## Expanding the Oxlint configuration
+### Шаги для запуска
+1. Склонируйте репозиторий.
+2. Установите зависимости:
+   ```bash
+   npm install
+   ```
+3. Скопируйте файл `.env.example` в `.env.local` и настройте переменные окружения:
+   ```env
+   VITE_API_URL=http://localhost:8080/api/v1
+   VITE_DADATA_API_KEY=ваш_ключ_dadata
+   ```
+4. Запустите dev-сервер:
+   ```bash
+   npm run dev
+   ```
+5. Откройте `http://localhost:5173` в браузере.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## 📦 Сборка для Production (Docker)
+Фронтенд поставляется со встроенным `Dockerfile` и конфигурацией Nginx, использующими многоэтапную сборку (multi-stage build):
+```bash
+docker build -t altacrm-frontend:latest .
+```
+Или в составе всего стека через `docker-compose`:
+```bash
+docker-compose up -d --build frontend
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## 🏗 Архитектура приложения
+- `/src/api` - Axios инстансы и функции-хэндлеры для запросов к бэкенду.
+- `/src/components` - Переиспользуемые компоненты (Layouts, Modals).
+- `/src/pages` - Страницы приложения (Канбан, Клиенты, Сотрудники, Склад, Настройки).
+- `/src/store` - Глобальное состояние (Zustand: AuthStore, AppStore).
+- `/src/styles` - Глобальные и компонентные стили.
