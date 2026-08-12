@@ -11,7 +11,7 @@ import '../styles/dashboard.css';
 const DashboardLayout = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials } = useAppStore();
+  const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings } = useAppStore();
   const { logout, role } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -54,8 +54,12 @@ const DashboardLayout = () => {
       {/* Glass Sidebar */}
       <aside className="sidebar glass-panel">
         <div className="sidebar-header">
-          <div className="logo-small">▲</div>
-          <h2>{t('app.name')}</h2>
+          {tenantSettings?.logoUrl ? (
+            <img src={tenantSettings.logoUrl} alt="Logo" className="logo-small" style={{width: 32, height: 32, objectFit: 'contain', background: 'transparent'}} />
+          ) : (
+            <div className="logo-small">▲</div>
+          )}
+          <h2>{tenantSettings?.name || t('app.name')}</h2>
         </div>
 
         <nav className="sidebar-nav">

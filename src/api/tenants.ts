@@ -22,4 +22,8 @@ export const tenantsApi = {
     const res = await api.post<Tenant>('/tenants', data);
     return res.data;
   },
+  resetOwnerPassword: async (tenantId: number): Promise<{ temporaryPassword: string }> => {
+    const res = await api.post<{ temporaryPassword: string }>(`/tenants/${tenantId}/reset-password`);
+    return res.data;
+  },
 };

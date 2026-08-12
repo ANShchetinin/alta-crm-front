@@ -20,6 +20,11 @@
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 
+  --table-bg: rgba(30, 41, 59, 0.4);
+  --table-header-bg: rgba(30, 41, 59, 0.9);
+  --row-hover-bg: rgba(255, 255, 255, 0.05);
+  --input-bg: rgba(255, 255, 255, 0.05);
+
   --font-main: 'Inter', sans-serif;
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -178,6 +183,11 @@ body.light-theme {
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-border: rgba(0, 0, 0, 0.1);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+  
+  --table-bg: rgba(255, 255, 255, 0.6);
+  --table-header-bg: rgba(241, 245, 249, 0.95);
+  --row-hover-bg: rgba(0, 0, 0, 0.03);
+  --input-bg: rgba(255, 255, 255, 0.8);
 
   background: radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.1), transparent 25%),
               radial-gradient(circle at 85% 30%, rgba(245, 158, 11, 0.08), transparent 25%);
