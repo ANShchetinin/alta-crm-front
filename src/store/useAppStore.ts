@@ -15,6 +15,9 @@ interface AppState {
   setLanguage: (lang: Language) => void;
   setNewOrdersCount: (count: number) => void;
   fetchLowStockMaterials: () => Promise<void>;
+  tenantSettings: import('../api/settings').TenantDto | null;
+  fetchTenantSettings: () => Promise<void>;
+  updateTenantSettingsLocally: (settings: Partial<import('../api/settings').TenantDto>) => void;
 }
 
 const getInitialTheme = (): Theme => {
@@ -55,5 +58,23 @@ export const useAppStore = create<AppState>((set) => ({
     } catch (err) {
       console.error("Failed to fetch low stock materials", err);
     }
+  },
+  
+  tenantSettings: null,
+  
+  fetchTenantSettings: async () => {
+    try {
+      const { getCurrentTenant } = await import('../api/settings');
+      const tenant = await getCurrentTenant();
+      set({ tenantSettings: tenant });
+    } catch (err) {
+      console.error("Failed to fetch tenant settings", err);
+    }
+  },
+  
+  updateTenantSettingsLocally: (updates) => {
+    set((state) => ({
+      tenantSettings: state.tenantSettings ? { ...state.tenantSettings, ...updates } : null
+    }));
   }
 }));

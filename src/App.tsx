@@ -25,6 +25,23 @@ const IndexRedirect = () => {
 
 function App() {
   const theme = useAppStore(state => state.theme);
+  const token = useAuthStore(state => state.token);
+  const fetchTenantSettings = useAppStore(state => state.fetchTenantSettings);
+  const tenantSettings = useAppStore(state => state.tenantSettings);
+
+  useEffect(() => {
+    if (token) {
+      fetchTenantSettings();
+    }
+  }, [token, fetchTenantSettings]);
+
+  useEffect(() => {
+    if (tenantSettings?.primaryColor) {
+      document.documentElement.style.setProperty('--primary', tenantSettings.primaryColor);
+    } else {
+      document.documentElement.style.removeProperty('--primary');
+    }
+  }, [tenantSettings?.primaryColor]);
 
   useEffect(() => {
     if (theme === 'light') {

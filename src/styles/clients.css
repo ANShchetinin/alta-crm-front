@@ -36,7 +36,7 @@
 
 .search-input {
   padding: 8px 16px 8px 36px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   color: var(--text-primary);
@@ -60,7 +60,7 @@ select.search-input option {
   overflow: auto;
   border-radius: var(--radius-lg);
   border: 1px solid var(--glass-border);
-  background: rgba(30, 41, 59, 0.4);
+  background: var(--table-bg);
 }
 
 .clients-table {
@@ -79,7 +79,7 @@ select.search-input option {
   border-bottom: 1px solid var(--glass-border);
   position: sticky;
   top: 0;
-  background: rgba(30, 41, 59, 0.9);
+  background: var(--table-header-bg);
   backdrop-filter: blur(8px);
 }
 
@@ -94,7 +94,7 @@ select.search-input option {
 }
 
 .clients-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--row-hover-bg);
 }
 
 .client-name {
@@ -136,7 +136,7 @@ select.search-input option {
 }
 
 .action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--row-hover-bg);
   color: var(--text-primary);
 }
 
@@ -189,7 +189,7 @@ select.search-input option {
 .form-group input {
   width: 100%;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   color: var(--text-primary);

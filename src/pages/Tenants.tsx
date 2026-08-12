@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Copy, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Search, Plus, Copy, CheckCircle2, Eye, EyeOff, RefreshCcw } from 'lucide-react';
 import { tenantsApi } from '../api/tenants';
 import type { Tenant, CreateTenantRequest } from '../api/tenants';
 import '../styles/clients.css';
@@ -11,6 +11,8 @@ export const Tenants = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showOwnerPassword, setShowOwnerPassword] = useState(false);
   const [copiedTokenId, setCopiedTokenId] = useState<number | null>(null);
+  const [resetTenantId, setResetTenantId] = useState<number | null>(null);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<CreateTenantRequest>({
     name: '',
@@ -57,6 +59,22 @@ export const Tenants = () => {
     setTimeout(() => setCopiedTokenId(null), 2000);
   };
 
+  const handleResetPassword = async (tenantId: number) => {
+    if (!window.confirm('Вы уверены, что хотите сбросить пароль владельца этой компании?')) {
+      return;
+    }
+    try {
+      setResetTenantId(tenantId);
+      const res = await tenantsApi.resetOwnerPassword(tenantId);
+      setTempPassword(res.temporaryPassword);
+    } catch (err) {
+      console.error(err);
+      alert('Ошибка при сбросе пароля');
+    } finally {
+      setResetTenantId(null);
+    }
+  };
+
   if (loading) {
     return <div className="p-8">Loading...</div>;
   }
@@ -92,6 +110,7 @@ export const Tenants = () => {
               <th>Название компании</th>
               <th>Webhook Token</th>
               <th>Дата создания</th>
+              <th>Действия</th>
             </tr>
           </thead>
           <tbody>
@@ -129,6 +148,18 @@ export const Tenants = () => {
                       {new Date(tenant.createdAt).toLocaleDateString('ru-RU', {
                         year: 'numeric', month: 'long', day: 'numeric'
                       })}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="client-actions" style={{ opacity: 1 }}>
+                      <button 
+                        onClick={() => handleResetPassword(tenant.id)}
+                        className="action-btn"
+                        title="Сбросить пароль владельца"
+                        disabled={resetTenantId === tenant.id}
+                      >
+                        <RefreshCcw size={16} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -199,6 +230,26 @@ export const Tenants = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {tempPassword && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ textAlign: 'center' }}>
+            <h2>Пароль сброшен!</h2>
+            <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>Новый временный пароль владельца:</p>
+            <div style={{ padding: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '2px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px' }}>
+              {tempPassword}
+              <button onClick={() => { navigator.clipboard.writeText(tempPassword); alert('Скопировано!'); }} className="btn-icon">
+                <Copy size={20} />
+              </button>
+            </div>
+            <div className="modal-actions" style={{ marginTop: '2rem', justifyContent: 'center' }}>
+              <button type="button" onClick={() => setTempPassword(null)} className="btn btn-primary">
+                Закрыть
+              </button>
+            </div>
           </div>
         </div>
       )}
