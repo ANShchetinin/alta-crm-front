@@ -297,3 +297,13 @@
   color: var(--text-secondary) !important;
 }
 
+
+.react-dadata__input {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--glass-border) !important;
+}
+.react-dadata__suggestion {
+  color: var(--text-primary) !important;
+}
+
