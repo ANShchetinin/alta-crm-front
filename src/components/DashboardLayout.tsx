@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { getOrders, getOrderStatuses } from '../api/kanban';
+import { getProfile } from '../api/settings';
 import pkg from '../../package.json';
 import '../styles/dashboard.css';
 
@@ -14,6 +15,7 @@ const DashboardLayout = () => {
   const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings } = useAppStore();
   const { logout, role } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [userName, setUserName] = useState<string>('User');
 
   useEffect(() => {
     if (role === 'SUPERADMIN') return;
@@ -34,6 +36,17 @@ const DashboardLayout = () => {
       fetchLowStockMaterials();
     };
     fetchNewOrdersCount();
+
+    const fetchUserProfile = async () => {
+      try {
+        const profile = await getProfile();
+        const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
+        setUserName(fullName || profile.email || 'User');
+      } catch (err) {
+        console.error("Failed to fetch user profile", err);
+      }
+    };
+    fetchUserProfile();
   }, []);
 
   const handleLogout = () => {
@@ -178,8 +191,8 @@ const DashboardLayout = () => {
               )}
             </div>
             <div className="user-profile" style={{marginLeft: '12px', borderLeft: '1px solid var(--glass-border)', paddingLeft: '16px'}}>
-              <div className="avatar">A</div>
-              <span>Admin User</span>
+              <div className="avatar">{userName.charAt(0).toUpperCase()}</div>
+              <span>{userName}</span>
             </div>
           </div>
         </header>
