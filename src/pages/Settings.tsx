@@ -2,8 +2,8 @@ import { useTranslation } from 'react-i18next';
 import { Globe, Moon, Sun, User, Building2, Eye, EyeOff } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { updateProfile, updateTenantSettings, uploadTenantLogo } from '../api/settings';
-import { useState, useRef } from 'react';
+import { updateProfile, updateTenantSettings, uploadTenantLogo, getProfile } from '../api/settings';
+import { useState, useRef, useEffect } from 'react';
 import '../styles/clients.css'; // Reusing standard wrapper/header styles
 
 export const Settings = () => {
@@ -12,9 +12,26 @@ export const Settings = () => {
   const { role, email } = useAuthStore();
   
   const [newEmail, setNewEmail] = useState(email || '');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const profile = await getProfile();
+        setNewEmail(profile.email || '');
+        setFirstName(profile.firstName || '');
+        setLastName(profile.lastName || '');
+      } catch (err) {
+        console.error("Failed to load profile", err);
+      }
+    };
+    fetchProfile();
+  }, []);
   
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
@@ -35,7 +52,7 @@ export const Settings = () => {
     }
 
     try {
-      await updateProfile({ email: newEmail, currentPassword, password: newPassword });
+      await updateProfile({ email: newEmail, firstName, lastName, currentPassword, password: newPassword });
       alert('Профиль обновлен (чтобы изменения email вступили в силу, перезайдите в систему)');
       setCurrentPassword('');
       setNewPassword('');
@@ -102,6 +119,33 @@ export const Settings = () => {
               className="search-input" 
               style={{ width: '100%' }}
             />
+          </div>
+
+          <div style={{ marginBottom: '16px', display: 'flex', gap: '16px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '4px' }}>
+                Имя
+              </label>
+              <input 
+                type="text" 
+                value={firstName} 
+                onChange={e => setFirstName(e.target.value)} 
+                className="search-input" 
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '4px' }}>
+                Фамилия
+              </label>
+              <input 
+                type="text" 
+                value={lastName} 
+                onChange={e => setLastName(e.target.value)} 
+                className="search-input" 
+                style={{ width: '100%' }}
+              />
+            </div>
           </div>
 
           {isEditingPassword ? (
