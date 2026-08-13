@@ -16,6 +16,12 @@ const DashboardLayout = () => {
   const { logout, role } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const [userName, setUserName] = useState<string>('User');
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (role === 'SUPERADMIN') return;
@@ -143,8 +149,21 @@ const DashboardLayout = () => {
       {/* Main Content Area */}
       <main className="main-content">
         <header className="topbar glass-panel">
-          <div className="topbar-search">
-            {/* Search or breadcrumbs */}
+          <div className="topbar-search" style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-secondary)' }}>
+            <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>
+              {currentTime.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', {
+                weekday: 'long', 
+                day: 'numeric', 
+                month: 'long'
+              })}
+            </span>
+            <span style={{ opacity: 0.3 }}>|</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+              {currentTime.toLocaleTimeString(language === 'ru' ? 'ru-RU' : 'en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </span>
           </div>
           
           <div className="topbar-actions">
