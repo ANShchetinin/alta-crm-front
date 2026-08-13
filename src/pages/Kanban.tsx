@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Mic } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses } from '../api/kanban';
-import type { OrderStatus, Order, OrderMaterial, OrderAttachment } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio } from '../api/kanban';
+import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary } from '../api/kanban';
 import { getClients } from '../api/clients';
 import type { Client } from '../api/clients';
 import { getMaterials } from '../api/storage';
@@ -48,6 +48,9 @@ const Kanban = () => {
   const [orderMargin, setOrderMargin] = useState<number | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  
+  const [aiSummary, setAiSummary] = useState<OrderAiSummary | null>(null);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
   
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [editingColumnId, setEditingColumnId] = useState<number | null>(null);
@@ -101,6 +104,7 @@ const Kanban = () => {
           setOrderMargin(orderToOpen.profitMargin ?? null);
           setPendingFiles([]);
           setIsModalOpen(true);
+          getAiSummary(orderToOpen.id).then(setAiSummary).catch(() => setAiSummary(null));
         }
         searchParams.delete('orderId');
         setSearchParams(searchParams, { replace: true });
@@ -158,6 +162,7 @@ const Kanban = () => {
     setOrderProfit(null);
     setOrderMargin(null);
     setPendingFiles([]);
+    setAiSummary(null);
     setIsModalOpen(true);
   };
 
@@ -178,7 +183,9 @@ const Kanban = () => {
     setOrderProfit(order.profit ?? null);
     setOrderMargin(order.profitMargin ?? null);
     setPendingFiles([]);
+    setAiSummary(null);
     setIsModalOpen(true);
+    getAiSummary(order.id).then(setAiSummary).catch(() => setAiSummary(null));
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -261,6 +268,34 @@ const Kanban = () => {
 
   const removePendingFile = (index: number) => {
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingOrderId) return;
+
+    setUploadingAudio(true);
+    try {
+      await uploadAudio(editingOrderId, file);
+      const summary = await getAiSummary(editingOrderId);
+      setAiSummary(summary);
+    } catch (err) {
+      console.error("Failed to upload audio", err);
+    } finally {
+      setUploadingAudio(false);
+      e.target.value = '';
+    }
+  };
+
+  const refreshAiSummary = async () => {
+    if (editingOrderId) {
+      try {
+        const summary = await getAiSummary(editingOrderId);
+        setAiSummary(summary);
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
   const handleSaveColumn = async (e: React.FormEvent) => {
@@ -656,6 +691,50 @@ const Kanban = () => {
                 )}
                 <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
               </div>
+
+              {/* AI Audio Summary Section */}
+              {editingOrderId && (
+                <div style={{marginBottom: '24px'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
+                    <h3 style={{margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                      <Mic size={16} /> AI Анализ звонков
+                    </h3>
+                    <label className="file-upload-btn" style={{backgroundColor: 'var(--primary)', color: 'white'}}>
+                      <Mic size={14} />
+                      {uploadingAudio ? 'Загрузка...' : 'Загрузить звонок'}
+                      <input type="file" accept="audio/*" onChange={handleAudioUpload} disabled={uploadingAudio} />
+                    </label>
+                  </div>
+                  {aiSummary ? (
+                    <div style={{background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)'}}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
+                        <span style={{fontSize: '0.85rem', color: 'var(--text-secondary)'}}>
+                          Статус: <strong style={{color: aiSummary.status === 'COMPLETED' ? 'var(--success)' : (aiSummary.status === 'ERROR' ? 'var(--danger)' : 'var(--warning)')}}>{aiSummary.status}</strong>
+                        </span>
+                        {aiSummary.status !== 'COMPLETED' && aiSummary.status !== 'ERROR' && (
+                          <button type="button" onClick={refreshAiSummary} className="btn btn-ghost" style={{padding: '2px 8px', fontSize: '0.75rem'}}>
+                            Обновить
+                          </button>
+                        )}
+                      </div>
+                      {aiSummary.aiSummary ? (
+                        <div style={{fontSize: '0.95rem', lineHeight: '1.5', whiteSpace: 'pre-wrap'}}>
+                          {aiSummary.aiSummary}
+                        </div>
+                      ) : (
+                        <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic'}}>
+                          {aiSummary.status === 'ERROR' ? 'Ошибка при обработке.' : 'Анализ в процессе...'}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic'}}>
+                      Нет загруженных звонков
+                    </div>
+                  )}
+                  <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
+                </div>
+              )}
 
               <div style={{display: 'flex', gap: '16px', marginBottom: '16px'}}>
                 <div className="form-group" style={{flex: 1}}>

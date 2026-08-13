@@ -22,6 +22,15 @@ export interface OrderAttachment {
   contentType: string;
 }
 
+export interface OrderAiSummary {
+  id: number;
+  orderId: number;
+  status: 'PENDING' | 'TRANSCRIBING' | 'ANALYZING' | 'COMPLETED' | 'ERROR';
+  rawTranscript?: string;
+  aiSummary?: string;
+  updatedAt?: string;
+}
+
 export interface Order {
   id: number;
   clientId: number;
@@ -106,4 +115,19 @@ export const getAttachmentUrl = (attachmentId: number): string => {
 
 export const deleteOrder = async (orderId: number): Promise<void> => {
   await api.delete(`/orders/${orderId}`);
+};
+
+export const uploadAudio = async (orderId: number, file: File): Promise<void> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  await api.post(`/orders/${orderId}/audio`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};
+
+export const getAiSummary = async (orderId: number): Promise<OrderAiSummary> => {
+  const response = await api.get(`/orders/${orderId}/ai-summary`);
+  return response.data;
 };
