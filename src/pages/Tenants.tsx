@@ -16,6 +16,8 @@ export const Tenants = () => {
   
   const [formData, setFormData] = useState<CreateTenantRequest>({
     name: '',
+    ownerFirstName: '',
+    ownerLastName: '',
     ownerEmail: '',
     ownerPassword: '',
   });
@@ -45,7 +47,7 @@ export const Tenants = () => {
     try {
       await tenantsApi.create(formData);
       setIsModalOpen(false);
-      setFormData({ name: '', ownerEmail: '', ownerPassword: '' });
+      setFormData({ name: '', ownerFirstName: '', ownerLastName: '', ownerEmail: '', ownerPassword: '' });
       fetchTenants();
     } catch (err) {
       console.error(err);
@@ -186,6 +188,27 @@ export const Tenants = () => {
               </div>
               
               <h3 style={{ marginTop: '1.5rem', marginBottom: '1rem', fontSize: '1rem' }}>Первый пользователь (Владелец)</h3>
+              
+              <div className="form-group" style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label>Имя владельца</label>
+                  <input 
+                    type="text" 
+                    value={formData.ownerFirstName}
+                    onChange={(e) => setFormData({...formData, ownerFirstName: e.target.value})}
+                    placeholder="Иван"
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label>Фамилия владельца</label>
+                  <input 
+                    type="text" 
+                    value={formData.ownerLastName}
+                    onChange={(e) => setFormData({...formData, ownerLastName: e.target.value})}
+                    placeholder="Иванов"
+                  />
+                </div>
+              </div>
               
               <div className="form-group">
                 <label>Email владельца</label>

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { getOrders, getOrderStatuses } from '../api/kanban';
+import { getProfile } from '../api/settings';
 import pkg from '../../package.json';
 import '../styles/dashboard.css';
 
@@ -14,6 +15,13 @@ const DashboardLayout = () => {
   const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings } = useAppStore();
   const { logout, role } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [userName, setUserName] = useState<string>('User');
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (role === 'SUPERADMIN') return;
@@ -34,6 +42,17 @@ const DashboardLayout = () => {
       fetchLowStockMaterials();
     };
     fetchNewOrdersCount();
+
+    const fetchUserProfile = async () => {
+      try {
+        const profile = await getProfile();
+        const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
+        setUserName(fullName || profile.email || 'User');
+      } catch (err) {
+        console.error("Failed to fetch user profile", err);
+      }
+    };
+    fetchUserProfile();
   }, []);
 
   const handleLogout = () => {
@@ -130,8 +149,21 @@ const DashboardLayout = () => {
       {/* Main Content Area */}
       <main className="main-content">
         <header className="topbar glass-panel">
-          <div className="topbar-search">
-            {/* Search or breadcrumbs */}
+          <div className="topbar-search" style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-secondary)' }}>
+            <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>
+              {currentTime.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', {
+                weekday: 'long', 
+                day: 'numeric', 
+                month: 'long'
+              })}
+            </span>
+            <span style={{ opacity: 0.3 }}>|</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+              {currentTime.toLocaleTimeString(language === 'ru' ? 'ru-RU' : 'en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </span>
           </div>
           
           <div className="topbar-actions">
@@ -178,8 +210,8 @@ const DashboardLayout = () => {
               )}
             </div>
             <div className="user-profile" style={{marginLeft: '12px', borderLeft: '1px solid var(--glass-border)', paddingLeft: '16px'}}>
-              <div className="avatar">A</div>
-              <span>Admin User</span>
+              <div className="avatar">{userName.charAt(0).toUpperCase()}</div>
+              <span>{userName}</span>
             </div>
           </div>
         </header>

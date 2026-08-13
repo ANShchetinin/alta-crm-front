@@ -1,9 +1,18 @@
 import { api } from './axiosConfig';
 
-export interface UpdateProfileRequest {
+export interface UpdateProfileData {
+  firstName?: string;
+  lastName?: string;
   email?: string;
   currentPassword?: string;
   password?: string;
+}
+
+export interface ProfileData {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
 }
 
 export interface UpdateTenantSettingsRequest {
@@ -24,7 +33,12 @@ export const getCurrentTenant = async (): Promise<TenantDto> => {
   return response.data;
 };
 
-export const updateProfile = async (data: UpdateProfileRequest): Promise<void> => {
+export const getProfile = async (): Promise<ProfileData> => {
+  const response = await api.get('/settings/profile');
+  return response.data;
+};
+
+export const updateProfile = async (data: UpdateProfileData): Promise<void> => {
   await api.put('/settings/profile', data);
 };
 

@@ -9,6 +9,8 @@ export interface Tenant {
 
 export interface CreateTenantRequest {
   name: string;
+  ownerFirstName?: string;
+  ownerLastName?: string;
   ownerEmail: string;
   ownerPassword: string;
 }

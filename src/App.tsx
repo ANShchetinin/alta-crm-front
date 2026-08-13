@@ -44,6 +44,18 @@ function App() {
   }, [tenantSettings?.primaryColor]);
 
   useEffect(() => {
+    if (token) {
+      if (tenantSettings?.name) {
+        document.title = `${tenantSettings.name} CRM`;
+      } else {
+        document.title = 'AltaCRM';
+      }
+    } else {
+      document.title = 'AltaCRM';
+    }
+  }, [token, tenantSettings?.name]);
+
+  useEffect(() => {
     if (theme === 'light') {
       document.body.classList.add('light-theme');
     } else {
