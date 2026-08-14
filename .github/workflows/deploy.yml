@@ -37,9 +37,7 @@ jobs:
       - name: Copy Dist to VPS
         run: |
           mkdir -p ~/.ssh
-          cat << 'EOF' | tr -d '\r' > ~/.ssh/id_rsa
-          ${{ secrets.VPS_SSH_KEY }}
-          EOF
+          echo "${{ secrets.VPS_SSH_KEY }}" | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
           ssh -i ~/.ssh/id_rsa ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} "mkdir -p /opt/IdeaProjects/alta-crm/frontend-artifact"
@@ -50,19 +48,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to VPS
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" | base64 -d > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_rsa ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} "
             cd /opt/IdeaProjects/alta-crm
             
             # Обновляем переменные
-            sed -i "s|^FRONTEND_VERSION=.*|FRONTEND_VERSION=${GITHUB_REF_NAME}|g" .env
-            sed -i "s|^DOCKER_REGISTRY=.*|DOCKER_REGISTRY=|g" .env
-            grep -q "^FRONTEND_VERSION=" .env || echo "FRONTEND_VERSION=${GITHUB_REF_NAME}" >> .env
-            grep -q "^DOCKER_REGISTRY=" .env || echo "DOCKER_REGISTRY=" >> .env
+            sed -i 's|^FRONTEND_VERSION=.*|FRONTEND_VERSION=${GITHUB_REF_NAME}|g' .env
+            sed -i 's|^DOCKER_REGISTRY=.*|DOCKER_REGISTRY=|g' .env
+            grep -q '^FRONTEND_VERSION=' .env || echo 'FRONTEND_VERSION=${GITHUB_REF_NAME}' >> .env
+            grep -q '^DOCKER_REGISTRY=' .env || echo 'DOCKER_REGISTRY=' >> .env
             
             # Копируем dist в папку фронтенда (на сервере Dockerfile соберет образ)
             rm -rf frontend-dist && cp -r frontend-artifact frontend-dist
@@ -71,3 +69,4 @@ jobs:
             docker build -t aschetinin/alta-crm-front:${GITHUB_REF_NAME} -t aschetinin/alta-crm-front:latest -f Dockerfile.local .
             
             docker-compose up -d --no-deps frontend
+          "
