@@ -102,7 +102,7 @@ const Kanban = () => {
             totalPrice: orderToOpen.totalPrice != null ? orderToOpen.totalPrice.toString() : '0',
             installationPrice: orderToOpen.installationPrice != null ? orderToOpen.installationPrice.toString() : '0',
             installationDate: orderToOpen.installationDate || '',
-            measurementDate: orderToOpen.measurementDate || '',
+            measurementDate: orderToOpen.measurementDate ? orderToOpen.measurementDate.slice(0, 16) : '',
             materials: orderToOpen.materials ? [...orderToOpen.materials] : [],
             attachments: orderToOpen.attachments ? [...orderToOpen.attachments] : []
           });
@@ -202,7 +202,7 @@ const Kanban = () => {
       totalPrice: order.totalPrice != null ? order.totalPrice.toString() : '0',
       installationPrice: order.installationPrice != null ? order.installationPrice.toString() : '0',
       installationDate: order.installationDate || '',
-      measurementDate: order.measurementDate || '',
+      measurementDate: order.measurementDate ? order.measurementDate.slice(0, 16) : '',
       materials: order.materials ? [...order.materials] : [],
       attachments: order.attachments ? [...order.attachments] : []
     });
@@ -516,8 +516,15 @@ const Kanban = () => {
                     )}
                     {card.measurementDate && (
                       <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500}}>
-                        <span>Дата замера:</span>
-                        <span>{new Date(card.measurementDate).toLocaleDateString('ru-RU')}</span>
+                        <span>Замер:</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {new Date(card.measurementDate).toLocaleString('ru-RU', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
                       </div>
                     )}
                     {card.assigneeId && (
@@ -818,18 +825,18 @@ const Kanban = () => {
                   />
                 </div>
               </div>
-              <div style={{display: 'flex', gap: '16px'}}>
-                <div className="form-group" style={{flex: 1}}>
-                  <label>Дата замера</label>
+              <div style={{display: 'flex', gap: '16px', flexWrap: 'wrap'}}>
+                <div className="form-group" style={{flex: 1, minWidth: '200px'}}>
+                  <label>Дата и время замера</label>
                   <input 
-                    type="date" 
+                    type="datetime-local" 
                     value={formData.measurementDate}
                     onChange={(e) => setFormData({...formData, measurementDate: e.target.value})}
                     className="search-input"
                     style={{width: '100%', paddingLeft: '12px'}}
                   />
                 </div>
-                <div className="form-group" style={{flex: 1}}>
+                <div className="form-group" style={{flex: 1, minWidth: '200px'}}>
                   <label>{t('kanban.modal.installationDate') || 'Дата монтажа'}</label>
                   <input 
                     type="date" 
