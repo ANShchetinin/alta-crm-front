@@ -37,8 +37,44 @@ function App() {
 
   useEffect(() => {
     if (tenantSettings?.primaryColor) {
-      document.documentElement.style.setProperty('--primary', tenantSettings.primaryColor);
+      const hex = tenantSettings.primaryColor;
+      
+      // Helper to adjust brightness for hover state
+      const adjustBrightness = (colorHex: string, percent: number) => {
+        let c = colorHex.replace('#', '');
+        if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        if (c.length === 6) {
+          const num = parseInt(c, 16);
+          const r = Math.min(255, Math.max(0, ((num >> 16) & 255) + Math.round(255 * (percent / 100))));
+          const g = Math.min(255, Math.max(0, ((num >> 8) & 255) + Math.round(255 * (percent / 100))));
+          const b = Math.min(255, Math.max(0, (num & 255) + Math.round(255 * (percent / 100))));
+          return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+        }
+        return colorHex;
+      };
+
+      // Helper to convert hex to rgba for glow
+      const hexToRgba = (colorHex: string, alpha: number) => {
+        let c = colorHex.replace('#', '');
+        if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        if (c.length === 6) {
+          const num = parseInt(c, 16);
+          const r = (num >> 16) & 255;
+          const g = (num >> 8) & 255;
+          const b = num & 255;
+          return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+        return colorHex;
+      };
+
+      document.documentElement.style.setProperty('--accent-primary', hex);
+      document.documentElement.style.setProperty('--accent-hover', adjustBrightness(hex, -15));
+      document.documentElement.style.setProperty('--accent-glow', hexToRgba(hex, 0.45));
+      document.documentElement.style.setProperty('--primary', hex);
     } else {
+      document.documentElement.style.removeProperty('--accent-primary');
+      document.documentElement.style.removeProperty('--accent-hover');
+      document.documentElement.style.removeProperty('--accent-glow');
       document.documentElement.style.removeProperty('--primary');
     }
   }, [tenantSettings?.primaryColor]);
