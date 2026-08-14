@@ -14,7 +14,7 @@
 
 .mobile-menu-btn,
 .mobile-close-btn {
-  display: none;
+  display: none !important;
 }
 
 /* Sidebar */
@@ -325,7 +325,7 @@
 
   .mobile-menu-btn,
   .mobile-close-btn {
-    display: flex;
+    display: flex !important;
   }
 
   .topbar {
