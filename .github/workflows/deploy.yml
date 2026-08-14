@@ -66,7 +66,7 @@ jobs:
             rm -rf frontend-dist && cp -r frontend-artifact frontend-dist
             
             # Собираем Docker образ локально на сервере
-            docker build -t aschetinin/alta-crm-front:${GITHUB_REF_NAME} -t aschetinin/alta-crm-front:latest -f Dockerfile.local .
+            docker build -t altacrm-frontend:${GITHUB_REF_NAME} -t altacrm-frontend:latest -f Dockerfile.local .
             
             docker-compose up -d --no-deps frontend
           "
