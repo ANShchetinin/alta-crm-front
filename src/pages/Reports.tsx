@@ -9,6 +9,7 @@ import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import '../styles/clients.css'; 
+import '../styles/reports.css'; 
 
 export const Reports = () => {
   const { t } = useTranslation();
@@ -137,7 +138,7 @@ export const Reports = () => {
   }
 
   return (
-    <div className="clients-wrapper">
+    <div className="reports-wrapper clients-wrapper">
       <div className="clients-header">
         <h1>{t('reports.title') || 'Отчеты'}</h1>
         
@@ -170,45 +171,47 @@ export const Reports = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px', marginBottom: '24px' }}>
-        <div className="glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
-          <h3 style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>{t('reports.totalIncome') || 'Доходы'}</h3>
-          <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--success)' }}>{totalIncome.toLocaleString()} ₽</div>
+      <div className="reports-kpi-grid">
+        <div className="reports-kpi-card glass-panel">
+          <div className="reports-kpi-title">{t('reports.totalIncome') || 'Доходы'}</div>
+          <div className="reports-kpi-value" style={{ color: 'var(--success)' }}>{totalIncome.toLocaleString()} ₽</div>
         </div>
-        <div className="glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
-          <h3 style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>{t('reports.totalExpenses') || 'Расходы'}</h3>
-          <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--danger)' }}>{totalExpenses.toLocaleString()} ₽</div>
+        <div className="reports-kpi-card glass-panel">
+          <div className="reports-kpi-title">{t('reports.totalExpenses') || 'Расходы'}</div>
+          <div className="reports-kpi-value" style={{ color: 'var(--danger)' }}>{totalExpenses.toLocaleString()} ₽</div>
         </div>
-        <div className="glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
-          <h3 style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>{t('reports.totalProfit') || 'Прибыль'}</h3>
-          <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--primary)' }}>{totalProfit.toLocaleString()} ₽</div>
+        <div className="reports-kpi-card glass-panel">
+          <div className="reports-kpi-title">{t('reports.totalProfit') || 'Прибыль'}</div>
+          <div className="reports-kpi-value" style={{ color: 'var(--accent-primary)' }}>{totalProfit.toLocaleString()} ₽</div>
         </div>
       </div>
 
       {chartData.length > 0 && (
-        <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px', height: '350px' }}>
-          <h3 style={{ margin: '0 0 24px 0' }}>
-            <BarChart2 size={20} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} />
-            {t('reports.chartTitle') || 'График доходов и расходов'}
-          </h3>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="month" stroke="var(--text-secondary)" />
-              <YAxis stroke="var(--text-secondary)" />
-              <Tooltip 
-                contentStyle={{ backgroundColor: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }} 
-                itemStyle={{ color: 'var(--text-primary)' }}
-              />
-              <Legend />
-              <Bar dataKey="income" name={t('reports.totalIncome') || 'Доходы'} fill="var(--success)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="expenses" name={t('reports.totalExpenses') || 'Расходы'} fill="var(--danger)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="reports-chart-card glass-panel">
+          <div className="reports-chart-header">
+            <BarChart2 size={20} style={{ display: 'inline', verticalAlign: 'middle', color: 'var(--accent-primary)' }} />
+            <span>{t('reports.chartTitle') || 'График доходов и расходов'}</span>
+          </div>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                <XAxis dataKey="month" stroke="var(--text-secondary)" tick={{ fontSize: 12 }} />
+                <YAxis stroke="var(--text-secondary)" tick={{ fontSize: 12 }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '8px' }} 
+                  itemStyle={{ color: 'var(--text-primary)' }}
+                />
+                <Legend wrapperStyle={{ fontSize: 12, paddingTop: 4 }} />
+                <Bar dataKey="income" name={t('reports.totalIncome') || 'Доходы'} fill="var(--success)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="expenses" name={t('reports.totalExpenses') || 'Расходы'} fill="var(--danger)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
 
-      <div className="clients-table-container glass-panel">
+      <div className="reports-table-container clients-table-container glass-panel">
         <table className="clients-table">
           <thead>
             <tr>
@@ -239,8 +242,8 @@ export const Reports = () => {
                     <td>{new Date(order.createdAt || '').toLocaleDateString('ru-RU')}</td>
                     <td>{clientName}</td>
                     <td>{order.address}</td>
-                    <td style={{textAlign: 'right', color: 'var(--success)'}}>{income.toLocaleString()} ₽</td>
-                    <td style={{textAlign: 'right', color: 'var(--danger)'}}>{expenses.toLocaleString()} ₽</td>
+                    <td style={{textAlign: 'right', color: 'var(--success)', fontWeight: 500}}>{income.toLocaleString()} ₽</td>
+                    <td style={{textAlign: 'right', color: 'var(--danger)', fontWeight: 500}}>{expenses.toLocaleString()} ₽</td>
                     <td style={{textAlign: 'right', fontWeight: 'bold'}}>{profit.toLocaleString()} ₽</td>
                   </tr>
                 );
