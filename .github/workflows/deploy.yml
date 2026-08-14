@@ -44,6 +44,8 @@ jobs:
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
           ssh -i ~/.ssh/id_rsa ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} "mkdir -p /opt/IdeaProjects/alta-crm/frontend-artifact && rm -rf /opt/IdeaProjects/alta-crm/frontend-artifact/*"
           scp -i ~/.ssh/id_rsa -r dist/* ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/opt/IdeaProjects/alta-crm/frontend-artifact/
+          scp -i ~/.ssh/id_rsa Dockerfile.local ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/opt/IdeaProjects/alta-crm/Dockerfile.frontend.local
+          scp -i ~/.ssh/id_rsa nginx.conf ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/opt/IdeaProjects/alta-crm/nginx.conf
 
   deploy:
     needs: build-and-push
@@ -67,8 +69,9 @@ jobs:
             # Копируем dist в папку фронтенда (на сервере Dockerfile соберет образ)
             rm -rf frontend-dist && cp -r frontend-artifact frontend-dist
             
-            # Собираем Docker образ локально на сервере
-            docker build -t altacrm-frontend:${GITHUB_REF_NAME} -t altacrm-frontend:latest -f Dockerfile.local .
+            # Собираем Docker образ фронтенда с Nginx
+            docker build -t altacrm-frontend:${GITHUB_REF_NAME} -t altacrm-frontend:latest -f Dockerfile.frontend.local .
             
             docker-compose up -d --no-deps frontend
           "
+
