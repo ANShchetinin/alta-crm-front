@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Mic } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Mic, Phone, MapPin, Navigation } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -497,9 +497,38 @@ const Kanban = () => {
                   onClick={() => openEditModal(card)}
                 >
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
-                    <div className="card-client" style={{marginBottom: 0}}>
-                      {clients.find(cl => cl.id === card.clientId)?.name || `Client #${card.clientId}`}
-                    </div>
+                    {(() => {
+                      const client = clients.find(cl => cl.id === card.clientId);
+                      return (
+                        <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                          <div className="card-client" style={{marginBottom: 0}}>
+                            {client?.name || `Client #${card.clientId}`}
+                          </div>
+                          {client?.phone && (
+                            <a
+                              href={`tel:${client.phone}`}
+                              onClick={(e) => e.stopPropagation()}
+                              title={`Позвонить: ${client.phone}`}
+                              style={{
+                                color: 'var(--success)',
+                                padding: '3px 6px',
+                                background: 'rgba(34, 197, 94, 0.12)',
+                                border: '1px solid rgba(34, 197, 94, 0.25)',
+                                borderRadius: 'var(--radius-sm)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                textDecoration: 'none',
+                                fontSize: '0.75rem',
+                                fontWeight: 500
+                              }}
+                            >
+                              <Phone size={12} />
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {card.createdAt && (
                       <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
                         {new Date(card.createdAt).toLocaleDateString('ru-RU')}
@@ -507,6 +536,77 @@ const Kanban = () => {
                     )}
                   </div>
                   <div className="card-desc">{card.description}</div>
+                  
+                  {card.address && (
+                    <div 
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        fontSize: '0.8rem', 
+                        color: 'var(--text-secondary)',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        padding: '4px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                        marginBottom: '8px',
+                        gap: '6px'
+                      }}
+                    >
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        flex: 1
+                      }}>
+                        <MapPin size={13} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.address}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                        <a
+                          href={`https://yandex.ru/maps/?rtext=~${encodeURIComponent(card.address)}&rtt=auto`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Маршрут в Яндекс.Картах"
+                          style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            color: '#ff3333',
+                            background: 'rgba(255, 51, 51, 0.1)',
+                            border: '1px solid rgba(255, 51, 51, 0.2)',
+                            borderRadius: '4px',
+                            padding: '2px 5px',
+                            textDecoration: 'none'
+                          }}
+                        >
+                          Яндекс
+                        </a>
+                        <a
+                          href={`https://2gis.ru/routeSearch/rsType/car/to/${encodeURIComponent(card.address)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Маршрут в 2ГИС"
+                          style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            color: '#22c55e',
+                            background: 'rgba(34, 197, 94, 0.1)',
+                            border: '1px solid rgba(34, 197, 94, 0.2)',
+                            borderRadius: '4px',
+                            padding: '2px 5px',
+                            textDecoration: 'none'
+                          }}
+                        >
+                          2ГИС
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
                   <div style={{display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px'}}>
                     {card.installationDate && (
                       <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 500}}>
@@ -619,6 +719,35 @@ const Kanban = () => {
                   </select>
                   <ChevronDown className="custom-select-icon" size={16} />
                 </div>
+                {(() => {
+                  const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
+                  if (selectedClient?.phone) {
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Телефон:</span>
+                        <a
+                          href={`tel:${selectedClient.phone}`}
+                          style={{
+                            padding: '3px 8px',
+                            fontSize: '0.8rem',
+                            color: 'var(--success)',
+                            background: 'rgba(34, 197, 94, 0.1)',
+                            border: '1px solid rgba(34, 197, 94, 0.2)',
+                            borderRadius: 'var(--radius-sm)',
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontWeight: 500
+                          }}
+                        >
+                          <Phone size={13} /> {selectedClient.phone} (Позвонить)
+                        </a>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               <div className="form-group">
@@ -661,6 +790,51 @@ const Kanban = () => {
                     value={formData.address}
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                   />
+                )}
+                {formData.address && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Маршрут:</span>
+                    <a
+                      href={`https://yandex.ru/maps/?rtext=~${encodeURIComponent(formData.address)}&rtt=auto`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        color: '#ff3333',
+                        background: 'rgba(255, 51, 51, 0.1)',
+                        border: '1px solid rgba(255, 51, 51, 0.2)',
+                        borderRadius: 'var(--radius-sm)',
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <Navigation size={13} /> Яндекс.Карты / Навигатор
+                    </a>
+                    <a
+                      href={`https://2gis.ru/routeSearch/rsType/car/to/${encodeURIComponent(formData.address)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        color: '#22c55e',
+                        background: 'rgba(34, 197, 94, 0.1)',
+                        border: '1px solid rgba(34, 197, 94, 0.2)',
+                        borderRadius: 'var(--radius-sm)',
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <Navigation size={13} /> 2ГИС
+                    </a>
+                  </div>
                 )}
               </div>
 

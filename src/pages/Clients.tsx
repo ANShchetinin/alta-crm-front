@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Edit2, Trash2, FileText, ArrowRight } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone } from 'lucide-react';
 import type { Client } from '../api/clients';
 import { getClients, createClient, updateClient, deleteClient } from '../api/clients';
 import type { Order } from '../api/kanban';
@@ -152,7 +152,29 @@ export const Clients = () => {
                     <div className="client-name">{client.name}</div>
                   </td>
                   <td>
-                    <div className="client-phone">{client.phone}</div>
+                    <div className="client-phone">
+                      {client.phone ? (
+                        <a 
+                          href={`tel:${client.phone}`} 
+                          title="Позвонить"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            color: 'var(--text-primary)',
+                            textDecoration: 'none',
+                            padding: '4px 8px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: 'rgba(34, 197, 94, 0.1)',
+                            border: '1px solid rgba(34, 197, 94, 0.2)',
+                            fontWeight: 500
+                          }}
+                        >
+                          <Phone size={13} style={{ color: 'var(--success)' }} />
+                          <span>{client.phone}</span>
+                        </a>
+                      ) : '-'}
+                    </div>
                   </td>
                   <td>
                     <div className="client-date">
@@ -161,6 +183,16 @@ export const Clients = () => {
                   </td>
                   <td>
                     <div className="client-actions">
+                      {client.phone && (
+                        <a 
+                          href={`tel:${client.phone}`}
+                          className="action-btn"
+                          style={{ color: 'var(--success)' }}
+                          title="Позвонить клиенту"
+                        >
+                          <Phone size={16} />
+                        </a>
+                      )}
                       <button 
                         onClick={() => openHistoryModal(client)}
                         className="action-btn"
