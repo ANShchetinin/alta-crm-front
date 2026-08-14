@@ -192,8 +192,8 @@ export const Reports = () => {
             <BarChart2 size={20} style={{ display: 'inline', verticalAlign: 'middle', color: 'var(--accent-primary)' }} />
             <span>{t('reports.chartTitle') || 'График доходов и расходов'}</span>
           </div>
-          <div style={{ flex: 1, minHeight: 0 }}>
-            <ResponsiveContainer width="100%" height="100%">
+          <div style={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', overflow: 'hidden' }}>
+            <ResponsiveContainer width="99%" height="100%">
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                 <XAxis dataKey="month" stroke="var(--text-secondary)" tick={{ fontSize: 12 }} />
