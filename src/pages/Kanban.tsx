@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Mic, Phone, MapPin, Navigation } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Mic, Phone, MapPin, Navigation, X } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +13,7 @@ import { getEmployees } from '../api/employees';
 import type { Employee } from '../api/employees';
 import { useAppStore } from '../store/useAppStore';
 import { useSearchParams } from 'react-router-dom';
+import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import '../styles/kanban.css';
 import '../styles/clients.css'; 
 
@@ -568,7 +569,7 @@ const Kanban = () => {
                       </div>
                       <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
                         <a
-                          href={`https://yandex.ru/maps/?rtext=~${encodeURIComponent(card.address)}&rtt=auto`}
+                          href={getYandexMapsUrl(card.address)}
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Маршрут в Яндекс.Картах"
@@ -586,7 +587,7 @@ const Kanban = () => {
                           Яндекс
                         </a>
                         <a
-                          href={`https://2gis.ru/routeSearch/rsType/car/to/${encodeURIComponent(card.address)}`}
+                          href={get2GisUrl(card.address)}
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Маршрут в 2ГИС"
@@ -680,9 +681,20 @@ const Kanban = () => {
 
       {isModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto'}}>
-            <h2>{editingOrderId ? t('kanban.editOrder') : t('kanban.addOrder')}</h2>
-            <form onSubmit={handleCreateSubmit}>
+          <div className="modal-content" style={{maxWidth: '680px'}}>
+            <div className="modal-header">
+              <h2>{editingOrderId ? t('kanban.editOrder') : t('kanban.addOrder')}</h2>
+              <button 
+                type="button" 
+                onClick={() => setIsModalOpen(false)} 
+                className="btn-icon"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body">
               
               <div className="form-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -793,46 +805,46 @@ const Kanban = () => {
                 )}
                 {formData.address && (
                   <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Маршрут:</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('kanban.modal.route') || 'Маршрут'}:</span>
                     <a
-                      href={`https://yandex.ru/maps/?rtext=~${encodeURIComponent(formData.address)}&rtt=auto`}
+                      href={getYandexMapsUrl(formData.address)}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
-                        padding: '4px 10px',
+                        padding: '5px 12px',
                         fontSize: '0.8rem',
                         fontWeight: 600,
                         color: '#ff3333',
                         background: 'rgba(255, 51, 51, 0.1)',
-                        border: '1px solid rgba(255, 51, 51, 0.2)',
+                        border: '1px solid rgba(255, 51, 51, 0.25)',
                         borderRadius: 'var(--radius-sm)',
                         textDecoration: 'none',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px'
+                        gap: '5px'
                       }}
                     >
-                      <Navigation size={13} /> Яндекс.Карты / Навигатор
+                      <Navigation size={13} /> {t('kanban.modal.routeYandex') || 'Яндекс.Карты'}
                     </a>
                     <a
-                      href={`https://2gis.ru/routeSearch/rsType/car/to/${encodeURIComponent(formData.address)}`}
+                      href={get2GisUrl(formData.address)}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
-                        padding: '4px 10px',
+                        padding: '5px 12px',
                         fontSize: '0.8rem',
                         fontWeight: 600,
                         color: '#22c55e',
                         background: 'rgba(34, 197, 94, 0.1)',
-                        border: '1px solid rgba(34, 197, 94, 0.2)',
+                        border: '1px solid rgba(34, 197, 94, 0.25)',
                         borderRadius: 'var(--radius-sm)',
                         textDecoration: 'none',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px'
+                        gap: '5px'
                       }}
                     >
-                      <Navigation size={13} /> 2ГИС
+                      <Navigation size={13} /> {t('kanban.modal.route2gis') || '2ГИС'}
                     </a>
                   </div>
                 )}
@@ -1038,8 +1050,9 @@ const Kanban = () => {
                   </div>
                 </div>
               )}
+              </div>
 
-              <div className="modal-actions" style={{marginTop: '32px', display: 'flex', justifyContent: 'space-between'}}>
+              <div className="modal-actions" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                 {editingOrderId ? (
                   <button 
                     type="button" 
@@ -1070,37 +1083,49 @@ const Kanban = () => {
 
       {isColumnModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{maxWidth: '400px'}}>
-            <h2>{editingColumnId ? t('kanban.editColumn') : t('kanban.addColumn')}</h2>
-            <form onSubmit={handleSaveColumn}>
-              <div className="form-group">
-                <label>{t('kanban.columnName')}</label>
-                <input 
-                  type="text" 
-                  required
-                  value={newColumnName}
-                  onChange={(e) => setNewColumnName(e.target.value)}
-                  className="search-input"
-                  style={{width: '100%', paddingLeft: '12px'}}
-                />
-              </div>
-              <div className="form-group">
-                <label>{t('kanban.columnColor')}</label>
-                <div style={{display: 'flex', gap: '8px'}}>
-                  {['#3b82f6', '#eab308', '#22c55e', '#ef4444', '#8b5cf6', '#f97316'].map(color => (
-                    <div 
-                      key={color}
-                      onClick={() => setNewColumnColor(color)}
-                      style={{
-                        width: '32px', height: '32px', borderRadius: '50%', backgroundColor: color, 
-                        cursor: 'pointer', border: newColumnColor === color ? '2px solid white' : 'none',
-                        boxShadow: newColumnColor === color ? '0 0 0 2px var(--primary)' : 'none'
-                      }}
-                    />
-                  ))}
+          <div className="modal-content" style={{maxWidth: '420px'}}>
+            <div className="modal-header">
+              <h2>{editingColumnId ? t('kanban.editColumn') : t('kanban.addColumn')}</h2>
+              <button 
+                type="button" 
+                onClick={() => setIsColumnModalOpen(false)} 
+                className="btn-icon"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveColumn} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>{t('kanban.columnName')}</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={newColumnName}
+                    onChange={(e) => setNewColumnName(e.target.value)}
+                    className="search-input"
+                    style={{width: '100%', paddingLeft: '12px'}}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('kanban.columnColor')}</label>
+                  <div style={{display: 'flex', gap: '8px'}}>
+                    {['#3b82f6', '#eab308', '#22c55e', '#ef4444', '#8b5cf6', '#f97316'].map(color => (
+                      <div 
+                        key={color}
+                        onClick={() => setNewColumnColor(color)}
+                        style={{
+                          width: '32px', height: '32px', borderRadius: '50%', backgroundColor: color, 
+                          cursor: 'pointer', border: newColumnColor === color ? '2px solid white' : 'none',
+                          boxShadow: newColumnColor === color ? '0 0 0 2px var(--primary)' : 'none'
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="modal-actions" style={{marginTop: '32px', display: 'flex', justifyContent: 'flex-end', gap: '12px'}}>
+              <div className="modal-actions">
                 <button type="button" onClick={() => setIsColumnModalOpen(false)} className="btn btn-ghost">
                   {t('kanban.modal.cancel')}
                 </button>
@@ -1116,35 +1141,51 @@ const Kanban = () => {
       {/* Quick Create Client Modal */}
       {isNewClientModalOpen && (
         <div className="modal-overlay" style={{ zIndex: 1100 }}>
-          <div className="modal-content animate-fade-in" style={{ maxWidth: '420px' }}>
-            <h2>{t('clients.addClient') || 'Новый клиент'}</h2>
-            <form onSubmit={handleQuickCreateClient}>
-              <div className="form-group">
-                <label>Имя клиента *</label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="Иван Иванов"
-                  value={newClientName}
-                  onChange={(e) => setNewClientName(e.target.value)}
-                  className="search-input"
-                  style={{ width: '100%', paddingLeft: '12px' }}
-                  autoFocus
-                />
+          <div className="modal-content animate-fade-in" style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <h2>{t('clients.modal.addTitle')}</h2>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setIsNewClientModalOpen(false);
+                  setNewClientName('');
+                  setNewClientPhone('');
+                }} 
+                className="btn-icon"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleQuickCreateClient} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>{t('clients.modal.name')} *</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder={t('clients.modal.namePlaceholder') || 'Иван Иванов'}
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    className="search-input"
+                    style={{ width: '100%', paddingLeft: '12px' }}
+                    autoFocus
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('clients.modal.phone')} *</label>
+                  <input 
+                    type="tel" 
+                    required
+                    placeholder={t('clients.modal.phonePlaceholder') || '+7 (999) 000-00-00'}
+                    value={newClientPhone}
+                    onChange={(e) => setNewClientPhone(e.target.value)}
+                    className="search-input"
+                    style={{ width: '100%', paddingLeft: '12px' }}
+                  />
+                </div>
               </div>
-              <div className="form-group">
-                <label>Телефон *</label>
-                <input 
-                  type="tel" 
-                  required
-                  placeholder="+7 (999) 000-00-00"
-                  value={newClientPhone}
-                  onChange={(e) => setNewClientPhone(e.target.value)}
-                  className="search-input"
-                  style={{ width: '100%', paddingLeft: '12px' }}
-                />
-              </div>
-              <div className="modal-actions" style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <div className="modal-actions">
                 <button 
                   type="button" 
                   className="btn btn-ghost"
@@ -1154,14 +1195,14 @@ const Kanban = () => {
                     setNewClientPhone('');
                   }}
                 >
-                  {t('common.cancel') || 'Отмена'}
+                  {t('clients.modal.cancel')}
                 </button>
                 <button 
                   type="submit" 
                   className="btn btn-primary"
                   disabled={creatingClient}
                 >
-                  {creatingClient ? 'Сохранение...' : (t('common.save') || 'Создать')}
+                  {creatingClient ? t('clients.modal.saving') : t('clients.modal.save')}
                 </button>
               </div>
             </form>

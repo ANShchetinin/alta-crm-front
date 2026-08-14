@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone, X } from 'lucide-react';
 import type { Client } from '../api/clients';
 import { getClients, createClient, updateClient, deleteClient } from '../api/clients';
 import type { Order } from '../api/kanban';
@@ -226,26 +226,42 @@ export const Clients = () => {
       {/* Modal Overlay */}
       {isModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content">
-            <h2>{editingClient ? t('clients.modal.editTitle') : t('clients.modal.addTitle')}</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>{t('clients.modal.name')}</label>
-                <input 
-                  type="text" 
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                />
-              </div>
-              <div className="form-group">
-                <label>{t('clients.modal.phone')}</label>
-                <input 
-                  type="text" 
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                />
+          <div className="modal-content" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h2>{editingClient ? t('clients.modal.editTitle') : t('clients.modal.addTitle')}</h2>
+              <button 
+                type="button" 
+                onClick={() => setIsModalOpen(false)}
+                className="btn-icon"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>{t('clients.modal.name')}</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="search-input"
+                    style={{ width: '100%', paddingLeft: '12px' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('clients.modal.phone')}</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    className="search-input"
+                    style={{ width: '100%', paddingLeft: '12px' }}
+                  />
+                </div>
               </div>
               <div className="modal-actions">
                 <button 
@@ -268,57 +284,69 @@ export const Clients = () => {
       {isHistoryModalOpen && historyClient && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '800px', width: '90%' }}>
-            <h2>История заявок: {historyClient.name}</h2>
-            {loadingHistory ? (
-              <div style={{ textAlign: 'center', padding: '2rem' }}>Загрузка истории...</div>
-            ) : (
-              <div className="clients-table-container glass-panel" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                <table className="clients-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Адрес</th>
-                      <th>Стоимость</th>
-                      <th>Дата</th>
-                      <th style={{textAlign: 'right'}}>Действия</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clientHistory.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} style={{ textAlign: 'center', opacity: 0.5 }}>У клиента нет заявок.</td>
-                      </tr>
-                    ) : (
-                      clientHistory.map(order => (
-                        <tr key={order.id}>
-                          <td>#{order.id}</td>
-                          <td>{order.address}</td>
-                          <td>{order.totalPrice} ₽</td>
-                          <td>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : ''}</td>
-                          <td style={{textAlign: 'right'}}>
-                            <button 
-                              className="btn btn-ghost" 
-                              style={{padding: '4px 8px', fontSize: '0.85rem'}}
-                              onClick={() => {
-                                setIsHistoryModalOpen(false);
-                                navigate(`/kanban?orderId=${order.id}`);
-                              }}
-                            >
-                              Подробнее <ArrowRight size={14} style={{marginLeft: '4px'}} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <div className="modal-actions" style={{ marginTop: '1rem' }}>
+            <div className="modal-header">
+              <h2>История заявок: {historyClient.name}</h2>
               <button 
                 type="button" 
                 onClick={() => setIsHistoryModalOpen(false)}
-                className="btn btn-ghost"
+                className="btn-icon"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              {loadingHistory ? (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>Загрузка истории...</div>
+              ) : (
+                <div className="clients-table-container glass-panel" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  <table className="clients-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Адрес</th>
+                        <th>Стоимость</th>
+                        <th>Дата</th>
+                        <th style={{textAlign: 'right'}}>Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {clientHistory.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: 'center', opacity: 0.5 }}>У клиента нет заявок.</td>
+                        </tr>
+                      ) : (
+                        clientHistory.map(order => (
+                          <tr key={order.id}>
+                            <td>#{order.id}</td>
+                            <td>{order.address || '-'}</td>
+                            <td>{order.totalPrice} ₽</td>
+                            <td>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</td>
+                            <td style={{textAlign: 'right'}}>
+                              <button 
+                                onClick={() => {
+                                  setIsHistoryModalOpen(false);
+                                  navigate(`/?orderId=${order.id}`);
+                                }}
+                                className="action-btn"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '0.8rem' }}
+                              >
+                                Перейти <ArrowRight size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button 
+                type="button" 
+                onClick={() => setIsHistoryModalOpen(false)}
+                className="btn btn-primary"
               >
                 Закрыть
               </button>

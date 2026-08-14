@@ -343,27 +343,64 @@
     width: 85vw;
     scroll-snap-align: center;
   }
-
-  /* Modal on mobile */
+  /* Native Fullscreen Modal on mobile */
   .modal-overlay {
-    padding: 12px;
-    align-items: flex-end;
+    padding: 0 !important;
+    align-items: stretch !important;
   }
 
   .modal-content {
     max-width: 100% !important;
     width: 100% !important;
-    max-height: 90vh;
-    overflow-y: auto;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    padding: 20px 16px;
-    animation: slideUp 0.3s ease-out;
+    height: 100% !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    padding: 16px !important;
+    border: none !important;
+    display: flex;
+    flex-direction: column;
   }
-}
 
-@keyframes slideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  .modal-header {
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+  }
+
+  .modal-header h2 {
+    font-size: 1.15rem;
+  }
+
+  .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 16px;
+  }
+
+  .modal-actions {
+    padding-top: 12px;
+    margin-top: 0;
+    display: flex;
+    gap: 10px;
+  }
+
+  .modal-actions .btn {
+    flex: 1;
+    height: 48px;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Prevent iOS input zoom */
+  .search-input,
+  .custom-select,
+  .custom-number-input,
+  .form-group input,
+  .form-group textarea {
+    font-size: 16px !important;
+    height: 46px;
+  }
 }
 
 

@@ -145,34 +145,58 @@ select.search-input option {
   color: #ef4444;
 }
 
-/* Modal */
+/* Modal styles */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 1050;
+  padding: 16px;
 }
 
 .modal-content {
   background: var(--bg-secondary);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: 20px 24px;
   width: 100%;
-  max-width: 400px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  max-width: 480px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  position: relative;
+  overflow: hidden;
 }
 
-.modal-content h2 {
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+
+.modal-header h2 {
   font-size: 1.25rem;
-  margin-bottom: 20px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .form-group {
@@ -204,7 +228,10 @@ select.search-input option {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 24px;
+  padding-top: 14px;
+  margin-top: 8px;
+  border-top: 1px solid var(--glass-border);
+  flex-shrink: 0;
 }
 
 /* Responsive styles for clients / tables */
@@ -245,18 +272,53 @@ select.search-input option {
     opacity: 1;
   }
 
+  /* Fullscreen native mobile modal */
   .modal-overlay {
-    padding: 12px;
-    align-items: flex-end;
+    padding: 0 !important;
+    align-items: stretch !important;
   }
 
   .modal-content {
-    max-width: 100%;
-    width: 100%;
-    max-height: 90vh;
-    overflow-y: auto;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    padding: 20px 16px;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    padding: 16px !important;
+    border: none !important;
+  }
+
+  .modal-header {
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+  }
+
+  .modal-header h2 {
+    font-size: 1.15rem;
+  }
+
+  .modal-actions {
+    padding-top: 12px;
+    margin-top: 0;
+    gap: 10px;
+  }
+
+  .modal-actions .btn {
+    flex: 1;
+    height: 48px;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Prevent iOS input zoom */
+  .form-group input,
+  .search-input,
+  .custom-select,
+  .custom-number-input {
+    font-size: 16px !important;
+    height: 46px;
   }
 }
 
