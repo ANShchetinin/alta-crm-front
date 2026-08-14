@@ -588,17 +588,28 @@ const Kanban = () => {
 
               <div className="form-group">
                 <label>{t('kanban.modal.address')}</label>
-                <AddressSuggestions
-                  token={import.meta.env.VITE_DADATA_API_KEY || ''}
-                  defaultQuery={formData.address}
-                  onChange={(suggestion) => setFormData({...formData, address: suggestion?.value || formData.address})}
-                  inputProps={{
-                    placeholder: t('kanban.modal.address'),
-                    className: "search-input",
-                    style: {width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box'},
-                    onChange: (e: any) => setFormData({...formData, address: e.target.value})
-                  }}
-                />
+                {(import.meta.env.VITE_DADATA_API_KEY || '66396b2e45d9ff46356592aae66a087ead7d082e') ? (
+                  <AddressSuggestions
+                    token={import.meta.env.VITE_DADATA_API_KEY || '66396b2e45d9ff46356592aae66a087ead7d082e'}
+                    defaultQuery={formData.address}
+                    onChange={(suggestion) => setFormData({...formData, address: suggestion?.value || formData.address})}
+                    inputProps={{
+                      placeholder: t('kanban.modal.address'),
+                      className: "search-input",
+                      style: {width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box'},
+                      onChange: (e: any) => setFormData({...formData, address: e.target.value})
+                    }}
+                  />
+                ) : (
+                  <input 
+                    type="text"
+                    placeholder={t('kanban.modal.address')}
+                    className="search-input"
+                    style={{width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box'}}
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  />
+                )}
               </div>
 
               <div className="form-group">

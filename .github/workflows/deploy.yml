@@ -32,6 +32,7 @@ jobs:
       - name: Build frontend
         env:
           VITE_APP_VERSION: ${{ github.ref_name }}
+          VITE_DADATA_API_KEY: ${{ secrets.VITE_DADATA_API_KEY || '66396b2e45d9ff46356592aae66a087ead7d082e' }}
         run: |
           npm ci
           npm run build
