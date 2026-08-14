@@ -2,8 +2,8 @@ name: Build and Deploy Frontend
 
 on:
   push:
-    branches:
-      - master
+    tags:
+      - 'v*'
 
 env:
   REGISTRY: gitverse.ru
@@ -36,7 +36,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
-            type=sha,format=short
+            type=ref,event=tag
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -61,11 +61,11 @@ jobs:
             cd /opt/IdeaProjects/alta-crm
             
             # Обновляем переменные для docker-compose
-            sed -i "s|^FRONTEND_VERSION=.*|FRONTEND_VERSION=${GITHUB_SHA::7}|g" .env
+            sed -i "s|^FRONTEND_VERSION=.*|FRONTEND_VERSION=${GITHUB_REF_NAME}|g" .env
             sed -i "s|^DOCKER_REGISTRY=.*|DOCKER_REGISTRY=${{ env.REGISTRY }}/aschetinin/|g" .env
             
             # Если переменных еще нет, добавляем их
-            grep -q "^FRONTEND_VERSION=" .env || echo "FRONTEND_VERSION=${GITHUB_SHA::7}" >> .env
+            grep -q "^FRONTEND_VERSION=" .env || echo "FRONTEND_VERSION=${GITHUB_REF_NAME}" >> .env
             grep -q "^DOCKER_REGISTRY=" .env || echo "DOCKER_REGISTRY=${{ env.REGISTRY }}/aschetinin/" >> .env
             
             docker-compose pull frontend
