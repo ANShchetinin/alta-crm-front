@@ -5,7 +5,7 @@ import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
 import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary } from '../api/kanban';
-import { getClients } from '../api/clients';
+import { getClients, createClient } from '../api/clients';
 import type { Client } from '../api/clients';
 import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
@@ -30,6 +30,12 @@ const Kanban = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
+
+  // Quick Client Creation
+  const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [creatingClient, setCreatingClient] = useState(false);
 
   const [formData, setFormData] = useState({
     clientId: '',
@@ -164,6 +170,26 @@ const Kanban = () => {
     setPendingFiles([]);
     setAiSummary(null);
     setIsModalOpen(true);
+  };
+
+  const handleQuickCreateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientName.trim() || !newClientPhone.trim()) return;
+    
+    setCreatingClient(true);
+    try {
+      const created = await createClient({ name: newClientName.trim(), phone: newClientPhone.trim() });
+      setClients(prev => [created, ...prev]);
+      setFormData(prev => ({ ...prev, clientId: created.id.toString() }));
+      setIsNewClientModalOpen(false);
+      setNewClientName('');
+      setNewClientPhone('');
+    } catch (err: any) {
+      console.error("Failed to create client", err);
+      alert(err.response?.data?.message || 'Не удалось создать клиента');
+    } finally {
+      setCreatingClient(false);
+    }
   };
 
   const openEditModal = (order: Order) => {
@@ -552,17 +578,36 @@ const Kanban = () => {
             <form onSubmit={handleCreateSubmit}>
               
               <div className="form-group">
-                <label>{t('kanban.modal.client')}</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0 }}>{t('kanban.modal.client')}</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsNewClientModalOpen(true)}
+                    className="btn-icon"
+                    style={{ fontSize: '0.8rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 6px' }}
+                  >
+                    <Plus size={14} /> {t('clients.addClient') || 'Новый клиент'}
+                  </button>
+                </div>
                 <div className="custom-select-wrapper">
                   <select 
                     required
                     value={formData.clientId}
-                    onChange={(e) => setFormData({...formData, clientId: e.target.value})}
+                    onChange={(e) => {
+                      if (e.target.value === '__NEW_CLIENT__') {
+                        setIsNewClientModalOpen(true);
+                      } else {
+                        setFormData({...formData, clientId: e.target.value});
+                      }
+                    }}
                     className="custom-select"
                   >
                     <option value="" disabled>{t('kanban.modal.selectClient')}</option>
+                    <option value="__NEW_CLIENT__" style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>
+                      + {t('clients.addClient') || 'Создать клиента...'}
+                    </option>
                     {clients.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                      <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ''}</option>
                     ))}
                   </select>
                   <ChevronDown className="custom-select-icon" size={16} />
@@ -886,8 +931,65 @@ const Kanban = () => {
           </div>
         </div>
       )}
+
+      {/* Quick Create Client Modal */}
+      {isNewClientModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+          <div className="modal-content animate-fade-in" style={{ maxWidth: '420px' }}>
+            <h2>{t('clients.addClient') || 'Новый клиент'}</h2>
+            <form onSubmit={handleQuickCreateClient}>
+              <div className="form-group">
+                <label>Имя клиента *</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="Иван Иванов"
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  className="search-input"
+                  style={{ width: '100%', paddingLeft: '12px' }}
+                  autoFocus
+                />
+              </div>
+              <div className="form-group">
+                <label>Телефон *</label>
+                <input 
+                  type="tel" 
+                  required
+                  placeholder="+7 (999) 000-00-00"
+                  value={newClientPhone}
+                  onChange={(e) => setNewClientPhone(e.target.value)}
+                  className="search-input"
+                  style={{ width: '100%', paddingLeft: '12px' }}
+                />
+              </div>
+              <div className="modal-actions" style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button 
+                  type="button" 
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setIsNewClientModalOpen(false);
+                    setNewClientName('');
+                    setNewClientPhone('');
+                  }}
+                >
+                  {t('common.cancel') || 'Отмена'}
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  disabled={creatingClient}
+                >
+                  {creatingClient ? 'Сохранение...' : (t('common.save') || 'Создать')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default Kanban;
+
