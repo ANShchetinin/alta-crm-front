@@ -40,7 +40,7 @@ jobs:
           echo "${{ secrets.VPS_SSH_KEY }}" | tr -d ' \n\r' | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
-          ssh -i ~/.ssh/id_rsa ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} "mkdir -p /opt/IdeaProjects/alta-crm/frontend-artifact"
+          ssh -i ~/.ssh/id_rsa ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} "mkdir -p /opt/IdeaProjects/alta-crm/frontend-artifact && rm -rf /opt/IdeaProjects/alta-crm/frontend-artifact/*"
           scp -i ~/.ssh/id_rsa -r dist/* ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/opt/IdeaProjects/alta-crm/frontend-artifact/
 
   deploy:
