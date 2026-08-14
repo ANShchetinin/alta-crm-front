@@ -30,6 +30,8 @@ jobs:
           password: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Build frontend
+        env:
+          VITE_APP_VERSION: ${{ github.ref_name }}
         run: |
           npm ci
           npm run build

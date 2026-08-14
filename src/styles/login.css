@@ -102,3 +102,19 @@
 .login-footer a:hover {
   color: var(--accent-hover);
 }
+
+@media (max-width: 480px) {
+  .login-container {
+    padding: 12px;
+  }
+
+  .login-card {
+    padding: 24px 16px;
+    gap: 24px;
+  }
+
+  .login-header h1 {
+    font-size: 22px;
+  }
+}
+

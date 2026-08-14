@@ -307,3 +307,63 @@
   color: var(--text-primary) !important;
 }
 
+/* Responsive styles for Kanban */
+@media (max-width: 768px) {
+  .kanban-wrapper {
+    padding: 4px;
+  }
+
+  .kanban-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .kanban-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .kanban-board {
+    gap: 12px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 12px;
+  }
+
+  .kanban-column {
+    min-width: 85vw;
+    width: 85vw;
+    scroll-snap-align: center;
+    border-radius: var(--radius-md);
+  }
+
+  .add-column-btn {
+    min-width: 85vw;
+    width: 85vw;
+    scroll-snap-align: center;
+  }
+
+  /* Modal on mobile */
+  .modal-overlay {
+    padding: 12px;
+    align-items: flex-end;
+  }
+
+  .modal-content {
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: 20px 16px;
+    animation: slideUp 0.3s ease-out;
+  }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+
