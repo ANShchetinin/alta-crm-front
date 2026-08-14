@@ -330,7 +330,7 @@
 
   .topbar {
     height: 56px;
-    padding: 0 12px;
+    padding: 0 16px;
     border-radius: 0;
     border-left: none;
     border-right: none;
@@ -346,9 +346,11 @@
   }
 
   .content-area {
-    padding: 8px;
-    padding-bottom: 76px; /* space for mobile bottom nav */
+    padding: 14px 16px;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
     border-radius: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Mobile Bottom Navigation Bar */
@@ -358,20 +360,22 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 60px;
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     background: var(--glass-bg);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid var(--glass-border);
     border-left: none;
     border-right: none;
     border-bottom: none;
     border-radius: 0;
-    z-index: 999;
+    z-index: 1000;
     justify-content: space-around;
     align-items: center;
-    padding: 0 4px;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+    padding-left: 8px;
+    padding-right: 8px;
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.45);
   }
 
   .bottom-nav-item {
