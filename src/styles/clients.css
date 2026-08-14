@@ -1,8 +1,12 @@
 .clients-wrapper {
   padding: 8px;
   height: 100%;
+  width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .clients-header {
@@ -237,7 +241,10 @@ select.search-input option {
 /* Responsive styles for clients / tables */
 @media (max-width: 768px) {
   .clients-wrapper {
-    padding: 4px;
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   .clients-header {
@@ -245,6 +252,8 @@ select.search-input option {
     align-items: stretch;
     gap: 12px;
     margin-bottom: 16px;
+    width: 100%;
+    max-width: 100%;
   }
 
   .clients-header h1 {
@@ -255,11 +264,23 @@ select.search-input option {
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
+    width: 100%;
+    max-width: 100%;
   }
 
   .search-input-wrapper,
   .search-input {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .clients-table-container {
     width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
   }
 
   .clients-table th,
