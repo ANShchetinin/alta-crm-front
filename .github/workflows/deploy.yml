@@ -1,0 +1,72 @@
+name: Build and Deploy Frontend
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  REGISTRY: gitverse.ru
+  IMAGE_NAME: aschetinin/alta-crm-frontend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+            cd /opt/IdeaProjects/alta-crm
+            
+            # Обновляем переменные для docker-compose
+            sed -i "s|^FRONTEND_VERSION=.*|FRONTEND_VERSION=${GITHUB_SHA::7}|g" .env
+            sed -i "s|^DOCKER_REGISTRY=.*|DOCKER_REGISTRY=${{ env.REGISTRY }}/aschetinin/|g" .env
+            
+            # Если переменных еще нет, добавляем их
+            grep -q "^FRONTEND_VERSION=" .env || echo "FRONTEND_VERSION=${GITHUB_SHA::7}" >> .env
+            grep -q "^DOCKER_REGISTRY=" .env || echo "DOCKER_REGISTRY=${{ env.REGISTRY }}/aschetinin/" >> .env
+            
+            docker-compose pull frontend
+            docker-compose up -d --no-deps frontend
