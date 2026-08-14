@@ -29,17 +29,20 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build frontend
         run: |
-          IMAGE_LATEST="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
-          
-          echo "Building image..."
-          docker build -t $IMAGE_LATEST -t $IMAGE_TAG .
-          
-          echo "Pushing image..."
-          docker push $IMAGE_LATEST
-          docker push $IMAGE_TAG
+          npm ci
+          npm run build
+
+      - name: Copy Dist to VPS
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "dist/**"
+          target: "/opt/IdeaProjects/alta-crm/frontend-artifact"
+          strip_components: 1
 
   deploy:
     needs: build-and-push
@@ -52,16 +55,18 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
             cd /opt/IdeaProjects/alta-crm
             
-            # Обновляем переменные для docker-compose
+            # Обновляем переменные
             sed -i "s|^FRONTEND_VERSION=.*|FRONTEND_VERSION=${GITHUB_REF_NAME}|g" .env
-            sed -i "s|^DOCKER_REGISTRY=.*|DOCKER_REGISTRY=${{ env.REGISTRY }}/aschetinin/|g" .env
-            
-            # Если переменных еще нет, добавляем их
+            sed -i "s|^DOCKER_REGISTRY=.*|DOCKER_REGISTRY=|g" .env
             grep -q "^FRONTEND_VERSION=" .env || echo "FRONTEND_VERSION=${GITHUB_REF_NAME}" >> .env
-            grep -q "^DOCKER_REGISTRY=" .env || echo "DOCKER_REGISTRY=${{ env.REGISTRY }}/aschetinin/" >> .env
+            grep -q "^DOCKER_REGISTRY=" .env || echo "DOCKER_REGISTRY=" >> .env
             
-            docker-compose pull frontend
+            # Копируем dist в папку фронтенда (на сервере Dockerfile соберет образ)
+            rm -rf frontend-dist && cp -r frontend-artifact frontend-dist
+            
+            # Собираем Docker образ локально на сервере
+            docker build -t aschetinin/alta-crm-front:${GITHUB_REF_NAME} -t aschetinin/alta-crm-front:latest -f Dockerfile.local .
+            
             docker-compose up -d --no-deps frontend
