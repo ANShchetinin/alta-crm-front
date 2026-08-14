@@ -1,7 +1,16 @@
-export const getYandexMapsUrl = (address: string): string => {
-  return `https://yandex.ru/maps/?text=${encodeURIComponent(address)}&rtt=auto`;
+export const buildFullAddress = (address: string, entrance?: string): string => {
+  if (entrance && entrance.trim()) {
+    return `${address.trim()}, подъезд ${entrance.trim()}`;
+  }
+  return address.trim();
 };
 
-export const get2GisUrl = (address: string): string => {
-  return `https://2gis.ru/search/${encodeURIComponent(address)}`;
+export const getYandexMapsUrl = (address: string, entrance?: string): string => {
+  const fullAddress = buildFullAddress(address, entrance);
+  return `https://yandex.ru/maps/?text=${encodeURIComponent(fullAddress)}&rtt=auto`;
+};
+
+export const get2GisUrl = (address: string, entrance?: string): string => {
+  const fullAddress = buildFullAddress(address, entrance);
+  return `https://2gis.ru/search/${encodeURIComponent(fullAddress)}`;
 };

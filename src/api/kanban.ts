@@ -42,6 +42,8 @@ export interface Order {
   installationPrice?: number;
   installationDate?: string;
   measurementDate?: string;
+  entrance?: string;
+  floor?: string;
   createdAt?: string;
   materials?: OrderMaterial[];
   attachments?: OrderAttachment[];

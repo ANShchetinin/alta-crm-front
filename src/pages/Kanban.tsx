@@ -42,6 +42,8 @@ const Kanban = () => {
     clientId: '',
     assigneeId: '',
     address: '',
+    entrance: '',
+    floor: '',
     description: '',
     totalPrice: '',
     installationPrice: '',
@@ -99,6 +101,8 @@ const Kanban = () => {
             clientId: orderToOpen.clientId ? orderToOpen.clientId.toString() : '',
             assigneeId: orderToOpen.assigneeId ? orderToOpen.assigneeId.toString() : '',
             address: orderToOpen.address || '',
+            entrance: orderToOpen.entrance || '',
+            floor: orderToOpen.floor || '',
             description: orderToOpen.description || '',
             totalPrice: orderToOpen.totalPrice != null ? orderToOpen.totalPrice.toString() : '0',
             installationPrice: orderToOpen.installationPrice != null ? orderToOpen.installationPrice.toString() : '0',
@@ -158,6 +162,8 @@ const Kanban = () => {
       clientId: '',
       assigneeId: '',
       address: '',
+      entrance: '',
+      floor: '',
       description: '',
       totalPrice: '',
       installationPrice: '',
@@ -199,6 +205,8 @@ const Kanban = () => {
       clientId: order.clientId ? order.clientId.toString() : '',
       assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
       address: order.address || '',
+      entrance: order.entrance || '',
+      floor: order.floor || '',
       description: order.description || '',
       totalPrice: order.totalPrice != null ? order.totalPrice.toString() : '0',
       installationPrice: order.installationPrice != null ? order.installationPrice.toString() : '0',
@@ -224,6 +232,8 @@ const Kanban = () => {
       assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
       statusId: editingOrderId ? cards.find(c => c.id === editingOrderId)?.statusId || columns[0].id : columns[0].id,
       address: formData.address,
+      entrance: formData.entrance || undefined,
+      floor: formData.floor || undefined,
       description: formData.description,
       totalPrice: parseFloat(formData.totalPrice || '0'),
       installationPrice: parseFloat(formData.installationPrice || '0'),
@@ -565,11 +575,18 @@ const Kanban = () => {
                         flex: 1
                       }}>
                         <MapPin size={13} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.address}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {card.address}
+                          {(card.entrance || card.floor) && (
+                            <span style={{ opacity: 0.85, marginLeft: '4px', fontSize: '0.75rem' }}>
+                              ({[card.entrance ? `под. ${card.entrance}` : '', card.floor ? `эт. ${card.floor}` : ''].filter(Boolean).join(', ')})
+                            </span>
+                          )}
+                        </span>
                       </div>
                       <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
                         <a
-                          href={getYandexMapsUrl(card.address)}
+                          href={getYandexMapsUrl(card.address, card.entrance)}
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Маршрут в Яндекс.Картах"
@@ -587,7 +604,7 @@ const Kanban = () => {
                           Яндекс
                         </a>
                         <a
-                          href={get2GisUrl(card.address)}
+                          href={get2GisUrl(card.address, card.entrance)}
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Маршрут в 2ГИС"
@@ -807,7 +824,7 @@ const Kanban = () => {
                   <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('kanban.modal.route') || 'Маршрут'}:</span>
                     <a
-                      href={getYandexMapsUrl(formData.address)}
+                      href={getYandexMapsUrl(formData.address, formData.entrance)}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
@@ -827,7 +844,7 @@ const Kanban = () => {
                       <Navigation size={13} /> {t('kanban.modal.routeYandex') || 'Яндекс.Карты'}
                     </a>
                     <a
-                      href={get2GisUrl(formData.address)}
+                      href={get2GisUrl(formData.address, formData.entrance)}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
@@ -848,6 +865,31 @@ const Kanban = () => {
                     </a>
                   </div>
                 )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <label>{t('kanban.modal.entrance') || 'Подъезд'}</label>
+                  <input 
+                    type="text" 
+                    placeholder="1"
+                    value={formData.entrance}
+                    onChange={(e) => setFormData({...formData, entrance: e.target.value})}
+                    className="search-input"
+                    style={{ width: '100%', paddingLeft: '12px' }}
+                  />
+                </div>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <label>{t('kanban.modal.floor') || 'Этаж'}</label>
+                  <input 
+                    type="text" 
+                    placeholder="4"
+                    value={formData.floor}
+                    onChange={(e) => setFormData({...formData, floor: e.target.value})}
+                    className="search-input"
+                    style={{ width: '100%', paddingLeft: '12px' }}
+                  />
+                </div>
               </div>
 
               <div className="form-group">
