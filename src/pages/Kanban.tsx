@@ -48,6 +48,8 @@ const Kanban = () => {
     floor: '',
     description: '',
     totalPrice: '',
+    prepayment: '',
+    remainder: '',
     installationPrice: '',
     installationDate: '',
     measurementDate: '',
@@ -74,6 +76,7 @@ const Kanban = () => {
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       const [statuses, orders, clientsData, materialsData, employeesData] = await Promise.all([
         getOrderStatuses(),
         getOrders(),
@@ -98,6 +101,10 @@ const Kanban = () => {
         const orderToOpen = orders.find(o => o.id === parseInt(orderIdParam));
         if (orderToOpen) {
           // Open edit modal directly
+          const prep = orderToOpen.prepayment != null ? orderToOpen.prepayment : 0;
+          const rem = orderToOpen.remainder != null ? orderToOpen.remainder : (orderToOpen.totalPrice != null ? Math.max(0, orderToOpen.totalPrice - prep) : 0);
+          const tot = orderToOpen.totalPrice != null ? orderToOpen.totalPrice : (prep + rem);
+
           setEditingOrderId(orderToOpen.id);
           setFormData({
             clientId: orderToOpen.clientId ? orderToOpen.clientId.toString() : '',
@@ -107,7 +114,9 @@ const Kanban = () => {
             entrance: orderToOpen.entrance || '',
             floor: orderToOpen.floor || '',
             description: orderToOpen.description || '',
-            totalPrice: orderToOpen.totalPrice != null ? orderToOpen.totalPrice.toString() : '0',
+            totalPrice: tot.toString(),
+            prepayment: prep.toString(),
+            remainder: rem.toString(),
             installationPrice: orderToOpen.installationPrice != null ? orderToOpen.installationPrice.toString() : '0',
             installationDate: orderToOpen.installationDate || '',
             measurementDate: orderToOpen.measurementDate ? orderToOpen.measurementDate.slice(0, 16) : '',
@@ -169,8 +178,10 @@ const Kanban = () => {
       entrance: '',
       floor: '',
       description: '',
-      totalPrice: '',
-      installationPrice: '',
+      totalPrice: '0',
+      prepayment: '0',
+      remainder: '0',
+      installationPrice: '0',
       installationDate: '',
       measurementDate: '',
       materials: [],
@@ -204,6 +215,10 @@ const Kanban = () => {
   };
 
   const openEditModal = (order: Order) => {
+    const prep = order.prepayment != null ? order.prepayment : 0;
+    const rem = order.remainder != null ? order.remainder : (order.totalPrice != null ? Math.max(0, order.totalPrice - prep) : 0);
+    const tot = order.totalPrice != null ? order.totalPrice : (prep + rem);
+
     setEditingOrderId(order.id);
     setFormData({
       clientId: order.clientId ? order.clientId.toString() : '',
@@ -213,7 +228,9 @@ const Kanban = () => {
       entrance: order.entrance || '',
       floor: order.floor || '',
       description: order.description || '',
-      totalPrice: order.totalPrice != null ? order.totalPrice.toString() : '0',
+      totalPrice: tot.toString(),
+      prepayment: prep.toString(),
+      remainder: rem.toString(),
       installationPrice: order.installationPrice != null ? order.installationPrice.toString() : '0',
       installationDate: order.installationDate || '',
       measurementDate: order.measurementDate ? order.measurementDate.slice(0, 16) : '',
@@ -232,6 +249,10 @@ const Kanban = () => {
     e.preventDefault();
     if (!columns.length) return;
     
+    const prep = parseFloat(formData.prepayment || '0');
+    const rem = parseFloat(formData.remainder || '0');
+    const total = prep + rem;
+
     const payload = {
       clientId: parseInt(formData.clientId),
       assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
@@ -240,7 +261,9 @@ const Kanban = () => {
       entrance: formData.entrance || undefined,
       floor: formData.floor || undefined,
       description: formData.description,
-      totalPrice: parseFloat(formData.totalPrice || '0'),
+      prepayment: prep,
+      remainder: rem,
+      totalPrice: total,
       installationPrice: parseFloat(formData.installationPrice || '0'),
       installationDate: formData.installationDate || undefined,
       measurementDate: formData.measurementDate || undefined,
@@ -744,17 +767,32 @@ const Kanban = () => {
                       return null;
                     })()}
                   </div>
-                  <div className="card-footer">
-                    <span className="card-price">{card.totalPrice} ₽</span>
-                    <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
-                      {card.attachments && card.attachments.length > 0 && (
-                        <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
-                          <Paperclip size={12} /> {card.attachments.length}
-                        </div>
-                      )}
-                      {card.profitMargin != null && card.profitMargin > 0 && (
-                        <span style={{fontSize: '0.75rem', color: 'var(--success)'}}>+{card.profitMargin.toFixed(1)}%</span>
-                      )}
+                  <div className="card-footer" style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'stretch' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="card-price">{(card.totalPrice || 0).toLocaleString('ru-RU')} ₽</span>
+                      <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                        {card.attachments && card.attachments.length > 0 && (
+                          <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
+                            <Paperclip size={12} /> {card.attachments.length}
+                          </div>
+                        )}
+                        {card.profitMargin != null && card.profitMargin > 0 && (
+                          <span style={{fontSize: '0.75rem', color: 'var(--success)'}}>+{card.profitMargin.toFixed(1)}%</span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      fontSize: '0.75rem', 
+                      color: 'var(--text-secondary)',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      padding: '3px 6px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid rgba(255, 255, 255, 0.04)'
+                    }}>
+                      <span>Аванс: <strong style={{ color: 'var(--text-primary)' }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
+                      <span>Остаток: <strong style={{ color: 'var(--text-primary)' }}>{(card.remainder != null ? card.remainder : card.totalPrice).toLocaleString('ru-RU')} ₽</strong></span>
                     </div>
                   </div>
                 </div>
@@ -1178,17 +1216,62 @@ const Kanban = () => {
                   />
                 </div>
                 <div className="form-group" style={{flex: 1}}>
-                  <label>{t('kanban.modal.price')}</label>
+                  <label>Аванс (₽)</label>
                   <input 
                     type="number" 
-                    required
                     min="0"
                     step="0.01"
-                    value={formData.totalPrice}
-                    onChange={(e) => setFormData({...formData, totalPrice: e.target.value})}
+                    value={formData.prepayment}
+                    onChange={(e) => {
+                      const newPrep = e.target.value;
+                      const prepNum = parseFloat(newPrep || '0');
+                      const remNum = parseFloat(formData.remainder || '0');
+                      setFormData({
+                        ...formData, 
+                        prepayment: newPrep,
+                        totalPrice: (prepNum + remNum).toString()
+                      });
+                    }}
                     className="custom-number-input"
+                    placeholder="0"
                   />
                 </div>
+                <div className="form-group" style={{flex: 1}}>
+                  <label>Остаток (₽)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    step="0.01"
+                    value={formData.remainder}
+                    onChange={(e) => {
+                      const newRem = e.target.value;
+                      const remNum = parseFloat(newRem || '0');
+                      const prepNum = parseFloat(formData.prepayment || '0');
+                      setFormData({
+                        ...formData, 
+                        remainder: newRem,
+                        totalPrice: (prepNum + remNum).toString()
+                      });
+                    }}
+                    className="custom-number-input"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <div style={{
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                background: 'rgba(59, 130, 246, 0.08)', 
+                border: '1px solid rgba(59, 130, 246, 0.2)', 
+                borderRadius: 'var(--radius-md)', 
+                padding: '10px 16px', 
+                marginBottom: '16px'
+              }}>
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Итого для клиента (Аванс + Остаток):</span>
+                <span style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
+                  {(parseFloat(formData.prepayment || '0') + parseFloat(formData.remainder || '0')).toLocaleString('ru-RU')} ₽
+                </span>
               </div>
               <div style={{display: 'flex', gap: '16px', flexWrap: 'wrap'}}>
                 <div className="form-group" style={{flex: 1, minWidth: '200px'}}>

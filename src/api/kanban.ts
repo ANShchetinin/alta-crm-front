@@ -39,6 +39,8 @@ export interface Order {
   address: string;
   description: string;
   totalPrice: number;
+  prepayment?: number;
+  remainder?: number;
   installationPrice?: number;
   installationDate?: string;
   measurementDate?: string;
