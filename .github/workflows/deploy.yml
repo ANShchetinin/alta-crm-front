@@ -51,16 +51,16 @@ jobs:
             cd /opt/IdeaProjects/alta-crm
             
             # Обновляем переменные
-            sed -i 's|^FRONTEND_VERSION=.*|FRONTEND_VERSION=${GITHUB_REF_NAME}|g' .env
+            sed -i 's|^FRONTEND_VERSION=.*|FRONTEND_VERSION=${{ github.ref_name }}|g' .env
             sed -i 's|^DOCKER_REGISTRY=.*|DOCKER_REGISTRY=|g' .env
-            grep -q '^FRONTEND_VERSION=' .env || echo 'FRONTEND_VERSION=${GITHUB_REF_NAME}' >> .env
+            grep -q '^FRONTEND_VERSION=' .env || echo 'FRONTEND_VERSION=${{ github.ref_name }}' >> .env
             grep -q '^DOCKER_REGISTRY=' .env || echo 'DOCKER_REGISTRY=' >> .env
             
             # Копируем dist в папку фронтенда (на сервере Dockerfile соберет образ)
             rm -rf frontend-dist && cp -r frontend-artifact frontend-dist
             
             # Собираем Docker образ фронтенда с Nginx
-            docker build -t altacrm-frontend:${GITHUB_REF_NAME} -t altacrm-frontend:latest -f Dockerfile.frontend.local .
+            docker build -t altacrm-frontend:${{ github.ref_name }} -t altacrm-frontend:latest -f Dockerfile.frontend.local .
             
             docker-compose up -d --no-deps frontend
           "
