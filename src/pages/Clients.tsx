@@ -366,7 +366,14 @@ export const Clients = () => {
                                 </div>
                               </td>
                               <td>{order.address || '-'}</td>
-                              <td>{order.totalPrice} ₽</td>
+                              <td>
+                                <div>{(order.totalPrice || 0).toLocaleString('ru-RU')} ₽</div>
+                                {(order.prepayment != null || order.remainder != null) && (
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                    Ав: {(order.prepayment || 0).toLocaleString('ru-RU')} • Ост: {(order.remainder != null ? order.remainder : order.totalPrice).toLocaleString('ru-RU')}
+                                  </div>
+                                )}
+                              </td>
                               <td>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</td>
                               <td style={{textAlign: 'right'}}>
                                 <button 
