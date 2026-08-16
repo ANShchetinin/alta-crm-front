@@ -3,15 +3,15 @@ import { useAuthStore } from '../store/useAuthStore';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api/v1',
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (config.data instanceof FormData && config.headers) {
+    delete config.headers['Content-Type'];
   }
   return config;
 });
