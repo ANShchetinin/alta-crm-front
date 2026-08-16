@@ -3,7 +3,7 @@ import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Mi
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl, deleteAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary } from '../api/kanban';
 import { getClients, createClient } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -310,6 +310,22 @@ const Kanban = () => {
 
   const removePendingFile = (index: number) => {
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteAttachment = async (attachmentId: number) => {
+    try {
+      await deleteAttachment(attachmentId);
+      setFormData(prev => ({
+        ...prev,
+        attachments: prev.attachments.filter(a => a.id !== attachmentId)
+      }));
+      setCards(prev => prev.map(c => c.id === editingOrderId ? {
+        ...c,
+        attachments: (c.attachments || []).filter(a => a.id !== attachmentId)
+      } : c));
+    } catch (err) {
+      console.error("Failed to delete attachment", err);
+    }
   };
 
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1012,10 +1028,22 @@ const Kanban = () => {
                   <div className="attachments-list">
                     {formData.attachments.map(att => (
                       <div key={att.id} className="attachment-item">
-                        <span style={{fontSize: '0.9rem'}}>{att.fileName}</span>
-                        <a href={getAttachmentUrl(att.id)} target="_blank" rel="noreferrer" download style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
-                          <Download size={14} /> {t('kanban.modal.download')}
-                        </a>
+                        <span style={{fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%'}}>
+                          {att.fileName}
+                        </span>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                          <a href={getAttachmentUrl(att.id)} target="_blank" rel="noreferrer" download style={{display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none'}}>
+                            <Download size={14} /> {t('kanban.modal.download')}
+                          </a>
+                          <button 
+                            type="button" 
+                            onClick={() => handleDeleteAttachment(att.id)} 
+                            title={t('kanban.modal.delete') || 'Удалить'} 
+                            style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px'}}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                     {pendingFiles.map((pf, index) => (

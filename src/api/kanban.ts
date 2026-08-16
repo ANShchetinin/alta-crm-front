@@ -111,6 +111,10 @@ export const getAttachmentUrl = (attachmentId: number): string => {
   return `${api.defaults.baseURL}/orders/attachments/${attachmentId}`;
 };
 
+export const deleteAttachment = async (attachmentId: number): Promise<void> => {
+  await api.delete(`/orders/attachments/${attachmentId}`);
+};
+
 export const deleteOrder = async (orderId: number): Promise<void> => {
   await api.delete(`/orders/${orderId}`);
 };
