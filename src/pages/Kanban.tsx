@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Mic, Phone, MapPin, Navigation, X } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, getAttachmentUrl, deleteAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary } from '../api/kanban';
 import { getClients, createClient } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -310,6 +310,43 @@ const Kanban = () => {
 
   const removePendingFile = (index: number) => {
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const isViewableInBrowser = (fileName: string, contentType?: string) => {
+    const name = fileName.toLowerCase();
+    const type = (contentType || '').toLowerCase();
+    if (type.startsWith('image/') || type.startsWith('audio/') || type.startsWith('video/') || type.startsWith('text/') || type.includes('pdf')) {
+      return true;
+    }
+    return /\.(pdf|png|jpe?g|gif|webp|svg|bmp|txt|csv|log|mp3|wav|ogg|mp4|webm)$/i.test(name);
+  };
+
+  const handleOpenAttachment = async (att: OrderAttachment) => {
+    try {
+      const blob = await fetchAttachmentBlob(att.id, false);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (err) {
+      console.error("Failed to open attachment", err);
+      alert("Не удалось открыть файл");
+    }
+  };
+
+  const handleDownloadAttachment = async (att: OrderAttachment) => {
+    try {
+      const blob = await fetchAttachmentBlob(att.id, true);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = att.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to download attachment", err);
+      alert("Не удалось скачать файл");
+    }
   };
 
   const handleDeleteAttachment = async (attachmentId: number) => {
@@ -1026,26 +1063,46 @@ const Kanban = () => {
                 
                 {formData.attachments.length > 0 || pendingFiles.length > 0 ? (
                   <div className="attachments-list">
-                    {formData.attachments.map(att => (
-                      <div key={att.id} className="attachment-item">
-                        <span style={{fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%'}}>
-                          {att.fileName}
-                        </span>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                          <a href={getAttachmentUrl(att.id)} target="_blank" rel="noreferrer" download style={{display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none'}}>
-                            <Download size={14} /> {t('kanban.modal.download')}
-                          </a>
-                          <button 
-                            type="button" 
-                            onClick={() => handleDeleteAttachment(att.id)} 
-                            title={t('kanban.modal.delete') || 'Удалить'} 
-                            style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px'}}
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                    {formData.attachments.map(att => {
+                      const canPreview = isViewableInBrowser(att.fileName, att.contentType);
+                      return (
+                        <div key={att.id} className="attachment-item">
+                          <span style={{fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '45%'}}>
+                            {att.fileName}
+                          </span>
+                          <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                            {canPreview && (
+                              <button 
+                                type="button" 
+                                onClick={() => handleOpenAttachment(att)} 
+                                className="btn btn-ghost" 
+                                style={{padding: '4px 8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                                title="Посмотреть в браузере"
+                              >
+                                <Eye size={14} /> Просмотр
+                              </button>
+                            )}
+                            <button 
+                              type="button" 
+                              onClick={() => handleDownloadAttachment(att)} 
+                              className="btn btn-ghost" 
+                              style={{padding: '4px 8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                              title="Скачать файл"
+                            >
+                              <Download size={14} /> {t('kanban.modal.download')}
+                            </button>
+                            <button 
+                              type="button" 
+                              onClick={() => handleDeleteAttachment(att.id)} 
+                              title={t('kanban.modal.delete') || 'Удалить'} 
+                              style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px'}}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {pendingFiles.map((pf, index) => (
                       <div key={`pending-${index}`} className="attachment-item" style={{borderStyle: 'dashed'}}>
                         <span style={{fontSize: '0.9rem'}}>{pf.name} (pending)</span>

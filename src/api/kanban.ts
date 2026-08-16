@@ -111,6 +111,14 @@ export const getAttachmentUrl = (attachmentId: number): string => {
   return `${api.defaults.baseURL}/orders/attachments/${attachmentId}`;
 };
 
+export const fetchAttachmentBlob = async (attachmentId: number, download = false): Promise<Blob> => {
+  const response = await api.get(`/orders/attachments/${attachmentId}`, {
+    params: { download },
+    responseType: 'blob',
+  });
+  return response.data;
+};
+
 export const deleteAttachment = async (attachmentId: number): Promise<void> => {
   await api.delete(`/orders/attachments/${attachmentId}`);
 };
