@@ -1372,18 +1372,79 @@ const Kanban = () => {
                 </div>
                 <div className="form-group">
                   <label>{t('kanban.columnColor')}</label>
-                  <div style={{display: 'flex', gap: '8px'}}>
-                    {['#3b82f6', '#eab308', '#22c55e', '#ef4444', '#8b5cf6', '#f97316'].map(color => (
-                      <div 
+                  
+                  {/* Preset colors grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginBottom: '14px' }}>
+                    {[
+                      '#3b82f6', '#06b6d4', '#10b981', '#22c55e', '#84cc16', '#eab308', '#f97316',
+                      '#ef4444', '#f43f5e', '#ec4899', '#a855f7', '#8b5cf6', '#6366f1', '#64748b'
+                    ].map(color => (
+                      <button 
                         key={color}
+                        type="button"
                         onClick={() => setNewColumnColor(color)}
                         style={{
-                          width: '32px', height: '32px', borderRadius: '50%', backgroundColor: color, 
-                          cursor: 'pointer', border: newColumnColor === color ? '2px solid white' : 'none',
-                          boxShadow: newColumnColor === color ? '0 0 0 2px var(--primary)' : 'none'
+                          width: '100%',
+                          aspectRatio: '1',
+                          borderRadius: 'var(--radius-sm)',
+                          backgroundColor: color, 
+                          cursor: 'pointer',
+                          border: newColumnColor.toLowerCase() === color.toLowerCase() ? '2px solid white' : '1px solid rgba(255, 255, 255, 0.1)',
+                          boxShadow: newColumnColor.toLowerCase() === color.toLowerCase() ? '0 0 0 2px var(--accent-primary), 0 2px 8px rgba(0, 0, 0, 0.2)' : 'none',
+                          transform: newColumnColor.toLowerCase() === color.toLowerCase() ? 'scale(1.08)' : 'scale(1)',
+                          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                          outline: 'none',
+                          padding: 0
                         }}
+                        title={color}
                       />
                     ))}
+                  </div>
+
+                  {/* Custom color input with picker + hex input + preview */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255, 255, 255, 0.03)', padding: '8px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
+                    <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
+                      <input 
+                        type="color" 
+                        value={newColumnColor.startsWith('#') && newColumnColor.length === 7 ? newColumnColor : '#3b82f6'} 
+                        onChange={(e) => setNewColumnColor(e.target.value)}
+                        style={{ 
+                          position: 'absolute', 
+                          top: 0, 
+                          left: 0, 
+                          width: '100%', 
+                          height: '100%', 
+                          opacity: 0, 
+                          cursor: 'pointer' 
+                        }} 
+                        title="Выбрать цвет из палитры"
+                      />
+                      <div 
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          borderRadius: 'var(--radius-sm)', 
+                          backgroundColor: newColumnColor || '#3b82f6', 
+                          border: '2px solid rgba(255, 255, 255, 0.3)',
+                          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
+                          pointerEvents: 'none'
+                        }} 
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <input 
+                        type="text" 
+                        value={newColumnColor} 
+                        onChange={(e) => setNewColumnColor(e.target.value)}
+                        className="search-input" 
+                        placeholder="#3B82F6"
+                        style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.9rem', padding: '6px 10px' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', paddingLeft: '4px', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: newColumnColor || '#3b82f6', display: 'inline-block', flexShrink: 0 }}></span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{newColumnName || 'Статус'}</span>
+                    </div>
                   </div>
                 </div>
               </div>
