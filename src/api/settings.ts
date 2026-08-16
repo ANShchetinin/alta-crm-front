@@ -50,8 +50,6 @@ export const updateTenantSettings = async (data: UpdateTenantSettingsRequest): P
 export const uploadTenantLogo = async (file: File): Promise<TenantDto> => {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await api.post('/settings/tenant/logo', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const response = await api.post('/settings/tenant/logo', formData);
   return response.data;
 };

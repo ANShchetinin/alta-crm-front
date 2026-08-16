@@ -103,11 +103,7 @@ export const moveOrder = async (orderId: number, statusId: number): Promise<Orde
 export const uploadAttachment = async (orderId: number, file: File): Promise<OrderAttachment> => {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await api.post(`/orders/${orderId}/attachments`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await api.post(`/orders/${orderId}/attachments`, formData);
   return response.data;
 };
 
@@ -122,11 +118,7 @@ export const deleteOrder = async (orderId: number): Promise<void> => {
 export const uploadAudio = async (orderId: number, file: File): Promise<void> => {
   const formData = new FormData();
   formData.append('file', file);
-  await api.post(`/orders/${orderId}/audio`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  await api.post(`/orders/${orderId}/audio`, formData);
 };
 
 export const getAiSummary = async (orderId: number): Promise<OrderAiSummary> => {
