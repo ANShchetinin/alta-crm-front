@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Mic, Phone, MapPin, Navigation, X } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
@@ -26,6 +26,7 @@ const Kanban = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [allMaterials, setAllMaterials] = useState<Material[]>([]);
+  const boardRef = useRef<HTMLDivElement>(null);
   
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -430,7 +431,26 @@ const Kanban = () => {
         </button>
       </div>
 
-      <div className="kanban-board">
+      <div 
+        className="kanban-board"
+        ref={boardRef}
+        onWheel={(e) => {
+          if (e.deltaY !== 0 && !e.shiftKey) {
+            const target = e.target as HTMLElement;
+            const columnContent = target.closest('.column-content');
+            if (columnContent) {
+              const canScrollUp = e.deltaY < 0 && columnContent.scrollTop > 0;
+              const canScrollDown = e.deltaY > 0 && columnContent.scrollTop + columnContent.clientHeight < columnContent.scrollHeight - 1;
+              if (canScrollUp || canScrollDown) {
+                return;
+              }
+            }
+            if (boardRef.current) {
+              boardRef.current.scrollLeft += e.deltaY;
+            }
+          }
+        }}
+      >
         {columns.map(col => (
           <div 
             key={col.id} 
