@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone, X } from 'lucide-react';
 import type { Client } from '../api/clients';
 import { getClients, createClient, updateClient, deleteClient } from '../api/clients';
-import type { Order } from '../api/kanban';
-import { getOrdersByClient } from '../api/kanban';
+import type { Order, OrderStatus } from '../api/kanban';
+import { getOrdersByClient, getOrderStatuses, moveOrder } from '../api/kanban';
 import { useNavigate } from 'react-router-dom';
 import '../styles/clients.css';
 
@@ -12,6 +12,7 @@ export const Clients = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
+  const [statuses, setStatuses] = useState<OrderStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   
@@ -32,8 +33,12 @@ export const Clients = () => {
   const fetchClients = async () => {
     try {
       setLoading(true);
-      const data = await getClients();
+      const [data, statusesData] = await Promise.all([
+        getClients(),
+        getOrderStatuses()
+      ]);
       setClients(data);
+      setStatuses(statusesData.sort((a, b) => a.sortOrder - b.sortOrder));
     } catch (err) {
       console.error(err);
     } finally {
@@ -304,6 +309,7 @@ export const Clients = () => {
                     <thead>
                       <tr>
                         <th>ID</th>
+                        <th>Статус</th>
                         <th>Адрес</th>
                         <th>Стоимость</th>
                         <th>Дата</th>
@@ -313,29 +319,70 @@ export const Clients = () => {
                     <tbody>
                       {clientHistory.length === 0 ? (
                         <tr>
-                          <td colSpan={5} style={{ textAlign: 'center', opacity: 0.5 }}>У клиента нет заявок.</td>
+                          <td colSpan={6} style={{ textAlign: 'center', opacity: 0.5 }}>У клиента нет заявок.</td>
                         </tr>
                       ) : (
-                        clientHistory.map(order => (
-                          <tr key={order.id}>
-                            <td>#{order.id}</td>
-                            <td>{order.address || '-'}</td>
-                            <td>{order.totalPrice} ₽</td>
-                            <td>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</td>
-                            <td style={{textAlign: 'right'}}>
-                              <button 
-                                onClick={() => {
-                                  setIsHistoryModalOpen(false);
-                                  navigate(`/?orderId=${order.id}`);
-                                }}
-                                className="action-btn"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '0.8rem' }}
-                              >
-                                Перейти <ArrowRight size={14} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))
+                        clientHistory.map(order => {
+                          const currentStatus = statuses.find(s => s.id === order.statusId);
+                          return (
+                            <tr key={order.id}>
+                              <td>#{order.id}</td>
+                              <td>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                  <span 
+                                    style={{ 
+                                      width: '8px', 
+                                      height: '8px', 
+                                      borderRadius: '50%', 
+                                      backgroundColor: currentStatus?.color || '#3b82f6',
+                                      flexShrink: 0
+                                    }} 
+                                  />
+                                  <select
+                                    value={order.statusId}
+                                    onChange={async (e) => {
+                                      const newStatusId = Number(e.target.value);
+                                      try {
+                                        await moveOrder(order.id, newStatusId);
+                                        setClientHistory(prev => prev.map(o => o.id === order.id ? { ...o, statusId: newStatusId } : o));
+                                      } catch (err) {
+                                        console.error(err);
+                                      }
+                                    }}
+                                    style={{
+                                      background: 'rgba(255, 255, 255, 0.05)',
+                                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                                      color: 'var(--text-primary)',
+                                      borderRadius: '4px',
+                                      padding: '3px 6px',
+                                      fontSize: '0.8rem',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {statuses.map(s => (
+                                      <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </td>
+                              <td>{order.address || '-'}</td>
+                              <td>{order.totalPrice} ₽</td>
+                              <td>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</td>
+                              <td style={{textAlign: 'right'}}>
+                                <button 
+                                  onClick={() => {
+                                    setIsHistoryModalOpen(false);
+                                    navigate(`/?orderId=${order.id}`);
+                                  }}
+                                  className="action-btn"
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '0.8rem' }}
+                                >
+                                  Перейти <ArrowRight size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
