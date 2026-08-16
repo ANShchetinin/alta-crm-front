@@ -40,6 +40,7 @@ const Kanban = () => {
 
   const [formData, setFormData] = useState({
     clientId: '',
+    statusId: '',
     assigneeId: '',
     address: '',
     entrance: '',
@@ -99,6 +100,7 @@ const Kanban = () => {
           setEditingOrderId(orderToOpen.id);
           setFormData({
             clientId: orderToOpen.clientId ? orderToOpen.clientId.toString() : '',
+            statusId: orderToOpen.statusId ? orderToOpen.statusId.toString() : (sortedColumns[0]?.id ? sortedColumns[0].id.toString() : ''),
             assigneeId: orderToOpen.assigneeId ? orderToOpen.assigneeId.toString() : '',
             address: orderToOpen.address || '',
             entrance: orderToOpen.entrance || '',
@@ -160,6 +162,7 @@ const Kanban = () => {
     setEditingOrderId(null);
     setFormData({
       clientId: '',
+      statusId: columns[0]?.id ? columns[0].id.toString() : '',
       assigneeId: '',
       address: '',
       entrance: '',
@@ -203,6 +206,7 @@ const Kanban = () => {
     setEditingOrderId(order.id);
     setFormData({
       clientId: order.clientId ? order.clientId.toString() : '',
+      statusId: order.statusId ? order.statusId.toString() : (columns[0]?.id ? columns[0].id.toString() : ''),
       assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
       address: order.address || '',
       entrance: order.entrance || '',
@@ -230,7 +234,7 @@ const Kanban = () => {
     const payload = {
       clientId: parseInt(formData.clientId),
       assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
-      statusId: editingOrderId ? cards.find(c => c.id === editingOrderId)?.statusId || columns[0].id : columns[0].id,
+      statusId: formData.statusId ? parseInt(formData.statusId) : (editingOrderId ? cards.find(c => c.id === editingOrderId)?.statusId || columns[0].id : columns[0].id),
       address: formData.address,
       entrance: formData.entrance || undefined,
       floor: formData.floor || undefined,
@@ -700,7 +704,35 @@ const Kanban = () => {
         <div className="modal-overlay">
           <div className="modal-content" style={{maxWidth: '680px'}}>
             <div className="modal-header">
-              <h2>{editingOrderId ? t('kanban.editOrder') : t('kanban.addOrder')}</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1, minWidth: 0, paddingRight: '8px' }}>
+                <h2 style={{ margin: 0, whiteSpace: 'nowrap' }}>{editingOrderId ? t('kanban.editOrder') : t('kanban.addOrder')}</h2>
+                
+                {/* Status Dropdown in Modal Header */}
+                <div className="modal-header-status-badge">
+                  <span 
+                    className="dot" 
+                    style={{ 
+                      backgroundColor: columns.find(c => c.id.toString() === formData.statusId)?.color || '#3b82f6',
+                      flexShrink: 0
+                    }} 
+                  />
+                  <span className="modal-header-status-text">
+                    {columns.find(c => c.id.toString() === formData.statusId)?.name || columns[0]?.name || 'Статус'}
+                  </span>
+                  <select 
+                    value={formData.statusId}
+                    onChange={(e) => setFormData({...formData, statusId: e.target.value})}
+                    className="modal-header-status-select"
+                    title="Статус заявки"
+                  >
+                    {columns.map(col => (
+                      <option key={col.id} value={col.id.toString()}>{col.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="modal-header-status-icon" size={14} />
+                </div>
+              </div>
+
               <button 
                 type="button" 
                 onClick={() => setIsModalOpen(false)} 

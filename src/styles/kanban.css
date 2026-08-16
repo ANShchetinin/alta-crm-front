@@ -129,6 +129,67 @@
   margin-bottom: 12px;
 }
 
+.card-status-container {
+  display: flex;
+  margin-bottom: 8px;
+}
+
+.card-status-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  padding-right: 22px;
+  max-width: 100%;
+  transition: all var(--transition-fast);
+}
+
+.card-status-badge:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.card-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.card-status-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  width: 100%;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.card-status-select option {
+  background: #1e293b;
+  color: #fff;
+}
+
+.card-status-icon {
+  position: absolute;
+  right: 6px;
+  pointer-events: none;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
 .card-footer {
   display: flex;
   justify-content: space-between;
@@ -173,6 +234,70 @@
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
   border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Modal Header Status Badge styling */
+.modal-header-status-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  padding-right: 32px;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  user-select: none;
+}
+
+.modal-header-status-badge:hover,
+.modal-header-status-badge:focus-within {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.modal-header-status-badge .dot {
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.modal-header-status-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.modal-header-status-select {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+.modal-header-status-select option {
+  background: #1e293b;
+  color: #fff;
+  padding: 8px;
+}
+
+.modal-header-status-icon {
+  position: absolute;
+  right: 10px;
+  pointer-events: none;
+  color: var(--text-secondary);
 }
 
 /* Custom Select styling to replace Windows 95 look */
@@ -415,6 +540,18 @@
   .form-group textarea {
     font-size: 16px !important;
     height: 46px;
+  }
+
+  .card-status-badge {
+    padding: 6px 10px;
+    padding-right: 28px;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .card-status-select {
+    font-size: 14px !important;
+    height: auto;
   }
 }
 
