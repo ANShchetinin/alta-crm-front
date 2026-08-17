@@ -140,3 +140,8 @@ export const getAiSummary = async (orderId: number): Promise<OrderAiSummary> => 
   const response = await api.get(`/orders/${orderId}/ai-summary`);
   return response.data;
 };
+
+export const getNextOrderNumber = async (): Promise<string> => {
+  const response = await api.get<{ orderNumber: string }>('/orders/next-number');
+  return response.data.orderNumber;
+};

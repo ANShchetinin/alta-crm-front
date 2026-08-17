@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Globe, Moon, Sun, User, Building2, Eye, EyeOff, FileText } from 'lucide-react';
+import { Globe, Moon, Sun, User, Building2, Eye, EyeOff, FileText, Hash } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { updateProfile, updateTenantSettings, uploadTenantLogo, getProfile } from '../api/settings';
@@ -39,6 +39,7 @@ export const Settings = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [primaryColor, setPrimaryColor] = useState(tenantSettings?.primaryColor || '#0ea5e9');
+  const [orderNumberFormat, setOrderNumberFormat] = useState(tenantSettings?.orderNumberFormat || 'А{ddMMyy}_{INDEX}');
   const [profileSaving, setProfileSaving] = useState(false);
   const [tenantSaving, setTenantSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -77,10 +78,39 @@ export const Settings = () => {
     if (tenantSettings?.primaryColor) {
       setPrimaryColor(tenantSettings.primaryColor);
     }
+    if (tenantSettings?.orderNumberFormat) {
+      setOrderNumberFormat(tenantSettings.orderNumberFormat);
+    }
   }, [tenantSettings]);
 
   const updateRequisiteField = (field: keyof TenantRequisites, value: string) => {
     setRequisites(prev => ({ ...prev, [field]: value }));
+  };
+
+  const getFormatPreview = (template: string) => {
+    if (!template) return '—';
+    const now = new Date();
+    const yyyy = now.getFullYear().toString();
+    const yy = yyyy.slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const ddMMyy = `${dd}${mm}${yy}`;
+    const yyyymmdd = `${yyyy}${mm}${dd}`;
+
+    let resolved = template
+      .replace(/{YYYY}/g, yyyy)
+      .replace(/{YY}/g, yy)
+      .replace(/{MM}/g, mm)
+      .replace(/{DD}/g, dd)
+      .replace(/{ddMMyy}/g, ddMMyy)
+      .replace(/{YYYYMMDD}/g, yyyymmdd);
+
+    resolved = resolved.replace(/\{INDEX(?::(\d+))?\}/g, (_, padding) => {
+      const padLen = padding ? parseInt(padding, 10) : 1;
+      return '1'.padStart(padLen, '0');
+    });
+
+    return resolved;
   };
 
   const handleProfileSave = async (e: React.FormEvent) => {
@@ -114,7 +144,11 @@ export const Settings = () => {
     e.preventDefault();
     setTenantSaving(true);
     try {
-      const res = await updateTenantSettings({ primaryColor, requisites });
+      const res = await updateTenantSettings({ 
+        primaryColor, 
+        requisites, 
+        orderNumberFormat: orderNumberFormat.trim() || 'А{ddMMyy}_{INDEX}' 
+      });
       updateTenantSettingsLocally(res);
       alert('Реквизиты и настройки компании успешно сохранены');
     } catch (err) {
@@ -823,6 +857,91 @@ export const Settings = () => {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Формат номера договора и заявок */}
+              <div style={{ marginTop: '32px', marginBottom: '28px', borderTop: '1px dashed var(--glass-border)', paddingTop: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                  <h3 style={{ fontSize: '1.15rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Hash size={18} style={{ color: 'var(--primary-color, #0ea5e9)' }} />
+                    Формат номера договора и заявок
+                  </h3>
+                </div>
+                
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.5 }}>
+                  Настройте шаблон автоматической нумерации договоров. Вы можете использовать переменные даты, года, месяца и порядкового номера. Номер также можно будет вручную изменить в любой заявке.
+                </p>
+
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: '16px', marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '6px' }}>
+                    Шаблон номера договора
+                  </label>
+                  <input
+                    type="text"
+                    className="search-input"
+                    style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.95rem' }}
+                    placeholder="А{ddMMyy}_{INDEX}"
+                    value={orderNumberFormat}
+                    onChange={e => setOrderNumberFormat(e.target.value)}
+                  />
+
+                  {/* Быстрая вставка тегов */}
+                  <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Вставить тег:</span>
+                    {[
+                      { tag: '{INDEX}', desc: '№ (1, 2...)' },
+                      { tag: '{INDEX:3}', desc: '001, 002...' },
+                      { tag: '{INDEX:4}', desc: '0001...' },
+                      { tag: '{ddMMyy}', desc: '170826' },
+                      { tag: '{YYYY}', desc: '2026' },
+                      { tag: '{YY}', desc: '26' },
+                      { tag: '{MM}', desc: '08' },
+                      { tag: '{DD}', desc: '17' },
+                      { tag: 'ДОГ-', desc: 'Префикс' },
+                      { tag: '№', desc: 'Символ' }
+                    ].map(item => (
+                      <button
+                        key={item.tag}
+                        type="button"
+                        onClick={() => setOrderNumberFormat(prev => prev + item.tag)}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: '4px',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.75rem',
+                          padding: '3px 8px',
+                          cursor: 'pointer',
+                          fontFamily: 'monospace'
+                        }}
+                        title={item.desc}
+                      >
+                        + {item.tag}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Live Preview */}
+                  <div style={{
+                    marginTop: '16px',
+                    padding: '10px 14px',
+                    background: 'rgba(59, 130, 246, 0.08)',
+                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                    borderRadius: 'var(--radius-sm)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px'
+                  }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Пример сгенерированного номера:
+                    </span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)' }}>
+                      {getFormatPreview(orderNumberFormat)}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <button type="submit" className="btn btn-primary" disabled={tenantSaving}>
