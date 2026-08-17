@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -43,6 +43,7 @@ const Kanban = () => {
     clientId: '',
     statusId: '',
     assigneeId: '',
+    orderNumber: '',
     address: '',
     entrance: '',
     floor: '',
@@ -69,6 +70,7 @@ const Kanban = () => {
   const [editingColumnId, setEditingColumnId] = useState<number | null>(null);
   const [newColumnName, setNewColumnName] = useState('');
   const [newColumnColor, setNewColumnColor] = useState('#3b82f6');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -110,6 +112,7 @@ const Kanban = () => {
             clientId: orderToOpen.clientId ? orderToOpen.clientId.toString() : '',
             statusId: orderToOpen.statusId ? orderToOpen.statusId.toString() : (sortedColumns[0]?.id ? sortedColumns[0].id.toString() : ''),
             assigneeId: orderToOpen.assigneeId ? orderToOpen.assigneeId.toString() : '',
+            orderNumber: orderToOpen.orderNumber || '',
             address: orderToOpen.address || '',
             entrance: orderToOpen.entrance || '',
             floor: orderToOpen.floor || '',
@@ -174,6 +177,7 @@ const Kanban = () => {
       clientId: '',
       statusId: columns[0]?.id ? columns[0].id.toString() : '',
       assigneeId: '',
+      orderNumber: '',
       address: '',
       entrance: '',
       floor: '',
@@ -224,6 +228,7 @@ const Kanban = () => {
       clientId: order.clientId ? order.clientId.toString() : '',
       statusId: order.statusId ? order.statusId.toString() : (columns[0]?.id ? columns[0].id.toString() : ''),
       assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
+      orderNumber: order.orderNumber || '',
       address: order.address || '',
       entrance: order.entrance || '',
       floor: order.floor || '',
@@ -257,6 +262,7 @@ const Kanban = () => {
       clientId: parseInt(formData.clientId),
       assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
       statusId: formData.statusId ? parseInt(formData.statusId) : (editingOrderId ? cards.find(c => c.id === editingOrderId)?.statusId || columns[0].id : columns[0].id),
+      orderNumber: formData.orderNumber || undefined,
       address: formData.address,
       entrance: formData.entrance || undefined,
       floor: formData.floor || undefined,
@@ -498,10 +504,53 @@ const Kanban = () => {
     return <div style={{padding: 24}}>Loading board...</div>;
   }
 
+  const filteredCards = cards.filter(card => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const client = clients.find(cl => cl.id === card.clientId);
+    const employee = employees.find(e => e.id === card.assigneeId);
+
+    const orderNumMatch = card.orderNumber?.toLowerCase().includes(q) || false;
+    const clientNameMatch = client?.name?.toLowerCase().includes(q) || false;
+    const clientPhoneMatch = client?.phone?.includes(q) || false;
+    const addressMatch = card.address?.toLowerCase().includes(q) || false;
+    const descMatch = card.description?.toLowerCase().includes(q) || false;
+    const employeeMatch = employee?.name?.toLowerCase().includes(q) || false;
+    const idMatch = card.id.toString() === q || `№${card.id}` === q;
+
+    return orderNumMatch || clientNameMatch || clientPhoneMatch || addressMatch || descMatch || employeeMatch || idMatch;
+  });
+
   return (
     <div className="kanban-wrapper">
       <div className="kanban-header">
-        <h1>{t('kanban.title')}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <h1 style={{ margin: 0 }}>{t('kanban.title')}</h1>
+          
+          <div className="search-input-wrapper" style={{ minWidth: '300px', maxWidth: '400px', position: 'relative' }}>
+            <Search className="search-icon" size={18} />
+            <input 
+              type="text" 
+              placeholder="Поиск по клиенту, адресу, № договора..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+              style={{ width: '100%', paddingRight: searchQuery ? '32px' : '12px' }}
+            />
+            {searchQuery && (
+              <button 
+                type="button" 
+                onClick={() => setSearchQuery('')}
+                className="btn-icon"
+                style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', padding: '2px', color: 'var(--text-secondary)' }}
+                title="Очистить поиск"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
         <button className="btn btn-primary" onClick={openCreateModal}>
           <Plus size={18} /> {t('kanban.addOrder')}
         </button>
@@ -527,7 +576,11 @@ const Kanban = () => {
           }
         }}
       >
-        {columns.map(col => (
+        {columns.map(col => {
+          const colCards = filteredCards.filter(c => c.statusId === col.id);
+          const totalInCol = cards.filter(c => c.statusId === col.id).length;
+
+          return (
           <div 
             key={col.id} 
             className="kanban-column glass-panel"
@@ -579,13 +632,17 @@ const Kanban = () => {
               <div className="column-title">
                 <span className="dot" style={{ backgroundColor: col.color || '#3b82f6' }}></span>
                 <h3>{col.name}</h3>
-                <span className="count">{cards.filter(c => c.statusId === col.id).length}</span>
+                <span className="count">
+                  {searchQuery.trim() && colCards.length !== totalInCol
+                    ? `${colCards.length}/${totalInCol}`
+                    : totalInCol}
+                </span>
               </div>
               <div style={{display: 'flex', gap: '4px'}}>
                 <button className="btn-icon" onClick={() => openColumnEditModal(col)} title={t('kanban.editColumn')}>
                   <Edit2 size={16} />
                 </button>
-                {cards.filter(c => c.statusId === col.id).length === 0 ? (
+                {totalInCol === 0 ? (
                   <button className="btn-icon" onClick={() => handleDeleteColumn(col.id)} title={t('kanban.modal.delete')}>
                     <Trash2 size={16} />
                   </button>
@@ -596,7 +653,7 @@ const Kanban = () => {
             </div>
 
             <div className="column-content">
-              {cards.filter(c => c.statusId === col.id).map(card => (
+              {colCards.map(card => (
                 <div 
                   key={card.id} 
                   className="kanban-card"
@@ -611,10 +668,27 @@ const Kanban = () => {
                     {(() => {
                       const client = clients.find(cl => cl.id === card.clientId);
                       return (
-                        <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap'}}>
                           <div className="card-client" style={{marginBottom: 0}}>
                             {client?.name || `Client #${card.clientId}`}
                           </div>
+                          {card.orderNumber && (
+                            <span 
+                              style={{
+                                fontSize: '0.7rem',
+                                fontFamily: 'monospace',
+                                fontWeight: 600,
+                                background: 'rgba(59, 130, 246, 0.12)',
+                                color: 'var(--accent-primary)',
+                                padding: '2px 6px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1px solid rgba(59, 130, 246, 0.25)'
+                              }}
+                              title="Номер договора / заявки"
+                            >
+                              № {card.orderNumber}
+                            </span>
+                          )}
                           {client?.phone && (
                             <a
                               href={`tel:${client.phone}`}
@@ -797,9 +871,15 @@ const Kanban = () => {
                   </div>
                 </div>
               ))}
+              {searchQuery.trim() && colCards.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '24px 12px', fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                  Нет совпадений
+                </div>
+              )}
             </div>
           </div>
-        ))}
+          );
+        })}
         
         <button 
           className="kanban-column add-column-btn glass-panel" 
@@ -816,7 +896,9 @@ const Kanban = () => {
           <div className="modal-content" style={{maxWidth: '680px'}}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1, minWidth: 0, paddingRight: '8px' }}>
-                <h2 style={{ margin: 0, whiteSpace: 'nowrap' }}>{editingOrderId ? t('kanban.editOrder') : t('kanban.addOrder')}</h2>
+                <h2 style={{ margin: 0, whiteSpace: 'nowrap' }}>
+                  {editingOrderId ? `${t('kanban.editOrder')} № ${formData.orderNumber || editingOrderId}` : t('kanban.addOrder')}
+                </h2>
                 
                 {/* Status Dropdown in Modal Header */}
                 <div className="modal-header-status-badge">
@@ -855,6 +937,24 @@ const Kanban = () => {
             </div>
             <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <div className="modal-body">
+              
+              {editingOrderId && formData.orderNumber && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '8px 12px',
+                  marginBottom: '14px'
+                }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Номер договора / заявки:</span>
+                  <span style={{ fontSize: '0.95rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)' }}>
+                    № {formData.orderNumber}
+                  </span>
+                </div>
+              )}
               
               <div className="form-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>

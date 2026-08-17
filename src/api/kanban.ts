@@ -36,6 +36,7 @@ export interface Order {
   clientId: number;
   statusId: number;
   assigneeId?: number;
+  orderNumber?: string;
   address: string;
   description: string;
   totalPrice: number;

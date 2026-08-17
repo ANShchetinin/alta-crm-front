@@ -308,7 +308,7 @@ export const Clients = () => {
                   <table className="clients-table">
                     <thead>
                       <tr>
-                        <th>ID</th>
+                        <th>№ Заявки / Договора</th>
                         <th>Статус</th>
                         <th>Адрес</th>
                         <th>Стоимость</th>
@@ -326,7 +326,11 @@ export const Clients = () => {
                           const currentStatus = statuses.find(s => s.id === order.statusId);
                           return (
                             <tr key={order.id}>
-                              <td>#{order.id}</td>
+                              <td>
+                                <strong style={{ fontFamily: 'monospace', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
+                                  № {order.orderNumber || order.id}
+                                </strong>
+                              </td>
                               <td>
                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                   <span 
