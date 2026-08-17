@@ -285,12 +285,12 @@ export const Reports = () => {
   }
 
   return (
-    <div className="reports-wrapper clients-wrapper">
+    <div className="reports-wrapper">
       {/* Header & Main Filters */}
-      <div className="clients-header">
-        <div>
+      <div className="reports-header">
+        <div className="reports-header-title">
           <h1>{t('reports.title', 'Отчеты и Бизнес-аналитика')}</h1>
-          <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          <p>
             Статистика договоров, замеров, конверсии (CTR) и финансовых показателей
           </p>
         </div>
@@ -592,7 +592,7 @@ export const Reports = () => {
 
       {/* Tab 2: Lead Sources Table */}
       {activeTab === 'LEAD_SOURCES' && (
-        <div className="clients-table-container glass-panel">
+        <div className="reports-table-container glass-panel">
           <table className="clients-table">
             <thead>
               <tr>
@@ -652,7 +652,7 @@ export const Reports = () => {
 
       {/* Tab 3: Employees Performance Table */}
       {activeTab === 'EMPLOYEES' && (
-        <div className="clients-table-container glass-panel">
+        <div className="reports-table-container glass-panel">
           <table className="clients-table">
             <thead>
               <tr>
@@ -709,7 +709,7 @@ export const Reports = () => {
 
       {/* Tab 4: Detail Contracts List */}
       {activeTab === 'ORDERS' && (
-        <div className="clients-table-container glass-panel">
+        <div className="reports-table-container glass-panel">
           <table className="clients-table">
             <thead>
               <tr>

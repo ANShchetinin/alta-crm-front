@@ -4,8 +4,31 @@
   gap: 20px;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  min-height: 100%;
+  height: auto !important;
+  padding: 12px 12px 64px 12px;
   box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.reports-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.reports-header-title h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.reports-header-title p {
+  margin: 4px 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
 }
 
 .reports-kpi-grid-6 {
@@ -99,9 +122,11 @@
   display: flex;
   gap: 8px;
   border-bottom: 1px solid var(--glass-border);
-  padding-bottom: 12px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  padding: 4px 0 12px 0;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .reports-tab-btn {
@@ -109,9 +134,9 @@
   border-radius: var(--radius-md);
   font-size: 0.85rem;
   font-weight: 600;
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
@@ -122,18 +147,34 @@
 
 .reports-tab-btn:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .reports-tab-btn.active {
   background: var(--accent-primary);
   color: #fff;
+  box-shadow: 0 4px 12px var(--accent-glow);
+  border-color: var(--accent-primary);
+}
+
+.reports-table-container {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--table-bg);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  margin-bottom: 24px;
+  box-sizing: border-box;
 }
 
 .reports-charts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
   gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 @media (max-width: 600px) {
