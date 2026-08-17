@@ -103,15 +103,18 @@ select.search-input option {
 
 .client-name {
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .client-phone {
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .client-date {
   color: var(--text-secondary);
   font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .client-actions {
@@ -297,6 +300,7 @@ select.search-input option {
   .clients-table td {
     padding: 10px 8px;
     font-size: 0.85rem;
+    white-space: nowrap;
   }
 
   .client-actions {
