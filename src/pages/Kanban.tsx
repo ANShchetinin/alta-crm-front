@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -178,19 +178,13 @@ const Kanban = () => {
     e.preventDefault();
   };
 
-  const openCreateModal = async () => {
+  const openCreateModal = () => {
     setEditingOrderId(null);
-    let nextNum = '';
-    try {
-      nextNum = await getNextOrderNumber();
-    } catch (err) {
-      console.error("Failed to get next order number", err);
-    }
     setFormData({
       clientId: '',
       statusId: columns[0]?.id ? columns[0].id.toString() : '',
       assigneeId: '',
-      orderNumber: nextNum,
+      orderNumber: '',
       address: '',
       entrance: '',
       floor: '',
@@ -288,7 +282,7 @@ const Kanban = () => {
       clientId: parseInt(formData.clientId),
       assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
       statusId: formData.statusId ? parseInt(formData.statusId) : (editingOrderId ? cards.find(c => c.id === editingOrderId)?.statusId || columns[0].id : columns[0].id),
-      orderNumber: formData.orderNumber || undefined,
+      orderNumber: (formData.orderNumber && formData.orderNumber.trim()) ? formData.orderNumber.trim() : null,
       address: formData.address,
       entrance: formData.entrance || undefined,
       floor: formData.floor || undefined,
@@ -695,23 +689,41 @@ const Kanban = () => {
                       const client = clients.find(cl => cl.id === card.clientId);
                       return (
                         <div style={{display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap'}}>
-                          <div className="card-client" style={{marginBottom: 0}}>
-                            {client?.name || `Client #${card.clientId}`}
+                          <span 
+                            style={{ 
+                              fontSize: '0.72rem', 
+                              fontWeight: 700, 
+                              color: 'var(--text-secondary)', 
+                              background: 'rgba(255, 255, 255, 0.06)', 
+                              padding: '1px 5px', 
+                              borderRadius: '4px' 
+                            }}
+                            title="Внутренний номер заявки"
+                          >
+                            #{card.id}
+                          </span>
+                          <div className="card-client" style={{marginBottom: 0, display: 'flex', alignItems: 'center', gap: '4px'}}>
+                            {client?.clientType === 'LEGAL_ENTITY' && <Building2 size={13} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />}
+                            {client?.name || `Клиент #${card.clientId}`}
                           </div>
                           {card.orderNumber && (
                             <span 
                               style={{
                                 fontSize: '0.7rem',
                                 fontFamily: 'monospace',
-                                fontWeight: 600,
-                                background: 'rgba(59, 130, 246, 0.12)',
-                                color: 'var(--accent-primary)',
+                                fontWeight: 700,
+                                background: 'rgba(34, 197, 94, 0.15)',
+                                color: '#4ade80',
                                 padding: '2px 6px',
                                 borderRadius: 'var(--radius-sm)',
-                                border: '1px solid rgba(59, 130, 246, 0.25)'
+                                border: '1px solid rgba(34, 197, 94, 0.3)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
                               }}
-                              title="Номер договора / заявки"
+                              title="Номер заключенного договора"
                             >
+                              <FileText size={10} />
                               № {card.orderNumber}
                             </span>
                           )}
@@ -923,7 +935,7 @@ const Kanban = () => {
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1, minWidth: 0, paddingRight: '8px' }}>
                 <h2 style={{ margin: 0, whiteSpace: 'nowrap' }}>
-                  {editingOrderId ? `${t('kanban.editOrder')} № ${formData.orderNumber || editingOrderId}` : t('kanban.addOrder')}
+                  {editingOrderId ? `Заявка #${editingOrderId}` : 'Новая заявка'}
                 </h2>
                 
                 {/* Status Dropdown in Modal Header */}
@@ -964,9 +976,26 @@ const Kanban = () => {
             <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <div className="modal-body">
               
-                <div className="form-group" style={{ marginBottom: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <label style={{ margin: 0, fontWeight: 600 }}>Номер договора / заявки</label>
+                {/* Договор */}
+                {!formData.orderNumber ? (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px dashed var(--glass-border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '10px 14px',
+                    marginBottom: '14px',
+                    gap: '10px',
+                    flexWrap: 'wrap'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <FileText size={16} style={{ color: 'var(--text-secondary)' }} />
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        Договор еще не заключен
+                      </span>
+                    </div>
                     <button
                       type="button"
                       onClick={async () => {
@@ -977,31 +1006,90 @@ const Kanban = () => {
                           console.error("Failed to generate order number", err);
                         }
                       }}
+                      className="btn btn-sm"
                       style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--accent-primary)',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
+                        background: 'rgba(34, 197, 94, 0.15)',
+                        border: '1px solid rgba(34, 197, 94, 0.3)',
+                        color: '#4ade80',
+                        fontSize: '0.8rem',
+                        padding: '5px 12px',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
-                        padding: 0
+                        gap: '6px',
+                        cursor: 'pointer'
                       }}
-                      title="Сгенерировать следующий номер по шаблону компании"
                     >
-                      <RefreshCw size={12} /> Сгенерировать по шаблону
+                      <Plus size={14} /> Присвоить номер договора
                     </button>
                   </div>
-                  <input
-                    type="text"
-                    placeholder="Автоматически (например: ДОГ-2026/001)"
-                    value={formData.orderNumber}
-                    onChange={e => setFormData({ ...formData, orderNumber: e.target.value })}
-                    className="search-input"
-                    style={{ width: '100%', fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-primary)', paddingLeft: '12px' }}
-                  />
-                </div>
+                ) : (
+                  <div className="form-group" style={{ 
+                    marginBottom: '14px', 
+                    background: 'rgba(34, 197, 94, 0.05)', 
+                    border: '1px solid rgba(34, 197, 94, 0.25)', 
+                    borderRadius: 'var(--radius-md)', 
+                    padding: '12px 14px' 
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ margin: 0, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', color: '#4ade80', fontSize: '0.85rem' }}>
+                        <FileText size={15} /> Номер заключенного договора
+                      </label>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const num = await getNextOrderNumber();
+                              setFormData(prev => ({ ...prev, orderNumber: num }));
+                            } catch (err) {
+                              console.error("Failed to generate order number", err);
+                            }
+                          }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--accent-primary)',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: 0
+                          }}
+                          title="Сгенерировать следующий номер по шаблону компании"
+                        >
+                          <RefreshCw size={12} /> Сгенерировать
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, orderNumber: '' }))}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--danger)',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: 0
+                          }}
+                          title="Очистить номер договора"
+                        >
+                          <X size={12} /> Очистить
+                        </button>
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="ДОГ-2026/001"
+                      value={formData.orderNumber}
+                      onChange={e => setFormData({ ...formData, orderNumber: e.target.value })}
+                      className="search-input"
+                      style={{ width: '100%', fontFamily: 'monospace', fontWeight: 700, color: '#4ade80', paddingLeft: '12px' }}
+                    />
+                  </div>
+                )}
               
               <div className="form-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
