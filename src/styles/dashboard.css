@@ -389,7 +389,7 @@
     border-right: none;
     border-bottom: none;
     border-radius: 0;
-    z-index: 1000;
+    z-index: 10000;
     justify-content: space-around;
     align-items: center;
     padding-left: 8px;

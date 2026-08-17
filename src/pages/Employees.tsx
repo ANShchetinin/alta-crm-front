@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Plus, Edit2, Trash2 } from 'lucide-react';
 import type { Employee } from '../api/employees';
@@ -157,35 +158,48 @@ export const Employees = () => {
         </table>
       </div>
 
-      {isModalOpen && (
+      {/* Modal Overlay */}
+      {isModalOpen && createPortal(
         <div className="modal-overlay">
           <div className="modal-content">
-            <h2>{editingEmployee ? (t('employees.modal.editTitle') || 'Редактировать сотрудника') : (t('employees.modal.addTitle') || 'Добавить сотрудника')}</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>{t('employees.modal.name') || 'ФИО'}</label>
-                <input 
-                  type="text" 
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                />
-              </div>
-              <div className="form-group">
-                <label>{t('employees.modal.position') || 'Должность'}</label>
-                <input 
-                  type="text" 
-                  value={formData.position}
-                  onChange={(e) => setFormData({...formData, position: e.target.value})}
-                />
-              </div>
-              <div className="form-group">
-                <label>{t('employees.modal.phone') || 'Телефон'}</label>
-                <input 
-                  type="text" 
-                  value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                />
+            <div className="modal-header">
+              <h2>{editingEmployee ? (t('employees.modal.editTitle') || 'Редактировать сотрудника') : (t('employees.modal.addTitle') || 'Добавить сотрудника')}</h2>
+              <button 
+                type="button" 
+                onClick={() => setIsModalOpen(false)}
+                className="btn-icon"
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>{t('employees.modal.name') || 'ФИО'}</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('employees.modal.position') || 'Должность'}</label>
+                  <input 
+                    type="text" 
+                    value={formData.position}
+                    onChange={(e) => setFormData({...formData, position: e.target.value})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('employees.modal.phone') || 'Телефон'}</label>
+                  <input 
+                    type="text" 
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  />
+                </div>
               </div>
               <div className="modal-actions">
                 <button 
@@ -201,7 +215,8 @@ export const Employees = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

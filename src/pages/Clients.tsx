@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone, X } from 'lucide-react';
 import type { Client } from '../api/clients';
@@ -229,7 +230,7 @@ export const Clients = () => {
       </div>
 
       {/* Modal Overlay */}
-      {isModalOpen && (
+      {isModalOpen && createPortal(
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '480px' }}>
             <div className="modal-header">
@@ -282,11 +283,12 @@ export const Clients = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* History Modal Overlay */}
-      {isHistoryModalOpen && historyClient && (
+      {isHistoryModalOpen && historyClient && createPortal(
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '800px', width: '90%' }}>
             <div className="modal-header">
@@ -410,7 +412,8 @@ export const Clients = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

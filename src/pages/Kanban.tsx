@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
@@ -891,7 +892,7 @@ const Kanban = () => {
         </button>
       </div>
 
-      {isModalOpen && (
+      {isModalOpen && createPortal(
         <div className="modal-overlay">
           <div className="modal-content" style={{maxWidth: '680px'}}>
             <div className="modal-header">
@@ -1414,7 +1415,7 @@ const Kanban = () => {
               )}
               </div>
 
-              <div className="modal-actions" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <div className="modal-actions">
                 {editingOrderId ? (
                   <button 
                     type="button" 
@@ -1424,8 +1425,8 @@ const Kanban = () => {
                   >
                     <Trash2 size={16} style={{marginRight: '6px'}} /> {t('kanban.modal.delete')}
                   </button>
-                ) : <div></div>}
-                <div style={{display: 'flex', gap: '12px'}}>
+                ) : null}
+                <div className="modal-action-btns">
                   <button 
                     type="button" 
                     onClick={() => setIsModalOpen(false)}
@@ -1440,10 +1441,11 @@ const Kanban = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {isColumnModalOpen && (
+      {isColumnModalOpen && createPortal(
         <div className="modal-overlay">
           <div className="modal-content" style={{maxWidth: '420px'}}>
             <div className="modal-header">
@@ -1558,12 +1560,13 @@ const Kanban = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Quick Create Client Modal */}
-      {isNewClientModalOpen && (
-        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+      {isNewClientModalOpen && createPortal(
+        <div className="modal-overlay" style={{ zIndex: 100000 }}>
           <div className="modal-content animate-fade-in" style={{ maxWidth: '440px' }}>
             <div className="modal-header">
               <h2>{t('clients.modal.addTitle')}</h2>
@@ -1630,7 +1633,8 @@ const Kanban = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
