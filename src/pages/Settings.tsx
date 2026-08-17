@@ -94,7 +94,9 @@ export const Settings = () => {
     const yy = yyyy.slice(-2);
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
+    const ddMM = `${dd}${mm}`;
     const ddMMyy = `${dd}${mm}${yy}`;
+    const ddMMyyyy = `${dd}${mm}${yyyy}`;
     const yyyymmdd = `${yyyy}${mm}${dd}`;
 
     let resolved = template
@@ -102,7 +104,9 @@ export const Settings = () => {
       .replace(/{YY}/g, yy)
       .replace(/{MM}/g, mm)
       .replace(/{DD}/g, dd)
+      .replace(/{ddMM}/g, ddMM)
       .replace(/{ddMMyy}/g, ddMMyy)
+      .replace(/{ddMMyyyy}/g, ddMMyyyy)
       .replace(/{YYYYMMDD}/g, yyyymmdd);
 
     resolved = resolved.replace(/\{INDEX(?::(\d+))?\}/g, (_, padding) => {
@@ -892,7 +896,9 @@ export const Settings = () => {
                       { tag: '{INDEX}', desc: '№ (1, 2...)' },
                       { tag: '{INDEX:3}', desc: '001, 002...' },
                       { tag: '{INDEX:4}', desc: '0001...' },
+                      { tag: '{ddMM}', desc: '1708' },
                       { tag: '{ddMMyy}', desc: '170826' },
+                      { tag: '{ddMMyyyy}', desc: '17082026' },
                       { tag: '{YYYY}', desc: '2026' },
                       { tag: '{YY}', desc: '26' },
                       { tag: '{MM}', desc: '08' },

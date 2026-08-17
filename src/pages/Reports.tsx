@@ -160,19 +160,19 @@ export const Reports = () => {
     });
   }, [orders, periodPreset, selectedMonth, selectedEmployeeId, searchTerm, clients]);
 
-  // Contracts (Orders with total price > 0)
+  // Contracts: orders with filled contract/order number
   const contracts = useMemo(() => {
-    return filteredOrders.filter(o => (o.totalPrice || 0) > 0 || o.orderNumber);
+    return filteredOrders.filter(o => Boolean(o.orderNumber && o.orderNumber.trim() !== ''));
   }, [filteredOrders]);
 
-  // Measurements (Orders with measurementDate or active in measurement flow)
+  // Measurements: orders with assigned measurement date
   const measurements = useMemo(() => {
-    return filteredOrders.filter(o => o.measurementDate != null || o.statusId);
+    return filteredOrders.filter(o => o.measurementDate != null);
   }, [filteredOrders]);
 
   // Key KPI Metrics Calculations
   const contractCount = contracts.length;
-  const measurementCount = measurements.filter(o => o.measurementDate != null).length || (contractCount > 0 ? Math.round(contractCount * 1.25) : 0);
+  const measurementCount = measurements.length;
   
   // CTR Conversion Rate (%)
   const conversionCTR = measurementCount > 0 
@@ -213,7 +213,7 @@ export const Reports = () => {
       if (order.measurementDate) {
         dataMap[dateStr].measurements += 1;
       }
-      if ((order.totalPrice || 0) > 0 || order.orderNumber) {
+      if (order.orderNumber && order.orderNumber.trim() !== '') {
         dataMap[dateStr].contracts += 1;
         dataMap[dateStr].revenue += (order.totalPrice || 0) + (order.installationPrice || 0);
       }
@@ -237,15 +237,14 @@ export const Reports = () => {
       if (order.measurementDate) {
         sourceMap[source].measurements += 1;
       }
-      if ((order.totalPrice || 0) > 0 || order.orderNumber) {
+      if (order.orderNumber && order.orderNumber.trim() !== '') {
         sourceMap[source].contracts += 1;
         sourceMap[source].revenue += (order.totalPrice || 0) + (order.installationPrice || 0);
       }
     });
 
     return Object.values(sourceMap).map(s => {
-      const effMeasurements = s.measurements || s.contracts;
-      const ctr = effMeasurements > 0 ? Math.min(100, Math.round((s.contracts / effMeasurements) * 1000) / 10) : 0;
+      const ctr = s.measurements > 0 ? Math.min(100, Math.round((s.contracts / s.measurements) * 1000) / 10) : (s.contracts > 0 ? 100 : 0);
       const avg = s.contracts > 0 ? Math.round(s.revenue / s.contracts) : 0;
       return { ...s, ctr, avgCheck: avg };
     }).sort((a, b) => b.revenue - a.revenue);
@@ -268,15 +267,14 @@ export const Reports = () => {
       if (order.measurementDate) {
         empMap[empKey].measurements += 1;
       }
-      if ((order.totalPrice || 0) > 0 || order.orderNumber) {
+      if (order.orderNumber && order.orderNumber.trim() !== '') {
         empMap[empKey].contracts += 1;
         empMap[empKey].revenue += (order.totalPrice || 0) + (order.installationPrice || 0);
       }
     });
 
     return Object.values(empMap).map(e => {
-      const effMeasurements = e.measurements || e.contracts;
-      const ctr = effMeasurements > 0 ? Math.min(100, Math.round((e.contracts / effMeasurements) * 1000) / 10) : 0;
+      const ctr = e.measurements > 0 ? Math.min(100, Math.round((e.contracts / e.measurements) * 1000) / 10) : (e.contracts > 0 ? 100 : 0);
       const avg = e.contracts > 0 ? Math.round(e.revenue / e.contracts) : 0;
       return { ...e, ctr, avgCheck: avg };
     }).sort((a, b) => b.revenue - a.revenue);
@@ -715,7 +713,8 @@ export const Reports = () => {
           <table className="clients-table">
             <thead>
               <tr>
-                <th>№ Договора / Заявки</th>
+                <th>№ Заявки</th>
+                <th>№ Договора</th>
                 <th>Клиент</th>
                 <th>Адрес</th>
                 <th>Замер</th>
@@ -727,7 +726,7 @@ export const Reports = () => {
             <tbody>
               {contracts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', opacity: 0.5, padding: '32px' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', opacity: 0.5, padding: '32px' }}>
                     Договоры за выбранный период не найдены.
                   </td>
                 </tr>
@@ -740,8 +739,13 @@ export const Reports = () => {
                   return (
                     <tr key={order.id}>
                       <td>
-                        <strong style={{ fontFamily: 'monospace', color: 'var(--accent-primary)' }}>
-                          № {order.orderNumber || order.id}
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', background: 'rgba(255, 255, 255, 0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                          #{order.id}
+                        </span>
+                      </td>
+                      <td>
+                        <strong style={{ fontFamily: 'monospace', color: '#4ade80' }}>
+                          № {order.orderNumber}
                         </strong>
                       </td>
                       <td>
