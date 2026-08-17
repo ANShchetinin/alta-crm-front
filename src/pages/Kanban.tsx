@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploa
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary } from '../api/kanban';
 import { getClients, createClient } from '../api/clients';
 import type { Client } from '../api/clients';
+import { PRESET_LEAD_SOURCES } from './Clients';
 import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
 import { getEmployees } from '../api/employees';
@@ -38,6 +39,8 @@ const Kanban = () => {
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientLeadSource, setNewClientLeadSource] = useState('');
+  const [newClientCustomLeadSource, setNewClientCustomLeadSource] = useState('');
   const [creatingClient, setCreatingClient] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -205,12 +208,19 @@ const Kanban = () => {
     
     setCreatingClient(true);
     try {
-      const created = await createClient({ name: newClientName.trim(), phone: newClientPhone.trim() });
+      const finalSource = newClientLeadSource === 'custom' ? newClientCustomLeadSource.trim() : newClientLeadSource;
+      const created = await createClient({ 
+        name: newClientName.trim(), 
+        phone: newClientPhone.trim(),
+        leadSource: finalSource || undefined
+      });
       setClients(prev => [created, ...prev]);
       setFormData(prev => ({ ...prev, clientId: created.id.toString() }));
       setIsNewClientModalOpen(false);
       setNewClientName('');
       setNewClientPhone('');
+      setNewClientLeadSource('');
+      setNewClientCustomLeadSource('');
     } catch (err: any) {
       console.error("Failed to create client", err);
       alert(err.response?.data?.message || 'Не удалось создать клиента');
@@ -994,28 +1004,49 @@ const Kanban = () => {
                 </div>
                 {(() => {
                   const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
-                  if (selectedClient?.phone) {
+                  if (selectedClient?.phone || selectedClient?.leadSource) {
                     return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Телефон:</span>
-                        <a
-                          href={`tel:${selectedClient.phone}`}
-                          style={{
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+                        {selectedClient?.phone && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Телефон:</span>
+                            <a
+                              href={`tel:${selectedClient.phone}`}
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: '0.8rem',
+                                color: 'var(--success)',
+                                background: 'rgba(34, 197, 94, 0.1)',
+                                border: '1px solid rgba(34, 197, 94, 0.2)',
+                                borderRadius: 'var(--radius-sm)',
+                                textDecoration: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontWeight: 500
+                              }}
+                            >
+                              <Phone size={13} /> {selectedClient.phone} (Позвонить)
+                            </a>
+                          </div>
+                        )}
+                        {selectedClient?.leadSource && (
+                          <span style={{
                             padding: '3px 8px',
                             fontSize: '0.8rem',
-                            color: 'var(--success)',
-                            background: 'rgba(34, 197, 94, 0.1)',
-                            border: '1px solid rgba(34, 197, 94, 0.2)',
+                            color: '#60a5fa',
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px solid rgba(59, 130, 246, 0.25)',
                             borderRadius: 'var(--radius-sm)',
-                            textDecoration: 'none',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px',
                             fontWeight: 500
-                          }}
-                        >
-                          <Phone size={13} /> {selectedClient.phone} (Позвонить)
-                        </a>
+                          }}>
+                            <Tag size={12} style={{ opacity: 0.8 }} />
+                            Источник: {selectedClient.leadSource}
+                          </span>
+                        )}
                       </div>
                     );
                   }
@@ -1610,6 +1641,35 @@ const Kanban = () => {
                     style={{ width: '100%', paddingLeft: '12px' }}
                   />
                 </div>
+                <div className="form-group">
+                  <label>{t('clients.modal.leadSource', 'Источник лида')}</label>
+                  <div className="custom-select-wrapper" style={{ marginBottom: newClientLeadSource === 'custom' ? '8px' : '0' }}>
+                    <select
+                      value={newClientLeadSource}
+                      onChange={(e) => setNewClientLeadSource(e.target.value)}
+                      className="custom-select"
+                    >
+                      <option value="">Не указан</option>
+                      {PRESET_LEAD_SOURCES.map(source => (
+                        <option key={source} value={source}>{source}</option>
+                      ))}
+                      <option value="custom">Другой вариант (ввести вручную)...</option>
+                    </select>
+                    <ChevronDown className="custom-select-icon" size={16} />
+                  </div>
+                  {newClientLeadSource === 'custom' && (
+                    <input
+                      type="text"
+                      required
+                      placeholder="Укажите источник (например: Листовка, Баннер...)"
+                      value={newClientCustomLeadSource}
+                      onChange={(e) => setNewClientCustomLeadSource(e.target.value)}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px', marginTop: '6px' }}
+                      autoFocus
+                    />
+                  )}
+                </div>
               </div>
               <div className="modal-actions">
                 <button 
@@ -1619,6 +1679,8 @@ const Kanban = () => {
                     setIsNewClientModalOpen(false);
                     setNewClientName('');
                     setNewClientPhone('');
+                    setNewClientLeadSource('');
+                    setNewClientCustomLeadSource('');
                   }}
                 >
                   {t('clients.modal.cancel')}

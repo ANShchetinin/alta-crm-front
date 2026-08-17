@@ -240,19 +240,19 @@ const DashboardLayout = () => {
               <LayoutDashboard size={20} />
               {newOrdersCount > 0 && <span className="bottom-nav-badge">{newOrdersCount}</span>}
             </div>
-            <span>Заказы</span>
+            <span>{t('nav.orders')}</span>
           </NavLink>
           <NavLink to="/clients" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <Users size={20} />
-            <span>Клиенты</span>
+            <span>{t('nav.clients')}</span>
           </NavLink>
           <NavLink to="/storage" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <Box size={20} />
-            <span>Склад</span>
+            <span>{t('nav.storage')}</span>
           </NavLink>
           <NavLink to="/reports" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <PieChart size={20} />
-            <span>Отчеты</span>
+            <span>{t('nav.reports') || 'Отчеты'}</span>
           </NavLink>
           <button 
             type="button" 
@@ -260,7 +260,7 @@ const DashboardLayout = () => {
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             <Menu size={20} />
-            <span>Еще</span>
+            <span>{t('nav.more') || 'Еще'}</span>
           </button>
         </nav>
       )}

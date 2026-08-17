@@ -4,12 +4,14 @@ export interface Client {
   id: number;
   name: string;
   phone: string;
+  leadSource?: string;
   createdAt: string;
 }
 
 export interface ClientCreateRequest {
   name: string;
   phone: string;
+  leadSource?: string;
 }
 
 export const getClients = async (): Promise<Client[]> => {

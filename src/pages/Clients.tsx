@@ -1,13 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone, X } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone, X, ChevronDown, Tag } from 'lucide-react';
 import type { Client } from '../api/clients';
 import { getClients, createClient, updateClient, deleteClient } from '../api/clients';
 import type { Order, OrderStatus } from '../api/kanban';
 import { getOrdersByClient, getOrderStatuses, moveOrder } from '../api/kanban';
 import { useNavigate } from 'react-router-dom';
 import '../styles/clients.css';
+
+export const PRESET_LEAD_SOURCES = [
+  'Авито',
+  'Сайт',
+  'Рекомендация',
+  'ВКонтакте',
+  'Яндекс',
+  'Telegram',
+  'Звонок / Вывеска',
+  'Повторный клиент',
+  'Партнер'
+];
 
 export const Clients = () => {
   const { t } = useTranslation();
@@ -25,7 +37,7 @@ export const Clients = () => {
   const [clientHistory, setClientHistory] = useState<Order[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   
-  const [formData, setFormData] = useState({ name: '', phone: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', leadSource: '', customLeadSource: '' });
 
   useEffect(() => {
     fetchClients();
@@ -49,18 +61,26 @@ export const Clients = () => {
 
   const filteredClients = clients.filter(c => 
     c.name.toLowerCase().includes(search.toLowerCase()) || 
-    c.phone.includes(search)
+    c.phone.includes(search) ||
+    (c.leadSource && c.leadSource.toLowerCase().includes(search.toLowerCase()))
   );
 
   const openAddModal = () => {
     setEditingClient(null);
-    setFormData({ name: '', phone: '+7' });
+    setFormData({ name: '', phone: '+7', leadSource: '', customLeadSource: '' });
     setIsModalOpen(true);
   };
 
   const openEditModal = (client: Client) => {
     setEditingClient(client);
-    setFormData({ name: client.name, phone: client.phone });
+    const source = client.leadSource || '';
+    const isPreset = PRESET_LEAD_SOURCES.includes(source);
+    setFormData({
+      name: client.name,
+      phone: client.phone,
+      leadSource: isPreset || !source ? source : 'custom',
+      customLeadSource: !isPreset && source ? source : ''
+    });
     setIsModalOpen(true);
   };
 
@@ -82,10 +102,20 @@ export const Clients = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const finalLeadSource = formData.leadSource === 'custom' 
+        ? formData.customLeadSource.trim() 
+        : formData.leadSource;
+
+      const payload = {
+        name: formData.name,
+        phone: formData.phone,
+        leadSource: finalLeadSource || undefined
+      };
+
       if (editingClient) {
-        await updateClient(editingClient.id, formData);
+        await updateClient(editingClient.id, payload);
       } else {
-        await createClient(formData);
+        await createClient(payload);
       }
       setIsModalOpen(false);
       fetchClients();
@@ -140,6 +170,7 @@ export const Clients = () => {
             <tr>
               <th>{t('clients.columns.name')}</th>
               <th>{t('clients.columns.phone')}</th>
+              <th>{t('clients.columns.leadSource', 'Источник лида')}</th>
               <th>{t('clients.columns.createdAt')}</th>
               <th style={{textAlign: 'right'}}>{t('clients.columns.actions')}</th>
             </tr>
@@ -147,7 +178,7 @@ export const Clients = () => {
           <tbody>
             {filteredClients.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{textAlign: 'center', opacity: 0.5}}>
+                <td colSpan={5} style={{textAlign: 'center', opacity: 0.5}}>
                   No clients found.
                 </td>
               </tr>
@@ -173,14 +204,36 @@ export const Clients = () => {
                             borderRadius: 'var(--radius-sm)',
                             background: 'rgba(34, 197, 94, 0.1)',
                             border: '1px solid rgba(34, 197, 94, 0.2)',
-                            fontWeight: 500
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap'
                           }}
                         >
-                          <Phone size={13} style={{ color: 'var(--success)' }} />
-                          <span>{client.phone}</span>
+                          <Phone size={13} style={{ color: 'var(--success)', flexShrink: 0 }} />
+                          <span style={{ whiteSpace: 'nowrap' }}>{client.phone}</span>
                         </a>
                       ) : '-'}
                     </div>
+                  </td>
+                  <td>
+                    {client.leadSource ? (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(59, 130, 246, 0.1)',
+                        border: '1px solid rgba(59, 130, 246, 0.25)',
+                        color: '#60a5fa',
+                        fontSize: '0.8rem',
+                        fontWeight: 500
+                      }}>
+                        <Tag size={12} style={{ opacity: 0.8 }} />
+                        {client.leadSource}
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-secondary)', opacity: 0.4, fontSize: '0.85rem' }}>—</span>
+                    )}
                   </td>
                   <td>
                     <div className="client-date">
@@ -247,7 +300,7 @@ export const Clients = () => {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label>{t('clients.modal.name')}</label>
+                  <label>{t('clients.modal.name')} *</label>
                   <input 
                     type="text" 
                     required
@@ -258,7 +311,7 @@ export const Clients = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>{t('clients.modal.phone')}</label>
+                  <label>{t('clients.modal.phone')} *</label>
                   <input 
                     type="text" 
                     required
@@ -267,6 +320,35 @@ export const Clients = () => {
                     className="search-input"
                     style={{ width: '100%', paddingLeft: '12px' }}
                   />
+                </div>
+                <div className="form-group">
+                  <label>{t('clients.modal.leadSource', 'Источник лида')}</label>
+                  <div className="custom-select-wrapper" style={{ marginBottom: formData.leadSource === 'custom' ? '8px' : '0' }}>
+                    <select
+                      value={formData.leadSource}
+                      onChange={(e) => setFormData({ ...formData, leadSource: e.target.value })}
+                      className="custom-select"
+                    >
+                      <option value="">Не указан</option>
+                      {PRESET_LEAD_SOURCES.map(source => (
+                        <option key={source} value={source}>{source}</option>
+                      ))}
+                      <option value="custom">Другой вариант (ввести вручную)...</option>
+                    </select>
+                    <ChevronDown className="custom-select-icon" size={16} />
+                  </div>
+                  {formData.leadSource === 'custom' && (
+                    <input
+                      type="text"
+                      required
+                      placeholder="Укажите источник (например: Листовка, Баннер...)"
+                      value={formData.customLeadSource}
+                      onChange={(e) => setFormData({ ...formData, customLeadSource: e.target.value })}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px', marginTop: '6px' }}
+                      autoFocus
+                    />
+                  )}
                 </div>
               </div>
               <div className="modal-actions">
@@ -278,7 +360,7 @@ export const Clients = () => {
                   {t('clients.modal.cancel')}
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  {t('clients.modal.save')}
+                  {editingClient ? t('clients.modal.save', 'Сохранить') : t('clients.modal.create', 'Создать клиента')}
                 </button>
               </div>
             </form>
