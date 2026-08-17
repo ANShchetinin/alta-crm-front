@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Plus } from 'lucide-react';
 import type { Material } from '../api/storage';
@@ -152,62 +153,74 @@ export const Storage = () => {
       </div>
 
       {/* Modal Overlay */}
-      {isModalOpen && (
+      {isModalOpen && createPortal(
         <div className="modal-overlay">
           <div className="modal-content">
-            <h2>{editingId ? t('storage.modal.editTitle', 'Редактировать материал') : t('storage.modal.addTitle')}</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>{t('storage.modal.name')}</label>
-                <input 
-                  type="text" 
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                />
-              </div>
-              <div className="form-group">
-                <label>{t('storage.modal.unit')}</label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="кг, шт, метры..."
-                  value={formData.unit}
-                  onChange={(e) => setFormData({...formData, unit: e.target.value})}
-                />
-              </div>
-              <div className="form-group">
-                <label>{t('storage.modal.quantity')}</label>
-                <input 
-                  type="number" 
-                  required
-                  min="0"
-                  step="0.001"
-                  value={formData.quantityInStock}
-                  onChange={(e) => setFormData({...formData, quantityInStock: e.target.value})}
-                />
-              </div>
-              <div className="form-group">
-                <label>Минимальный остаток (для уведомлений)</label>
-                <input 
-                  type="number" 
-                  required
-                  min="0"
-                  step="0.001"
-                  value={formData.minQuantity}
-                  onChange={(e) => setFormData({...formData, minQuantity: e.target.value})}
-                />
-              </div>
-              <div className="form-group">
-                <label>{t('storage.modal.costPrice')}</label>
-                <input 
-                  type="number" 
-                  required
-                  min="0"
-                  step="0.01"
-                  value={formData.costPrice}
-                  onChange={(e) => setFormData({...formData, costPrice: e.target.value})}
-                />
+            <div className="modal-header">
+              <h2>{editingId ? t('storage.modal.editTitle', 'Редактировать материал') : t('storage.modal.addTitle')}</h2>
+              <button 
+                type="button" 
+                onClick={() => setIsModalOpen(false)}
+                className="btn-icon"
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>{t('storage.modal.name')}</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('storage.modal.unit')}</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="кг, шт, метры..."
+                    value={formData.unit}
+                    onChange={(e) => setFormData({...formData, unit: e.target.value})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('storage.modal.quantity')}</label>
+                  <input 
+                    type="number" 
+                    required
+                    min="0"
+                    step="0.001"
+                    value={formData.quantityInStock}
+                    onChange={(e) => setFormData({...formData, quantityInStock: e.target.value})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Минимальный остаток (для уведомлений)</label>
+                  <input 
+                    type="number" 
+                    required
+                    min="0"
+                    step="0.001"
+                    value={formData.minQuantity}
+                    onChange={(e) => setFormData({...formData, minQuantity: e.target.value})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('storage.modal.costPrice')}</label>
+                  <input 
+                    type="number" 
+                    required
+                    min="0"
+                    step="0.01"
+                    value={formData.costPrice}
+                    onChange={(e) => setFormData({...formData, costPrice: e.target.value})}
+                  />
+                </div>
               </div>
               <div className="modal-actions">
                 <button 
@@ -223,7 +236,8 @@ export const Storage = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

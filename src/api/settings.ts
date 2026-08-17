@@ -15,8 +15,32 @@ export interface ProfileData {
   role: string;
 }
 
+export interface TenantRequisites {
+  companyType?: 'LEGAL_ENTITY' | 'IE';
+  fullName?: string;
+  shortName?: string;
+  legalAddress?: string;
+  actualAddress?: string;
+  inn?: string;
+  kpp?: string;
+  ogrn?: string;
+  ogrnip?: string;
+  bankName?: string;
+  bik?: string;
+  checkingAccount?: string;
+  correspondentAccount?: string;
+  signerPosition?: string;
+  signerName?: string;
+  signerAuthority?: string;
+  phone?: string;
+  email?: string;
+  taxSystem?: string;
+  authorityDoc?: string;
+}
+
 export interface UpdateTenantSettingsRequest {
   primaryColor?: string;
+  requisites?: TenantRequisites;
 }
 
 export interface TenantDto {
@@ -25,6 +49,7 @@ export interface TenantDto {
   webhookToken: string;
   logoUrl?: string;
   primaryColor?: string;
+  requisites?: TenantRequisites;
   createdAt: string;
 }
 
