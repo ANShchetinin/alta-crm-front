@@ -1,16 +1,56 @@
 import { api } from './axiosConfig';
 
+export interface ClientContact {
+  name: string;
+  position?: string;
+  phone?: string;
+  email?: string;
+  isPrimary?: boolean;
+}
+
 export interface Client {
   id: number;
+  clientType?: 'INDIVIDUAL' | 'LEGAL_ENTITY';
   name: string;
+  legalName?: string;
   phone: string;
+  email?: string;
+  inn?: string;
+  kpp?: string;
+  ogrn?: string;
+  legalAddress?: string;
+  actualAddress?: string;
+  bankName?: string;
+  bik?: string;
+  checkingAccount?: string;
+  correspondentAccount?: string;
+  vatStatus?: string;
+  contactPerson?: string;
+  contactPosition?: string;
+  contacts?: ClientContact[];
   leadSource?: string;
   createdAt: string;
 }
 
 export interface ClientCreateRequest {
+  clientType?: 'INDIVIDUAL' | 'LEGAL_ENTITY';
   name: string;
+  legalName?: string;
   phone: string;
+  email?: string;
+  inn?: string;
+  kpp?: string;
+  ogrn?: string;
+  legalAddress?: string;
+  actualAddress?: string;
+  bankName?: string;
+  bik?: string;
+  checkingAccount?: string;
+  correspondentAccount?: string;
+  vatStatus?: string;
+  contactPerson?: string;
+  contactPosition?: string;
+  contacts?: ClientContact[];
   leadSource?: string;
 }
 

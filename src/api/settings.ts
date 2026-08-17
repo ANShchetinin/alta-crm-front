@@ -41,6 +41,7 @@ export interface TenantRequisites {
 export interface UpdateTenantSettingsRequest {
   primaryColor?: string;
   requisites?: TenantRequisites;
+  orderNumberFormat?: string;
 }
 
 export interface TenantDto {
@@ -50,6 +51,7 @@ export interface TenantDto {
   logoUrl?: string;
   primaryColor?: string;
   requisites?: TenantRequisites;
+  orderNumberFormat?: string;
   createdAt: string;
 }
 

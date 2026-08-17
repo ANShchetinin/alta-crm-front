@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary } from '../api/kanban';
 import { getClients, createClient } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -37,8 +37,11 @@ const Kanban = () => {
 
   // Quick Client Creation
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  const [newClientType, setNewClientType] = useState<'INDIVIDUAL' | 'LEGAL_ENTITY'>('INDIVIDUAL');
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientInn, setNewClientInn] = useState('');
+  const [newClientContactPerson, setNewClientContactPerson] = useState('');
   const [newClientLeadSource, setNewClientLeadSource] = useState('');
   const [newClientCustomLeadSource, setNewClientCustomLeadSource] = useState('');
   const [creatingClient, setCreatingClient] = useState(false);
@@ -175,13 +178,19 @@ const Kanban = () => {
     e.preventDefault();
   };
 
-  const openCreateModal = () => {
+  const openCreateModal = async () => {
     setEditingOrderId(null);
+    let nextNum = '';
+    try {
+      nextNum = await getNextOrderNumber();
+    } catch (err) {
+      console.error("Failed to get next order number", err);
+    }
     setFormData({
       clientId: '',
       statusId: columns[0]?.id ? columns[0].id.toString() : '',
       assigneeId: '',
-      orderNumber: '',
+      orderNumber: nextNum,
       address: '',
       entrance: '',
       floor: '',
@@ -210,15 +219,21 @@ const Kanban = () => {
     try {
       const finalSource = newClientLeadSource === 'custom' ? newClientCustomLeadSource.trim() : newClientLeadSource;
       const created = await createClient({ 
+        clientType: newClientType,
         name: newClientName.trim(), 
         phone: newClientPhone.trim(),
+        inn: newClientType === 'LEGAL_ENTITY' && newClientInn.trim() ? newClientInn.trim() : undefined,
+        contactPerson: newClientType === 'LEGAL_ENTITY' && newClientContactPerson.trim() ? newClientContactPerson.trim() : undefined,
         leadSource: finalSource || undefined
       });
       setClients(prev => [created, ...prev]);
       setFormData(prev => ({ ...prev, clientId: created.id.toString() }));
       setIsNewClientModalOpen(false);
+      setNewClientType('INDIVIDUAL');
       setNewClientName('');
       setNewClientPhone('');
+      setNewClientInn('');
+      setNewClientContactPerson('');
       setNewClientLeadSource('');
       setNewClientCustomLeadSource('');
     } catch (err: any) {
@@ -949,23 +964,44 @@ const Kanban = () => {
             <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <div className="modal-body">
               
-              {editingOrderId && formData.orderNumber && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  background: 'rgba(59, 130, 246, 0.08)',
-                  border: '1px solid rgba(59, 130, 246, 0.2)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '8px 12px',
-                  marginBottom: '14px'
-                }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Номер договора / заявки:</span>
-                  <span style={{ fontSize: '0.95rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--accent-primary)' }}>
-                    № {formData.orderNumber}
-                  </span>
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ margin: 0, fontWeight: 600 }}>Номер договора / заявки</label>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const num = await getNextOrderNumber();
+                          setFormData(prev => ({ ...prev, orderNumber: num }));
+                        } catch (err) {
+                          console.error("Failed to generate order number", err);
+                        }
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--accent-primary)',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: 0
+                      }}
+                      title="Сгенерировать следующий номер по шаблону компании"
+                    >
+                      <RefreshCw size={12} /> Сгенерировать по шаблону
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Автоматически (например: ДОГ-2026/001)"
+                    value={formData.orderNumber}
+                    onChange={e => setFormData({ ...formData, orderNumber: e.target.value })}
+                    className="search-input"
+                    style={{ width: '100%', fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-primary)', paddingLeft: '12px' }}
+                  />
                 </div>
-              )}
               
               <div className="form-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -996,18 +1032,41 @@ const Kanban = () => {
                     <option value="__NEW_CLIENT__" style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>
                       + {t('clients.addClient') || 'Создать клиента...'}
                     </option>
-                    {clients.map(c => (
-                      <option key={c.id} value={c.id}>{c.name} {c.phone ? `(${c.phone})` : ''}</option>
-                    ))}
+                    {clients.map(c => {
+                      const isLegal = c.clientType === 'LEGAL_ENTITY';
+                      return (
+                        <option key={c.id} value={c.id}>
+                          {isLegal ? `🏢 ${c.name} ${c.inn ? `(ИНН: ${c.inn})` : ''}` : `👤 ${c.name} ${c.phone ? `(${c.phone})` : ''}`}
+                        </option>
+                      );
+                    })}
                   </select>
                   <ChevronDown className="custom-select-icon" size={16} />
                 </div>
                 {(() => {
                   const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
-                  if (selectedClient?.phone || selectedClient?.leadSource) {
+                  if (selectedClient) {
+                    const isLegal = selectedClient.clientType === 'LEGAL_ENTITY';
                     return (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
-                        {selectedClient?.phone && (
+                        {isLegal && (
+                          <span style={{
+                            padding: '3px 8px',
+                            fontSize: '0.75rem',
+                            color: 'var(--accent-primary)',
+                            background: 'rgba(59, 130, 246, 0.15)',
+                            border: '1px solid rgba(59, 130, 246, 0.25)',
+                            borderRadius: 'var(--radius-sm)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontWeight: 600
+                          }}>
+                            <Building2 size={12} />
+                            Юрлицо {selectedClient.inn ? `(ИНН: ${selectedClient.inn})` : ''}
+                          </span>
+                        )}
+                        {selectedClient.phone && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Телефон:</span>
                             <a
@@ -1030,7 +1089,22 @@ const Kanban = () => {
                             </a>
                           </div>
                         )}
-                        {selectedClient?.leadSource && (
+                        {isLegal && selectedClient.contactPerson && (
+                          <span style={{
+                            padding: '3px 8px',
+                            fontSize: '0.8rem',
+                            color: 'var(--text-secondary)',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            borderRadius: 'var(--radius-sm)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            <User size={12} />
+                            ЛПР: {selectedClient.contactPerson}
+                          </span>
+                        )}
+                        {selectedClient.leadSource && (
                           <span style={{
                             padding: '3px 8px',
                             fontSize: '0.8rem',
@@ -1598,15 +1672,20 @@ const Kanban = () => {
       {/* Quick Create Client Modal */}
       {isNewClientModalOpen && createPortal(
         <div className="modal-overlay" style={{ zIndex: 100000 }}>
-          <div className="modal-content animate-fade-in" style={{ maxWidth: '440px' }}>
+          <div className="modal-content animate-fade-in" style={{ maxWidth: '460px' }}>
             <div className="modal-header">
-              <h2>{t('clients.modal.addTitle')}</h2>
+              <h2>{newClientType === 'LEGAL_ENTITY' ? 'Новая компания / Юрлицо' : t('clients.modal.addTitle')}</h2>
               <button 
                 type="button" 
                 onClick={() => {
                   setIsNewClientModalOpen(false);
+                  setNewClientType('INDIVIDUAL');
                   setNewClientName('');
                   setNewClientPhone('');
+                  setNewClientInn('');
+                  setNewClientContactPerson('');
+                  setNewClientLeadSource('');
+                  setNewClientCustomLeadSource('');
                 }} 
                 className="btn-icon"
                 aria-label="Close"
@@ -1616,12 +1695,60 @@ const Kanban = () => {
             </div>
             <form onSubmit={handleQuickCreateClient} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <div className="modal-body">
+                {/* Type toggle */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setNewClientType('INDIVIDUAL')}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '6px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: newClientType === 'INDIVIDUAL' ? 'var(--accent-primary)' : 'transparent',
+                      color: newClientType === 'INDIVIDUAL' ? '#fff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.8rem'
+                    }}
+                  >
+                    <User size={14} />
+                    <span>Физлицо</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewClientType('LEGAL_ENTITY')}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '6px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: newClientType === 'LEGAL_ENTITY' ? 'var(--accent-primary)' : 'transparent',
+                      color: newClientType === 'LEGAL_ENTITY' ? '#fff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.8rem'
+                    }}
+                  >
+                    <Building2 size={14} />
+                    <span>Юрлицо</span>
+                  </button>
+                </div>
+
                 <div className="form-group">
-                  <label>{t('clients.modal.name')} *</label>
+                  <label>{newClientType === 'LEGAL_ENTITY' ? 'Наименование организации' : t('clients.modal.name')} *</label>
                   <input 
                     type="text" 
                     required
-                    placeholder={t('clients.modal.namePlaceholder') || 'Иван Иванов'}
+                    placeholder={newClientType === 'LEGAL_ENTITY' ? 'ООО «Альфа» или ИП Иванов' : (t('clients.modal.namePlaceholder') || 'Иван Иванов')}
                     value={newClientName}
                     onChange={(e) => setNewClientName(e.target.value)}
                     className="search-input"
@@ -1630,7 +1757,7 @@ const Kanban = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>{t('clients.modal.phone')} *</label>
+                  <label>{newClientType === 'LEGAL_ENTITY' ? 'Рабочий телефон' : t('clients.modal.phone')} *</label>
                   <input 
                     type="tel" 
                     required
@@ -1641,6 +1768,32 @@ const Kanban = () => {
                     style={{ width: '100%', paddingLeft: '12px' }}
                   />
                 </div>
+                {newClientType === 'LEGAL_ENTITY' && (
+                  <>
+                    <div className="form-group">
+                      <label>ИНН</label>
+                      <input 
+                        type="text" 
+                        placeholder="7701234567"
+                        value={newClientInn}
+                        onChange={(e) => setNewClientInn(e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '12px' }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Контактное лицо (ЛПР)</label>
+                      <input 
+                        type="text" 
+                        placeholder="Иванов Иван Иванович"
+                        value={newClientContactPerson}
+                        onChange={(e) => setNewClientContactPerson(e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '12px' }}
+                      />
+                    </div>
+                  </>
+                )}
                 <div className="form-group">
                   <label>{t('clients.modal.leadSource', 'Источник лида')}</label>
                   <div className="custom-select-wrapper" style={{ marginBottom: newClientLeadSource === 'custom' ? '8px' : '0' }}>
@@ -1677,8 +1830,11 @@ const Kanban = () => {
                   className="btn btn-ghost"
                   onClick={() => {
                     setIsNewClientModalOpen(false);
+                    setNewClientType('INDIVIDUAL');
                     setNewClientName('');
                     setNewClientPhone('');
+                    setNewClientInn('');
+                    setNewClientContactPerson('');
                     setNewClientLeadSource('');
                     setNewClientCustomLeadSource('');
                   }}
@@ -1690,7 +1846,7 @@ const Kanban = () => {
                   className="btn btn-primary"
                   disabled={creatingClient}
                 >
-                  {creatingClient ? t('clients.modal.saving') : t('clients.modal.save')}
+                  {creatingClient ? t('clients.modal.saving') : (newClientType === 'LEGAL_ENTITY' ? 'Создать компанию' : t('clients.modal.create', 'Создать клиента'))}
                 </button>
               </div>
             </form>
