@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, FileCheck } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber } from '../api/kanban';
-import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary } from '../api/kanban';
-import { getClients, createClient } from '../api/clients';
+import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractPdf } from '../api/kanban';
+import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary, ContractParams } from '../api/kanban';
+import { getClients, createClient, updateClient } from '../api/clients';
 import type { Client } from '../api/clients';
 import { PRESET_LEAD_SOURCES } from './Clients';
 import { getMaterials } from '../api/storage';
@@ -62,6 +62,7 @@ const Kanban = () => {
     installationPrice: '',
     installationDate: '',
     measurementDate: '',
+    contractParams: undefined as ContractParams | undefined,
     materials: [] as OrderMaterial[],
     attachments: [] as OrderAttachment[]
   });
@@ -79,6 +80,53 @@ const Kanban = () => {
   const [newColumnName, setNewColumnName] = useState('');
   const [newColumnColor, setNewColumnColor] = useState('#3b82f6');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Order Modal Tab State
+  const [orderModalTab, setOrderModalTab] = useState<'MAIN' | 'CONTRACT' | 'MATERIALS' | 'FILES' | 'AI'>('MAIN');
+
+  // Contract Generation & Prompt Modal State
+  const [isContractPromptOpen, setIsContractPromptOpen] = useState(false);
+  const [contractPromptLoading, setContractPromptLoading] = useState(false);
+  const [contractPromptData, setContractPromptData] = useState({
+    clientId: 0,
+    name: '',
+    phone: '',
+    secondPhone: '',
+    birthDate: '',
+    passportSeriesNumber: '',
+    passportIssuedBy: '',
+    passportIssuedDate: '',
+    registrationAddress: '',
+    installationAddress: '',
+    // Ceiling params
+    area: '70,3',
+    perimeter: '110,5',
+    canvasesCount: '5',
+    insertLength: '20',
+    pipeCount: '0',
+    lightsCount: '30',
+    timberLength: '17',
+    canvasArticle: 'Полотно Мат 303',
+    discount: '',
+    handoverDate: ''
+  });
+
+  const DEFAULT_ACT_CHECKLIST: import('../api/kanban').ActChecklistItem[] = [
+    { id: '1', name: 'Установка багета (Ал.)', checked: false },
+    { id: '2', name: 'Установка багета (Пл.)', checked: false },
+    { id: '3', name: 'Установка натяжного потолка', checked: false },
+    { id: '4', name: 'Установка потолочного багета', checked: false },
+    { id: '5', name: 'Установка маскировочной вставки', checked: false },
+    { id: '6', name: 'Установка потолочного карниза (гардины)', checked: false },
+    { id: '7', name: 'Установка светового оборудования', checked: false },
+    { id: '8', name: 'Установка и разводка электропроводки', checked: false },
+    { id: '9', name: 'Установки вентиляции', checked: false },
+    { id: '10', name: 'Установка разделительного багета', checked: false },
+    { id: '11', name: 'Установка пожарных сигнализаций, камер, и навесного оборудования', checked: false },
+    { id: '12', name: 'Установка обвода трубы', checked: false },
+    { id: '13', name: 'Демонтаж замена полотна', checked: false },
+    { id: '14', name: 'Установка бруса и 2х уровневых конструкций', checked: false }
+  ];
 
   useEffect(() => {
     fetchData();
@@ -131,6 +179,7 @@ const Kanban = () => {
             installationPrice: orderToOpen.installationPrice != null ? orderToOpen.installationPrice.toString() : '0',
             installationDate: orderToOpen.installationDate || '',
             measurementDate: orderToOpen.measurementDate ? orderToOpen.measurementDate.slice(0, 16) : '',
+            contractParams: orderToOpen.contractParams ? { ...orderToOpen.contractParams } : undefined,
             materials: orderToOpen.materials ? [...orderToOpen.materials] : [],
             attachments: orderToOpen.attachments ? [...orderToOpen.attachments] : []
           });
@@ -181,6 +230,7 @@ const Kanban = () => {
 
   const openCreateModal = () => {
     setEditingOrderId(null);
+    setOrderModalTab('MAIN');
     setFormData({
       clientId: '',
       statusId: columns[0]?.id ? columns[0].id.toString() : '',
@@ -196,6 +246,20 @@ const Kanban = () => {
       installationPrice: '0',
       installationDate: '',
       measurementDate: '',
+      contractParams: {
+        area: '70,3',
+        perimeter: '110,5',
+        canvasesCount: '5',
+        insertLength: '20',
+        pipeCount: '0',
+        lightsCount: '30',
+        timberLength: '17',
+        canvasArticle: 'Полотно Мат 303',
+        discount: '',
+        handoverDate: '',
+        specItems: [],
+        actChecklist: DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }))
+      },
       materials: [],
       attachments: []
     });
@@ -244,7 +308,29 @@ const Kanban = () => {
     const rem = order.remainder != null ? order.remainder : (order.totalPrice != null ? Math.max(0, order.totalPrice - prep) : 0);
     const tot = order.totalPrice != null ? order.totalPrice : (prep + rem);
 
+    const initialContractParams: ContractParams = order.contractParams ? {
+      ...order.contractParams,
+      actChecklist: (order.contractParams.actChecklist && order.contractParams.actChecklist.length > 0)
+        ? order.contractParams.actChecklist
+        : DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false })),
+      specItems: order.contractParams.specItems || []
+    } : {
+      area: '70,3',
+      perimeter: '110,5',
+      canvasesCount: '5',
+      insertLength: '20',
+      pipeCount: '0',
+      lightsCount: '30',
+      timberLength: '17',
+      canvasArticle: 'Полотно Мат 303',
+      discount: '',
+      handoverDate: '',
+      specItems: [],
+      actChecklist: DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }))
+    };
+
     setEditingOrderId(order.id);
+    setOrderModalTab('MAIN');
     setFormData({
       clientId: order.clientId ? order.clientId.toString() : '',
       statusId: order.statusId ? order.statusId.toString() : (columns[0]?.id ? columns[0].id.toString() : ''),
@@ -261,7 +347,8 @@ const Kanban = () => {
       installationDate: order.installationDate || '',
       measurementDate: order.measurementDate ? order.measurementDate.slice(0, 16) : '',
       materials: order.materials ? [...order.materials] : [],
-      attachments: order.attachments ? [...order.attachments] : []
+      attachments: order.attachments ? [...order.attachments] : [],
+      contractParams: initialContractParams
     });
     setOrderProfit(order.profit ?? null);
     setOrderMargin(order.profitMargin ?? null);
@@ -294,6 +381,7 @@ const Kanban = () => {
       installationPrice: parseFloat(formData.installationPrice || '0'),
       installationDate: formData.installationDate || undefined,
       measurementDate: formData.measurementDate || undefined,
+      contractParams: formData.contractParams,
       materials: formData.materials.map(m => ({
         materialId: m.materialId,
         quantity: typeof m.quantity === 'string' ? parseFloat(m.quantity) : m.quantity
@@ -330,6 +418,165 @@ const Kanban = () => {
       } catch (err) {
         console.error("Failed to delete order", err);
       }
+    }
+  };
+
+  const handleStartGenerateContract = async () => {
+    if (!formData.clientId) {
+      alert('Сначала выберите клиента для заявки.');
+      return;
+    }
+
+    const client = clients.find(c => c.id === parseInt(formData.clientId));
+    if (!client) return;
+
+    const isLegal = client.clientType === 'LEGAL_ENTITY';
+    const isMissingPassport = !isLegal && (
+      !client.name?.trim() ||
+      !client.phone?.trim() ||
+      !client.birthDate?.trim() ||
+      !client.passportSeriesNumber?.trim() ||
+      !client.passportIssuedBy?.trim() ||
+      !client.passportIssuedDate?.trim() ||
+      !client.registrationAddress?.trim() ||
+      !formData.address?.trim()
+    );
+
+    if (isMissingPassport) {
+      const cp = getContractParams();
+      setContractPromptData({
+        clientId: client.id,
+        name: client.name || '',
+        phone: client.phone || '',
+        secondPhone: cp.secondPhone || (client.contacts?.[0]?.phone || ''),
+        birthDate: client.birthDate || '',
+        passportSeriesNumber: client.passportSeriesNumber || '',
+        passportIssuedBy: client.passportIssuedBy || '',
+        passportIssuedDate: client.passportIssuedDate || '',
+        registrationAddress: client.registrationAddress || '',
+        installationAddress: formData.address || (client.actualAddress || ''),
+        area: cp.area || '70,3',
+        perimeter: cp.perimeter || '110,5',
+        canvasesCount: cp.canvasesCount || '5',
+        insertLength: cp.insertLength || '20',
+        pipeCount: cp.pipeCount || '0',
+        lightsCount: cp.lightsCount || '30',
+        timberLength: cp.timberLength || '17',
+        canvasArticle: cp.canvasArticle || 'Полотно Мат 303',
+        discount: cp.discount || '',
+        handoverDate: cp.handoverDate || ''
+      });
+      setIsContractPromptOpen(true);
+    } else {
+      await executeContractDownload(client.id, getContractParams());
+    }
+  };
+
+  const executeContractDownload = async (clientId: number, currentContractParams?: ContractParams) => {
+    try {
+      setContractPromptLoading(true);
+
+      // Ensure order has orderNumber
+      let currentOrderNumber = formData.orderNumber?.trim();
+      if (!currentOrderNumber) {
+        currentOrderNumber = await getNextOrderNumber();
+        setFormData(prev => ({ ...prev, orderNumber: currentOrderNumber }));
+      }
+
+      let targetOrderId = editingOrderId;
+      const prep = parseFloat(formData.prepayment || '0');
+      const rem = parseFloat(formData.remainder || '0');
+      const total = prep + rem;
+      const effectiveContractParams = currentContractParams || getContractParams();
+
+      const payload = {
+        clientId,
+        statusId: formData.statusId ? parseInt(formData.statusId) : (editingOrderId ? cards.find(c => c.id === editingOrderId)?.statusId || columns[0].id : columns[0].id),
+        assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
+        orderNumber: currentOrderNumber,
+        address: formData.address,
+        entrance: formData.entrance || undefined,
+        floor: formData.floor || undefined,
+        description: formData.description,
+        prepayment: prep,
+        remainder: rem,
+        totalPrice: total,
+        installationPrice: parseFloat(formData.installationPrice || '0'),
+        installationDate: formData.installationDate || undefined,
+        measurementDate: formData.measurementDate || undefined,
+        contractParams: effectiveContractParams,
+        materials: formData.materials.map(m => ({
+          materialId: m.materialId,
+          quantity: typeof m.quantity === 'string' ? parseFloat(m.quantity) : m.quantity
+        }))
+      };
+
+      if (!targetOrderId) {
+        const created = await createOrder(payload);
+        targetOrderId = created.id;
+        setEditingOrderId(created.id);
+      } else {
+        await updateOrder(targetOrderId, payload);
+      }
+
+      const pdfBlob = await downloadContractPdf(targetOrderId);
+      const blobUrl = window.URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }));
+
+      // Download file
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `Договор_${currentOrderNumber || targetOrderId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Also open in new tab
+      window.open(blobUrl, '_blank');
+
+      fetchData();
+      setIsContractPromptOpen(false);
+    } catch (err: any) {
+      console.error('Failed to generate contract PDF', err);
+      alert('Ошибка при формировании договора: ' + (err.message || err));
+    } finally {
+      setContractPromptLoading(false);
+    }
+  };
+
+  const handleSavePromptAndGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setContractPromptLoading(true);
+      // 1. Update client in DB
+      const client = clients.find(c => c.id === contractPromptData.clientId);
+      if (client) {
+        await updateClient(client.id, {
+          ...client,
+          name: contractPromptData.name.trim(),
+          phone: contractPromptData.phone.trim(),
+          birthDate: contractPromptData.birthDate.trim(),
+          passportSeriesNumber: contractPromptData.passportSeriesNumber.trim(),
+          passportIssuedBy: contractPromptData.passportIssuedBy.trim(),
+          passportIssuedDate: contractPromptData.passportIssuedDate.trim(),
+          registrationAddress: contractPromptData.registrationAddress.trim()
+        });
+      }
+
+      // 2. Update address in formData if modified
+      if (contractPromptData.installationAddress.trim()) {
+        setFormData(prev => ({ ...prev, address: contractPromptData.installationAddress.trim() }));
+      }
+
+      // 3. Update client list
+      const updatedClients = await getClients();
+      setClients(updatedClients);
+
+      // 4. Download contract preserving current contractParams
+      await executeContractDownload(contractPromptData.clientId, getContractParams());
+    } catch (err: any) {
+      console.error('Failed to save contract data', err);
+      alert('Ошибка при сохранении данных: ' + (err.message || err));
+      setContractPromptLoading(false);
     }
   };
 
@@ -519,6 +766,100 @@ const Kanban = () => {
   const removeMaterialRow = (index: number) => {
     const updated = formData.materials.filter((_, i) => i !== index);
     setFormData({ ...formData, materials: updated });
+  };
+
+  const getContractParams = (): ContractParams => {
+    return formData.contractParams || {
+      area: '70,3',
+      perimeter: '110,5',
+      canvasesCount: '5',
+      insertLength: '20',
+      pipeCount: '0',
+      lightsCount: '30',
+      timberLength: '17',
+      canvasArticle: 'Полотно Мат 303',
+      discount: '',
+      handoverDate: '',
+      specItems: [],
+      actChecklist: DEFAULT_ACT_CHECKLIST
+    };
+  };
+
+  const updateContractParam = (key: keyof ContractParams, value: any) => {
+    const current = getContractParams();
+    setFormData(prev => ({
+      ...prev,
+      contractParams: {
+        ...current,
+        [key]: value
+      }
+    }));
+  };
+
+  const addSpecRow = () => {
+    const cp = getContractParams();
+    const currentItems = cp.specItems || [];
+    const newItem = {
+      idx: currentItems.length + 1,
+      name: '',
+      quantity: '1',
+      unit: 'шт.',
+      price: 0,
+      total: 0
+    };
+    updateContractParam('specItems', [...currentItems, newItem]);
+  };
+
+  const updateSpecRow = (idx: number, field: string, value: any) => {
+    const cp = getContractParams();
+    const currentItems = [...(cp.specItems || [])];
+    if (!currentItems[idx]) return;
+    
+    const row = { ...currentItems[idx], [field]: value };
+    if (field === 'quantity' || field === 'price') {
+      const q = parseFloat(String(row.quantity).replace(',', '.') || '0');
+      const p = parseFloat(String(row.price) || '0');
+      row.total = Math.round(q * p * 100) / 100;
+    }
+    currentItems[idx] = row;
+    updateContractParam('specItems', currentItems);
+  };
+
+  const removeSpecRow = (idx: number) => {
+    const cp = getContractParams();
+    const currentItems = (cp.specItems || []).filter((_, i) => i !== idx);
+    updateContractParam('specItems', currentItems);
+  };
+
+  const populateSpecFromOrderMaterials = () => {
+    if (formData.materials.length === 0) {
+      alert('Во вкладке «Материалы» нет добавленных позиций.');
+      return;
+    }
+    const newItems = formData.materials.map((m, idx) => {
+      const mat = allMaterials.find(item => item.id === m.materialId);
+      const name = mat?.name || 'Материал / Услуга';
+      const unit = mat?.unit || 'шт.';
+      const qty = String(m.quantity || 1);
+      const price = mat?.costPrice || 0;
+      const qNum = parseFloat(qty.replace(',', '.') || '0');
+      return {
+        idx: idx + 1,
+        name,
+        quantity: qty,
+        unit,
+        price,
+        total: Math.round(qNum * price * 100) / 100
+      };
+    });
+    updateContractParam('specItems', newItems);
+  };
+
+  const toggleActItem = (itemId: string) => {
+    const cp = getContractParams();
+    const list = cp.actChecklist && cp.actChecklist.length > 0 ? cp.actChecklist : DEFAULT_ACT_CHECKLIST;
+    const updated = list.map(it => it.id === itemId ? { ...it, checked: !it.checked } : it);
+    updateContractParam('actChecklist', updated);
   };
 
   if (loading) {
@@ -899,7 +1240,8 @@ const Kanban = () => {
                     {(() => {
                       const materialsCost = card.materials?.reduce((sum, m) => {
                         const mat = allMaterials.find(x => x.id === m.materialId);
-                        return sum + (mat ? (mat.costPrice * m.quantity) : 0);
+                        if (!mat || mat.type === 'SERVICE') return sum;
+                        return sum + (mat.costPrice * m.quantity);
                       }, 0) || 0;
                       if (materialsCost > 0) {
                         return (
@@ -964,7 +1306,7 @@ const Kanban = () => {
 
       {isModalOpen && createPortal(
         <div className="modal-overlay">
-          <div className="modal-content" style={{maxWidth: '680px'}}>
+          <div className="modal-content" style={{ maxWidth: '800px', width: '92%', minHeight: '620px', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1, minWidth: 0, paddingRight: '8px' }}>
                 <h2 style={{ margin: 0, whiteSpace: 'nowrap' }}>
@@ -1007,638 +1349,1087 @@ const Kanban = () => {
               </button>
             </div>
             <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-              <div className="modal-body">
-              
-                {/* Договор */}
-                {!formData.orderNumber ? (
-                  <div style={{
+              {/* Tabs Navigation */}
+              <div style={{
+                display: 'flex',
+                borderBottom: '1px solid var(--glass-border)',
+                padding: '0 16px',
+                gap: '6px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                flexWrap: 'wrap'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setOrderModalTab('MAIN')}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: orderModalTab === 'MAIN' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: orderModalTab === 'MAIN' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    fontWeight: orderModalTab === 'MAIN' ? 600 : 400,
+                    padding: '10px 14px',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px dashed var(--glass-border)',
-                    borderRadius: 'var(--radius-md)',
+                    gap: '6px'
+                  }}
+                >
+                  <User size={15} /> Основное
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderModalTab('CONTRACT')}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: orderModalTab === 'CONTRACT' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: orderModalTab === 'CONTRACT' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    fontWeight: orderModalTab === 'CONTRACT' ? 600 : 400,
                     padding: '10px 14px',
-                    marginBottom: '14px',
-                    gap: '10px',
-                    flexWrap: 'wrap'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <FileText size={16} style={{ color: 'var(--text-secondary)' }} />
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        Договор еще не заключен
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const num = await getNextOrderNumber();
-                          setFormData(prev => ({ ...prev, orderNumber: num }));
-                        } catch (err) {
-                          console.error("Failed to generate order number", err);
-                        }
-                      }}
-                      className="btn btn-sm"
-                      style={{
-                        background: 'rgba(34, 197, 94, 0.15)',
-                        border: '1px solid rgba(34, 197, 94, 0.3)',
-                        color: '#4ade80',
-                        fontSize: '0.8rem',
-                        padding: '5px 12px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <Plus size={14} /> Присвоить номер договора
-                    </button>
-                  </div>
-                ) : (
-                  <div className="form-group" style={{ 
-                    marginBottom: '14px', 
-                    background: 'rgba(34, 197, 94, 0.05)', 
-                    border: '1px solid rgba(34, 197, 94, 0.25)', 
-                    borderRadius: 'var(--radius-md)', 
-                    padding: '12px 14px' 
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <label style={{ margin: 0, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', color: '#4ade80', fontSize: '0.85rem' }}>
-                        <FileText size={15} /> Номер заключенного договора
-                      </label>
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              const num = await getNextOrderNumber();
-                              setFormData(prev => ({ ...prev, orderNumber: num }));
-                            } catch (err) {
-                              console.error("Failed to generate order number", err);
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <FileText size={15} /> Договор
+                  {formData.orderNumber ? (
+                    <span style={{ fontSize: '0.72rem', background: 'rgba(34, 197, 94, 0.18)', color: '#4ade80', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>
+                      {formData.orderNumber}
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderModalTab('MATERIALS')}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: orderModalTab === 'MATERIALS' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: orderModalTab === 'MATERIALS' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    fontWeight: orderModalTab === 'MATERIALS' ? 600 : 400,
+                    padding: '10px 14px',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Tag size={15} /> Материалы и услуги {formData.materials.length > 0 && `(${formData.materials.length})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderModalTab('FILES')}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: orderModalTab === 'FILES' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: orderModalTab === 'FILES' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    fontWeight: orderModalTab === 'FILES' ? 600 : 400,
+                    padding: '10px 14px',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Paperclip size={15} /> Файлы {(formData.attachments.length + pendingFiles.length) > 0 && `(${formData.attachments.length + pendingFiles.length})`}
+                </button>
+                {editingOrderId && (
+                  <button
+                    type="button"
+                    onClick={() => setOrderModalTab('AI')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: orderModalTab === 'AI' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                      color: orderModalTab === 'AI' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                      fontWeight: orderModalTab === 'AI' ? 600 : 400,
+                      padding: '10px 14px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <Mic size={15} /> AI Анализ звонков
+                  </button>
+                )}
+              </div>
+
+              <div className="modal-body" style={{ flex: 1, minHeight: '480px', maxHeight: 'calc(80vh - 140px)', overflowY: 'auto', padding: '20px' }}>
+                {/* 1. ОСНОВНОЕ */}
+                {orderModalTab === 'MAIN' && (
+                  <>
+                    <div className="form-group">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <label style={{ margin: 0 }}>{t('kanban.modal.client')}</label>
+                        <button 
+                          type="button" 
+                          onClick={() => setIsNewClientModalOpen(true)}
+                          className="btn-icon"
+                          style={{ fontSize: '0.8rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 6px' }}
+                        >
+                          <Plus size={14} /> {t('clients.addClient') || 'Новый клиент'}
+                        </button>
+                      </div>
+                      <div className="custom-select-wrapper">
+                        <select 
+                          required
+                          value={formData.clientId}
+                          onChange={(e) => {
+                            if (e.target.value === '__NEW_CLIENT__') {
+                              setIsNewClientModalOpen(true);
+                            } else {
+                              setFormData({...formData, clientId: e.target.value});
                             }
                           }}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--accent-primary)',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: 0
-                          }}
-                          title="Сгенерировать следующий номер по шаблону компании"
+                          className="custom-select"
                         >
-                          <RefreshCw size={12} /> Сгенерировать
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, orderNumber: '' }))}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--danger)',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: 0
-                          }}
-                          title="Очистить номер договора"
+                          <option value="" disabled>{t('kanban.modal.selectClient')}</option>
+                          <option value="__NEW_CLIENT__" style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>
+                            + {t('clients.addClient') || 'Создать клиента...'}
+                          </option>
+                          {clients.map(c => {
+                            const isLegal = c.clientType === 'LEGAL_ENTITY';
+                            return (
+                              <option key={c.id} value={c.id}>
+                                {isLegal ? `🏢 ${c.name} ${c.inn ? `(ИНН: ${c.inn})` : ''}` : `👤 ${c.name} ${c.phone ? `(${c.phone})` : ''}`}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <ChevronDown className="custom-select-icon" size={16} />
+                      </div>
+                      {(() => {
+                        const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
+                        if (selectedClient) {
+                          const isLegal = selectedClient.clientType === 'LEGAL_ENTITY';
+                          return (
+                            <div style={{
+                              marginTop: '8px',
+                              padding: '8px 12px',
+                              background: 'rgba(255, 255, 255, 0.03)',
+                              border: '1px solid var(--glass-border)',
+                              borderRadius: 'var(--radius-sm)',
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: '12px',
+                              alignItems: 'center'
+                            }}>
+                              <span style={{
+                                padding: '3px 8px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                borderRadius: 'var(--radius-sm)',
+                                background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                                color: isLegal ? '#60a5fa' : '#4ade80',
+                                border: isLegal ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)'
+                              }}>
+                                {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
+                              </span>
+                              {selectedClient.phone && (
+                                <a
+                                  href={`tel:${selectedClient.phone}`}
+                                  style={{
+                                    fontSize: '0.85rem',
+                                    color: 'var(--accent-primary)',
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px'
+                                  }}
+                                >
+                                  <Phone size={13} /> {selectedClient.phone}
+                                </a>
+                              )}
+                              {selectedClient.leadSource && (
+                                <span style={{
+                                  padding: '3px 8px',
+                                  fontSize: '0.8rem',
+                                  color: '#60a5fa',
+                                  background: 'rgba(59, 130, 246, 0.1)',
+                                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                                  borderRadius: 'var(--radius-sm)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}>
+                                  <Tag size={12} style={{ opacity: 0.8 }} />
+                                  Источник: {selectedClient.leadSource}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+
+                    <div className="form-group">
+                      <label>{t('kanban.modal.assignee') || 'Ответственный'}</label>
+                      <div className="custom-select-wrapper">
+                        <select 
+                          value={formData.assigneeId}
+                          onChange={(e) => setFormData({...formData, assigneeId: e.target.value})}
+                          className="custom-select"
                         >
-                          <X size={12} /> Очистить
-                        </button>
+                          <option value="">{t('kanban.modal.selectAssignee') || 'Без ответственного'}</option>
+                          {employees.map(e => (
+                            <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="custom-select-icon" size={16} />
                       </div>
                     </div>
-                    <input
-                      type="text"
-                      placeholder="ДОГ-2026/001"
-                      value={formData.orderNumber}
-                      onChange={e => setFormData({ ...formData, orderNumber: e.target.value })}
-                      className="search-input"
-                      style={{ width: '100%', fontFamily: 'monospace', fontWeight: 700, color: '#4ade80', paddingLeft: '12px' }}
-                    />
-                  </div>
-                )}
-              
-              <div className="form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label style={{ margin: 0 }}>{t('kanban.modal.client')}</label>
-                  <button 
-                    type="button" 
-                    onClick={() => setIsNewClientModalOpen(true)}
-                    className="btn-icon"
-                    style={{ fontSize: '0.8rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 6px' }}
-                  >
-                    <Plus size={14} /> {t('clients.addClient') || 'Новый клиент'}
-                  </button>
-                </div>
-                <div className="custom-select-wrapper">
-                  <select 
-                    required
-                    value={formData.clientId}
-                    onChange={(e) => {
-                      if (e.target.value === '__NEW_CLIENT__') {
-                        setIsNewClientModalOpen(true);
-                      } else {
-                        setFormData({...formData, clientId: e.target.value});
-                      }
-                    }}
-                    className="custom-select"
-                  >
-                    <option value="" disabled>{t('kanban.modal.selectClient')}</option>
-                    <option value="__NEW_CLIENT__" style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>
-                      + {t('clients.addClient') || 'Создать клиента...'}
-                    </option>
-                    {clients.map(c => {
-                      const isLegal = c.clientType === 'LEGAL_ENTITY';
-                      return (
-                        <option key={c.id} value={c.id}>
-                          {isLegal ? `🏢 ${c.name} ${c.inn ? `(ИНН: ${c.inn})` : ''}` : `👤 ${c.name} ${c.phone ? `(${c.phone})` : ''}`}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <ChevronDown className="custom-select-icon" size={16} />
-                </div>
-                {(() => {
-                  const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
-                  if (selectedClient) {
-                    const isLegal = selectedClient.clientType === 'LEGAL_ENTITY';
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
-                        {isLegal && (
-                          <span style={{
-                            padding: '3px 8px',
-                            fontSize: '0.75rem',
-                            color: 'var(--accent-primary)',
-                            background: 'rgba(59, 130, 246, 0.15)',
-                            border: '1px solid rgba(59, 130, 246, 0.25)',
-                            borderRadius: 'var(--radius-sm)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontWeight: 600
-                          }}>
-                            <Building2 size={12} />
-                            Юрлицо {selectedClient.inn ? `(ИНН: ${selectedClient.inn})` : ''}
-                          </span>
-                        )}
-                        {selectedClient.phone && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Телефон:</span>
-                            <a
-                              href={`tel:${selectedClient.phone}`}
-                              style={{
-                                padding: '3px 8px',
-                                fontSize: '0.8rem',
-                                color: 'var(--success)',
-                                background: 'rgba(34, 197, 94, 0.1)',
-                                border: '1px solid rgba(34, 197, 94, 0.2)',
-                                borderRadius: 'var(--radius-sm)',
-                                textDecoration: 'none',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                fontWeight: 500
-                              }}
-                            >
-                              <Phone size={13} /> {selectedClient.phone} (Позвонить)
-                            </a>
-                          </div>
-                        )}
-                        {isLegal && selectedClient.contactPerson && (
-                          <span style={{
-                            padding: '3px 8px',
-                            fontSize: '0.8rem',
-                            color: 'var(--text-secondary)',
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            borderRadius: 'var(--radius-sm)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}>
-                            <User size={12} />
-                            ЛПР: {selectedClient.contactPerson}
-                          </span>
-                        )}
-                        {selectedClient.leadSource && (
-                          <span style={{
-                            padding: '3px 8px',
-                            fontSize: '0.8rem',
-                            color: '#60a5fa',
-                            background: 'rgba(59, 130, 246, 0.1)',
-                            border: '1px solid rgba(59, 130, 246, 0.25)',
-                            borderRadius: 'var(--radius-sm)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontWeight: 500
-                          }}>
-                            <Tag size={12} style={{ opacity: 0.8 }} />
-                            Источник: {selectedClient.leadSource}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
 
-              <div className="form-group">
-                <label>{t('kanban.modal.assignee') || 'Ответственный'}</label>
-                <div className="custom-select-wrapper">
-                  <select 
-                    value={formData.assigneeId}
-                    onChange={(e) => setFormData({...formData, assigneeId: e.target.value})}
-                    className="custom-select"
-                  >
-                    <option value="">{t('kanban.modal.selectAssignee') || 'Без ответственного'}</option>
-                    {employees.map(e => (
-                      <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="custom-select-icon" size={16} />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>{t('kanban.modal.address')}</label>
-                {(import.meta.env.VITE_DADATA_API_KEY || '66396b2e45d9ff46356592aae66a087ead7d082e') ? (
-                  <AddressSuggestions
-                    token={import.meta.env.VITE_DADATA_API_KEY || '66396b2e45d9ff46356592aae66a087ead7d082e'}
-                    defaultQuery={formData.address}
-                    onChange={(suggestion) => setFormData({...formData, address: suggestion?.value || formData.address})}
-                    inputProps={{
-                      placeholder: t('kanban.modal.address'),
-                      className: "search-input",
-                      style: {width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box'},
-                      onChange: (e: any) => setFormData({...formData, address: e.target.value})
-                    }}
-                  />
-                ) : (
-                  <input 
-                    type="text"
-                    placeholder={t('kanban.modal.address')}
-                    className="search-input"
-                    style={{width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box'}}
-                    value={formData.address}
-                    onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  />
-                )}
-                {formData.address && (
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('kanban.modal.route') || 'Маршрут'}:</span>
-                    <a
-                      href={getYandexMapsUrl(formData.address, formData.entrance)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        padding: '5px 12px',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        color: '#ff3333',
-                        background: 'rgba(255, 51, 51, 0.1)',
-                        border: '1px solid rgba(255, 51, 51, 0.25)',
-                        borderRadius: 'var(--radius-sm)',
-                        textDecoration: 'none',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px'
-                      }}
-                    >
-                      <Navigation size={13} /> {t('kanban.modal.routeYandex') || 'Яндекс.Карты'}
-                    </a>
-                    <a
-                      href={get2GisUrl(formData.address, formData.entrance)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        padding: '5px 12px',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        color: '#22c55e',
-                        background: 'rgba(34, 197, 94, 0.1)',
-                        border: '1px solid rgba(34, 197, 94, 0.25)',
-                        borderRadius: 'var(--radius-sm)',
-                        textDecoration: 'none',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px'
-                      }}
-                    >
-                      <Navigation size={13} /> {t('kanban.modal.route2gis') || '2ГИС'}
-                    </a>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
-                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                  <label>{t('kanban.modal.entrance') || 'Подъезд'}</label>
-                  <input 
-                    type="text" 
-                    placeholder="1"
-                    value={formData.entrance}
-                    onChange={(e) => setFormData({...formData, entrance: e.target.value})}
-                    className="search-input"
-                    style={{ width: '100%', paddingLeft: '12px' }}
-                  />
-                </div>
-                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                  <label>{t('kanban.modal.floor') || 'Этаж'}</label>
-                  <input 
-                    type="text" 
-                    placeholder="4"
-                    value={formData.floor}
-                    onChange={(e) => setFormData({...formData, floor: e.target.value})}
-                    className="search-input"
-                    style={{ width: '100%', paddingLeft: '12px' }}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>{t('kanban.modal.description')}</label>
-                <input 
-                  type="text" 
-                  required
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="search-input"
-                  style={{width: '100%', paddingLeft: '12px'}}
-                />
-              </div>
-
-              <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
-              
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
-                <h3 style={{margin: 0, fontSize: '1.1rem'}}>{t('kanban.modal.materials')}</h3>
-                <button type="button" onClick={addMaterialRow} className="btn btn-ghost" style={{padding: '6px 12px', fontSize: '0.85rem'}}>
-                  <Plus size={14} style={{marginRight: '4px'}} /> {t('kanban.modal.addMaterial')}
-                </button>
-              </div>
-
-              {formData.materials.map((mat, index) => (
-                <div key={index} style={{display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center'}}>
-                  <div className="custom-select-wrapper" style={{flex: 2}}>
-                    <select 
-                      value={mat.materialId} 
-                      onChange={(e) => updateMaterialRow(index, 'materialId', e.target.value)}
-                      className="custom-select"
-                    >
-                      {allMaterials.map(m => (
-                        <option key={m.id} value={m.id}>{m.name} ({m.costPrice}₽)</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="custom-select-icon" size={16} />
-                  </div>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    min="0"
-                    value={mat.quantity} 
-                    onChange={(e) => updateMaterialRow(index, 'quantity', e.target.value)}
-                    style={{flex: 1}}
-                    placeholder="Qty"
-                    className="custom-number-input"
-                  />
-                  <button type="button" onClick={() => removeMaterialRow(index)} style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '8px'}}>
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              ))}
-
-              <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
-
-              {/* Attachments Section */}
-              <div style={{marginBottom: '24px'}}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
-                  <h3 style={{margin: 0, fontSize: '1.1rem'}}>{t('kanban.modal.attachments')}</h3>
-                  <label className="file-upload-btn">
-                    <Paperclip size={14} />
-                    {uploadingFile ? t('kanban.modal.uploading') : t('kanban.modal.attachFile')}
-                    <input type="file" onChange={handleFileUpload} disabled={uploadingFile} />
-                  </label>
-                </div>
-                
-                {formData.attachments.length > 0 || pendingFiles.length > 0 ? (
-                  <div className="attachments-list">
-                    {formData.attachments.map(att => {
-                      const canPreview = isViewableInBrowser(att.fileName, att.contentType);
-                      return (
-                        <div key={att.id} className="attachment-item">
-                          <span style={{fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '45%'}}>
-                            {att.fileName}
-                          </span>
-                          <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                            {canPreview && (
-                              <button 
-                                type="button" 
-                                onClick={() => handleOpenAttachment(att)} 
-                                className="btn btn-ghost" 
-                                style={{padding: '4px 8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
-                                title="Посмотреть в браузере"
-                              >
-                                <Eye size={14} /> Просмотр
-                              </button>
-                            )}
-                            <button 
-                              type="button" 
-                              onClick={() => handleDownloadAttachment(att)} 
-                              className="btn btn-ghost" 
-                              style={{padding: '4px 8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
-                              title="Скачать файл"
-                            >
-                              <Download size={14} /> {t('kanban.modal.download')}
-                            </button>
-                            <button 
-                              type="button" 
-                              onClick={() => handleDeleteAttachment(att.id)} 
-                              title={t('kanban.modal.delete') || 'Удалить'} 
-                              style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px'}}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {pendingFiles.map((pf, index) => (
-                      <div key={`pending-${index}`} className="attachment-item" style={{borderStyle: 'dashed'}}>
-                        <span style={{fontSize: '0.9rem'}}>{pf.name} (pending)</span>
-                        <button type="button" onClick={() => removePendingFile(index)} style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center'}}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic'}}>
-                    {t('kanban.modal.noAttachments')}
-                  </div>
-                )}
-                <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
-              </div>
-
-              {/* AI Audio Summary Section */}
-              {editingOrderId && (
-                <div style={{marginBottom: '24px'}}>
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
-                    <h3 style={{margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                      <Mic size={16} /> AI Анализ звонков
-                    </h3>
-                    <label className="file-upload-btn" style={{backgroundColor: 'var(--primary)', color: 'white'}}>
-                      <Mic size={14} />
-                      {uploadingAudio ? 'Загрузка...' : 'Загрузить звонок'}
-                      <input type="file" accept="audio/*" onChange={handleAudioUpload} disabled={uploadingAudio} />
-                    </label>
-                  </div>
-                  {aiSummary ? (
-                    <div style={{background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)'}}>
-                      <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
-                        <span style={{fontSize: '0.85rem', color: 'var(--text-secondary)'}}>
-                          Статус: <strong style={{color: aiSummary.status === 'COMPLETED' ? 'var(--success)' : (aiSummary.status === 'ERROR' ? 'var(--danger)' : 'var(--warning)')}}>{aiSummary.status}</strong>
-                        </span>
-                        {aiSummary.status !== 'COMPLETED' && aiSummary.status !== 'ERROR' && (
-                          <button type="button" onClick={refreshAiSummary} className="btn btn-ghost" style={{padding: '2px 8px', fontSize: '0.75rem'}}>
-                            Обновить
-                          </button>
-                        )}
-                      </div>
-                      {aiSummary.aiSummary ? (
-                        <div style={{fontSize: '0.95rem', lineHeight: '1.5', whiteSpace: 'pre-wrap'}}>
-                          {aiSummary.aiSummary}
-                        </div>
+                    <div className="form-group">
+                      <label>{t('kanban.modal.address')}</label>
+                      {(import.meta.env.VITE_DADATA_API_KEY || '66396b2e45d9ff46356592aae66a087ead7d082e') ? (
+                        <AddressSuggestions
+                          token={import.meta.env.VITE_DADATA_API_KEY || '66396b2e45d9ff46356592aae66a087ead7d082e'}
+                          defaultQuery={formData.address}
+                          onChange={(suggestion) => setFormData({...formData, address: suggestion?.value || formData.address})}
+                          inputProps={{
+                            placeholder: t('kanban.modal.address'),
+                            className: "search-input",
+                            style: {width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box'},
+                            onChange: (e: any) => setFormData({...formData, address: e.target.value})
+                          }}
+                        />
                       ) : (
-                        <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic'}}>
-                          {aiSummary.status === 'ERROR' ? 'Ошибка при обработке.' : 'Анализ в процессе...'}
+                        <input 
+                          type="text" 
+                          placeholder={t('kanban.modal.address')}
+                          className="search-input"
+                          style={{width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box'}}
+                          value={formData.address}
+                          onChange={(e) => setFormData({...formData, address: e.target.value})}
+                        />
+                      )}
+                      {formData.address && (
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('kanban.modal.route') || 'Маршрут'}:</span>
+                          <a
+                            href={getYandexMapsUrl(formData.address, formData.entrance)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              padding: '5px 12px',
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                              color: '#ff3333',
+                              background: 'rgba(255, 51, 51, 0.1)',
+                              border: '1px solid rgba(255, 51, 51, 0.25)',
+                              borderRadius: 'var(--radius-sm)',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}
+                          >
+                            <Navigation size={13} /> {t('kanban.modal.routeYandex') || 'Яндекс.Карты'}
+                          </a>
+                          <a
+                            href={get2GisUrl(formData.address, formData.entrance)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              padding: '5px 12px',
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                              color: '#22c55e',
+                              background: 'rgba(34, 197, 94, 0.1)',
+                              border: '1px solid rgba(34, 197, 94, 0.25)',
+                              borderRadius: 'var(--radius-sm)',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}
+                          >
+                            <Navigation size={13} /> {t('kanban.modal.route2gis') || '2ГИС'}
+                          </a>
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic'}}>
-                      Нет загруженных звонков
-                    </div>
-                  )}
-                  <hr style={{margin: '24px 0', border: 'none', borderTop: '1px solid var(--glass-border)'}} />
-                </div>
-              )}
 
-              <div style={{display: 'flex', gap: '16px', marginBottom: '16px'}}>
-                <div className="form-group" style={{flex: 1}}>
-                  <label>{t('kanban.modal.installationPrice')}</label>
-                  <input 
-                    type="number" 
-                    required
-                    min="0"
-                    step="0.01"
-                    value={formData.installationPrice}
-                    onChange={(e) => setFormData({...formData, installationPrice: e.target.value})}
-                    className="custom-number-input"
-                  />
-                </div>
-                <div className="form-group" style={{flex: 1}}>
-                  <label>Аванс (₽)</label>
-                  <input 
-                    type="number" 
-                    min="0"
-                    step="0.01"
-                    value={formData.prepayment}
-                    onChange={(e) => {
-                      const newPrep = e.target.value;
-                      const prepNum = parseFloat(newPrep || '0');
-                      const remNum = parseFloat(formData.remainder || '0');
-                      setFormData({
-                        ...formData, 
-                        prepayment: newPrep,
-                        totalPrice: (prepNum + remNum).toString()
-                      });
-                    }}
-                    className="custom-number-input"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="form-group" style={{flex: 1}}>
-                  <label>Остаток (₽)</label>
-                  <input 
-                    type="number" 
-                    min="0"
-                    step="0.01"
-                    value={formData.remainder}
-                    onChange={(e) => {
-                      const newRem = e.target.value;
-                      const remNum = parseFloat(newRem || '0');
-                      const prepNum = parseFloat(formData.prepayment || '0');
-                      setFormData({
-                        ...formData, 
-                        remainder: newRem,
-                        totalPrice: (prepNum + remNum).toString()
-                      });
-                    }}
-                    className="custom-number-input"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-              <div style={{
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                background: 'rgba(59, 130, 246, 0.08)', 
-                border: '1px solid rgba(59, 130, 246, 0.2)', 
-                borderRadius: 'var(--radius-md)', 
-                padding: '10px 16px', 
-                marginBottom: '16px'
-              }}>
-                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Итого для клиента (Аванс + Остаток):</span>
-                <span style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
-                  {(parseFloat(formData.prepayment || '0') + parseFloat(formData.remainder || '0')).toLocaleString('ru-RU')} ₽
-                </span>
-              </div>
-              <div style={{display: 'flex', gap: '16px', flexWrap: 'wrap'}}>
-                <div className="form-group" style={{flex: 1, minWidth: '200px'}}>
-                  <label>Дата и время замера</label>
-                  <input 
-                    type="datetime-local" 
-                    value={formData.measurementDate}
-                    onChange={(e) => setFormData({...formData, measurementDate: e.target.value})}
-                    className="search-input"
-                    style={{width: '100%', paddingLeft: '12px'}}
-                  />
-                </div>
-                <div className="form-group" style={{flex: 1, minWidth: '200px'}}>
-                  <label>{t('kanban.modal.installationDate') || 'Дата монтажа'}</label>
-                  <input 
-                    type="date" 
-                    value={formData.installationDate}
-                    onChange={(e) => setFormData({...formData, installationDate: e.target.value})}
-                    className="search-input"
-                    style={{width: '100%', paddingLeft: '12px'}}
-                  />
-                </div>
-              </div>
+                    <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                      <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                        <label>{t('kanban.modal.entrance') || 'Подъезд'}</label>
+                        <input 
+                          type="text" 
+                          placeholder="1"
+                          value={formData.entrance}
+                          onChange={(e) => setFormData({...formData, entrance: e.target.value})}
+                          className="search-input"
+                          style={{ width: '100%', paddingLeft: '12px' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                        <label>{t('kanban.modal.floor') || 'Этаж'}</label>
+                        <input 
+                          type="text" 
+                          placeholder="4"
+                          value={formData.floor}
+                          onChange={(e) => setFormData({...formData, floor: e.target.value})}
+                          className="search-input"
+                          style={{ width: '100%', paddingLeft: '12px' }}
+                        />
+                      </div>
+                    </div>
 
-              {editingOrderId && orderProfit !== null && (
-                <div style={{display: 'flex', gap: '16px', marginTop: '12px', marginBottom: '24px', padding: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-lg)'}}>
-                  <div style={{flex: 1}}>
-                    <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px'}}>{t('kanban.modal.profit')}</div>
-                    <div style={{fontWeight: 600, fontSize: '1.2rem', color: orderProfit >= 0 ? 'var(--success)' : 'var(--danger)'}}>
-                      {orderProfit} ₽
+                    <div className="form-group">
+                      <label>{t('kanban.modal.description')}</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={formData.description}
+                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                        className="search-input"
+                        style={{width: '100%', paddingLeft: '12px'}}
+                      />
                     </div>
-                  </div>
-                  <div style={{flex: 1}}>
-                    <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px'}}>{t('kanban.modal.margin')}</div>
-                    <div style={{fontWeight: 600, fontSize: '1.2rem', color: (orderMargin || 0) >= 0 ? 'var(--success)' : 'var(--danger)'}}>
-                      {orderMargin}%
+
+                    <div style={{display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '16px'}}>
+                      <div className="form-group" style={{flex: 1, minWidth: '200px'}}>
+                        <label>Дата и время замера</label>
+                        <input 
+                          type="datetime-local" 
+                          value={formData.measurementDate}
+                          onChange={(e) => setFormData({...formData, measurementDate: e.target.value})}
+                          className="search-input"
+                          style={{width: '100%', paddingLeft: '12px'}}
+                        />
+                      </div>
+                      <div className="form-group" style={{flex: 1, minWidth: '200px'}}>
+                        <label>{t('kanban.modal.installationDate') || 'Дата монтажа'}</label>
+                        <input 
+                          type="date" 
+                          value={formData.installationDate}
+                          onChange={(e) => setFormData({...formData, installationDate: e.target.value})}
+                          className="search-input"
+                          style={{width: '100%', paddingLeft: '12px'}}
+                        />
+                      </div>
                     </div>
+
+                    {/* Финансы */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '16px',
+                      marginBottom: '16px'
+                    }}>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                        Финансы и оплата
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>{t('kanban.modal.installationPrice')}</label>
+                          <input 
+                            type="number" 
+                            required
+                            min="0"
+                            step="0.01"
+                            value={formData.installationPrice}
+                            onChange={(e) => setFormData({...formData, installationPrice: e.target.value})}
+                            className="custom-number-input"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Аванс (₽)</label>
+                          <input 
+                            type="number" 
+                            min="0"
+                            step="0.01"
+                            value={formData.prepayment}
+                            onChange={(e) => {
+                              const newPrep = e.target.value;
+                              const prepNum = parseFloat(newPrep || '0');
+                              const remNum = parseFloat(formData.remainder || '0');
+                              setFormData({
+                                ...formData, 
+                                prepayment: newPrep,
+                                totalPrice: (prepNum + remNum).toString()
+                              });
+                            }}
+                            className="custom-number-input"
+                            placeholder="0"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Остаток (₽)</label>
+                          <input 
+                            type="number" 
+                            min="0"
+                            step="0.01"
+                            value={formData.remainder}
+                            onChange={(e) => {
+                              const newRem = e.target.value;
+                              const remNum = parseFloat(newRem || '0');
+                              const prepNum = parseFloat(formData.prepayment || '0');
+                              setFormData({
+                                ...formData, 
+                                remainder: newRem,
+                                totalPrice: (prepNum + remNum).toString()
+                              });
+                            }}
+                            className="custom-number-input"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        background: 'rgba(59, 130, 246, 0.08)', 
+                        border: '1px solid rgba(59, 130, 246, 0.2)', 
+                        borderRadius: 'var(--radius-sm)', 
+                        padding: '10px 14px'
+                      }}>
+                        <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>Итого стоимость по договору:</span>
+                        <span style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
+                          {(parseFloat(formData.prepayment || '0') + parseFloat(formData.remainder || '0')).toLocaleString('ru-RU')} ₽
+                        </span>
+                      </div>
+                    </div>
+
+                    {editingOrderId && orderProfit !== null && (
+                      <div style={{display: 'flex', gap: '16px', padding: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)'}}>
+                        <div style={{flex: 1}}>
+                          <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '2px'}}>{t('kanban.modal.profit')}</div>
+                          <div style={{fontWeight: 600, fontSize: '1.15rem', color: orderProfit >= 0 ? 'var(--success)' : 'var(--danger)'}}>
+                            {orderProfit} ₽
+                          </div>
+                        </div>
+                        <div style={{flex: 1}}>
+                          <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '2px'}}>{t('kanban.modal.margin')}</div>
+                          <div style={{fontWeight: 600, fontSize: '1.15rem', color: (orderMargin || 0) >= 0 ? 'var(--success)' : 'var(--danger)'}}>
+                            {orderMargin}%
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* 2. ДОГОВОР И СПЕЦИФИКАЦИЯ */}
+                {orderModalTab === 'CONTRACT' && (
+                  <>
+                    {/* Шапка Договора */}
+                    <div style={{
+                      background: 'rgba(59, 130, 246, 0.06)',
+                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '14px 16px',
+                      marginBottom: '18px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                        <label style={{ margin: 0, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', color: '#60a5fa', fontSize: '0.9rem' }}>
+                          <FileText size={16} /> Номер и формирование договора
+                        </label>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const num = await getNextOrderNumber();
+                                setFormData(prev => ({ ...prev, orderNumber: num }));
+                              } catch (err) {
+                                console.error("Failed to generate order number", err);
+                              }
+                            }}
+                            className="btn btn-ghost"
+                            style={{ padding: '4px 8px', fontSize: '0.78rem', color: 'var(--accent-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            title="Сгенерировать следующий номер по шаблону"
+                          >
+                            <RefreshCw size={12} /> Сгенерировать
+                          </button>
+                          {formData.orderNumber && (
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, orderNumber: '' }))}
+                              className="btn btn-ghost"
+                              style={{ padding: '4px 8px', fontSize: '0.78rem', color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              title="Очистить номер"
+                            >
+                              <X size={12} /> Очистить
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <input
+                          type="text"
+                          placeholder="ДОГ-2026/001"
+                          value={formData.orderNumber || ''}
+                          onChange={e => setFormData({ ...formData, orderNumber: e.target.value })}
+                          className="search-input"
+                          style={{ flex: 1, minWidth: '180px', fontFamily: 'monospace', fontWeight: 700, color: '#4ade80', paddingLeft: '12px' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleStartGenerateContract}
+                          className="btn btn-primary"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontWeight: 600,
+                            padding: '8px 16px',
+                            whiteSpace: 'nowrap'
+                          }}
+                          title="Сформировать и скачать договор в PDF"
+                        >
+                          <FileText size={16} /> Сформировать договор (PDF)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Блок 1: Сводные параметры потолка */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '16px',
+                      marginBottom: '18px'
+                    }}>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Tag size={15} style={{ color: 'var(--accent-primary)' }} />
+                        1. Сводные параметры потолка (Стр. 1 и Стр. 5 договора)
+                      </h4>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.78rem' }}>Площадь (м²)</label>
+                          <input
+                            type="text"
+                            placeholder="70,3"
+                            value={getContractParams().area || ''}
+                            onChange={(e) => updateContractParam('area', e.target.value)}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '10px' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.78rem' }}>Периметр (м/п)</label>
+                          <input
+                            type="text"
+                            placeholder="110,5"
+                            value={getContractParams().perimeter || ''}
+                            onChange={(e) => updateContractParam('perimeter', e.target.value)}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '10px' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.78rem' }}>Кол-во полотен</label>
+                          <input
+                            type="text"
+                            placeholder="5"
+                            value={getContractParams().canvasesCount || ''}
+                            onChange={(e) => updateContractParam('canvasesCount', e.target.value)}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '10px' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.78rem' }}>Вставка (м/п)</label>
+                          <input
+                            type="text"
+                            placeholder="20"
+                            value={getContractParams().insertLength || ''}
+                            onChange={(e) => updateContractParam('insertLength', e.target.value)}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '10px' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.78rem' }}>Обвод труб (шт)</label>
+                          <input
+                            type="text"
+                            placeholder="0"
+                            value={getContractParams().pipeCount || ''}
+                            onChange={(e) => updateContractParam('pipeCount', e.target.value)}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '10px' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.78rem' }}>Свет. пр. (точек)</label>
+                          <input
+                            type="text"
+                            placeholder="30"
+                            value={getContractParams().lightsCount || ''}
+                            onChange={(e) => updateContractParam('lightsCount', e.target.value)}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '10px' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.78rem' }}>Брус (м/п)</label>
+                          <input
+                            type="text"
+                            placeholder="17"
+                            value={getContractParams().timberLength || ''}
+                            onChange={(e) => updateContractParam('timberLength', e.target.value)}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '10px' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.78rem' }}>Артикул полотна (фактура)</label>
+                          <input
+                            type="text"
+                            placeholder="Полотно Мат 303"
+                            value={getContractParams().canvasArticle || ''}
+                            onChange={(e) => updateContractParam('canvasArticle', e.target.value)}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '10px' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.78rem' }}>Дата сдачи объекта (Приложение №1)</label>
+                          <input
+                            type="text"
+                            placeholder="« 20 » августа 2026г."
+                            value={getContractParams().handoverDate || ''}
+                            onChange={(e) => updateContractParam('handoverDate', e.target.value)}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '10px' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Блок 2: Спецификация товаров и услуг */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '16px',
+                      marginBottom: '18px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <FileText size={15} style={{ color: '#4ade80' }} />
+                          2. Спецификация товаров и услуг (Приложение №4)
+                        </h4>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={populateSpecFromOrderMaterials}
+                            className="btn btn-ghost"
+                            style={{ padding: '4px 10px', fontSize: '0.78rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            title="Заполнить из вкладки Материалы"
+                          >
+                            <RefreshCw size={12} /> Заполнить из материалов
+                          </button>
+                          <button
+                            type="button"
+                            onClick={addSpecRow}
+                            className="btn btn-ghost"
+                            style={{ padding: '4px 10px', fontSize: '0.78rem', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <Plus size={13} /> + Строка
+                          </button>
+                        </div>
+                      </div>
+
+                      {(getContractParams().specItems || []).length > 0 ? (
+                        <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-secondary)', textAlign: 'left' }}>
+                                <th style={{ padding: '6px 8px', width: '30px' }}>№</th>
+                                <th style={{ padding: '6px 8px' }}>Наименование</th>
+                                <th style={{ padding: '6px 8px', width: '80px' }}>Кол-во</th>
+                                <th style={{ padding: '6px 8px', width: '70px' }}>Ед.</th>
+                                <th style={{ padding: '6px 8px', width: '100px' }}>Цена (₽)</th>
+                                <th style={{ padding: '6px 8px', width: '100px' }}>Сумма (₽)</th>
+                                <th style={{ padding: '6px 8px', width: '35px' }}></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(getContractParams().specItems || []).map((it, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                  <td style={{ padding: '4px 8px', color: 'var(--text-secondary)' }}>{idx + 1}</td>
+                                  <td style={{ padding: '4px 8px' }}>
+                                    <input
+                                      type="text"
+                                      value={it.name}
+                                      onChange={e => updateSpecRow(idx, 'name', e.target.value)}
+                                      placeholder="Полотно / Монтаж..."
+                                      className="search-input"
+                                      style={{ width: '100%', padding: '4px 8px', fontSize: '0.82rem' }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '4px 8px' }}>
+                                    <input
+                                      type="text"
+                                      value={it.quantity}
+                                      onChange={e => updateSpecRow(idx, 'quantity', e.target.value)}
+                                      placeholder="1"
+                                      className="search-input"
+                                      style={{ width: '100%', padding: '4px 8px', fontSize: '0.82rem' }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '4px 8px' }}>
+                                    <input
+                                      type="text"
+                                      value={it.unit}
+                                      onChange={e => updateSpecRow(idx, 'unit', e.target.value)}
+                                      placeholder="м² / шт."
+                                      className="search-input"
+                                      style={{ width: '100%', padding: '4px 8px', fontSize: '0.82rem' }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '4px 8px' }}>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={it.price}
+                                      onChange={e => updateSpecRow(idx, 'price', e.target.value)}
+                                      className="search-input"
+                                      style={{ width: '100%', padding: '4px 8px', fontSize: '0.82rem' }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '4px 8px', fontWeight: 600 }}>
+                                    {it.total?.toLocaleString('ru-RU')} ₽
+                                  </td>
+                                  <td style={{ padding: '4px 8px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeSpecRow(idx)}
+                                      style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '2px' }}
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '12px' }}>
+                          Спецификация формируется автоматически из расчета заказа или может быть заполнена вручную кнопкой «+ Строка» / «Заполнить из материалов».
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <label style={{ fontSize: '0.82rem', margin: 0 }}>Скидка (₽):</label>
+                          <input
+                            type="text"
+                            placeholder="0"
+                            value={getContractParams().discount || ''}
+                            onChange={(e) => updateContractParam('discount', e.target.value)}
+                            className="search-input"
+                            style={{ width: '120px', padding: '4px 8px', fontSize: '0.85rem' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Блок 3: Чек-лист выполненных работ для Акта */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '16px'
+                    }}>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <FileCheck size={15} style={{ color: '#60a5fa' }} />
+                        3. Чек-лист выполненных работ для Акта (Приложение №3)
+                      </h4>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
+                        {(getContractParams().actChecklist || DEFAULT_ACT_CHECKLIST).map((actItem) => (
+                          <div
+                            key={actItem.id}
+                            onClick={() => toggleActItem(actItem.id)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '8px 12px',
+                              background: actItem.checked ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                              border: actItem.checked ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)',
+                              borderRadius: 'var(--radius-sm)',
+                              cursor: 'pointer',
+                              userSelect: 'none'
+                            }}
+                          >
+                            <span style={{ fontSize: '0.8rem', color: actItem.checked ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                              {actItem.name}
+                            </span>
+                            <span style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              background: actItem.checked ? '#22c55e' : 'rgba(255,255,255,0.08)',
+                              color: actItem.checked ? '#ffffff' : 'var(--text-secondary)'
+                            }}>
+                              {actItem.checked ? 'ДА' : 'НЕТ'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* 3. МАТЕРИАЛЫ И УСЛУГИ */}
+                {orderModalTab === 'MATERIALS' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
+                      <div>
+                        <h3 style={{margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)'}}>{t('kanban.modal.materials')}</h3>
+                        <p style={{margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>
+                          Материалы со склада и доп. услуги (монтаж, установка светильников и т.д.)
+                        </p>
+                      </div>
+                      <button type="button" onClick={addMaterialRow} className="btn btn-ghost" style={{padding: '6px 12px', fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+                        <Plus size={15} /> {t('kanban.modal.addMaterial')}
+                      </button>
+                    </div>
+
+                    {formData.materials.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {formData.materials.map((mat, index) => (
+                          <div key={index} style={{
+                            display: 'flex', 
+                            gap: '12px', 
+                            alignItems: 'center',
+                            background: 'rgba(255, 255, 255, 0.02)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: '8px 12px'
+                          }}>
+                            <div className="custom-select-wrapper" style={{flex: 3, minWidth: '180px'}}>
+                              <select 
+                                value={mat.materialId} 
+                                onChange={(e) => updateMaterialRow(index, 'materialId', e.target.value)}
+                                className="custom-select"
+                              >
+                                {allMaterials.map(m => (
+                                  <option key={m.id} value={m.id}>
+                                    {m.type === 'SERVICE' ? '🛠️ [Услуга] ' : '📦 [Материал] '}
+                                    {m.name} ({m.costPrice} ₽ / {m.unit || 'шт'})
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="custom-select-icon" size={16} />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: '100px' }}>
+                              <input 
+                                type="number" 
+                                step="0.01" 
+                                min="0"
+                                value={mat.quantity} 
+                                onChange={(e) => updateMaterialRow(index, 'quantity', e.target.value)}
+                                style={{ width: '100%' }}
+                                placeholder="Кол-во"
+                                className="custom-number-input"
+                              />
+                            </div>
+                            <button 
+                              type="button" 
+                              onClick={() => removeMaterialRow(index)} 
+                              style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center'}}
+                              title="Удалить строку"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px dashed var(--glass-border)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '32px 16px',
+                        textAlign: 'center',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.88rem'
+                      }}>
+                        В заказ пока не добавлены материалы со склада. Нажмите «+ Добавить материал» выше.
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* 4. ФАЙЛЫ */}
+                {orderModalTab === 'FILES' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
+                      <div>
+                        <h3 style={{margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)'}}>{t('kanban.modal.attachments')}</h3>
+                        <p style={{margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>
+                          Прикрепленные файлы, чертежи, фото и сканы документов
+                        </p>
+                      </div>
+                      <label className="file-upload-btn" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <Paperclip size={14} />
+                        {uploadingFile ? t('kanban.modal.uploading') : t('kanban.modal.attachFile')}
+                        <input type="file" onChange={handleFileUpload} disabled={uploadingFile} />
+                      </label>
+                    </div>
+                    
+                    {formData.attachments.length > 0 || pendingFiles.length > 0 ? (
+                      <div className="attachments-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {formData.attachments.map(att => {
+                          const canPreview = isViewableInBrowser(att.fileName, att.contentType);
+                          return (
+                            <div key={att.id} className="attachment-item" style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '10px 14px',
+                              background: 'rgba(255, 255, 255, 0.02)',
+                              border: '1px solid var(--glass-border)',
+                              borderRadius: 'var(--radius-sm)'
+                            }}>
+                              <span style={{fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '55%'}}>
+                                {att.fileName}
+                              </span>
+                              <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                {canPreview && (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleOpenAttachment(att)} 
+                                    className="btn btn-ghost" 
+                                    style={{padding: '5px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                                    title="Посмотреть в браузере"
+                                  >
+                                    <Eye size={14} /> Просмотр
+                                  </button>
+                                )}
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleDownloadAttachment(att)} 
+                                  className="btn btn-ghost" 
+                                  style={{padding: '5px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                                  title="Скачать файл"
+                                >
+                                  <Download size={14} /> {t('kanban.modal.download')}
+                                </button>
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleDeleteAttachment(att.id)} 
+                                  title={t('kanban.modal.delete') || 'Удалить'} 
+                                  style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px'}}
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {pendingFiles.map((pf, index) => (
+                          <div key={`pending-${index}`} className="attachment-item" style={{
+                            borderStyle: 'dashed',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '10px 14px',
+                            background: 'rgba(255, 255, 255, 0.01)',
+                            borderRadius: 'var(--radius-sm)'
+                          }}>
+                            <span style={{fontSize: '0.9rem'}}>{pf.name} (ожидает сохранения)</span>
+                            <button type="button" onClick={() => removePendingFile(index)} style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center'}}>
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px dashed var(--glass-border)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '32px 16px',
+                        textAlign: 'center',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.88rem'
+                      }}>
+                        {t('kanban.modal.noAttachments')}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 5. AI АНАЛИЗ */}
+                {orderModalTab === 'AI' && editingOrderId && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
+                      <div>
+                        <h3 style={{margin: 0, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                          <Mic size={16} /> AI Анализ звонков
+                        </h3>
+                        <p style={{margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>
+                          Автоматическая расшифровка аудиозаписей звонков и саммари договорённостей
+                        </p>
+                      </div>
+                      <label className="file-upload-btn" style={{backgroundColor: 'var(--primary)', color: 'white', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'}}>
+                        <Mic size={14} />
+                        {uploadingAudio ? 'Загрузка...' : 'Загрузить звонок'}
+                        <input type="file" accept="audio/*" onChange={handleAudioUpload} disabled={uploadingAudio} />
+                      </label>
+                    </div>
+                    {aiSummary ? (
+                      <div style={{background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)'}}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
+                          <span style={{fontSize: '0.85rem', color: 'var(--text-secondary)'}}>
+                            Статус: <strong style={{color: aiSummary.status === 'COMPLETED' ? 'var(--success)' : (aiSummary.status === 'ERROR' ? 'var(--danger)' : 'var(--warning)')}}>{aiSummary.status}</strong>
+                          </span>
+                          {aiSummary.status !== 'COMPLETED' && aiSummary.status !== 'ERROR' && (
+                            <button type="button" onClick={refreshAiSummary} className="btn btn-ghost" style={{padding: '2px 8px', fontSize: '0.75rem'}}>
+                              Обновить
+                            </button>
+                          )}
+                        </div>
+                        {aiSummary.aiSummary ? (
+                          <div style={{fontSize: '0.95rem', lineHeight: '1.5', whiteSpace: 'pre-wrap'}}>
+                            {aiSummary.aiSummary}
+                          </div>
+                        ) : (
+                          <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic'}}>
+                            {aiSummary.status === 'ERROR' ? 'Ошибка при обработке.' : 'Анализ в процессе...'}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px dashed var(--glass-border)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '32px 16px',
+                        textAlign: 'center',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.88rem'
+                      }}>
+                        Нет загруженных записей звонков по данной сделке.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="modal-actions">
@@ -1968,6 +2759,187 @@ const Kanban = () => {
                   disabled={creatingClient}
                 >
                   {creatingClient ? t('clients.modal.saving') : (newClientType === 'LEGAL_ENTITY' ? 'Создать компанию' : t('clients.modal.create', 'Создать клиента'))}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Contract Data Prompt Modal (Only for missing client passport data) */}
+      {isContractPromptOpen && createPortal(
+        <div className="modal-overlay" onClick={() => !contractPromptLoading && setIsContractPromptOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', width: '92%' }}>
+            <div className="modal-header">
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem', margin: 0 }}>
+                <FileCheck size={20} style={{ color: 'var(--accent-primary)' }} />
+                Данные Заказчика для договора
+              </h2>
+              <button 
+                type="button" 
+                onClick={() => setIsContractPromptOpen(false)} 
+                className="btn-icon"
+                aria-label="Close"
+                disabled={contractPromptLoading}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSavePromptAndGenerate}>
+              <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto', padding: '16px 20px' }}>
+                <div style={{
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '10px 14px',
+                  marginBottom: '16px',
+                  fontSize: '0.85rem',
+                  color: '#93c5fd',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                  <span>Для формирования договора физлица заполните недостающие паспортные данные:</span>
+                </div>
+
+                <div className="form-group">
+                  <label>ФИО Заказчика *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Иванов Иван Иванович"
+                    value={contractPromptData.name}
+                    onChange={(e) => setContractPromptData({ ...contractPromptData, name: e.target.value })}
+                    className="search-input"
+                    style={{ width: '100%', paddingLeft: '12px' }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                  <div className="form-group">
+                    <label>Телефон 1 *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="+7 (917) 000-00-00"
+                      value={contractPromptData.phone}
+                      onChange={(e) => setContractPromptData({ ...contractPromptData, phone: e.target.value })}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Телефон 2 (дополнительный)</label>
+                    <input
+                      type="text"
+                      placeholder="+7 (987) 000-00-00"
+                      value={contractPromptData.secondPhone}
+                      onChange={(e) => setContractPromptData({ ...contractPromptData, secondPhone: e.target.value })}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                  <div className="form-group">
+                    <label>Дата рождения *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="21.05.1985"
+                      value={contractPromptData.birthDate}
+                      onChange={(e) => setContractPromptData({ ...contractPromptData, birthDate: e.target.value })}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Серия и номер паспорта *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="6315 123456"
+                      value={contractPromptData.passportSeriesNumber}
+                      onChange={(e) => setContractPromptData({ ...contractPromptData, passportSeriesNumber: e.target.value })}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                  <div className="form-group">
+                    <label>Кем выдан паспорт *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Отделом УФМС России по Саратовской обл..."
+                      value={contractPromptData.passportIssuedBy}
+                      onChange={(e) => setContractPromptData({ ...contractPromptData, passportIssuedBy: e.target.value })}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Дата выдачи паспорта *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="11.06.2015"
+                      value={contractPromptData.passportIssuedDate}
+                      onChange={(e) => setContractPromptData({ ...contractPromptData, passportIssuedDate: e.target.value })}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Адрес по прописке (регистрации) *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="г. Саратов, ул. Чернышевского, д. 10, кв. 5"
+                    value={contractPromptData.registrationAddress}
+                    onChange={(e) => setContractPromptData({ ...contractPromptData, registrationAddress: e.target.value })}
+                    className="search-input"
+                    style={{ width: '100%', paddingLeft: '12px' }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Адрес установки (монтажа) *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="г. Саратов, 1-й проезд Степана Разина, 3/7 кв. 222"
+                    value={contractPromptData.installationAddress}
+                    onChange={(e) => setContractPromptData({ ...contractPromptData, installationAddress: e.target.value })}
+                    className="search-input"
+                    style={{ width: '100%', paddingLeft: '12px' }}
+                  />
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setIsContractPromptOpen(false)}
+                  disabled={contractPromptLoading}
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={contractPromptLoading}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <FileText size={16} />
+                  {contractPromptLoading ? 'Формирование PDF...' : 'Сохранить и сформировать договор (PDF)'}
                 </button>
               </div>
             </form>

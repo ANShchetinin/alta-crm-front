@@ -31,6 +31,37 @@ export interface OrderAiSummary {
   updatedAt?: string;
 }
 
+export interface ContractSpecItem {
+  idx?: number;
+  name: string;
+  quantity: string;
+  unit: string;
+  price: number;
+  total: number;
+}
+
+export interface ActChecklistItem {
+  id: string;
+  name: string;
+  checked: boolean;
+}
+
+export interface ContractParams {
+  area?: string;
+  perimeter?: string;
+  canvasesCount?: string;
+  insertLength?: string;
+  pipeCount?: string;
+  lightsCount?: string;
+  timberLength?: string;
+  canvasArticle?: string;
+  handoverDate?: string;
+  discount?: string;
+  secondPhone?: string;
+  specItems?: ContractSpecItem[];
+  actChecklist?: ActChecklistItem[];
+}
+
 export interface Order {
   id: number;
   clientId: number;
@@ -48,6 +79,7 @@ export interface Order {
   entrance?: string;
   floor?: string;
   createdAt?: string;
+  contractParams?: ContractParams;
   materials?: OrderMaterial[];
   attachments?: OrderAttachment[];
   materialsCost?: number;
@@ -144,4 +176,11 @@ export const getAiSummary = async (orderId: number): Promise<OrderAiSummary> => 
 export const getNextOrderNumber = async (): Promise<string> => {
   const response = await api.get<{ orderNumber: string }>('/orders/next-number');
   return response.data.orderNumber;
+};
+
+export const downloadContractPdf = async (orderId: number): Promise<Blob> => {
+  const response = await api.get(`/orders/${orderId}/contract/pdf`, {
+    responseType: 'blob'
+  });
+  return response.data;
 };

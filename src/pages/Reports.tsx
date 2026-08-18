@@ -84,12 +84,13 @@ export const Reports = () => {
     return Array.from(months).sort().reverse();
   }, [orders, currentMonthStr]);
 
-  // Calculate material cost for an order
+  // Calculate material cost for an order (services are excluded from expenses)
   const calculateMaterialsCost = (order: Order) => {
     if (!order.materials) return 0;
     return order.materials.reduce((sum, m) => {
       const mat = materials.find(x => x.id === m.materialId);
-      return sum + (mat ? mat.costPrice * m.quantity : 0);
+      if (!mat || mat.type === 'SERVICE') return sum;
+      return sum + (mat.costPrice * m.quantity);
     }, 0);
   };
 
