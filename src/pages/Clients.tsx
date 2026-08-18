@@ -18,6 +18,8 @@ export const PRESET_LEAD_SOURCES = [
   'Рекомендация',
   'ВКонтакте',
   'Яндекс',
+  '2ГИС',
+  'Офис продаж',
   'Telegram',
   'Звонок / Вывеска',
   'Повторный клиент',
@@ -55,6 +57,11 @@ export const Clients = () => {
     name: '',
     legalName: '',
     phone: '',
+    birthDate: '',
+    passportSeriesNumber: '',
+    passportIssuedBy: '',
+    passportIssuedDate: '',
+    registrationAddress: '',
     email: '',
     inn: '',
     kpp: '',
@@ -110,6 +117,7 @@ export const Clients = () => {
       (c.email && c.email.toLowerCase().includes(q)) ||
       (c.contactPerson && c.contactPerson.toLowerCase().includes(q)) ||
       (c.leadSource && c.leadSource.toLowerCase().includes(q)) ||
+      (c.passportSeriesNumber && c.passportSeriesNumber.includes(q)) ||
       (c.contacts && c.contacts.some(cnt => cnt.name.toLowerCase().includes(q) || (cnt.phone && cnt.phone.includes(q))))
     );
   });
@@ -121,6 +129,11 @@ export const Clients = () => {
       name: '',
       legalName: '',
       phone: '+7',
+      birthDate: '',
+      passportSeriesNumber: '',
+      passportIssuedBy: '',
+      passportIssuedDate: '',
+      registrationAddress: '',
       email: '',
       inn: '',
       kpp: '',
@@ -150,6 +163,11 @@ export const Clients = () => {
       name: client.name || '',
       legalName: client.legalName || '',
       phone: client.phone || '',
+      birthDate: client.birthDate || '',
+      passportSeriesNumber: client.passportSeriesNumber || '',
+      passportIssuedBy: client.passportIssuedBy || '',
+      passportIssuedDate: client.passportIssuedDate || '',
+      registrationAddress: client.registrationAddress || '',
       email: client.email || '',
       inn: client.inn || '',
       kpp: client.kpp || '',
@@ -231,6 +249,11 @@ export const Clients = () => {
         name: formData.name.trim(),
         legalName: formData.legalName.trim() || undefined,
         phone: formData.phone.trim(),
+        birthDate: formData.birthDate.trim() || undefined,
+        passportSeriesNumber: formData.passportSeriesNumber.trim() || undefined,
+        passportIssuedBy: formData.passportIssuedBy.trim() || undefined,
+        passportIssuedDate: formData.passportIssuedDate.trim() || undefined,
+        registrationAddress: formData.registrationAddress.trim() || undefined,
         email: formData.email.trim() || undefined,
         inn: formData.inn.trim() || undefined,
         kpp: formData.kpp.trim() || undefined,
@@ -623,6 +646,78 @@ export const Clients = () => {
                         className="search-input"
                         style={{ width: '100%', paddingLeft: '12px' }}
                       />
+                    </div>
+
+                    {/* Данные для договора (необязательные) */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--glass-border)',
+                      padding: '14px',
+                      borderRadius: 'var(--radius-md)',
+                      marginTop: '8px'
+                    }}>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <FileText size={16} /> Данные для договора (необязательно)
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label>Дата рождения</label>
+                          <input
+                            type="text"
+                            placeholder="ДД.ММ.ГГГГ"
+                            value={formData.birthDate}
+                            onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '12px' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label>Серия и номер паспорта</label>
+                          <input
+                            type="text"
+                            placeholder="63 10 123456"
+                            value={formData.passportSeriesNumber}
+                            onChange={(e) => setFormData({ ...formData, passportSeriesNumber: e.target.value })}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '12px' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label>Кем выдан</label>
+                          <input
+                            type="text"
+                            placeholder="Отделом УФМС России по..."
+                            value={formData.passportIssuedBy}
+                            onChange={(e) => setFormData({ ...formData, passportIssuedBy: e.target.value })}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '12px' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label>Когда выдан</label>
+                          <input
+                            type="text"
+                            placeholder="ДД.ММ.ГГГГ"
+                            value={formData.passportIssuedDate}
+                            onChange={(e) => setFormData({ ...formData, passportIssuedDate: e.target.value })}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '12px' }}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label>Адрес по прописке (регистрации)</label>
+                        <input
+                          type="text"
+                          placeholder="101000, г. Москва, ул. Ленина, д. 10, кв. 5"
+                          value={formData.registrationAddress}
+                          onChange={(e) => setFormData({ ...formData, registrationAddress: e.target.value })}
+                          className="search-input"
+                          style={{ width: '100%', paddingLeft: '12px' }}
+                        />
+                      </div>
                     </div>
                   </>
                 ) : (

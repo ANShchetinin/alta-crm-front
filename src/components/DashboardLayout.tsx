@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -18,8 +18,48 @@ const DashboardLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userName, setUserName] = useState<string>('User');
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // PWA Install States
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [showIosPrompt, setShowIosPrompt] = useState(false);
 
   const appVersion = import.meta.env.VITE_APP_VERSION || 'v1.0.0';
+
+  // Check if running as PWA standalone
+  useEffect(() => {
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+    setIsStandalone(isStandaloneMode);
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallPwa = async () => {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredInstallPrompt(null);
+      }
+    } else {
+      // Check if iOS
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      if (isIos) {
+        setShowIosPrompt(true);
+      } else {
+        alert('Для установки приложения нажмите кнопку меню браузера (⋮) и выберите «Установить приложение» или «Добавить на главный экран».');
+      }
+    }
+  };
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -148,6 +188,33 @@ const DashboardLayout = () => {
         </nav>
 
         <div className="sidebar-footer">
+          {!isStandalone && (
+            <button 
+              type="button" 
+              className="btn btn-ghost" 
+              onClick={handleInstallPwa}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                width: '100%',
+                padding: '10px 14px',
+                color: 'var(--accent-primary)',
+                background: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: '8px',
+                fontSize: '0.88rem',
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+              title="Установить Alta CRM на телефон или рабочий стол"
+            >
+              <Smartphone size={18} />
+              <span>Установить PWA</span>
+            </button>
+          )}
+
           <button className="btn btn-ghost logout-btn" onClick={handleLogout}>
             <LogOut size={20} />
             <span>{t('nav.signout')}</span>
@@ -188,6 +255,17 @@ const DashboardLayout = () => {
           </div>
           
           <div className="topbar-actions">
+            {!isStandalone && (
+              <button 
+                type="button" 
+                className="btn-icon" 
+                onClick={handleInstallPwa}
+                title="Установить приложение на телефон"
+                style={{ color: 'var(--accent-primary)' }}
+              >
+                <Download size={18} />
+              </button>
+            )}
             <button className="btn-icon" onClick={toggleLanguage} title="Change Language">
               <Globe size={18} /> 
               <span style={{marginLeft: '4px', fontSize: '0.75rem', fontWeight: 'bold'}}>{language.toUpperCase()}</span>
@@ -264,9 +342,61 @@ const DashboardLayout = () => {
           </button>
         </nav>
       )}
+
+      {/* iOS PWA Install Guide Modal */}
+      {showIosPrompt && (
+        <div className="modal-overlay" onClick={() => setShowIosPrompt(false)} style={{ zIndex: 1100 }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px', textAlign: 'center', padding: '24px' }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+              color: 'white'
+            }}>
+              <Smartphone size={28} />
+            </div>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem' }}>Установка на iPhone / iPad</h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 20px 0' }}>
+              Чтобы открывать Alta CRM в полноэкранном режиме как приложение:
+            </p>
+            <div style={{
+              textAlign: 'left',
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid var(--glass-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '14px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              fontSize: '0.88rem',
+              marginBottom: '20px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ background: 'var(--accent-primary)', color: 'white', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>1</span>
+                <span>Нажмите кнопку <strong>«Поделиться»</strong> <Share size={15} style={{ verticalAlign: 'middle', display: 'inline' }} /> внизу экрана Safari.</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ background: 'var(--accent-primary)', color: 'white', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>2</span>
+                <span>Прокрутите вниз и выберите <strong>«На экран “Домой”»</strong>.</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ background: 'var(--accent-primary)', color: 'white', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>3</span>
+                <span>Нажмите <strong>«Добавить»</strong> в правом верхнем углу.</span>
+              </div>
+            </div>
+            <button type="button" className="btn btn-primary" onClick={() => setShowIosPrompt(false)} style={{ width: '100%' }}>
+              Понятно
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default DashboardLayout;
-

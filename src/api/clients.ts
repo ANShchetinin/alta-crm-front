@@ -14,6 +14,11 @@ export interface Client {
   name: string;
   legalName?: string;
   phone: string;
+  birthDate?: string;
+  passportSeriesNumber?: string;
+  passportIssuedBy?: string;
+  passportIssuedDate?: string;
+  registrationAddress?: string;
   email?: string;
   inn?: string;
   kpp?: string;
@@ -37,6 +42,11 @@ export interface ClientCreateRequest {
   name: string;
   legalName?: string;
   phone: string;
+  birthDate?: string;
+  passportSeriesNumber?: string;
+  passportIssuedBy?: string;
+  passportIssuedDate?: string;
+  registrationAddress?: string;
   email?: string;
   inn?: string;
   kpp?: string;

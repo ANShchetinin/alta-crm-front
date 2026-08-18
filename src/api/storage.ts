@@ -1,9 +1,12 @@
 import { api } from './axiosConfig';
 
+export type MaterialType = 'MATERIAL' | 'SERVICE';
+
 export interface Material {
   id: number;
   name: string;
   unit: string;
+  type?: MaterialType;
   quantityInStock: number;
   minQuantity?: number;
   costPrice: number;
