@@ -13,6 +13,7 @@ import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
 import { getEmployees } from '../api/employees';
 import type { Employee } from '../api/employees';
+import { getEmployeeInitials, getAvatarGradient } from './Employees';
 import { useAppStore } from '../store/useAppStore';
 import { useSearchParams } from 'react-router-dom';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
@@ -752,11 +753,49 @@ const Kanban = () => {
                         </div>
                       );
                     })()}
-                    {card.createdAt && (
-                      <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
-                        {new Date(card.createdAt).toLocaleDateString('ru-RU')}
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      {card.createdAt && (
+                        <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
+                          {new Date(card.createdAt).toLocaleDateString('ru-RU')}
+                        </div>
+                      )}
+                      {(() => {
+                        const assignee = employees.find(e => e.id === card.assigneeId);
+                        if (!assignee) return null;
+                        return (
+                          <div
+                            title={`Ответственный: ${assignee.name}${assignee.position ? ` (${assignee.position})` : ''}`}
+                            style={{
+                              width: '34px',
+                              height: '34px',
+                              borderRadius: '50%',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.78rem',
+                              fontWeight: 700,
+                              color: '#fff',
+                              background: assignee.avatarUrl ? 'transparent' : getAvatarGradient(assignee.name),
+                              border: '2px solid rgba(255, 255, 255, 0.18)',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                              flexShrink: 0,
+                              cursor: 'default'
+                            }}
+                          >
+                            {assignee.avatarUrl ? (
+                              <img 
+                                src={assignee.avatarUrl} 
+                                alt={assignee.name} 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                              />
+                            ) : (
+                              getEmployeeInitials(assignee.name)
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
                   <div className="card-desc">{card.description}</div>
                   
@@ -855,12 +894,6 @@ const Kanban = () => {
                             minute: '2-digit'
                           })}
                         </span>
-                      </div>
-                    )}
-                    {card.assigneeId && (
-                      <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>
-                        <span>{t('kanban.card.assignee')}:</span>
-                        <span style={{textAlign: 'right'}}>{employees.find(e => e.id === card.assigneeId)?.name || '...'}</span>
                       </div>
                     )}
                     {(() => {

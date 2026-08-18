@@ -5,6 +5,7 @@ export interface Employee {
   name: string;
   phone?: string;
   position?: string;
+  avatarUrl?: string;
   createdAt?: string;
 }
 
@@ -20,6 +21,17 @@ export const createEmployee = async (employee: Partial<Employee>): Promise<Emplo
 
 export const updateEmployee = async (id: number, employee: Partial<Employee>): Promise<Employee> => {
   const response = await api.put(`/employees/${id}`, employee);
+  return response.data;
+};
+
+export const uploadEmployeeAvatar = async (id: number, file: File): Promise<Employee> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post(`/employees/${id}/avatar`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
   return response.data;
 };
 
