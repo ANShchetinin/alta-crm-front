@@ -33,6 +33,7 @@ export interface TenantRequisites {
   signerName?: string;
   signerAuthority?: string;
   phone?: string;
+  landlinePhone?: string;
   email?: string;
   taxSystem?: string;
   authorityDoc?: string;

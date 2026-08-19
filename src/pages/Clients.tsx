@@ -1053,16 +1053,18 @@ export const Clients = () => {
               </div>
 
               <div className="modal-actions">
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)}
-                  className="btn btn-ghost"
-                >
-                  {t('clients.modal.cancel')}
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingClient ? t('clients.modal.save', 'Сохранить') : (formData.clientType === 'LEGAL_ENTITY' ? 'Создать компанию' : t('clients.modal.create', 'Создать клиента'))}
-                </button>
+                <div className="modal-action-btns">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsModalOpen(false)}
+                    className="btn btn-ghost"
+                  >
+                    {t('clients.modal.cancel')}
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    {editingClient ? t('clients.modal.save', 'Сохранить') : (formData.clientType === 'LEGAL_ENTITY' ? 'Создать компанию' : t('clients.modal.create', 'Создать клиента'))}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

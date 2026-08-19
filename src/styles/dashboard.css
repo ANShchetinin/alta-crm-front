@@ -297,6 +297,13 @@
     box-sizing: border-box;
   }
 
+  .main-content {
+    gap: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
   /* Mobile Backdrop */
   .mobile-backdrop {
     display: block;
@@ -327,6 +334,9 @@
     transition: transform var(--transition-normal), visibility var(--transition-normal);
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
     border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    padding-top: max(24px, calc(16px + env(safe-area-inset-top, 0px)));
+    padding-bottom: max(24px, calc(16px + env(safe-area-inset-bottom, 0px)));
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
   }
 
   .sidebar.mobile-open {
@@ -341,8 +351,11 @@
   }
 
   .topbar {
-    height: 56px;
-    padding: 0 16px;
+    height: calc(56px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-bottom: 0;
     border-radius: 0;
     border-left: none;
     border-right: none;
@@ -350,6 +363,8 @@
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    display: flex;
+    align-items: center;
   }
 
   .topbar-date {

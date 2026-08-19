@@ -10,6 +10,7 @@ export interface Material {
   quantityInStock: number;
   minQuantity?: number;
   costPrice: number;
+  salePrice?: number;
 }
 
 export const getMaterials = async (): Promise<Material[]> => {
