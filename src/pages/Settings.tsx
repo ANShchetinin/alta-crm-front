@@ -62,6 +62,7 @@ export const Settings = () => {
     signerName: tenantSettings?.requisites?.signerName || '',
     signerAuthority: tenantSettings?.requisites?.signerAuthority || '',
     phone: tenantSettings?.requisites?.phone || '',
+    landlinePhone: tenantSettings?.requisites?.landlinePhone || '',
     email: tenantSettings?.requisites?.email || '',
     taxSystem: tenantSettings?.requisites?.taxSystem || '',
     authorityDoc: tenantSettings?.requisites?.authorityDoc || ''
@@ -650,6 +651,54 @@ export const Settings = () => {
                         />
                       </div>
                     </div>
+
+                    {/* Секция: Контакты юр. лица */}
+                    <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Контактные данные
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                            Городской телефон (для шапки договора)
+                          </label>
+                          <input
+                            type="text"
+                            className="search-input"
+                            style={{ width: '100%' }}
+                            placeholder="+7 (8452) 323-989"
+                            value={requisites.landlinePhone || ''}
+                            onChange={e => updateRequisiteField('landlinePhone', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                            Мобильный телефон
+                          </label>
+                          <input
+                            type="text"
+                            className="search-input"
+                            style={{ width: '100%' }}
+                            placeholder="+7 (999) 000-00-00"
+                            value={requisites.phone || ''}
+                            onChange={e => updateRequisiteField('phone', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                            Email
+                          </label>
+                          <input
+                            type="email"
+                            className="search-input"
+                            style={{ width: '100%' }}
+                            placeholder="info@company.ru"
+                            value={requisites.email || ''}
+                            onChange={e => updateRequisiteField('email', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   /* Индивидуальный предприниматель (ИП) */
@@ -797,10 +846,23 @@ export const Settings = () => {
                       <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Контакты и налоговый режим
                       </h4>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
                         <div>
                           <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
-                            Контактный телефон
+                            Городской телефон (для шапки договора)
+                          </label>
+                          <input
+                            type="text"
+                            className="search-input"
+                            style={{ width: '100%' }}
+                            placeholder="+7 (8452) 323-989"
+                            value={requisites.landlinePhone || ''}
+                            onChange={e => updateRequisiteField('landlinePhone', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                            Мобильный телефон
                           </label>
                           <input
                             type="text"

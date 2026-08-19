@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, FileCheck } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, FileCheck, FileDown } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractPdf } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractPdf, downloadContractDocx } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary, ContractParams } from '../api/kanban';
 import { getClients, createClient, updateClient } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -87,6 +87,7 @@ const Kanban = () => {
   // Contract Generation & Prompt Modal State
   const [isContractPromptOpen, setIsContractPromptOpen] = useState(false);
   const [contractPromptLoading, setContractPromptLoading] = useState(false);
+  const [contractFormat, setContractFormat] = useState<'PDF' | 'DOCX'>('PDF');
   const [contractPromptData, setContractPromptData] = useState({
     clientId: 0,
     name: '',
@@ -310,6 +311,7 @@ const Kanban = () => {
 
     const initialContractParams: ContractParams = order.contractParams ? {
       ...order.contractParams,
+      contractDate: order.contractParams.contractDate || new Date().toISOString().slice(0, 10),
       actChecklist: (order.contractParams.actChecklist && order.contractParams.actChecklist.length > 0)
         ? order.contractParams.actChecklist
         : DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false })),
@@ -323,6 +325,7 @@ const Kanban = () => {
       lightsCount: '30',
       timberLength: '17',
       canvasArticle: 'Полотно Мат 303',
+      contractDate: new Date().toISOString().slice(0, 10),
       discount: '',
       handoverDate: '',
       specItems: [],
@@ -421,9 +424,10 @@ const Kanban = () => {
     }
   };
 
-  const handleStartGenerateContract = async () => {
+  const handleStartGenerateContract = async (format: 'PDF' | 'DOCX' = 'PDF') => {
+    setContractFormat(format);
     if (!formData.clientId) {
-      alert('Сначала выберите клиента для заявки.');
+      alert('Пожалуйста, выберите клиента для формирования договора');
       return;
     }
 
@@ -468,11 +472,11 @@ const Kanban = () => {
       });
       setIsContractPromptOpen(true);
     } else {
-      await executeContractDownload(client.id, getContractParams());
+      await executeContractDownload(client.id, getContractParams(), format);
     }
   };
 
-  const executeContractDownload = async (clientId: number, currentContractParams?: ContractParams) => {
+  const executeContractDownload = async (clientId: number, currentContractParams?: ContractParams, format: 'PDF' | 'DOCX' = contractFormat) => {
     try {
       setContractPromptLoading(true);
 
@@ -519,24 +523,32 @@ const Kanban = () => {
         await updateOrder(targetOrderId, payload);
       }
 
-      const pdfBlob = await downloadContractPdf(targetOrderId);
-      const blobUrl = window.URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }));
-
-      // Download file
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = `Договор_${currentOrderNumber || targetOrderId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      // Also open in new tab
-      window.open(blobUrl, '_blank');
+      if (format === 'DOCX') {
+        const docxBlob = await downloadContractDocx(targetOrderId);
+        const blobUrl = window.URL.createObjectURL(docxBlob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `Договор_${currentOrderNumber || targetOrderId}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+      } else {
+        const pdfBlob = await downloadContractPdf(targetOrderId);
+        const blobUrl = window.URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }));
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `Договор_${currentOrderNumber || targetOrderId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.open(blobUrl, '_blank');
+      }
 
       fetchData();
       setIsContractPromptOpen(false);
     } catch (err: any) {
-      console.error('Failed to generate contract PDF', err);
+      console.error('Failed to generate contract', err);
       alert('Ошибка при формировании договора: ' + (err.message || err));
     } finally {
       setContractPromptLoading(false);
@@ -571,8 +583,8 @@ const Kanban = () => {
       const updatedClients = await getClients();
       setClients(updatedClients);
 
-      // 4. Download contract preserving current contractParams
-      await executeContractDownload(contractPromptData.clientId, getContractParams());
+      // 4. Download contract preserving current contractParams and format
+      await executeContractDownload(contractPromptData.clientId, getContractParams(), contractFormat);
     } catch (err: any) {
       console.error('Failed to save contract data', err);
       alert('Ошибка при сохранении данных: ' + (err.message || err));
@@ -841,7 +853,7 @@ const Kanban = () => {
       const name = mat?.name || 'Материал / Услуга';
       const unit = mat?.unit || 'шт.';
       const qty = String(m.quantity || 1);
-      const price = mat?.costPrice || 0;
+      const price = mat?.salePrice != null && mat.salePrice > 0 ? mat.salePrice : (mat?.costPrice || 0);
       const qNum = parseFloat(qty.replace(',', '.') || '0');
       return {
         idx: idx + 1,
@@ -1353,10 +1365,13 @@ const Kanban = () => {
               <div style={{
                 display: 'flex',
                 borderBottom: '1px solid var(--glass-border)',
-                padding: '0 16px',
-                gap: '6px',
+                padding: '0 12px',
+                gap: '4px',
                 background: 'rgba(255, 255, 255, 0.02)',
-                flexWrap: 'wrap'
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                scrollbarWidth: 'none',
+                flexShrink: 0
               }}>
                 <button
                   type="button"
@@ -1372,7 +1387,9 @@ const Kanban = () => {
                     fontSize: '0.9rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px'
+                    gap: '6px',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
                   }}
                 >
                   <User size={15} /> Основное
@@ -1391,7 +1408,9 @@ const Kanban = () => {
                     fontSize: '0.9rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px'
+                    gap: '6px',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
                   }}
                 >
                   <FileText size={15} /> Договор
@@ -1415,7 +1434,9 @@ const Kanban = () => {
                     fontSize: '0.9rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px'
+                    gap: '6px',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
                   }}
                 >
                   <Tag size={15} /> Материалы и услуги {formData.materials.length > 0 && `(${formData.materials.length})`}
@@ -1434,7 +1455,9 @@ const Kanban = () => {
                     fontSize: '0.9rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px'
+                    gap: '6px',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
                   }}
                 >
                   <Paperclip size={15} /> Файлы {(formData.attachments.length + pendingFiles.length) > 0 && `(${formData.attachments.length + pendingFiles.length})`}
@@ -1454,7 +1477,9 @@ const Kanban = () => {
                       fontSize: '0.9rem',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '6px'
+                      gap: '6px',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0
                     }}
                   >
                     <Mic size={15} /> AI Анализ звонков
@@ -1462,7 +1487,7 @@ const Kanban = () => {
                 )}
               </div>
 
-              <div className="modal-body" style={{ flex: 1, minHeight: '480px', maxHeight: 'calc(80vh - 140px)', overflowY: 'auto', padding: '20px' }}>
+              <div className="modal-body" style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', padding: '16px 20px' }}>
                 {/* 1. ОСНОВНОЕ */}
                 {orderModalTab === 'MAIN' && (
                   <>
@@ -1703,8 +1728,8 @@ const Kanban = () => {
                           type="datetime-local" 
                           value={formData.measurementDate}
                           onChange={(e) => setFormData({...formData, measurementDate: e.target.value})}
-                          className="search-input"
-                          style={{width: '100%', paddingLeft: '12px'}}
+                          className="custom-date-input"
+                          style={{width: '100%'}}
                         />
                       </div>
                       <div className="form-group" style={{flex: 1, minWidth: '200px'}}>
@@ -1713,8 +1738,8 @@ const Kanban = () => {
                           type="date" 
                           value={formData.installationDate}
                           onChange={(e) => setFormData({...formData, installationDate: e.target.value})}
-                          className="search-input"
-                          style={{width: '100%', paddingLeft: '12px'}}
+                          className="custom-date-input"
+                          style={{width: '100%'}}
                         />
                       </div>
                     </div>
@@ -1868,31 +1893,73 @@ const Kanban = () => {
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <input
-                          type="text"
-                          placeholder="ДОГ-2026/001"
-                          value={formData.orderNumber || ''}
-                          onChange={e => setFormData({ ...formData, orderNumber: e.target.value })}
-                          className="search-input"
-                          style={{ flex: 1, minWidth: '180px', fontFamily: 'monospace', fontWeight: 700, color: '#4ade80', paddingLeft: '12px' }}
-                        />
-                        <button
-                          type="button"
-                          onClick={handleStartGenerateContract}
-                          className="btn btn-primary"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            fontWeight: 600,
-                            padding: '8px 16px',
-                            whiteSpace: 'nowrap'
-                          }}
-                          title="Сформировать и скачать договор в PDF"
-                        >
-                          <FileText size={16} /> Сформировать договор (PDF)
-                        </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Номер договора</label>
+                            <input
+                              type="text"
+                              placeholder="ДОГ-2026/001"
+                              value={formData.orderNumber || ''}
+                              onChange={e => setFormData({ ...formData, orderNumber: e.target.value })}
+                              className="search-input"
+                              style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace', fontWeight: 700, color: '#4ade80', paddingLeft: '12px' }}
+                            />
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Дата создания договора</label>
+                            <input
+                              type="date"
+                              value={getContractParams().contractDate || new Date().toISOString().slice(0, 10)}
+                              onChange={e => updateContractParam('contractDate', e.target.value)}
+                              className="custom-date-input"
+                              style={{ width: '100%', boxSizing: 'border-box' }}
+                            />
+                          </div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleStartGenerateContract('PDF')}
+                            className="btn btn-primary"
+                            disabled={contractPromptLoading}
+                            style={{
+                              width: '100%',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px',
+                              fontWeight: 600,
+                              height: '44px',
+                              fontSize: '0.92rem'
+                            }}
+                            title="Сформировать и открыть договор в PDF"
+                          >
+                            <FileText size={17} /> {contractPromptLoading && contractFormat === 'PDF' ? 'Формирование PDF...' : 'Сформировать договор (PDF)'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleStartGenerateContract('DOCX')}
+                            className="btn btn-ghost"
+                            disabled={contractPromptLoading}
+                            style={{
+                              width: '100%',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px',
+                              fontWeight: 600,
+                              height: '44px',
+                              fontSize: '0.92rem',
+                              background: 'rgba(59, 130, 246, 0.12)',
+                              border: '1px solid rgba(59, 130, 246, 0.3)',
+                              color: '#60a5fa'
+                            }}
+                            title="Скачать редактируемый договор в Word (.docx)"
+                          >
+                            <FileDown size={17} /> {contractPromptLoading && contractFormat === 'DOCX' ? 'Формирование DOCX...' : 'Скачать договор (DOCX)'}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -2050,97 +2117,174 @@ const Kanban = () => {
                       </div>
 
                       {(getContractParams().specItems || []).length > 0 ? (
-                        <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-secondary)', textAlign: 'left' }}>
-                                <th style={{ padding: '6px 8px', width: '30px' }}>№</th>
-                                <th style={{ padding: '6px 8px' }}>Наименование</th>
-                                <th style={{ padding: '6px 8px', width: '80px' }}>Кол-во</th>
-                                <th style={{ padding: '6px 8px', width: '70px' }}>Ед.</th>
-                                <th style={{ padding: '6px 8px', width: '100px' }}>Цена (₽)</th>
-                                <th style={{ padding: '6px 8px', width: '100px' }}>Сумма (₽)</th>
-                                <th style={{ padding: '6px 8px', width: '35px' }}></th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(getContractParams().specItems || []).map((it, idx) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                  <td style={{ padding: '4px 8px', color: 'var(--text-secondary)' }}>{idx + 1}</td>
-                                  <td style={{ padding: '4px 8px' }}>
-                                    <input
-                                      type="text"
-                                      value={it.name}
-                                      onChange={e => updateSpecRow(idx, 'name', e.target.value)}
-                                      placeholder="Полотно / Монтаж..."
-                                      className="search-input"
-                                      style={{ width: '100%', padding: '4px 8px', fontSize: '0.82rem' }}
-                                    />
-                                  </td>
-                                  <td style={{ padding: '4px 8px' }}>
+                        <>
+                          {/* Mobile Card Layout */}
+                          <div className="spec-mobile-cards">
+                            {(getContractParams().specItems || []).map((it, idx) => (
+                              <div key={idx} className="spec-card">
+                                <div className="spec-card-header">
+                                  <span className="spec-card-num">#{idx + 1}</span>
+                                  <input
+                                    type="text"
+                                    value={it.name}
+                                    onChange={e => updateSpecRow(idx, 'name', e.target.value)}
+                                    placeholder="Наименование (товар или услуга)..."
+                                    className="spec-card-name-input"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSpecRow(idx)}
+                                    className="spec-card-delete-btn"
+                                    title="Удалить позицию"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                                <div className="spec-card-grid">
+                                  <div className="spec-card-field">
+                                    <label>Кол-во</label>
                                     <input
                                       type="text"
                                       value={it.quantity}
                                       onChange={e => updateSpecRow(idx, 'quantity', e.target.value)}
                                       placeholder="1"
-                                      className="search-input"
-                                      style={{ width: '100%', padding: '4px 8px', fontSize: '0.82rem' }}
                                     />
-                                  </td>
-                                  <td style={{ padding: '4px 8px' }}>
+                                  </div>
+                                  <div className="spec-card-field">
+                                    <label>Ед. изм.</label>
                                     <input
                                       type="text"
                                       value={it.unit}
                                       onChange={e => updateSpecRow(idx, 'unit', e.target.value)}
-                                      placeholder="м² / шт."
-                                      className="search-input"
-                                      style={{ width: '100%', padding: '4px 8px', fontSize: '0.82rem' }}
+                                      placeholder="м²"
                                     />
-                                  </td>
-                                  <td style={{ padding: '4px 8px' }}>
+                                  </div>
+                                  <div className="spec-card-field">
+                                    <label>Цена (₽)</label>
                                     <input
                                       type="number"
                                       step="0.01"
                                       value={it.price}
                                       onChange={e => updateSpecRow(idx, 'price', e.target.value)}
-                                      className="search-input"
-                                      style={{ width: '100%', padding: '4px 8px', fontSize: '0.82rem' }}
+                                      placeholder="0"
                                     />
-                                  </td>
-                                  <td style={{ padding: '4px 8px', fontWeight: 600 }}>
-                                    {it.total?.toLocaleString('ru-RU')} ₽
-                                  </td>
-                                  <td style={{ padding: '4px 8px' }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => removeSpecRow(idx)}
-                                      style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '2px' }}
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
-                                  </td>
+                                  </div>
+                                  <div className="spec-card-field spec-card-sum-box">
+                                    <label>Сумма</label>
+                                    <div className="spec-card-sum-val">
+                                      {it.total?.toLocaleString('ru-RU')} ₽
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Desktop Table Layout */}
+                          <div className="spec-desktop-table">
+                            <table className="spec-table">
+                              <thead>
+                                <tr>
+                                  <th style={{ width: '35px' }}>№</th>
+                                  <th>Наименование</th>
+                                  <th style={{ width: '80px' }}>Кол-во</th>
+                                  <th style={{ width: '70px' }}>Ед.</th>
+                                  <th style={{ width: '110px' }}>Цена (₽)</th>
+                                  <th style={{ width: '120px' }}>Сумма (₽)</th>
+                                  <th style={{ width: '40px' }}></th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                              </thead>
+                              <tbody>
+                                {(getContractParams().specItems || []).map((it, idx) => (
+                                  <tr key={idx}>
+                                    <td style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{idx + 1}</td>
+                                    <td>
+                                      <input
+                                        type="text"
+                                        value={it.name}
+                                        onChange={e => updateSpecRow(idx, 'name', e.target.value)}
+                                        placeholder="Полотно / Монтаж..."
+                                        className="spec-table-input"
+                                      />
+                                    </td>
+                                    <td>
+                                      <input
+                                        type="text"
+                                        value={it.quantity}
+                                        onChange={e => updateSpecRow(idx, 'quantity', e.target.value)}
+                                        placeholder="1"
+                                        className="spec-table-input"
+                                      />
+                                    </td>
+                                    <td>
+                                      <input
+                                        type="text"
+                                        value={it.unit}
+                                        onChange={e => updateSpecRow(idx, 'unit', e.target.value)}
+                                        placeholder="м² / шт."
+                                        className="spec-table-input"
+                                      />
+                                    </td>
+                                    <td>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={it.price}
+                                        onChange={e => updateSpecRow(idx, 'price', e.target.value)}
+                                        className="spec-table-input"
+                                      />
+                                    </td>
+                                    <td style={{ fontWeight: 700, color: '#4ade80' }}>
+                                      {it.total?.toLocaleString('ru-RU')} ₽
+                                    </td>
+                                    <td>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeSpecRow(idx)}
+                                        style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                                        title="Удалить"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
                       ) : (
-                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '12px' }}>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '12px', padding: '12px', background: 'rgba(255,255,255,0.01)', borderRadius: 'var(--radius-sm)' }}>
                           Спецификация формируется автоматически из расчета заказа или может быть заполнена вручную кнопкой «+ Строка» / «Заполнить из материалов».
                         </div>
                       )}
 
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '16px' }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '12px',
+                        flexWrap: 'wrap',
+                        marginTop: '12px',
+                        paddingTop: '12px',
+                        borderTop: '1px solid var(--glass-border)'
+                      }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <label style={{ fontSize: '0.82rem', margin: 0 }}>Скидка (₽):</label>
+                          <label style={{ fontSize: '0.85rem', margin: 0, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Скидка (₽):</label>
                           <input
                             type="text"
                             placeholder="0"
                             value={getContractParams().discount || ''}
                             onChange={(e) => updateContractParam('discount', e.target.value)}
-                            className="search-input"
-                            style={{ width: '120px', padding: '4px 8px', fontSize: '0.85rem' }}
+                            className="spec-table-input"
+                            style={{ width: '110px', height: '36px' }}
                           />
+                        </div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                          Итого по спецификации:{' '}
+                          <strong style={{ fontSize: '1.05rem', color: '#4ade80', marginLeft: '4px' }}>
+                            {((getContractParams().specItems || []).reduce((acc, it) => acc + (it.total || 0), 0) - (parseFloat(getContractParams().discount || '0') || 0)).toLocaleString('ru-RU')} ₽
+                          </strong>
                         </div>
                       </div>
                     </div>
@@ -2230,7 +2374,7 @@ const Kanban = () => {
                                 {allMaterials.map(m => (
                                   <option key={m.id} value={m.id}>
                                     {m.type === 'SERVICE' ? '🛠️ [Услуга] ' : '📦 [Материал] '}
-                                    {m.name} ({m.costPrice} ₽ / {m.unit || 'шт'})
+                                    {m.name} (Цена: {m.salePrice || m.costPrice} ₽ / {m.unit || 'шт'})
                                   </option>
                                 ))}
                               </select>

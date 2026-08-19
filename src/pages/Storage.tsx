@@ -23,6 +23,7 @@ export const Storage = () => {
     unit: string;
     quantityInStock: string;
     costPrice: string;
+    salePrice: string;
     minQuantity: string;
   }>({
     name: '',
@@ -30,6 +31,7 @@ export const Storage = () => {
     unit: 'шт',
     quantityInStock: '0',
     costPrice: '',
+    salePrice: '',
     minQuantity: '0'
   });
 
@@ -67,6 +69,7 @@ export const Storage = () => {
       unit: defaultType === 'SERVICE' ? 'шт' : 'шт',
       quantityInStock: '0',
       costPrice: '',
+      salePrice: '',
       minQuantity: '0'
     });
     setIsModalOpen(true);
@@ -81,6 +84,7 @@ export const Storage = () => {
       unit: material.unit,
       quantityInStock: material.quantityInStock != null ? material.quantityInStock.toString() : '0',
       costPrice: material.costPrice != null ? material.costPrice.toString() : '0',
+      salePrice: material.salePrice != null ? material.salePrice.toString() : (material.costPrice != null ? material.costPrice.toString() : '0'),
       minQuantity: material.minQuantity ? material.minQuantity.toString() : '0'
     });
     setIsModalOpen(true);
@@ -90,13 +94,17 @@ export const Storage = () => {
     e.preventDefault();
     try {
       const isService = formData.type === 'SERVICE';
+      const cPrice = parseFloat(formData.costPrice || '0');
+      const sPrice = parseFloat(formData.salePrice || formData.costPrice || '0');
+
       const payload = {
         name: formData.name.trim(),
         type: formData.type,
         unit: formData.unit.trim() || (isService ? 'усл.' : 'шт'),
         quantityInStock: isService ? 0 : parseFloat(formData.quantityInStock || '0'),
         minQuantity: isService ? 0 : parseFloat(formData.minQuantity || '0'),
-        costPrice: parseFloat(formData.costPrice || '0')
+        costPrice: cPrice,
+        salePrice: sPrice
       };
       
       if (editingId) {
@@ -123,7 +131,7 @@ export const Storage = () => {
         <div>
           <h1 style={{ margin: 0, fontSize: '1.4rem' }}>{t('storage.title')}</h1>
           <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Складской учет материалов, полотен, профиля и каталог выполняемых услуг
+            Складской учет материалов, себестоимость, цены продажи клиенту и каталог услуг
           </p>
         </div>
         
@@ -187,18 +195,19 @@ export const Storage = () => {
         <table className="clients-table">
           <thead>
             <tr>
-              <th style={{ width: '120px' }}>Тип</th>
+              <th style={{ width: '110px' }}>Тип</th>
               <th>{t('storage.columns.name')}</th>
-              <th style={{ width: '100px' }}>{t('storage.columns.unit')}</th>
-              <th style={{ width: '120px' }}>{t('storage.columns.quantity')}</th>
-              <th style={{ width: '130px' }}>Мин. остаток</th>
-              <th style={{ textAlign: 'right', width: '160px' }}>Стоимость / С/с</th>
+              <th style={{ width: '90px' }}>{t('storage.columns.unit')}</th>
+              <th style={{ width: '100px' }}>В наличии</th>
+              <th style={{ width: '100px' }}>Мин. остаток</th>
+              <th style={{ textAlign: 'right', width: '130px' }}>Себестоимость</th>
+              <th style={{ textAlign: 'right', width: '140px', color: 'var(--accent-primary)' }}>Цена продажи</th>
             </tr>
           </thead>
           <tbody>
             {filteredMaterials.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', opacity: 0.6, padding: '32px' }}>
+                <td colSpan={7} style={{ textAlign: 'center', opacity: 0.6, padding: '32px' }}>
                   {t('storage.noMaterials')}
                 </td>
               </tr>
@@ -206,6 +215,7 @@ export const Storage = () => {
               filteredMaterials.map(material => {
                 const isService = material.type === 'SERVICE';
                 const isLowStock = !isService && material.quantityInStock <= (material.minQuantity || 0);
+                const sPrice = material.salePrice != null && material.salePrice > 0 ? material.salePrice : material.costPrice;
 
                 return (
                   <tr key={material.id} onClick={() => openEditModal(material)} style={{ cursor: 'pointer' }}>
@@ -251,8 +261,11 @@ export const Storage = () => {
                         <div className="client-phone">{material.minQuantity || 0}</div>
                       )}
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--success)' }}>
+                    <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>
                       {(material.costPrice || 0).toLocaleString('ru-RU')} ₽
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#4ade80' }}>
+                      {(sPrice || 0).toLocaleString('ru-RU')} ₽
                     </td>
                   </tr>
                 );
@@ -265,7 +278,7 @@ export const Storage = () => {
       {/* Modal Overlay */}
       {isModalOpen && createPortal(
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '540px' }}>
             <div className="modal-header">
               <h2>{editingId ? 'Редактировать позицию' : 'Добавить материал или услугу'}</h2>
               <button 
@@ -349,21 +362,33 @@ export const Storage = () => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>{formData.type === 'SERVICE' ? 'Стоимость за ед. (₽) *' : 'Себестоимость за ед. (₽) *'}</label>
+                    <label style={{ color: '#4ade80', fontWeight: 600 }}>Цена продажи клиенту (₽) *</label>
                     <input 
                       type="number" 
                       required
                       min="0"
                       step="0.01"
-                      placeholder="500"
-                      value={formData.costPrice}
-                      onChange={(e) => setFormData({...formData, costPrice: e.target.value})}
+                      placeholder="850"
+                      value={formData.salePrice}
+                      onChange={(e) => setFormData({...formData, salePrice: e.target.value})}
                     />
                   </div>
                 </div>
 
-                {formData.type === 'MATERIAL' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label>{formData.type === 'SERVICE' ? 'Себестоимость / прямые затраты (₽)' : 'Себестоимость закупки (₽) *'}</label>
+                    <input 
+                      type="number" 
+                      required={formData.type === 'MATERIAL'}
+                      min="0"
+                      step="0.01"
+                      placeholder="350"
+                      value={formData.costPrice}
+                      onChange={(e) => setFormData({...formData, costPrice: e.target.value})}
+                    />
+                  </div>
+                  {formData.type === 'MATERIAL' ? (
                     <div className="form-group">
                       <label>Количество на складе</label>
                       <input 
@@ -374,30 +399,45 @@ export const Storage = () => {
                         onChange={(e) => setFormData({...formData, quantityInStock: e.target.value})}
                       />
                     </div>
+                  ) : (
                     <div className="form-group">
-                      <label>Мин. остаток (для оповещений)</label>
+                      <label style={{ opacity: 0.5 }}>Складской учет</label>
                       <input 
-                        type="number" 
-                        min="0"
-                        step="0.001"
-                        value={formData.minQuantity}
-                        onChange={(e) => setFormData({...formData, minQuantity: e.target.value})}
+                        type="text" 
+                        disabled 
+                        value="Не требуется для услуг" 
+                        style={{ opacity: 0.5, cursor: 'not-allowed' }} 
                       />
                     </div>
+                  )}
+                </div>
+
+                {formData.type === 'MATERIAL' && (
+                  <div className="form-group">
+                    <label>Мин. остаток (для оповещений о закупке)</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      step="0.001"
+                      value={formData.minQuantity}
+                      onChange={(e) => setFormData({...formData, minQuantity: e.target.value})}
+                    />
                   </div>
                 )}
               </div>
               <div className="modal-actions">
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)}
-                  className="btn btn-ghost"
-                >
-                  {t('storage.modal.cancel')}
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {t('storage.modal.save')}
-                </button>
+                <div className="modal-action-btns">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsModalOpen(false)}
+                    className="btn btn-ghost"
+                  >
+                    {t('storage.modal.cancel')}
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    {t('storage.modal.save')}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

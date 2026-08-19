@@ -92,10 +92,30 @@ function App() {
   }, [token, tenantSettings?.name]);
 
   useEffect(() => {
-    if (theme === 'light') {
+    const isLight = theme === 'light';
+    const themeColor = isLight ? '#f8fafc' : '#0f172a';
+
+    if (isLight) {
       document.body.classList.add('light-theme');
+      document.documentElement.classList.add('light-theme');
     } else {
       document.body.classList.remove('light-theme');
+      document.documentElement.classList.remove('light-theme');
+    }
+
+    // Update <meta name="theme-color"> for Android status bar
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement('meta');
+      metaThemeColor.setAttribute('name', 'theme-color');
+      document.head.appendChild(metaThemeColor);
+    }
+    metaThemeColor.setAttribute('content', themeColor);
+
+    // Update Apple mobile status bar style
+    let appleStatusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (appleStatusBar) {
+      appleStatusBar.setAttribute('content', isLight ? 'default' : 'black-translucent');
     }
   }, [theme]);
 

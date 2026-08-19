@@ -55,6 +55,7 @@ export interface ContractParams {
   lightsCount?: string;
   timberLength?: string;
   canvasArticle?: string;
+  contractDate?: string;
   handoverDate?: string;
   discount?: string;
   secondPhone?: string;
@@ -180,6 +181,13 @@ export const getNextOrderNumber = async (): Promise<string> => {
 
 export const downloadContractPdf = async (orderId: number): Promise<Blob> => {
   const response = await api.get(`/orders/${orderId}/contract/pdf`, {
+    responseType: 'blob'
+  });
+  return response.data;
+};
+
+export const downloadContractDocx = async (orderId: number): Promise<Blob> => {
+  const response = await api.get(`/orders/${orderId}/contract/docx`, {
     responseType: 'blob'
   });
   return response.data;

@@ -169,6 +169,69 @@ p {
   color: var(--text-secondary);
 }
 
+/* Global Native Date, Datetime-local and Time input fixes for iOS & WebKit */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md) !important;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 16px !important;
+  height: 44px;
+  min-height: 44px;
+  padding: 8px 12px !important;
+  box-sizing: border-box;
+  width: 100%;
+  display: block;
+  text-align: left !important;
+}
+
+input[type="date"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value {
+  text-align: left !important;
+  line-height: 1.4 !important;
+  min-height: 1.4em !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+}
+
+input[type="date"]::-webkit-datetime-edit,
+input[type="datetime-local"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit {
+  text-align: left !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+}
+
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper,
+input[type="time"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0 !important;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+  filter: invert(0.8);
+  padding: 4px;
+  margin-left: auto;
+}
+
+body.light-theme input[type="date"]::-webkit-calendar-picker-indicator,
+body.light-theme input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+body.light-theme input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: none;
+  opacity: 0.6;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
