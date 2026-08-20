@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2 } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
@@ -76,9 +76,6 @@ const Kanban = () => {
     materials: [] as OrderMaterial[],
     attachments: [] as OrderAttachment[]
   });
-
-  const [orderProfit, setOrderProfit] = useState<number | null>(null);
-  const [orderMargin, setOrderMargin] = useState<number | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   
@@ -199,8 +196,6 @@ const Kanban = () => {
             materials: orderToOpen.materials ? [...orderToOpen.materials] : [],
             attachments: orderToOpen.attachments ? [...orderToOpen.attachments] : []
           });
-          setOrderProfit(orderToOpen.profit ?? null);
-          setOrderMargin(orderToOpen.profitMargin ?? null);
           setPendingFiles([]);
           setIsModalOpen(true);
           getAiSummary(orderToOpen.id).then(setAiSummary).catch(() => setAiSummary(null));
@@ -283,8 +278,6 @@ const Kanban = () => {
       materials: [],
       attachments: []
     });
-    setOrderProfit(null);
-    setOrderMargin(null);
     setPendingFiles([]);
     setAiSummary(null);
     setIsModalOpen(true);
@@ -376,8 +369,6 @@ const Kanban = () => {
       attachments: order.attachments ? [...order.attachments] : [],
       contractParams: initialContractParams
     });
-    setOrderProfit(order.profit ?? null);
-    setOrderMargin(order.profitMargin ?? null);
     setPendingFiles([]);
     setAiSummary(null);
     setIsModalOpen(true);
@@ -909,6 +900,36 @@ const Kanban = () => {
     updateContractParam('actChecklist', updated);
   };
 
+  const currentMaterialsCost = useMemo(() => {
+    if (!formData.materials || formData.materials.length === 0) return 0;
+    const rawCost = formData.materials.reduce((sum, m) => {
+      const mat = allMaterials.find(x => x.id === m.materialId);
+      if (!mat || mat.type === 'SERVICE') return sum;
+      const qty = typeof m.quantity === 'string' ? (parseFloat(m.quantity) || 0) : (m.quantity || 0);
+      return sum + (mat.costPrice * qty);
+    }, 0);
+    return Math.round(rawCost);
+  }, [formData.materials, allMaterials]);
+
+  const currentInstallationPrice = useMemo(() => {
+    return Math.round(parseFloat(formData.installationPrice || '0') || 0);
+  }, [formData.installationPrice]);
+
+  const currentTotalPrice = useMemo(() => {
+    const prep = parseFloat(formData.prepayment || '0') || 0;
+    const rem = parseFloat(formData.remainder || '0') || 0;
+    return Math.round(prep + rem);
+  }, [formData.prepayment, formData.remainder]);
+
+  const currentProfit = useMemo(() => {
+    return Math.round(currentTotalPrice - currentMaterialsCost - currentInstallationPrice);
+  }, [currentTotalPrice, currentMaterialsCost, currentInstallationPrice]);
+
+  const currentProfitMargin = useMemo(() => {
+    if (currentTotalPrice <= 0) return 0;
+    return Math.round((currentProfit / currentTotalPrice) * 100);
+  }, [currentProfit, currentTotalPrice]);
+
   if (loading) {
     return <div style={{padding: 24}}>Loading board...</div>;
   }
@@ -1295,22 +1316,6 @@ const Kanban = () => {
                         </span>
                       </div>
                     )}
-                    {!isWorker && (() => {
-                      const materialsCost = card.materials?.reduce((sum, m) => {
-                        const mat = allMaterials.find(x => x.id === m.materialId);
-                        if (!mat || mat.type === 'SERVICE') return sum;
-                        return sum + (mat.costPrice * m.quantity);
-                      }, 0) || 0;
-                      if (materialsCost > 0) {
-                        return (
-                          <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--warning)', fontWeight: 500}}>
-                            <span>{t('kanban.card.materialsCost')}:</span>
-                            <span>{materialsCost} ₽</span>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
                   </div>
                   {isWorker ? (() => {
                     const col = columns.find(c => c.id === card.statusId);
@@ -2157,22 +2162,58 @@ const Kanban = () => {
                           </div>
                         </div>
 
-                        {editingOrderId && orderProfit !== null && (
-                          <div style={{display: 'flex', gap: '16px', padding: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)'}}>
-                            <div style={{flex: 1}}>
-                              <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '2px'}}>{t('kanban.modal.profit')}</div>
-                              <div style={{fontWeight: 600, fontSize: '1.15rem', color: orderProfit >= 0 ? 'var(--success)' : 'var(--danger)'}}>
-                                {orderProfit} ₽
-                              </div>
+                        {/* Финансовые показатели (Себестоимость, монтаж, прибыль, маржинальность) */}
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                          gap: '10px',
+                          padding: '14px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid var(--glass-border)',
+                          borderRadius: 'var(--radius-md)',
+                          marginBottom: '16px'
+                        }}>
+                          <div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                              Себестоимость материалов
                             </div>
-                            <div style={{flex: 1}}>
-                              <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '2px'}}>{t('kanban.modal.margin')}</div>
-                              <div style={{fontWeight: 600, fontSize: '1.15rem', color: (orderMargin || 0) >= 0 ? 'var(--success)' : 'var(--danger)'}}>
-                                {orderMargin}%
-                              </div>
+                            <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#f59e0b' }}>
+                              {currentMaterialsCost.toLocaleString('ru-RU')} ₽
                             </div>
                           </div>
-                        )}
+                          <div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                              Монтаж
+                            </div>
+                            <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                              {currentInstallationPrice.toLocaleString('ru-RU')} ₽
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                              {t('kanban.modal.profit') || 'Прибыль'}
+                            </div>
+                            <div style={{
+                              fontWeight: 700,
+                              fontSize: '1.05rem',
+                              color: currentProfit >= 0 ? 'var(--success)' : 'var(--danger)'
+                            }}>
+                              {currentProfit >= 0 ? `+${currentProfit.toLocaleString('ru-RU')}` : currentProfit.toLocaleString('ru-RU')} ₽
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                              {t('kanban.modal.margin') || 'Рентабельность'}
+                            </div>
+                            <div style={{
+                              fontWeight: 700,
+                              fontSize: '1.05rem',
+                              color: currentProfitMargin >= 0 ? 'var(--success)' : 'var(--danger)'
+                            }}>
+                              {currentProfitMargin}%
+                            </div>
+                          </div>
+                        </div>
                       </>
                     )}
                   </>
@@ -2784,6 +2825,23 @@ const Kanban = () => {
                             </button>
                           </div>
                         ))}
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '12px 16px',
+                          background: 'rgba(245, 158, 11, 0.08)',
+                          border: '1px solid rgba(245, 158, 11, 0.25)',
+                          borderRadius: 'var(--radius-sm)',
+                          marginTop: '4px'
+                        }}>
+                          <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                            Итого себестоимость материалов со склада:
+                          </span>
+                          <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f59e0b' }}>
+                            {currentMaterialsCost.toLocaleString('ru-RU')} ₽
+                          </span>
+                        </div>
                       </div>
                     ) : (
                       <div style={{
