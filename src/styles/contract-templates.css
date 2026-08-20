@@ -299,6 +299,10 @@
   background: rgba(0, 0, 0, 0.22);
   border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
   flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .toolbar-group {
@@ -368,6 +372,11 @@
   justify-content: center;
   max-height: 820px;
   overflow-y: auto;
+  overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border-bottom-left-radius: 16px;
   border-bottom-right-radius: 16px;
 }
@@ -838,11 +847,17 @@ section.docx th,
 
 @media (max-width: 768px) {
   .contract-templates-page {
-    padding: 12px 8px;
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
   .page-header {
     margin-bottom: 12px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .page-title-group {
@@ -869,7 +884,9 @@ section.docx th,
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .template-tab-btn {
@@ -878,11 +895,33 @@ section.docx th,
     gap: 6px;
     border-radius: 10px;
     justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .tab-status-badge {
     font-size: 0.68rem;
     padding: 1px 6px;
+  }
+
+  /* Main Grid */
+  .template-editor-grid {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    gap: 12px;
+    box-sizing: border-box;
+  }
+
+  .document-editor-container {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    border-radius: 12px;
+    overflow: hidden;
   }
 
   /* Editor Header & Switcher */
@@ -895,6 +934,7 @@ section.docx th,
     align-items: stretch;
     gap: 8px;
     padding: 10px 8px;
+    overflow: hidden;
   }
 
   .editor-title-box {
@@ -920,6 +960,7 @@ section.docx th,
   .view-mode-btn {
     flex: 1 1 0;
     min-width: 0;
+    max-width: 50%;
     box-sizing: border-box;
     justify-content: center;
     padding: 7px 4px;
@@ -947,46 +988,56 @@ section.docx th,
     box-sizing: border-box;
   }
 
-  /* Action Buttons Grid */
+  /* Action Buttons Grid - strictly 2 equal columns within screen boundaries */
   .editor-main-btns {
     width: 100%;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
 
   .editor-main-btns .btn {
     width: 100%;
+    max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
     font-size: 0.78rem;
-    padding: 8px 6px;
+    padding: 8px 4px;
     justify-content: center;
     gap: 4px;
     white-space: nowrap;
+    border-radius: 8px;
   }
 
   .editor-main-btns .btn span {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    max-width: 100%;
   }
 
   .editor-main-btns .btn-danger-ghost {
     width: 100%;
+    max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
     grid-column: span 1;
-    height: 34px;
+    height: 100%;
+    min-height: 34px;
     padding: 0;
     justify-content: center;
+    border-radius: 8px;
   }
 
   /* Formatting Toolbar - Horizontal Touch Scrolling */
   .editor-toolbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     flex-wrap: nowrap;
@@ -1028,17 +1079,23 @@ section.docx th,
   .a4-canvas-scroll {
     padding: 10px 4px;
     max-height: 520px;
-    overflow-x: auto;
+    overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .a4-page-sheet {
     width: 100% !important;
     max-width: 100% !important;
+    min-width: 0 !important;
     min-height: auto !important;
     padding: 16px 12px !important;
     box-shadow: none !important;
     border-radius: 6px !important;
+    box-sizing: border-box !important;
   }
 
   .a4-content-editable {
@@ -1047,6 +1104,7 @@ section.docx th,
     line-height: 1.45 !important;
     word-break: break-word !important;
     overflow-wrap: anywhere !important;
+    box-sizing: border-box !important;
   }
 
   .a4-content-editable h1,
@@ -1064,6 +1122,8 @@ section.docx th,
     font-size: 8.5pt !important;
     margin: 8px 0 !important;
     table-layout: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   .a4-content-editable th,
@@ -1088,16 +1148,34 @@ section.docx th,
   }
 
   /* DOCX Preview */
+  .docx-preview-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: auto !important;
+  }
+
+  .docx-preview-wrapper .docx-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    padding: 0 !important;
+  }
+
   .docx-preview-wrapper .docx-wrapper > section.docx,
   .docx-preview-wrapper section.docx,
   .docx-page {
     width: 100% !important;
     max-width: 100% !important;
+    min-width: 0 !important;
     min-height: auto !important;
     padding: 14px 10px !important;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
     margin: 0 0 16px 0 !important;
     font-size: 9.5pt !important;
+    box-sizing: border-box !important;
   }
 
   /* Tag Assistant Panel */
@@ -1105,6 +1183,10 @@ section.docx th,
     padding: 14px 12px;
     border-radius: 12px;
     gap: 12px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .tag-panel-header h3 {
@@ -1126,6 +1208,8 @@ section.docx th,
     -webkit-overflow-scrolling: touch;
     padding-bottom: 4px;
     scrollbar-width: none;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .category-chips::-webkit-scrollbar {
@@ -1140,11 +1224,15 @@ section.docx th,
 
   .tags-scroll-container {
     max-height: 300px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .tag-card {
     padding: 8px 10px;
     gap: 2px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .tag-code {
@@ -1174,7 +1262,7 @@ section.docx th,
     grid-template-columns: 1fr;
   }
 
-  .editor-main-btns .btn {
-    flex: 1 1 100%;
+  .editor-main-btns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
