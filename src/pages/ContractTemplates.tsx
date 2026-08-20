@@ -3,7 +3,8 @@ import {
   FileText, Upload, Download, Trash2, CheckCircle2, Copy, Check, Search, 
   User, Building2, RefreshCw, FileCheck, Save, Sparkles, Bold, Italic, 
   Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify, 
-  List, ListOrdered, Table, Eraser, Undo, Redo, Edit3, Eye, SplitSquareVertical
+  List, ListOrdered, Table, Eraser, Undo, Redo, Edit3, Eye, SplitSquareVertical,
+  Image as ImageIcon
 } from 'lucide-react';
 import mammoth from 'mammoth';
 import * as docx from 'docx-preview';
@@ -260,6 +261,7 @@ export const ContractTemplates = () => {
   const [isModified, setIsModified] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const lastSavedRangeRef = useRef<Range | null>(null);
@@ -309,6 +311,27 @@ export const ContractTemplates = () => {
 
       if (htmlContent && htmlContent.trim()) {
         setEditorContent(htmlContent);
+      } else if (hasTemplate) {
+        // If HTML is not yet cached but DOCX exists on backend, fetch and convert via mammoth
+        try {
+          const blob = await downloadContractTemplateBlob(activeTab);
+          const arrayBuffer = await blob.arrayBuffer();
+          const mammothOptions = {
+            convertImage: mammoth.images.imgElement((element: any) => {
+              return element.read("base64").then((imageBuffer: string) => ({
+                src: `data:${element.contentType || 'image/png'};base64,${imageBuffer}`
+              }));
+            })
+          };
+          const result = await mammoth.convertToHtml({ arrayBuffer }, mammothOptions);
+          if (result.value && result.value.trim()) {
+            setEditorContent(result.value);
+            // Sync with backend
+            saveContractTemplateHtml(activeTab, result.value).catch(() => {});
+          }
+        } catch (e) {
+          console.warn('Could not extract HTML from DOCX blob', e);
+        }
       } else {
         const defaultPreset = activeTab === 'INDIVIDUAL' ? STARTER_TEMPLATE_INDIVIDUAL : STARTER_TEMPLATE_LEGAL;
         setEditorContent(defaultPreset);
@@ -319,7 +342,6 @@ export const ContractTemplates = () => {
         setViewMode('PREVIEW');
         try {
           const blob = await downloadContractTemplateBlob(activeTab);
-          // Wait a tick for container to mount
           setTimeout(() => renderDocxPreview(blob), 50);
         } catch (e) {
           console.warn('Could not fetch docx for preview', e);
@@ -365,6 +387,23 @@ export const ContractTemplates = () => {
       setEditorContent(editorRef.current.innerHTML);
       setIsModified(true);
     }
+  };
+
+  const handleInsertImageFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (dataUrl) {
+        const imgHtml = `<p><img src="${dataUrl}" style="max-width: 100%; height: auto; display: block; margin: 12px 0;" /></p><p></p>`;
+        document.execCommand('insertHTML', false, imgHtml);
+        if (editorRef.current) {
+          setEditorContent(editorRef.current.innerHTML);
+          setIsModified(true);
+        }
+        showToast('Изображение успешно вставлено в документ!');
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleInsertTagAtCursor = (tag: string) => {
@@ -446,7 +485,7 @@ export const ContractTemplates = () => {
       const mammothOptions = {
         convertImage: mammoth.images.imgElement((element: any) => {
           return element.read("base64").then((imageBuffer: string) => ({
-            src: "data:" + element.contentType + ";base64," + imageBuffer
+            src: `data:${element.contentType || 'image/png'};base64,${imageBuffer}`
           }));
         })
       };
@@ -454,24 +493,27 @@ export const ContractTemplates = () => {
       const result = await mammoth.convertToHtml({ arrayBuffer }, mammothOptions);
       const convertedHtml = result.value;
 
+      // 1. Upload DOCX binary to backend
+      await uploadContractTemplate(activeTab, file);
+
+      // 2. Save converted HTML with embedded images to backend
       if (convertedHtml && convertedHtml.trim()) {
+        await saveContractTemplateHtml(activeTab, convertedHtml);
         setEditorContent(convertedHtml);
         if (editorRef.current) {
           editorRef.current.innerHTML = convertedHtml;
         }
-        setIsModified(false);
-
-        // Upload to backend
-        await uploadContractTemplate(activeTab, file);
-        const updatedStatus = await getContractTemplateStatus();
-        setStatus(updatedStatus);
-        showToast('DOCX файл успешно загружен и сохранен со всеми изображениями!');
-
-        // Render preview
-        setViewMode('PREVIEW');
-        const blob = new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-        setTimeout(() => renderDocxPreview(blob), 50);
       }
+
+      const updatedStatus = await getContractTemplateStatus();
+      setStatus(updatedStatus);
+      setIsModified(false);
+      showToast('DOCX файл успешно загружен и сохранен со всеми изображениями!');
+
+      // Render preview
+      setViewMode('PREVIEW');
+      const blob = new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      setTimeout(() => renderDocxPreview(blob), 50);
     } catch (e: any) {
       alert('Ошибка при чтении DOCX файла: ' + (e.message || e));
     } finally {
@@ -764,6 +806,19 @@ export const ContractTemplates = () => {
           {/* Formatting Toolbar (Only in EDITOR Mode) */}
           {viewMode === 'EDITOR' && (
             <div className="editor-toolbar">
+              <input 
+                type="file"
+                ref={imageInputRef}
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleInsertImageFile(e.target.files[0]);
+                    e.target.value = '';
+                  }
+                }}
+              />
+
               <div className="toolbar-group">
                 <button type="button" className="tool-btn" onClick={() => executeCommand('undo')} title="Отменить (Ctrl+Z)"><Undo size={15} /></button>
                 <button type="button" className="tool-btn" onClick={() => executeCommand('redo')} title="Повторить (Ctrl+Y)"><Redo size={15} /></button>
@@ -801,7 +856,23 @@ export const ContractTemplates = () => {
                 <button type="button" className="tool-btn" onClick={() => executeCommand('insertUnorderedList')} title="Маркированный список"><List size={15} /></button>
                 <button type="button" className="tool-btn" onClick={() => executeCommand('insertOrderedList')} title="Нумерованный список"><ListOrdered size={15} /></button>
                 <button type="button" className="tool-btn" onClick={insertTable} title="Вставить таблицу"><Table size={15} /></button>
-                <button type="button" className="tool-btn page-break-tool" onClick={handleInsertPageBreak} title="Вставить разрыв страницы А4">
+                
+                <button 
+                  type="button" 
+                  className="tool-btn image-insert-tool" 
+                  onClick={() => imageInputRef.current?.click()} 
+                  title="Вставить картинку или логотип в документ"
+                >
+                  <ImageIcon size={15} />
+                  <span>Картинка</span>
+                </button>
+
+                <button 
+                  type="button" 
+                  className="tool-btn page-break-tool" 
+                  onClick={handleInsertPageBreak} 
+                  title="Вставить разрыв страницы А4"
+                >
                   <SplitSquareVertical size={15} />
                   <span>Разрыв страницы</span>
                 </button>
