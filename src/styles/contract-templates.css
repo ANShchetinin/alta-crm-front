@@ -1,7 +1,10 @@
 .contract-templates-page {
   padding: 24px;
   max-width: 1600px;
+  width: 100%;
+  box-sizing: border-box;
   margin: 0 auto;
+  overflow-x: hidden;
   animation: fadeIn 0.3s ease-in-out;
 }
 
@@ -12,6 +15,8 @@
 
 .page-header {
   margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .page-title-group {
@@ -49,6 +54,8 @@
   display: flex;
   gap: 12px;
   margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .template-tab-btn {
@@ -64,6 +71,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .template-tab-btn:hover {
@@ -114,6 +122,10 @@
   grid-template-columns: minmax(0, 1fr) 380px;
   gap: 20px;
   align-items: start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 @media (max-width: 1200px) {
@@ -130,6 +142,10 @@
   border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
   border-radius: 16px;
   overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .editor-top-actions {
@@ -141,6 +157,10 @@
   border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
   flex-wrap: wrap;
   gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .editor-title-box {
@@ -867,68 +887,102 @@ section.docx th,
 
   /* Editor Header & Switcher */
   .editor-top-actions {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
-    padding: 10px;
+    gap: 8px;
+    padding: 10px 8px;
   }
 
   .editor-title-box {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 6px;
   }
 
   .view-mode-toggle-group {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     display: flex;
+    padding: 3px;
+    gap: 4px;
   }
 
   .view-mode-btn {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    box-sizing: border-box;
     justify-content: center;
-    padding: 6px 8px;
+    padding: 7px 4px;
     font-size: 0.78rem;
-    gap: 6px;
+    gap: 4px;
   }
 
   .view-mode-title {
     font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .view-mode-tag {
-    font-size: 0.62rem;
-    padding: 1px 4px;
+    display: none;
   }
 
   .modified-badge {
     text-align: center;
     font-size: 0.7rem;
-    padding: 4px 8px;
+    padding: 3px 8px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
-  /* Action Buttons */
+  /* Action Buttons Grid */
   .editor-main-btns {
     width: 100%;
-    display: flex;
-    flex-wrap: wrap;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 6px;
   }
 
   .editor-main-btns .btn {
-    flex: 1 1 calc(50% - 6px);
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     font-size: 0.78rem;
-    padding: 7px 10px;
+    padding: 8px 6px;
     justify-content: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  .editor-main-btns .btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .editor-main-btns .btn-danger-ghost {
-    flex: 0 0 36px;
-    width: 36px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    grid-column: span 1;
     height: 34px;
     padding: 0;
+    justify-content: center;
   }
 
   /* Formatting Toolbar - Horizontal Touch Scrolling */

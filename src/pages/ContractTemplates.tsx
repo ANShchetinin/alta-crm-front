@@ -701,8 +701,7 @@ export const ContractTemplates = () => {
                   title="Просмотр мастер-файла Word (.docx) со 100% сохранением верстки, таблиц и логотипов"
                 >
                   <FileText size={16} className="view-mode-icon" />
-                  <span className="view-mode-title">Оригинал Word</span>
-                  <span className="view-mode-tag">.docx</span>
+                  <span className="view-mode-title">Word (.docx)</span>
                 </button>
                 <button
                   type="button"
@@ -711,12 +710,12 @@ export const ContractTemplates = () => {
                   title="Встроенный визуальный веб-редактор формата А4"
                 >
                   <Edit3 size={16} className="view-mode-icon" />
-                  <span className="view-mode-title">Встроенный редактор</span>
+                  <span className="view-mode-title">Редактор</span>
                 </button>
               </div>
 
               {isModified && viewMode === 'HTML_EDITOR' && (
-                <span className="modified-badge">Есть несохраненные изменения</span>
+                <span className="modified-badge">Есть изменения</span>
               )}
             </div>
 
@@ -738,7 +737,7 @@ export const ContractTemplates = () => {
                 title="Загрузить готовый .docx файл договора"
               >
                 <Upload size={15} />
-                <span>Загрузить .docx</span>
+                <span>Загрузить</span>
               </button>
 
               {viewMode === 'HTML_EDITOR' && (
@@ -759,7 +758,7 @@ export const ContractTemplates = () => {
                     title="Сохранить текущий текст и разметку договора в CRM"
                   >
                     {saving ? <RefreshCw size={15} className="spin" /> : <Save size={15} />}
-                    <span>{saving ? 'Сохранение...' : 'Сохранить шаблон'}</span>
+                    <span>{saving ? '...' : 'Сохранить'}</span>
                   </button>
                 </>
               )}
@@ -771,7 +770,7 @@ export const ContractTemplates = () => {
                 title="Скачать договор в формате Word (.docx)"
               >
                 <Download size={15} />
-                <span>Скачать DOCX</span>
+                <span>Скачать</span>
               </button>
 
               <button 
