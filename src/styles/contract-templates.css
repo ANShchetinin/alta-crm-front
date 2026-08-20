@@ -304,17 +304,33 @@ section.docx img {
 }
 
 .docx-preview-wrapper table,
-section.docx table {
+section.docx table,
+.a4-content-editable table,
+.a4-page-sheet table {
+  width: 100% !important;
+  max-width: 100% !important;
   border-collapse: collapse !important;
   color: #0f172a !important;
   margin: 12px 0 !important;
+  table-layout: fixed !important;
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  box-sizing: border-box !important;
 }
 
 .docx-preview-wrapper table td,
 .docx-preview-wrapper table th,
 section.docx td,
-section.docx th {
+section.docx th,
+.a4-content-editable td,
+.a4-content-editable th {
   color: #0f172a !important;
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  box-sizing: border-box !important;
+  vertical-align: top !important;
+  overflow: hidden !important;
 }
 
 /* A4 Sheet in Fallback Editor */
