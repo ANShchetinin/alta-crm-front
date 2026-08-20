@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, FileCheck, FileDown } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractPdf, downloadContractDocx } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary, ContractParams } from '../api/kanban';
 import { getClients, createClient, updateClient } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -90,7 +90,6 @@ const Kanban = () => {
   // Contract Generation & Prompt Modal State
   const [isContractPromptOpen, setIsContractPromptOpen] = useState(false);
   const [contractPromptLoading, setContractPromptLoading] = useState(false);
-  const [contractFormat, setContractFormat] = useState<'PDF' | 'DOCX'>('PDF');
   const [contractPromptData, setContractPromptData] = useState({
     clientId: 0,
     name: '',
@@ -429,8 +428,7 @@ const Kanban = () => {
     }
   };
 
-  const handleStartGenerateContract = async (format: 'PDF' | 'DOCX' = 'PDF') => {
-    setContractFormat(format);
+  const handleStartGenerateContract = async () => {
     if (!formData.clientId) {
       alert('Пожалуйста, выберите клиента для формирования договора');
       return;
@@ -477,11 +475,11 @@ const Kanban = () => {
       });
       setIsContractPromptOpen(true);
     } else {
-      await executeContractDownload(client.id, getContractParams(), format);
+      await executeContractDownload(client.id, getContractParams());
     }
   };
 
-  const executeContractDownload = async (clientId: number, currentContractParams?: ContractParams, format: 'PDF' | 'DOCX' = contractFormat) => {
+  const executeContractDownload = async (clientId: number, currentContractParams?: ContractParams) => {
     try {
       setContractPromptLoading(true);
 
@@ -528,27 +526,15 @@ const Kanban = () => {
         await updateOrder(targetOrderId, payload);
       }
 
-      if (format === 'DOCX') {
-        const docxBlob = await downloadContractDocx(targetOrderId);
-        const blobUrl = window.URL.createObjectURL(docxBlob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = `Договор_${currentOrderNumber || targetOrderId}.docx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(blobUrl);
-      } else {
-        const pdfBlob = await downloadContractPdf(targetOrderId);
-        const blobUrl = window.URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }));
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = `Договор_${currentOrderNumber || targetOrderId}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.open(blobUrl, '_blank');
-      }
+      const docxBlob = await downloadContractDocx(targetOrderId);
+      const blobUrl = window.URL.createObjectURL(docxBlob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `Договор_${currentOrderNumber || targetOrderId}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
 
       fetchData();
       setIsContractPromptOpen(false);
@@ -588,8 +574,8 @@ const Kanban = () => {
       const updatedClients = await getClients();
       setClients(updatedClients);
 
-      // 4. Download contract preserving current contractParams and format
-      await executeContractDownload(contractPromptData.clientId, getContractParams(), contractFormat);
+      // 4. Download contract preserving current contractParams
+      await executeContractDownload(contractPromptData.clientId, getContractParams());
     } catch (err: any) {
       console.error('Failed to save contract data', err);
       alert('Ошибка при сохранении данных: ' + (err.message || err));
@@ -1967,76 +1953,51 @@ const Kanban = () => {
                                 </div>
                               )}
 
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
                                 <button
                                   type="button"
-                                  onClick={() => handleStartGenerateContract('PDF')}
+                                  onClick={handleStartGenerateContract}
                                   className="btn btn-primary"
-                                  disabled={contractPromptLoading}
+                                  disabled={contractPromptLoading || !hasTemplate}
                                   style={{
-                                    width: '100%',
+                                    flex: 1,
                                     display: 'inline-flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     gap: '8px',
                                     fontWeight: 600,
                                     height: '44px',
-                                    fontSize: '0.92rem'
+                                    fontSize: '0.92rem',
+                                    opacity: !hasTemplate ? 0.55 : 1,
+                                    cursor: !hasTemplate ? 'not-allowed' : 'pointer'
                                   }}
-                                  title="Сформировать и открыть договор в PDF"
+                                  title={!hasTemplate ? `Шаблон договора для ${isLegal ? 'юр. лиц' : 'физ. лиц'} не загружен. Перейдите в раздел «Шаблоны договоров».` : 'Сформировать и скачать договор в формате Word (.docx)'}
                                 >
-                                  <FileText size={17} /> {contractPromptLoading && contractFormat === 'PDF' ? 'Формирование PDF...' : 'Сформировать договор (PDF)'}
+                                  <FileText size={17} /> {contractPromptLoading ? 'Формирование договора...' : 'Сформировать договор (Word)'}
                                 </button>
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%' }}>
+                                {!hasTemplate && (
                                   <button
                                     type="button"
-                                    onClick={() => handleStartGenerateContract('DOCX')}
-                                    className="btn btn-ghost"
-                                    disabled={contractPromptLoading || !hasTemplate}
+                                    onClick={() => alert(missingTemplateMsg)}
                                     style={{
-                                      flex: 1,
-                                      display: 'inline-flex',
+                                      width: '44px',
+                                      height: '44px',
+                                      borderRadius: '8px',
+                                      background: 'rgba(245, 158, 11, 0.15)',
+                                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                                      color: '#fbbf24',
+                                      display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      gap: '8px',
-                                      fontWeight: 600,
-                                      height: '44px',
-                                      fontSize: '0.92rem',
-                                      background: !hasTemplate ? 'rgba(255, 255, 255, 0.04)' : 'rgba(59, 130, 246, 0.12)',
-                                      border: !hasTemplate ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(59, 130, 246, 0.3)',
-                                      color: !hasTemplate ? 'var(--text-secondary)' : '#60a5fa',
-                                      opacity: !hasTemplate ? 0.55 : 1,
-                                      cursor: !hasTemplate ? 'not-allowed' : 'pointer'
+                                      cursor: 'pointer',
+                                      flexShrink: 0
                                     }}
-                                    title={!hasTemplate ? `Шаблон договора для ${isLegal ? 'юр. лиц' : 'физ. лиц'} не загружен. Перейдите в раздел «Шаблоны договоров».` : 'Скачать редактируемый договор в Word (.docx)'}
+                                    title="Шаблон не загружен! Нажмите для справки"
                                   >
-                                    <FileDown size={17} /> {contractPromptLoading && contractFormat === 'DOCX' ? 'Формирование DOCX...' : 'Скачать договор (DOCX)'}
+                                    <AlertTriangle size={18} />
                                   </button>
-
-                                  {!hasTemplate && (
-                                    <button
-                                      type="button"
-                                      onClick={() => alert(missingTemplateMsg)}
-                                      style={{
-                                        width: '44px',
-                                        height: '44px',
-                                        borderRadius: '8px',
-                                        background: 'rgba(245, 158, 11, 0.15)',
-                                        border: '1px solid rgba(245, 158, 11, 0.3)',
-                                        color: '#fbbf24',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        cursor: 'pointer',
-                                        flexShrink: 0
-                                      }}
-                                      title="Шаблон не загружен! Нажмите для справки"
-                                    >
-                                      <AlertCircle size={19} />
-                                    </button>
-                                  )}
-                                </div>
+                                )}
                               </div>
                             </>
                           );
@@ -3164,7 +3125,7 @@ const Kanban = () => {
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
                   <FileText size={16} />
-                  {contractPromptLoading ? 'Формирование PDF...' : 'Сохранить и сформировать договор (PDF)'}
+                  {contractPromptLoading ? 'Формирование договора...' : 'Сохранить и сформировать договор (Word)'}
                 </button>
               </div>
             </form>
