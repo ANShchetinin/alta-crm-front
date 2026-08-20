@@ -4,7 +4,7 @@ import {
   User, Building2, RefreshCw, FileCheck, Save, Sparkles, Bold, Italic, 
   Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify, 
   List, ListOrdered, Table, Eraser, Undo, Redo, SplitSquareVertical,
-  Image as ImageIcon, Edit3, Eye
+  Image as ImageIcon, Edit3
 } from 'lucide-react';
 import * as docx from 'docx-preview';
 import { 
@@ -691,26 +691,27 @@ export const ContractTemplates = () => {
               <div className="view-mode-toggle-group">
                 <button
                   type="button"
-                  className={`view-mode-btn ${viewMode === 'DOCX_VIEW' ? 'active' : ''}`}
+                  className={`view-mode-btn mode-docx ${viewMode === 'DOCX_VIEW' ? 'active' : ''}`}
                   onClick={() => {
                     setViewMode('DOCX_VIEW');
                     if (isTemplateLoaded) {
                       downloadContractTemplateBlob(activeTab).then(blob => renderDocxDirectly(blob)).catch(() => {});
                     }
                   }}
-                  title="Оригинальный вид файла Word (.docx) со 100% версткой и логотипами"
+                  title="Просмотр мастер-файла Word (.docx) со 100% сохранением верстки, таблиц и логотипов"
                 >
-                  <Eye size={15} />
-                  <span>Оригинал Word (.docx)</span>
+                  <FileText size={16} className="view-mode-icon" />
+                  <span className="view-mode-title">Оригинал Word</span>
+                  <span className="view-mode-tag">.docx</span>
                 </button>
                 <button
                   type="button"
-                  className={`view-mode-btn ${viewMode === 'HTML_EDITOR' ? 'active' : ''}`}
+                  className={`view-mode-btn mode-editor ${viewMode === 'HTML_EDITOR' ? 'active' : ''}`}
                   onClick={() => setViewMode('HTML_EDITOR')}
-                  title="Встроенный визуальный редактор документа"
+                  title="Встроенный визуальный веб-редактор формата А4"
                 >
-                  <Edit3 size={15} />
-                  <span>Встроенный редактор</span>
+                  <Edit3 size={16} className="view-mode-icon" />
+                  <span className="view-mode-title">Встроенный редактор</span>
                 </button>
               </div>
 
