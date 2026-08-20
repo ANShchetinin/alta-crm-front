@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2 } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -546,6 +546,27 @@ const Kanban = () => {
       alert('Ошибка при формировании договора: ' + (err.message || err));
     } finally {
       setContractPromptLoading(false);
+    }
+  };
+
+  const handleCompleteInstallation = async (e: React.MouseEvent, orderId: number) => {
+    e.stopPropagation();
+    const completedStatus = columns.find(c => {
+      const name = c.name.toLowerCase();
+      return name.includes('заверш') || name.includes('готов') || name.includes('выполнен');
+    }) || columns[columns.length - 1];
+
+    if (!completedStatus) return;
+
+    try {
+      await moveOrder(orderId, completedStatus.id);
+      setCards(prevCards => prevCards.map(c => c.id === orderId ? { ...c, statusId: completedStatus.id } : c));
+      if (editingOrderId === orderId) {
+        setFormData(prev => ({ ...prev, statusId: completedStatus.id.toString() }));
+      }
+    } catch (err: any) {
+      console.error('Failed to complete installation', err);
+      alert(err.response?.data?.message || 'Не удалось перевести заявку в завершенный статус');
     }
   };
 
@@ -1271,18 +1292,71 @@ const Kanban = () => {
                       return null;
                     })()}
                   </div>
-                  {isWorker ? (
-                    <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                        Остаток к оплате: <strong style={{ color: 'var(--accent-primary)', fontSize: '0.9rem' }}>{(card.remainder != null ? card.remainder : (card.totalPrice || 0)).toLocaleString('ru-RU')} ₽</strong>
-                      </div>
-                      {card.attachments && card.attachments.length > 0 && (
-                        <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
-                          <Paperclip size={12} /> {card.attachments.length}
+                  {isWorker ? (() => {
+                    const col = columns.find(c => c.id === card.statusId);
+                    const isCardCompleted = col ? (
+                      col.name.toLowerCase().includes('заверш') ||
+                      col.name.toLowerCase().includes('готов') ||
+                      col.name.toLowerCase().includes('выполнен')
+                    ) : false;
+
+                    return (
+                      <div className="card-footer" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'stretch' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                            Остаток к оплате: <strong style={{ color: 'var(--accent-primary)', fontSize: '0.9rem' }}>{(card.remainder != null ? card.remainder : (card.totalPrice || 0)).toLocaleString('ru-RU')} ₽</strong>
+                          </div>
+                          {card.attachments && card.attachments.length > 0 && (
+                            <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
+                              <Paperclip size={12} /> {card.attachments.length}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ) : (
+
+                        {isCardCompleted ? (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            padding: '6px 10px',
+                            background: 'rgba(34, 197, 94, 0.12)',
+                            border: '1px solid rgba(34, 197, 94, 0.25)',
+                            borderRadius: 'var(--radius-sm)',
+                            color: '#4ade80',
+                            fontSize: '0.8rem',
+                            fontWeight: 600
+                          }}>
+                            <CheckCircle2 size={14} /> Монтаж завершен
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => handleCompleteInstallation(e, card.id)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              padding: '7px 12px',
+                              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                              border: 'none',
+                              borderRadius: 'var(--radius-sm)',
+                              color: '#fff',
+                              fontSize: '0.82rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 8px rgba(34, 197, 94, 0.25)',
+                              transition: 'transform 0.1s ease, box-shadow 0.1s ease'
+                            }}
+                            title="Перевести заявку в статус «Завершено»"
+                          >
+                            <CheckCircle2 size={15} /> Завершить монтаж
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })() : (
                     <div className="card-footer" style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'stretch' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span className="card-price">{(card.totalPrice || 0).toLocaleString('ru-RU')} ₽</span>
@@ -2765,6 +2839,52 @@ const Kanban = () => {
                     <Trash2 size={16} style={{marginRight: '6px'}} /> {t('kanban.modal.delete')}
                   </button>
                 ) : null}
+                {isWorker && editingOrderId && (() => {
+                  const currentStatus = columns.find(c => c.id.toString() === formData.statusId);
+                  const isCompleted = currentStatus ? (
+                    currentStatus.name.toLowerCase().includes('заверш') ||
+                    currentStatus.name.toLowerCase().includes('готов') ||
+                    currentStatus.name.toLowerCase().includes('выполнен')
+                  ) : false;
+
+                  if (!isCompleted) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={(e) => handleCompleteInstallation(e, editingOrderId)}
+                        className="btn"
+                        style={{
+                          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                          color: '#fff',
+                          border: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontWeight: 600,
+                          padding: '8px 14px'
+                        }}
+                      >
+                        <CheckCircle2 size={16} /> Завершить монтаж
+                      </button>
+                    );
+                  }
+                  return (
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: '#4ade80',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      background: 'rgba(34, 197, 94, 0.12)',
+                      padding: '6px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid rgba(34, 197, 94, 0.25)'
+                    }}>
+                      <CheckCircle2 size={16} /> Монтаж завершен
+                    </div>
+                  );
+                })()}
                 <div className="modal-action-btns">
                   <button 
                     type="button" 

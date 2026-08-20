@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -28,8 +28,14 @@ const DashboardLayout = () => {
 
   // Check if running as PWA standalone
   useEffect(() => {
-    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
-    setIsStandalone(isStandaloneMode);
+    const checkStandalone = () => {
+      const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
+                                (window.navigator as any).standalone === true;
+      setIsStandalone(isStandaloneMode);
+    };
+    
+    checkStandalone();
+    window.matchMedia('(display-mode: standalone)').addEventListener('change', checkStandalone);
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -102,7 +108,7 @@ const DashboardLayout = () => {
       }
     };
     fetchUserProfile();
-  }, []);
+  }, [role]);
 
   const handleLogout = () => {
     logout();
@@ -149,10 +155,16 @@ const DashboardLayout = () => {
 
         <nav className="sidebar-nav">
           {role === 'WORKER' && (
-            <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <LayoutDashboard size={20} />
-              <span style={{ flex: 1 }}>{t('nav.orders') || 'Мои заявки'}</span>
-            </NavLink>
+            <>
+              <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <LayoutDashboard size={20} />
+                <span style={{ flex: 1 }}>{t('nav.orders') || 'Мои заявки'}</span>
+              </NavLink>
+              <NavLink to="/earnings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <Wallet size={20} />
+                <span style={{ flex: 1 }}>Мой заработок</span>
+              </NavLink>
+            </>
           )}
           {role !== 'SUPERADMIN' && role !== 'WORKER' && (
             <>
@@ -330,6 +342,12 @@ const DashboardLayout = () => {
               <LayoutDashboard size={20} />
             </div>
             <span>{t('nav.orders') || 'Мои заявки'}</span>
+          </NavLink>
+          <NavLink to="/earnings" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} style={{ flex: 1 }}>
+            <div className="bottom-nav-icon-wrapper">
+              <Wallet size={20} />
+            </div>
+            <span>Заработок</span>
           </NavLink>
         </nav>
       )}
