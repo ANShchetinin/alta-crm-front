@@ -1039,6 +1039,11 @@ const Kanban = () => {
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
                     {(() => {
                       const client = clients.find(cl => cl.id === card.clientId);
+                      const cName = card.clientName || client?.name || `Клиент #${card.clientId}`;
+                      const cPhone = card.clientPhone || client?.phone;
+                      const cType = card.clientType || client?.clientType;
+                      const isLegal = cType === 'LEGAL_ENTITY';
+
                       return (
                         <div style={{display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap'}}>
                           <span 
@@ -1055,8 +1060,8 @@ const Kanban = () => {
                             #{card.id}
                           </span>
                           <div className="card-client" style={{marginBottom: 0, display: 'flex', alignItems: 'center', gap: '4px'}}>
-                            {client?.clientType === 'LEGAL_ENTITY' && <Building2 size={13} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />}
-                            {client?.name || `Клиент #${card.clientId}`}
+                            {isLegal && <Building2 size={13} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />}
+                            {cName}
                           </div>
                           {card.orderNumber && (
                             <span 
@@ -1079,11 +1084,11 @@ const Kanban = () => {
                               № {card.orderNumber}
                             </span>
                           )}
-                          {client?.phone && (
+                          {cPhone && (
                             <a
-                              href={`tel:${client.phone}`}
+                              href={`tel:${cPhone}`}
                               onClick={(e) => e.stopPropagation()}
-                              title={`Позвонить: ${client.phone}`}
+                              title={`Позвонить: ${cPhone}`}
                               style={{
                                 color: 'var(--success)',
                                 padding: '3px 6px',
@@ -1112,10 +1117,12 @@ const Kanban = () => {
                       )}
                       {(() => {
                         const assignee = employees.find(e => e.id === card.assigneeId);
-                        if (!assignee) return null;
+                        const aName = card.assigneeName || assignee?.name;
+                        const aAvatar = card.assigneeAvatarUrl || assignee?.avatarUrl;
+                        if (!aName) return null;
                         return (
                           <div
-                            title={`Ответственный: ${assignee.name}${assignee.position ? ` (${assignee.position})` : ''}`}
+                            title={`Ответственный: ${aName}${assignee?.position ? ` (${assignee.position})` : ''}`}
                             style={{
                               width: '34px',
                               height: '34px',
@@ -1127,21 +1134,21 @@ const Kanban = () => {
                               fontSize: '0.78rem',
                               fontWeight: 700,
                               color: '#fff',
-                              background: assignee.avatarUrl ? 'transparent' : getAvatarGradient(assignee.name),
+                              background: aAvatar ? 'transparent' : getAvatarGradient(aName),
                               border: '2px solid rgba(255, 255, 255, 0.18)',
                               boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
                               flexShrink: 0,
                               cursor: 'default'
                             }}
                           >
-                            {assignee.avatarUrl ? (
+                            {aAvatar ? (
                               <img 
-                                src={assignee.avatarUrl} 
-                                alt={assignee.name} 
+                                src={aAvatar} 
+                                alt={aName} 
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                               />
                             ) : (
-                              getEmployeeInitials(assignee.name)
+                              getEmployeeInitials(aName)
                             )}
                           </div>
                         );
@@ -1247,7 +1254,7 @@ const Kanban = () => {
                         </span>
                       </div>
                     )}
-                    {(() => {
+                    {!isWorker && (() => {
                       const materialsCost = card.materials?.reduce((sum, m) => {
                         const mat = allMaterials.find(x => x.id === m.materialId);
                         if (!mat || mat.type === 'SERVICE') return sum;
@@ -1264,34 +1271,47 @@ const Kanban = () => {
                       return null;
                     })()}
                   </div>
-                  <div className="card-footer" style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'stretch' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="card-price">{(card.totalPrice || 0).toLocaleString('ru-RU')} ₽</span>
-                      <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
-                        {card.attachments && card.attachments.length > 0 && (
-                          <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
-                            <Paperclip size={12} /> {card.attachments.length}
-                          </div>
-                        )}
-                        {card.profitMargin != null && card.profitMargin > 0 && (
-                          <span style={{fontSize: '0.75rem', color: 'var(--success)'}}>+{card.profitMargin.toFixed(1)}%</span>
-                        )}
+                  {isWorker ? (
+                    <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                        Остаток к оплате: <strong style={{ color: 'var(--accent-primary)', fontSize: '0.9rem' }}>{(card.remainder != null ? card.remainder : (card.totalPrice || 0)).toLocaleString('ru-RU')} ₽</strong>
+                      </div>
+                      {card.attachments && card.attachments.length > 0 && (
+                        <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
+                          <Paperclip size={12} /> {card.attachments.length}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="card-footer" style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'stretch' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="card-price">{(card.totalPrice || 0).toLocaleString('ru-RU')} ₽</span>
+                        <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                          {card.attachments && card.attachments.length > 0 && (
+                            <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
+                              <Paperclip size={12} /> {card.attachments.length}
+                            </div>
+                          )}
+                          {card.profitMargin != null && card.profitMargin > 0 && (
+                            <span style={{fontSize: '0.75rem', color: 'var(--success)'}}>+{card.profitMargin.toFixed(1)}%</span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        fontSize: '0.75rem', 
+                        color: 'var(--text-secondary)',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        padding: '3px 6px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid rgba(255, 255, 255, 0.04)'
+                      }}>
+                        <span>Аванс: <strong style={{ color: 'var(--text-primary)' }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
+                        <span>Остаток: <strong style={{ color: 'var(--text-primary)' }}>{((card.remainder != null ? card.remainder : card.totalPrice) || 0).toLocaleString('ru-RU')} ₽</strong></span>
                       </div>
                     </div>
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      fontSize: '0.75rem', 
-                      color: 'var(--text-secondary)',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      padding: '3px 6px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid rgba(255, 255, 255, 0.04)'
-                    }}>
-                      <span>Аванс: <strong style={{ color: 'var(--text-primary)' }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
-                      <span>Остаток: <strong style={{ color: 'var(--text-primary)' }}>{((card.remainder != null ? card.remainder : card.totalPrice) || 0).toLocaleString('ru-RU')} ₽</strong></span>
-                    </div>
-                  </div>
+                  )}
                 </div>
               ))}
               {searchQuery.trim() && colCards.length === 0 && (
@@ -1304,14 +1324,16 @@ const Kanban = () => {
           );
         })}
         
-        <button 
-          className="kanban-column add-column-btn glass-panel" 
-          onClick={openColumnAddModal}
-          style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', minWidth: '320px', cursor: 'pointer', opacity: 0.7, border: '2px dashed var(--glass-border)' }}
-        >
-          <Plus size={24} style={{ marginRight: '8px' }} />
-          <span style={{ fontSize: '1.1rem', fontWeight: 500 }}>{t('kanban.addColumn')}</span>
-        </button>
+        {!isWorker && (
+          <button 
+            className="kanban-column add-column-btn glass-panel" 
+            onClick={openColumnAddModal}
+            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', minWidth: '320px', cursor: 'pointer', opacity: 0.7, border: '2px dashed var(--glass-border)' }}
+          >
+            <Plus size={24} style={{ marginRight: '8px' }} />
+            <span style={{ fontSize: '1.1rem', fontWeight: 500 }}>{t('kanban.addColumn')}</span>
+          </button>
+        )}
       </div>
 
       {isModalOpen && createPortal(
@@ -1392,53 +1414,57 @@ const Kanban = () => {
                 >
                   <User size={15} /> Основное
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setOrderModalTab('CONTRACT')}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    borderBottom: orderModalTab === 'CONTRACT' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                    color: orderModalTab === 'CONTRACT' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                    fontWeight: orderModalTab === 'CONTRACT' ? 600 : 400,
-                    padding: '10px 14px',
-                    cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0
-                  }}
-                >
-                  <FileText size={15} /> Договор
-                  {formData.orderNumber ? (
-                    <span style={{ fontSize: '0.72rem', background: 'rgba(34, 197, 94, 0.18)', color: '#4ade80', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>
-                      {formData.orderNumber}
-                    </span>
-                  ) : null}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOrderModalTab('MATERIALS')}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    borderBottom: orderModalTab === 'MATERIALS' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                    color: orderModalTab === 'MATERIALS' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                    fontWeight: orderModalTab === 'MATERIALS' ? 600 : 400,
-                    padding: '10px 14px',
-                    cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0
-                  }}
-                >
-                  <Tag size={15} /> Материалы и услуги {formData.materials.length > 0 && `(${formData.materials.length})`}
-                </button>
+                {!isWorker && (
+                  <button
+                    type="button"
+                    onClick={() => setOrderModalTab('CONTRACT')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: orderModalTab === 'CONTRACT' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                      color: orderModalTab === 'CONTRACT' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                      fontWeight: orderModalTab === 'CONTRACT' ? 600 : 400,
+                      padding: '10px 14px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0
+                    }}
+                  >
+                    <FileText size={15} /> Договор
+                    {formData.orderNumber ? (
+                      <span style={{ fontSize: '0.72rem', background: 'rgba(34, 197, 94, 0.18)', color: '#4ade80', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>
+                        {formData.orderNumber}
+                      </span>
+                    ) : null}
+                  </button>
+                )}
+                {!isWorker && (
+                  <button
+                    type="button"
+                    onClick={() => setOrderModalTab('MATERIALS')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: orderModalTab === 'MATERIALS' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                      color: orderModalTab === 'MATERIALS' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                      fontWeight: orderModalTab === 'MATERIALS' ? 600 : 400,
+                      padding: '10px 14px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0
+                    }}
+                  >
+                    <Tag size={15} /> Материалы и услуги {formData.materials.length > 0 && `(${formData.materials.length})`}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setOrderModalTab('FILES')}
@@ -1460,7 +1486,7 @@ const Kanban = () => {
                 >
                   <Paperclip size={15} /> Файлы {(formData.attachments.length + pendingFiles.length) > 0 && `(${formData.attachments.length + pendingFiles.length})`}
                 </button>
-                {editingOrderId && (
+                {!isWorker && editingOrderId && (
                   <button
                     type="button"
                     onClick={() => setOrderModalTab('AI')}
@@ -1480,7 +1506,7 @@ const Kanban = () => {
                       flexShrink: 0
                     }}
                   >
-                    <Mic size={15} /> AI Анализ звонков
+                    <Mic size={15} /> AI анализ звонков
                   </button>
                 )}
               </div>
@@ -1492,123 +1518,200 @@ const Kanban = () => {
                     <div className="form-group">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                         <label style={{ margin: 0 }}>{t('kanban.modal.client')}</label>
-                        <button 
-                          type="button" 
-                          onClick={() => setIsNewClientModalOpen(true)}
-                          className="btn-icon"
-                          style={{ fontSize: '0.8rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 6px' }}
-                        >
-                          <Plus size={14} /> {t('clients.addClient') || 'Новый клиент'}
-                        </button>
+                        {!isWorker && (
+                          <button 
+                            type="button" 
+                            onClick={() => setIsNewClientModalOpen(true)}
+                            className="btn-icon"
+                            style={{ fontSize: '0.8rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 6px' }}
+                          >
+                            <Plus size={14} /> {t('clients.addClient') || 'Новый клиент'}
+                          </button>
+                        )}
                       </div>
-                      <div className="custom-select-wrapper">
-                        <select 
-                          required
-                          value={formData.clientId}
-                          onChange={(e) => {
-                            if (e.target.value === '__NEW_CLIENT__') {
-                              setIsNewClientModalOpen(true);
-                            } else {
-                              setFormData({...formData, clientId: e.target.value});
-                            }
-                          }}
-                          className="custom-select"
-                        >
-                          <option value="" disabled>{t('kanban.modal.selectClient')}</option>
-                          <option value="__NEW_CLIENT__" style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>
-                            + {t('clients.addClient') || 'Создать клиента...'}
-                          </option>
-                          {clients.map(c => {
-                            const isLegal = c.clientType === 'LEGAL_ENTITY';
-                            return (
-                              <option key={c.id} value={c.id}>
-                                {isLegal ? `🏢 ${c.name} ${c.inn ? `(ИНН: ${c.inn})` : ''}` : `👤 ${c.name} ${c.phone ? `(${c.phone})` : ''}`}
-                              </option>
-                            );
-                          })}
-                        </select>
-                        <ChevronDown className="custom-select-icon" size={16} />
-                      </div>
-                      {(() => {
+                      {isWorker ? (() => {
+                        const currentOrder = cards.find(c => c.id === editingOrderId);
                         const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
-                        if (selectedClient) {
-                          const isLegal = selectedClient.clientType === 'LEGAL_ENTITY';
-                          return (
-                            <div style={{
-                              marginTop: '8px',
-                              padding: '8px 12px',
-                              background: 'rgba(255, 255, 255, 0.03)',
-                              border: '1px solid var(--glass-border)',
-                              borderRadius: 'var(--radius-sm)',
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              gap: '12px',
-                              alignItems: 'center'
-                            }}>
+                        const cName = currentOrder?.clientName || selectedClient?.name || 'Клиент';
+                        const cPhone = currentOrder?.clientPhone || selectedClient?.phone;
+                        const cType = currentOrder?.clientType || selectedClient?.clientType;
+                        const isLegal = cType === 'LEGAL_ENTITY';
+
+                        return (
+                          <div style={{
+                            padding: '10px 14px',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: 'var(--radius-sm)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '8px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {isLegal ? <Building2 size={16} style={{ color: 'var(--accent-primary)' }} /> : <User size={16} style={{ color: 'var(--accent-primary)' }} />}
+                              <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{cName}</span>
                               <span style={{
-                                padding: '3px 8px',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                borderRadius: 'var(--radius-sm)',
+                                fontSize: '0.72rem',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
                                 background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                                color: isLegal ? '#60a5fa' : '#4ade80',
-                                border: isLegal ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)'
+                                color: isLegal ? '#60a5fa' : '#4ade80'
                               }}>
                                 {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
                               </span>
-                              {selectedClient.phone && (
-                                <a
-                                  href={`tel:${selectedClient.phone}`}
-                                  style={{
-                                    fontSize: '0.85rem',
-                                    color: 'var(--accent-primary)',
-                                    textDecoration: 'none',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '5px'
-                                  }}
-                                >
-                                  <Phone size={13} /> {selectedClient.phone}
-                                </a>
-                              )}
-                              {selectedClient.leadSource && (
-                                <span style={{
-                                  padding: '3px 8px',
-                                  fontSize: '0.8rem',
-                                  color: '#60a5fa',
-                                  background: 'rgba(59, 130, 246, 0.1)',
-                                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                            </div>
+                            {cPhone && (
+                              <a
+                                href={`tel:${cPhone}`}
+                                style={{
+                                  color: 'var(--success)',
+                                  padding: '4px 10px',
+                                  background: 'rgba(34, 197, 94, 0.12)',
+                                  border: '1px solid rgba(34, 197, 94, 0.25)',
                                   borderRadius: 'var(--radius-sm)',
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '4px'
+                                  gap: '5px',
+                                  textDecoration: 'none',
+                                  fontSize: '0.85rem',
+                                  fontWeight: 600
+                                }}
+                              >
+                                <Phone size={14} /> {cPhone}
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })() : (
+                        <>
+                          <div className="custom-select-wrapper">
+                            <select 
+                              required
+                              value={formData.clientId}
+                              onChange={(e) => {
+                                if (e.target.value === '__NEW_CLIENT__') {
+                                  setIsNewClientModalOpen(true);
+                                } else {
+                                  setFormData({...formData, clientId: e.target.value});
+                                }
+                              }}
+                              className="custom-select"
+                            >
+                              <option value="" disabled>{t('kanban.modal.selectClient')}</option>
+                              <option value="__NEW_CLIENT__" style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>
+                                + {t('clients.addClient') || 'Создать клиента...'}
+                              </option>
+                              {clients.map(c => {
+                                const isLegal = c.clientType === 'LEGAL_ENTITY';
+                                return (
+                                  <option key={c.id} value={c.id}>
+                                    {isLegal ? `🏢 ${c.name} ${c.inn ? `(ИНН: ${c.inn})` : ''}` : `👤 ${c.name} ${c.phone ? `(${c.phone})` : ''}`}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            <ChevronDown className="custom-select-icon" size={16} />
+                          </div>
+                          {(() => {
+                            const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
+                            if (selectedClient) {
+                              const isLegal = selectedClient.clientType === 'LEGAL_ENTITY';
+                              return (
+                                <div style={{
+                                  marginTop: '8px',
+                                  padding: '8px 12px',
+                                  background: 'rgba(255, 255, 255, 0.03)',
+                                  border: '1px solid var(--glass-border)',
+                                  borderRadius: 'var(--radius-sm)',
+                                  display: 'flex',
+                                  flexWrap: 'wrap',
+                                  gap: '12px',
+                                  alignItems: 'center'
                                 }}>
-                                  <Tag size={12} style={{ opacity: 0.8 }} />
-                                  Источник: {selectedClient.leadSource}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
+                                  <span style={{
+                                    padding: '3px 8px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    borderRadius: 'var(--radius-sm)',
+                                    background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                                    color: isLegal ? '#60a5fa' : '#4ade80',
+                                    border: isLegal ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)'
+                                  }}>
+                                    {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
+                                  </span>
+                                  {selectedClient.phone && (
+                                    <a
+                                      href={`tel:${selectedClient.phone}`}
+                                      style={{
+                                        fontSize: '0.85rem',
+                                        color: 'var(--accent-primary)',
+                                        textDecoration: 'none',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px'
+                                      }}
+                                    >
+                                      <Phone size={13} /> {selectedClient.phone}
+                                    </a>
+                                  )}
+                                  {selectedClient.leadSource && (
+                                    <span style={{
+                                      padding: '3px 8px',
+                                      fontSize: '0.8rem',
+                                      color: '#60a5fa',
+                                      background: 'rgba(59, 130, 246, 0.1)',
+                                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                                      borderRadius: 'var(--radius-sm)',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}>
+                                      <Tag size={12} style={{ opacity: 0.8 }} />
+                                      Источник: {selectedClient.leadSource}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </>
+                      )}
                     </div>
 
                     <div className="form-group">
                       <label>{t('kanban.modal.assignee') || 'Ответственный'}</label>
-                      <div className="custom-select-wrapper">
-                        <select 
-                          value={formData.assigneeId}
-                          onChange={(e) => setFormData({...formData, assigneeId: e.target.value})}
-                          className="custom-select"
-                        >
-                          <option value="">{t('kanban.modal.selectAssignee') || 'Без ответственного'}</option>
-                          {employees.map(e => (
-                            <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
-                          ))}
-                        </select>
-                        <ChevronDown className="custom-select-icon" size={16} />
-                      </div>
+                      {isWorker ? (() => {
+                        const currentOrder = cards.find(c => c.id === editingOrderId);
+                        const assignedEmployee = employees.find(e => e.id.toString() === formData.assigneeId);
+                        const aName = currentOrder?.assigneeName || assignedEmployee?.name || 'Вы назначены ответственным';
+                        return (
+                          <input 
+                            type="text"
+                            disabled
+                            readOnly
+                            value={aName}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
+                          />
+                        );
+                      })() : (
+                        <div className="custom-select-wrapper">
+                          <select 
+                            value={formData.assigneeId}
+                            onChange={(e) => setFormData({...formData, assigneeId: e.target.value})}
+                            className="custom-select"
+                          >
+                            <option value="">{t('kanban.modal.selectAssignee') || 'Без ответственного'}</option>
+                            {employees.map(e => (
+                              <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="custom-select-icon" size={16} />
+                        </div>
+                      )}
                     </div>
 
                     <div className="form-group">
@@ -1724,123 +1827,149 @@ const Kanban = () => {
                         <label>Дата и время замера</label>
                         <input 
                           type="datetime-local" 
+                          disabled={isWorker}
+                          readOnly={isWorker}
                           value={formData.measurementDate}
                           onChange={(e) => setFormData({...formData, measurementDate: e.target.value})}
                           className="custom-date-input"
-                          style={{width: '100%'}}
+                          style={{width: '100%', ...(isWorker ? { opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' } : {})}}
                         />
                       </div>
                       <div className="form-group" style={{flex: 1, minWidth: '200px'}}>
                         <label>{t('kanban.modal.installationDate') || 'Дата монтажа'}</label>
                         <input 
                           type="date" 
+                          disabled={isWorker}
+                          readOnly={isWorker}
                           value={formData.installationDate}
                           onChange={(e) => setFormData({...formData, installationDate: e.target.value})}
                           className="custom-date-input"
-                          style={{width: '100%'}}
+                          style={{width: '100%', ...(isWorker ? { opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' } : {})}}
                         />
                       </div>
                     </div>
 
                     {/* Финансы */}
-                    <div style={{
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid var(--glass-border)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '16px',
-                      marginBottom: '16px'
-                    }}>
-                      <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                        Финансы и оплата
-                      </h4>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '14px' }}>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label>{t('kanban.modal.installationPrice')}</label>
-                          <input 
-                            type="number" 
-                            required
-                            min="0"
-                            step="0.01"
-                            value={formData.installationPrice}
-                            onChange={(e) => setFormData({...formData, installationPrice: e.target.value})}
-                            className="custom-number-input"
-                          />
-                        </div>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label>Аванс (₽)</label>
-                          <input 
-                            type="number" 
-                            min="0"
-                            step="0.01"
-                            value={formData.prepayment}
-                            onChange={(e) => {
-                              const newPrep = e.target.value;
-                              const prepNum = parseFloat(newPrep || '0');
-                              const remNum = parseFloat(formData.remainder || '0');
-                              setFormData({
-                                ...formData, 
-                                prepayment: newPrep,
-                                totalPrice: (prepNum + remNum).toString()
-                              });
-                            }}
-                            className="custom-number-input"
-                            placeholder="0"
-                          />
-                        </div>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label>Остаток (₽)</label>
-                          <input 
-                            type="number" 
-                            min="0"
-                            step="0.01"
-                            value={formData.remainder}
-                            onChange={(e) => {
-                              const newRem = e.target.value;
-                              const remNum = parseFloat(newRem || '0');
-                              const prepNum = parseFloat(formData.prepayment || '0');
-                              setFormData({
-                                ...formData, 
-                                remainder: newRem,
-                                totalPrice: (prepNum + remNum).toString()
-                              });
-                            }}
-                            className="custom-number-input"
-                            placeholder="0"
-                          />
-                        </div>
-                      </div>
-
+                    {isWorker ? (
                       <div style={{
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center', 
-                        background: 'rgba(59, 130, 246, 0.08)', 
-                        border: '1px solid rgba(59, 130, 246, 0.2)', 
-                        borderRadius: 'var(--radius-sm)', 
-                        padding: '10px 14px'
+                        background: 'rgba(59, 130, 246, 0.08)',
+                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '14px 18px',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
                       }}>
-                        <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>Итого стоимость по договору:</span>
-                        <span style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
-                          {(parseFloat(formData.prepayment || '0') + parseFloat(formData.remainder || '0')).toLocaleString('ru-RU')} ₽
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                          Остаток к оплате по договору:
+                        </span>
+                        <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
+                          {(parseFloat(formData.remainder || '0') || 0).toLocaleString('ru-RU')} ₽
                         </span>
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div style={{
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid var(--glass-border)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '16px',
+                          marginBottom: '16px'
+                        }}>
+                          <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                            Финансы и оплата
+                          </h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label>{t('kanban.modal.installationPrice')}</label>
+                              <input 
+                                type="number" 
+                                required
+                                min="0"
+                                step="0.01"
+                                value={formData.installationPrice}
+                                onChange={(e) => setFormData({...formData, installationPrice: e.target.value})}
+                                className="custom-number-input"
+                              />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label>Аванс (₽)</label>
+                              <input 
+                                type="number" 
+                                min="0"
+                                step="0.01"
+                                value={formData.prepayment}
+                                onChange={(e) => {
+                                  const newPrep = e.target.value;
+                                  const prepNum = parseFloat(newPrep || '0');
+                                  const remNum = parseFloat(formData.remainder || '0');
+                                  setFormData({
+                                    ...formData, 
+                                    prepayment: newPrep,
+                                    totalPrice: (prepNum + remNum).toString()
+                                  });
+                                }}
+                                className="custom-number-input"
+                                placeholder="0"
+                              />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label>Остаток (₽)</label>
+                              <input 
+                                type="number" 
+                                min="0"
+                                step="0.01"
+                                value={formData.remainder}
+                                onChange={(e) => {
+                                  const newRem = e.target.value;
+                                  const remNum = parseFloat(newRem || '0');
+                                  const prepNum = parseFloat(formData.prepayment || '0');
+                                  setFormData({
+                                    ...formData, 
+                                    remainder: newRem,
+                                    totalPrice: (prepNum + remNum).toString()
+                                  });
+                                }}
+                                className="custom-number-input"
+                                placeholder="0"
+                              />
+                            </div>
+                          </div>
 
-                    {editingOrderId && orderProfit !== null && (
-                      <div style={{display: 'flex', gap: '16px', padding: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)'}}>
-                        <div style={{flex: 1}}>
-                          <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '2px'}}>{t('kanban.modal.profit')}</div>
-                          <div style={{fontWeight: 600, fontSize: '1.15rem', color: orderProfit >= 0 ? 'var(--success)' : 'var(--danger)'}}>
-                            {orderProfit} ₽
+                          <div style={{
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            background: 'rgba(59, 130, 246, 0.08)', 
+                            border: '1px solid rgba(59, 130, 246, 0.2)', 
+                            borderRadius: 'var(--radius-sm)', 
+                            padding: '10px 14px'
+                          }}>
+                            <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>Итого стоимость по договору:</span>
+                            <span style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
+                              {(parseFloat(formData.prepayment || '0') + parseFloat(formData.remainder || '0')).toLocaleString('ru-RU')} ₽
+                            </span>
                           </div>
                         </div>
-                        <div style={{flex: 1}}>
-                          <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '2px'}}>{t('kanban.modal.margin')}</div>
-                          <div style={{fontWeight: 600, fontSize: '1.15rem', color: (orderMargin || 0) >= 0 ? 'var(--success)' : 'var(--danger)'}}>
-                            {orderMargin}%
+
+                        {editingOrderId && orderProfit !== null && (
+                          <div style={{display: 'flex', gap: '16px', padding: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)'}}>
+                            <div style={{flex: 1}}>
+                              <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '2px'}}>{t('kanban.modal.profit')}</div>
+                              <div style={{fontWeight: 600, fontSize: '1.15rem', color: orderProfit >= 0 ? 'var(--success)' : 'var(--danger)'}}>
+                                {orderProfit} ₽
+                              </div>
+                            </div>
+                            <div style={{flex: 1}}>
+                              <div style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '2px'}}>{t('kanban.modal.margin')}</div>
+                              <div style={{fontWeight: 600, fontSize: '1.15rem', color: (orderMargin || 0) >= 0 ? 'var(--success)' : 'var(--danger)'}}>
+                                {orderMargin}%
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
+                        )}
+                      </>
                     )}
                   </>
                 )}
