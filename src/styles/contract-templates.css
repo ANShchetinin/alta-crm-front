@@ -573,7 +573,14 @@ section.docx th,
   color: #ffffff;
 }
 
-/* Tag Assistant Panel */
+/* Tag Assistant Column & Panel */
+.tag-assistant-col {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .tag-assistant-panel {
   padding: 20px;
   border-radius: 16px;
@@ -582,12 +589,19 @@ section.docx th,
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .tag-panel-header {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tag-panel-header h3 {
@@ -602,6 +616,7 @@ section.docx th,
   color: var(--text-muted, #94a3b8);
   margin: 0;
   line-height: 1.35;
+  word-break: break-word;
 }
 
 .tags-count-badge {
@@ -611,17 +626,25 @@ section.docx th,
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .tag-filters-bar {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .tag-search-input-box {
   position: relative;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .tag-search-input-box .search-icon {
@@ -630,10 +653,13 @@ section.docx th,
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted, #94a3b8);
+  pointer-events: none;
 }
 
 .tag-search-input-box input {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 9px 12px 9px 36px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.04);
@@ -654,6 +680,10 @@ section.docx th,
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .category-chips .chip {
@@ -666,6 +696,8 @@ section.docx th,
   color: var(--text-muted, #94a3b8);
   cursor: pointer;
   transition: all 0.2s ease;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .category-chips .chip:hover {
@@ -683,13 +715,22 @@ section.docx th,
 .tags-scroll-container {
   max-height: 640px;
   overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding-right: 4px;
 }
 
 .tags-cards-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .tag-card {
@@ -702,6 +743,11 @@ section.docx th,
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .tag-card:hover {
@@ -720,6 +766,10 @@ section.docx th,
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .tag-code {
@@ -730,6 +780,12 @@ section.docx th,
   background: rgba(99, 102, 241, 0.12);
   padding: 2px 6px;
   border-radius: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: calc(100% - 30px);
+  display: inline-block;
+  box-sizing: border-box;
 }
 
 .tag-copy-btn {
@@ -741,6 +797,7 @@ section.docx th,
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .tag-card:hover .tag-copy-btn {
@@ -756,16 +813,22 @@ section.docx th,
   font-weight: 600;
   color: var(--text-main, #f8fafc);
   line-height: 1.3;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .tag-card-example {
   font-size: 0.75rem;
   color: var(--text-muted, #94a3b8);
   line-height: 1.2;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .tag-card-example strong {
   color: #cbd5e1;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .tags-empty-state {
