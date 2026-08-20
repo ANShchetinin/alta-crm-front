@@ -1161,7 +1161,7 @@ export const Clients = () => {
                                 <div>{(order.totalPrice || 0).toLocaleString('ru-RU')} ₽</div>
                                 {(order.prepayment != null || order.remainder != null) && (
                                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                    Ав: {(order.prepayment || 0).toLocaleString('ru-RU')} • Ост: {(order.remainder != null ? order.remainder : order.totalPrice).toLocaleString('ru-RU')}
+                                    Ав: {(order.prepayment || 0).toLocaleString('ru-RU')} • Ост: {((order.remainder != null ? order.remainder : order.totalPrice) || 0).toLocaleString('ru-RU')} ₽
                                   </div>
                                 )}
                               </td>

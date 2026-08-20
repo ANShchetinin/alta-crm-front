@@ -1291,7 +1291,7 @@ const Kanban = () => {
                       border: '1px solid rgba(255, 255, 255, 0.04)'
                     }}>
                       <span>Аванс: <strong style={{ color: 'var(--text-primary)' }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
-                      <span>Остаток: <strong style={{ color: 'var(--text-primary)' }}>{(card.remainder != null ? card.remainder : card.totalPrice).toLocaleString('ru-RU')} ₽</strong></span>
+                      <span>Остаток: <strong style={{ color: 'var(--text-primary)' }}>{((card.remainder != null ? card.remainder : card.totalPrice) || 0).toLocaleString('ru-RU')} ₽</strong></span>
                     </div>
                   </div>
                 </div>
@@ -2172,7 +2172,7 @@ const Kanban = () => {
                                   <div className="spec-card-field spec-card-sum-box">
                                     <label>Сумма</label>
                                     <div className="spec-card-sum-val">
-                                      {it.total?.toLocaleString('ru-RU')} ₽
+                                      {(it.total || 0).toLocaleString('ru-RU')} ₽
                                     </div>
                                   </div>
                                 </div>
@@ -2235,7 +2235,7 @@ const Kanban = () => {
                                       />
                                     </td>
                                     <td style={{ fontWeight: 700, color: '#4ade80' }}>
-                                      {it.total?.toLocaleString('ru-RU')} ₽
+                                      {(it.total || 0).toLocaleString('ru-RU')} ₽
                                     </td>
                                     <td>
                                       <button
