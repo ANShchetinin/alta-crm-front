@@ -146,7 +146,13 @@ const DashboardLayout = () => {
         </div>
 
         <nav className="sidebar-nav">
-          {role !== 'SUPERADMIN' && (
+          {role === 'WORKER' && (
+            <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <LayoutDashboard size={20} />
+              <span style={{ flex: 1 }}>{t('nav.orders') || 'Мои заявки'}</span>
+            </NavLink>
+          )}
+          {role !== 'SUPERADMIN' && role !== 'WORKER' && (
             <>
               <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <LayoutDashboard size={20} />
@@ -315,7 +321,18 @@ const DashboardLayout = () => {
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
-      {role !== 'SUPERADMIN' && (
+      {role === 'WORKER' && (
+        <nav className="mobile-bottom-nav glass-panel">
+          <NavLink to="/kanban" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} style={{ flex: 1 }}>
+            <div className="bottom-nav-icon-wrapper">
+              <LayoutDashboard size={20} />
+            </div>
+            <span>{t('nav.orders') || 'Мои заявки'}</span>
+          </NavLink>
+        </nav>
+      )}
+
+      {role !== 'SUPERADMIN' && role !== 'WORKER' && (
         <nav className="mobile-bottom-nav glass-panel">
           <NavLink to="/kanban" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">

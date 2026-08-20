@@ -19,6 +19,14 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   return token ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
+const RoleRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) => {
+  const role = useAuthStore(state => state.role);
+  if (!role || !allowedRoles.includes(role)) {
+    return <Navigate to="/kanban" replace />;
+  }
+  return <>{children}</>;
+};
+
 const IndexRedirect = () => {
   const role = useAuthStore(state => state.role);
   return <Navigate to={role === 'SUPERADMIN' ? "/tenants" : "/kanban"} replace />;
@@ -128,13 +136,13 @@ function App() {
         <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
           <Route index element={<IndexRedirect />} />
           <Route path="kanban" element={<Kanban />} />
-          <Route path="clients" element={<Clients />} />
-          <Route path="employees" element={<Employees />} />
-          <Route path="storage" element={<Storage />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="contract-templates" element={<ContractTemplates />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="tenants" element={<Tenants />} />
+          <Route path="clients" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Clients /></RoleRoute>} />
+          <Route path="employees" element={<RoleRoute allowedRoles={['OWNER', 'SUPERADMIN']}><Employees /></RoleRoute>} />
+          <Route path="storage" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Storage /></RoleRoute>} />
+          <Route path="reports" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Reports /></RoleRoute>} />
+          <Route path="contract-templates" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><ContractTemplates /></RoleRoute>} />
+          <Route path="settings" element={<RoleRoute allowedRoles={['OWNER', 'SUPERADMIN']}><Settings /></RoleRoute>} />
+          <Route path="tenants" element={<RoleRoute allowedRoles={['SUPERADMIN']}><Tenants /></RoleRoute>} />
         </Route>
       </Routes>
     </BrowserRouter>

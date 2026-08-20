@@ -6,6 +6,11 @@ export interface Employee {
   phone?: string;
   position?: string;
   avatarUrl?: string;
+  userId?: number;
+  email?: string;
+  password?: string;
+  hasAccount?: boolean;
+  allowedStatusIds?: number[];
   createdAt?: string;
 }
 

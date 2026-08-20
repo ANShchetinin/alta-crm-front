@@ -17,6 +17,7 @@ import { getEmployees } from '../api/employees';
 import type { Employee } from '../api/employees';
 import { getEmployeeInitials, getAvatarGradient } from './Employees';
 import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { useSearchParams } from 'react-router-dom';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import '../styles/kanban.css';
@@ -24,6 +25,8 @@ import '../styles/clients.css';
 
 const Kanban = () => {
   const { t } = useTranslation();
+  const role = useAuthStore(state => state.role);
+  const isWorker = role === 'WORKER';
   const { setNewOrdersCount, fetchLowStockMaterials } = useAppStore();
   const [columns, setColumns] = useState<OrderStatus[]>([]);
   const [cards, setCards] = useState<Order[]>([]);
@@ -139,12 +142,12 @@ const Kanban = () => {
     try {
       setLoading(true);
       const [statuses, orders, clientsData, materialsData, employeesData, tStatus] = await Promise.all([
-        getOrderStatuses(),
-        getOrders(),
-        getClients(),
-        getMaterials(),
-        getEmployees(),
-        getContractTemplateStatus().catch(() => null)
+        getOrderStatuses().catch(() => []),
+        getOrders().catch(() => []),
+        !isWorker ? getClients().catch(() => []) : Promise.resolve([]),
+        !isWorker ? getMaterials().catch(() => []) : Promise.resolve([]),
+        !isWorker ? getEmployees().catch(() => []) : Promise.resolve([]),
+        !isWorker ? getContractTemplateStatus().catch(() => null) : Promise.resolve(null)
       ]);
       const sortedColumns = statuses.sort((a, b) => a.sortOrder - b.sortOrder);
       setColumns(sortedColumns);
@@ -916,9 +919,11 @@ const Kanban = () => {
           </div>
         </div>
 
-        <button className="btn btn-primary" onClick={openCreateModal}>
-          <Plus size={18} /> {t('kanban.addOrder')}
-        </button>
+        {!isWorker && (
+          <button className="btn btn-primary" onClick={openCreateModal}>
+            <Plus size={18} /> {t('kanban.addOrder')}
+          </button>
+        )}
       </div>
 
       <div 
@@ -1003,18 +1008,20 @@ const Kanban = () => {
                     : totalInCol}
                 </span>
               </div>
-              <div style={{display: 'flex', gap: '4px'}}>
-                <button className="btn-icon" onClick={() => openColumnEditModal(col)} title={t('kanban.editColumn')}>
-                  <Edit2 size={16} />
-                </button>
-                {totalInCol === 0 ? (
-                  <button className="btn-icon" onClick={() => handleDeleteColumn(col.id)} title={t('kanban.modal.delete')}>
-                    <Trash2 size={16} />
+              {!isWorker && (
+                <div style={{display: 'flex', gap: '4px'}}>
+                  <button className="btn-icon" onClick={() => openColumnEditModal(col)} title={t('kanban.editColumn')}>
+                    <Edit2 size={16} />
                   </button>
-                ) : (
-                  <button className="btn-icon"><MoreVertical size={16} /></button>
-                )}
-              </div>
+                  {totalInCol === 0 ? (
+                    <button className="btn-icon" onClick={() => handleDeleteColumn(col.id)} title={t('kanban.modal.delete')}>
+                      <Trash2 size={16} />
+                    </button>
+                  ) : (
+                    <button className="btn-icon"><MoreVertical size={16} /></button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="column-content">
@@ -2619,7 +2626,7 @@ const Kanban = () => {
               </div>
 
               <div className="modal-actions">
-                {editingOrderId ? (
+                {editingOrderId && !isWorker ? (
                   <button 
                     type="button" 
                     onClick={handleDeleteOrder}
