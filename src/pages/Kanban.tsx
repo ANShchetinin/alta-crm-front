@@ -8,6 +8,8 @@ import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploa
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary, ContractParams } from '../api/kanban';
 import { getClients, createClient, updateClient } from '../api/clients';
 import type { Client } from '../api/clients';
+import { getContractTemplateStatus } from '../api/settings';
+import type { ContractTemplateStatus } from '../api/settings';
 import { PRESET_LEAD_SOURCES } from './Clients';
 import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
@@ -29,6 +31,7 @@ const Kanban = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [allMaterials, setAllMaterials] = useState<Material[]>([]);
+  const [templateStatus, setTemplateStatus] = useState<ContractTemplateStatus | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   
   const [searchParams, setSearchParams] = useSearchParams();
@@ -136,12 +139,13 @@ const Kanban = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [statuses, orders, clientsData, materialsData, employeesData] = await Promise.all([
+      const [statuses, orders, clientsData, materialsData, employeesData, tStatus] = await Promise.all([
         getOrderStatuses(),
         getOrders(),
         getClients(),
         getMaterials(),
-        getEmployees()
+        getEmployees(),
+        getContractTemplateStatus().catch(() => null)
       ]);
       const sortedColumns = statuses.sort((a, b) => a.sortOrder - b.sortOrder);
       setColumns(sortedColumns);
@@ -149,6 +153,7 @@ const Kanban = () => {
       setClients(clientsData);
       setAllMaterials(materialsData);
       setEmployees(employeesData);
+      if (tStatus) setTemplateStatus(tStatus);
       
       const firstStatus = sortedColumns.find(s => s.sortOrder === 1);
       if (firstStatus) {
@@ -1917,49 +1922,125 @@ const Kanban = () => {
                             />
                           </div>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleStartGenerateContract('PDF')}
-                            className="btn btn-primary"
-                            disabled={contractPromptLoading}
-                            style={{
-                              width: '100%',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '8px',
-                              fontWeight: 600,
-                              height: '44px',
-                              fontSize: '0.92rem'
-                            }}
-                            title="Сформировать и открыть договор в PDF"
-                          >
-                            <FileText size={17} /> {contractPromptLoading && contractFormat === 'PDF' ? 'Формирование PDF...' : 'Сформировать договор (PDF)'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleStartGenerateContract('DOCX')}
-                            className="btn btn-ghost"
-                            disabled={contractPromptLoading}
-                            style={{
-                              width: '100%',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '8px',
-                              fontWeight: 600,
-                              height: '44px',
-                              fontSize: '0.92rem',
-                              background: 'rgba(59, 130, 246, 0.12)',
-                              border: '1px solid rgba(59, 130, 246, 0.3)',
-                              color: '#60a5fa'
-                            }}
-                            title="Скачать редактируемый договор в Word (.docx)"
-                          >
-                            <FileDown size={17} /> {contractPromptLoading && contractFormat === 'DOCX' ? 'Формирование DOCX...' : 'Скачать договор (DOCX)'}
-                          </button>
-                        </div>
+                        {(() => {
+                          const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
+                          const isLegal = selectedClient?.clientType === 'LEGAL_ENTITY';
+                          const hasTemplate = isLegal ? !!templateStatus?.legal : !!templateStatus?.individual;
+                          const missingTemplateMsg = `Шаблон договора для ${isLegal ? 'юридических' : 'физических'} лиц не загружен.\n\nПожалуйста, перейдите в раздел «Шаблоны договоров» и загрузите .docx файл договора.`;
+
+                          return (
+                            <>
+                              {!hasTemplate && (
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '12px',
+                                  padding: '10px 14px',
+                                  background: 'rgba(245, 158, 11, 0.12)',
+                                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                                  borderRadius: 'var(--radius-sm)',
+                                  color: '#fbbf24',
+                                  fontSize: '0.85rem'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                                    <span>Шаблон договора для {isLegal ? 'юр. лиц' : 'физ. лиц'} не загружен</span>
+                                  </div>
+                                  <a 
+                                    href="/contract-templates" 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    style={{
+                                      fontSize: '0.78rem',
+                                      fontWeight: 600,
+                                      color: '#ffffff',
+                                      background: '#f59e0b',
+                                      padding: '4px 10px',
+                                      borderRadius: '6px',
+                                      textDecoration: 'none',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    Загрузить шаблон
+                                  </a>
+                                </div>
+                              )}
+
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartGenerateContract('PDF')}
+                                  className="btn btn-primary"
+                                  disabled={contractPromptLoading}
+                                  style={{
+                                    width: '100%',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    fontWeight: 600,
+                                    height: '44px',
+                                    fontSize: '0.92rem'
+                                  }}
+                                  title="Сформировать и открыть договор в PDF"
+                                >
+                                  <FileText size={17} /> {contractPromptLoading && contractFormat === 'PDF' ? 'Формирование PDF...' : 'Сформировать договор (PDF)'}
+                                </button>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartGenerateContract('DOCX')}
+                                    className="btn btn-ghost"
+                                    disabled={contractPromptLoading || !hasTemplate}
+                                    style={{
+                                      flex: 1,
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '8px',
+                                      fontWeight: 600,
+                                      height: '44px',
+                                      fontSize: '0.92rem',
+                                      background: !hasTemplate ? 'rgba(255, 255, 255, 0.04)' : 'rgba(59, 130, 246, 0.12)',
+                                      border: !hasTemplate ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(59, 130, 246, 0.3)',
+                                      color: !hasTemplate ? 'var(--text-secondary)' : '#60a5fa',
+                                      opacity: !hasTemplate ? 0.55 : 1,
+                                      cursor: !hasTemplate ? 'not-allowed' : 'pointer'
+                                    }}
+                                    title={!hasTemplate ? `Шаблон договора для ${isLegal ? 'юр. лиц' : 'физ. лиц'} не загружен. Перейдите в раздел «Шаблоны договоров».` : 'Скачать редактируемый договор в Word (.docx)'}
+                                  >
+                                    <FileDown size={17} /> {contractPromptLoading && contractFormat === 'DOCX' ? 'Формирование DOCX...' : 'Скачать договор (DOCX)'}
+                                  </button>
+
+                                  {!hasTemplate && (
+                                    <button
+                                      type="button"
+                                      onClick={() => alert(missingTemplateMsg)}
+                                      style={{
+                                        width: '44px',
+                                        height: '44px',
+                                        borderRadius: '8px',
+                                        background: 'rgba(245, 158, 11, 0.15)',
+                                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                                        color: '#fbbf24',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        flexShrink: 0
+                                      }}
+                                      title="Шаблон не загружен! Нажмите для справки"
+                                    >
+                                      <AlertCircle size={19} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
 

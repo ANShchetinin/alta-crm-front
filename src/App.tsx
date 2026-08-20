@@ -8,6 +8,7 @@ import { Settings } from './pages/Settings';
 import { Employees } from './pages/Employees';
 import { Reports } from './pages/Reports';
 import { Tenants } from './pages/Tenants';
+import { ContractTemplates } from './pages/ContractTemplates';
 import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
@@ -131,6 +132,7 @@ function App() {
           <Route path="employees" element={<Employees />} />
           <Route path="storage" element={<Storage />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="contract-templates" element={<ContractTemplates />} />
           <Route path="settings" element={<Settings />} />
           <Route path="tenants" element={<Tenants />} />
         </Route>
