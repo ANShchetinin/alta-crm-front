@@ -32,3 +32,8 @@ export const updateMaterial = async (id: number, material: Partial<Material>): P
   const response = await api.put(`/materials/${id}`, material);
   return response.data;
 };
+
+export const deleteMaterial = async (id: number): Promise<void> => {
+  await api.delete(`/materials/${id}`);
+};
+

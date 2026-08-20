@@ -1,7 +1,10 @@
 .contract-templates-page {
   padding: 24px;
   max-width: 1600px;
+  width: 100%;
+  box-sizing: border-box;
   margin: 0 auto;
+  overflow-x: hidden;
   animation: fadeIn 0.3s ease-in-out;
 }
 
@@ -12,6 +15,8 @@
 
 .page-header {
   margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .page-title-group {
@@ -49,6 +54,8 @@
   display: flex;
   gap: 12px;
   margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .template-tab-btn {
@@ -64,6 +71,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .template-tab-btn:hover {
@@ -114,6 +122,10 @@
   grid-template-columns: minmax(0, 1fr) 380px;
   gap: 20px;
   align-items: start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 @media (max-width: 1200px) {
@@ -130,6 +142,10 @@
   border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
   border-radius: 16px;
   overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .editor-top-actions {
@@ -141,6 +157,10 @@
   border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
   flex-wrap: wrap;
   gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .editor-title-box {
@@ -279,6 +299,10 @@
   background: rgba(0, 0, 0, 0.22);
   border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
   flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .toolbar-group {
@@ -348,6 +372,11 @@
   justify-content: center;
   max-height: 820px;
   overflow-y: auto;
+  overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border-bottom-left-radius: 16px;
   border-bottom-right-radius: 16px;
 }
@@ -544,7 +573,14 @@ section.docx th,
   color: #ffffff;
 }
 
-/* Tag Assistant Panel */
+/* Tag Assistant Column & Panel */
+.tag-assistant-col {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .tag-assistant-panel {
   padding: 20px;
   border-radius: 16px;
@@ -553,12 +589,19 @@ section.docx th,
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .tag-panel-header {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tag-panel-header h3 {
@@ -573,6 +616,7 @@ section.docx th,
   color: var(--text-muted, #94a3b8);
   margin: 0;
   line-height: 1.35;
+  word-break: break-word;
 }
 
 .tags-count-badge {
@@ -582,17 +626,25 @@ section.docx th,
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .tag-filters-bar {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .tag-search-input-box {
   position: relative;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .tag-search-input-box .search-icon {
@@ -601,10 +653,13 @@ section.docx th,
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted, #94a3b8);
+  pointer-events: none;
 }
 
 .tag-search-input-box input {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 9px 12px 9px 36px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.04);
@@ -625,6 +680,10 @@ section.docx th,
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .category-chips .chip {
@@ -637,6 +696,8 @@ section.docx th,
   color: var(--text-muted, #94a3b8);
   cursor: pointer;
   transition: all 0.2s ease;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .category-chips .chip:hover {
@@ -654,13 +715,22 @@ section.docx th,
 .tags-scroll-container {
   max-height: 640px;
   overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding-right: 4px;
 }
 
 .tags-cards-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .tag-card {
@@ -673,6 +743,11 @@ section.docx th,
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .tag-card:hover {
@@ -691,6 +766,10 @@ section.docx th,
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .tag-code {
@@ -701,6 +780,12 @@ section.docx th,
   background: rgba(99, 102, 241, 0.12);
   padding: 2px 6px;
   border-radius: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: calc(100% - 30px);
+  display: inline-block;
+  box-sizing: border-box;
 }
 
 .tag-copy-btn {
@@ -712,6 +797,7 @@ section.docx th,
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .tag-card:hover .tag-copy-btn {
@@ -727,16 +813,22 @@ section.docx th,
   font-weight: 600;
   color: var(--text-main, #f8fafc);
   line-height: 1.3;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .tag-card-example {
   font-size: 0.75rem;
   color: var(--text-muted, #94a3b8);
   line-height: 1.2;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .tag-card-example strong {
   color: #cbd5e1;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .tags-empty-state {
@@ -793,4 +885,447 @@ section.docx th,
 
 @keyframes spin {
   100% { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   Mobile & Tablet Responsive Adaptations
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+  .template-editor-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 900px) {
+  .contract-templates-page {
+    padding: 16px;
+  }
+
+  .editor-top-actions {
+    padding: 12px 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .contract-templates-page {
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .page-header {
+    margin-bottom: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .page-title-group {
+    gap: 10px;
+  }
+
+  .page-icon-badge {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .page-title-group h1 {
+    font-size: 1.15rem;
+  }
+
+  .page-subtitle {
+    font-size: 0.78rem;
+    line-height: 1.35;
+  }
+
+  /* Template Type Tabs */
+  .template-tabs-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .template-tab-btn {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    gap: 6px;
+    border-radius: 10px;
+    justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .tab-status-badge {
+    font-size: 0.68rem;
+    padding: 1px 6px;
+  }
+
+  /* Main Grid */
+  .template-editor-grid {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    gap: 12px;
+    box-sizing: border-box;
+  }
+
+  .document-editor-container {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  /* Editor Header & Switcher */
+  .editor-top-actions {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 8px;
+    overflow: hidden;
+  }
+
+  .editor-title-box {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .view-mode-toggle-group {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    display: flex;
+    padding: 3px;
+    gap: 4px;
+  }
+
+  .view-mode-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 50%;
+    box-sizing: border-box;
+    justify-content: center;
+    padding: 7px 4px;
+    font-size: 0.78rem;
+    gap: 4px;
+  }
+
+  .view-mode-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .view-mode-tag {
+    display: none;
+  }
+
+  .modified-badge {
+    text-align: center;
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Action Buttons Grid - strictly 2 equal columns within screen boundaries */
+  .editor-main-btns {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .editor-main-btns .btn {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    font-size: 0.78rem;
+    padding: 8px 4px;
+    justify-content: center;
+    gap: 4px;
+    white-space: nowrap;
+    border-radius: 8px;
+  }
+
+  .editor-main-btns .btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+
+  .editor-main-btns .btn-danger-ghost {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    grid-column: span 1;
+    height: 100%;
+    min-height: 34px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 8px;
+  }
+
+  /* Formatting Toolbar - Horizontal Touch Scrolling */
+  .editor-toolbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding: 6px 8px;
+    gap: 3px;
+    scrollbar-width: none;
+  }
+
+  .editor-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .toolbar-group {
+    flex-shrink: 0;
+  }
+
+  .toolbar-divider {
+    height: 16px;
+    margin: 0 2px;
+    flex-shrink: 0;
+  }
+
+  .tool-btn {
+    min-width: 26px;
+    height: 26px;
+    padding: 3px 5px;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .image-insert-tool,
+  .page-break-tool {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    padding: 3px 8px;
+  }
+
+  /* A4 Canvas Scroll & Paper Layout */
+  .a4-canvas-scroll {
+    padding: 10px 4px;
+    max-height: 520px;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .a4-page-sheet {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: auto !important;
+    padding: 16px 12px !important;
+    box-shadow: none !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+  }
+
+  .a4-content-editable {
+    font-size: 11pt !important;
+    min-height: 320px !important;
+    line-height: 1.45 !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    box-sizing: border-box !important;
+  }
+
+  .a4-content-editable h1,
+  .a4-content-editable h2 {
+    font-size: 13pt !important;
+    margin: 10px 0 6px 0 !important;
+  }
+
+  .a4-content-editable h3 {
+    font-size: 11pt !important;
+    margin: 8px 0 4px 0 !important;
+  }
+
+  .a4-content-editable table {
+    font-size: 8.5pt !important;
+    margin: 8px 0 !important;
+    table-layout: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .a4-content-editable th,
+  .a4-content-editable td {
+    padding: 4px 5px !important;
+  }
+
+  .page-break-badge-wrapper {
+    margin: 18px -12px;
+    padding: 8px 0;
+  }
+
+  .page-break-badge {
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    gap: 6px;
+  }
+
+  .page-break-remove-btn {
+    font-size: 0.68rem;
+    padding: 1px 6px;
+  }
+
+  /* DOCX Preview */
+  .docx-preview-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: auto !important;
+  }
+
+  .docx-preview-wrapper .docx-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    padding: 0 !important;
+  }
+
+  .docx-preview-wrapper .docx-wrapper > section.docx,
+  .docx-preview-wrapper section.docx,
+  .docx-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: auto !important;
+    padding: 14px 10px !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+    margin: 0 0 16px 0 !important;
+    font-size: 9.5pt !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Tag Assistant Panel */
+  .tag-assistant-panel {
+    padding: 14px 12px;
+    border-radius: 12px;
+    gap: 12px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .tag-panel-header h3 {
+    font-size: 0.95rem;
+  }
+
+  .tag-panel-sub {
+    font-size: 0.75rem;
+  }
+
+  .tag-search-input-box input {
+    padding: 7px 10px 7px 32px;
+    font-size: 0.8rem;
+  }
+
+  .category-chips {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .category-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-chips .chip {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    padding: 3px 8px;
+  }
+
+  .tags-scroll-container {
+    max-height: 300px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .tag-card {
+    padding: 8px 10px;
+    gap: 2px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .tag-code {
+    font-size: 0.75rem;
+  }
+
+  .tag-card-name {
+    font-size: 0.75rem;
+  }
+
+  .tag-card-example {
+    font-size: 0.68rem;
+  }
+
+  .contract-toast {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    font-size: 0.8rem;
+    padding: 10px 14px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .template-tabs-container {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-main-btns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
