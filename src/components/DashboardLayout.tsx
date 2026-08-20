@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -28,8 +28,14 @@ const DashboardLayout = () => {
 
   // Check if running as PWA standalone
   useEffect(() => {
-    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
-    setIsStandalone(isStandaloneMode);
+    const checkStandalone = () => {
+      const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
+                                (window.navigator as any).standalone === true;
+      setIsStandalone(isStandaloneMode);
+    };
+    
+    checkStandalone();
+    window.matchMedia('(display-mode: standalone)').addEventListener('change', checkStandalone);
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -86,7 +92,9 @@ const DashboardLayout = () => {
       } catch (err) {
         console.error("Failed to fetch new orders count", err);
       }
-      fetchLowStockMaterials();
+      if (role !== 'WORKER') {
+        fetchLowStockMaterials();
+      }
     };
     fetchNewOrdersCount();
 
@@ -100,7 +108,7 @@ const DashboardLayout = () => {
       }
     };
     fetchUserProfile();
-  }, []);
+  }, [role]);
 
   const handleLogout = () => {
     logout();
@@ -146,7 +154,19 @@ const DashboardLayout = () => {
         </div>
 
         <nav className="sidebar-nav">
-          {role !== 'SUPERADMIN' && (
+          {role === 'WORKER' && (
+            <>
+              <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <LayoutDashboard size={20} />
+                <span style={{ flex: 1 }}>{t('nav.orders') || 'Мои заявки'}</span>
+              </NavLink>
+              <NavLink to="/earnings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <Wallet size={20} />
+                <span style={{ flex: 1 }}>Мой заработок</span>
+              </NavLink>
+            </>
+          )}
+          {role !== 'SUPERADMIN' && role !== 'WORKER' && (
             <>
               <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <LayoutDashboard size={20} />
@@ -172,6 +192,10 @@ const DashboardLayout = () => {
               <NavLink to="/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <PieChart size={20} />
                 <span>{t('nav.reports') || 'Отчеты'}</span>
+              </NavLink>
+              <NavLink to="/contract-templates" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <FileText size={20} />
+                <span>Шаблоны договоров</span>
               </NavLink>
               <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Settings size={20} />
@@ -311,7 +335,24 @@ const DashboardLayout = () => {
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
-      {role !== 'SUPERADMIN' && (
+      {role === 'WORKER' && (
+        <nav className="mobile-bottom-nav glass-panel">
+          <NavLink to="/kanban" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} style={{ flex: 1 }}>
+            <div className="bottom-nav-icon-wrapper">
+              <LayoutDashboard size={20} />
+            </div>
+            <span>{t('nav.orders') || 'Мои заявки'}</span>
+          </NavLink>
+          <NavLink to="/earnings" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} style={{ flex: 1 }}>
+            <div className="bottom-nav-icon-wrapper">
+              <Wallet size={20} />
+            </div>
+            <span>Заработок</span>
+          </NavLink>
+        </nav>
+      )}
+
+      {role !== 'SUPERADMIN' && role !== 'WORKER' && (
         <nav className="mobile-bottom-nav glass-panel">
           <NavLink to="/kanban" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">

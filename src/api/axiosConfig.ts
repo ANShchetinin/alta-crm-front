@@ -19,8 +19,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      // Don't auto-logout if we are already trying to login
+    if (error.response?.status === 401) {
+      // Token expired or unauthorized -> logout and redirect to login
       if (error.config?.url && !error.config.url.includes('/auth/login')) {
         useAuthStore.getState().logout();
         window.location.href = '/login';

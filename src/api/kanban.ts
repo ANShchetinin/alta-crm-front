@@ -66,8 +66,17 @@ export interface ContractParams {
 export interface Order {
   id: number;
   clientId: number;
+  clientName?: string;
+  clientPhone?: string;
+  clientType?: string;
   statusId: number;
   assigneeId?: number;
+  assigneeName?: string;
+  assigneeAvatarUrl?: string;
+  installedById?: number;
+  installedByName?: string;
+  installedByAvatarUrl?: string;
+  installedAt?: string;
   orderNumber?: string | null;
   address: string;
   description: string;

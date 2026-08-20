@@ -35,8 +35,11 @@ export interface TenantRequisites {
   phone?: string;
   landlinePhone?: string;
   email?: string;
+  website?: string;
   taxSystem?: string;
   authorityDoc?: string;
+  courtJurisdiction?: string;
+  brandName?: string;
 }
 
 export interface UpdateTenantSettingsRequest {
@@ -54,6 +57,13 @@ export interface TenantDto {
   requisites?: TenantRequisites;
   orderNumberFormat?: string;
   createdAt: string;
+}
+
+export interface ContractTemplateStatus {
+  individual: boolean;
+  legal: boolean;
+  individualTemplateUrl?: string;
+  legalTemplateUrl?: string;
 }
 
 export const getCurrentTenant = async (): Promise<TenantDto> => {
@@ -81,3 +91,45 @@ export const uploadTenantLogo = async (file: File): Promise<TenantDto> => {
   const response = await api.post('/settings/tenant/logo', formData);
   return response.data;
 };
+
+export const getContractTemplateStatus = async (): Promise<ContractTemplateStatus> => {
+  const response = await api.get('/settings/contract-templates/status');
+  return response.data;
+};
+
+export const uploadContractTemplate = async (type: 'INDIVIDUAL' | 'LEGAL_ENTITY', file: File): Promise<{ success: boolean }> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post(`/settings/contract-templates?type=${type}`, formData);
+  return response.data;
+};
+
+export const downloadContractTemplateBlob = async (type: 'INDIVIDUAL' | 'LEGAL_ENTITY'): Promise<Blob> => {
+  const response = await api.get(`/settings/contract-templates?type=${type}`, {
+    responseType: 'blob'
+  });
+  return response.data;
+};
+
+export const deleteContractTemplate = async (type: 'INDIVIDUAL' | 'LEGAL_ENTITY'): Promise<{ success: boolean }> => {
+  const response = await api.delete(`/settings/contract-templates?type=${type}`);
+  return response.data;
+};
+
+export const generateTestContractDocxBlob = async (type: 'INDIVIDUAL' | 'LEGAL_ENTITY'): Promise<Blob> => {
+  const response = await api.get(`/settings/contract-templates/test-docx?type=${type}`, {
+    responseType: 'blob'
+  });
+  return response.data;
+};
+
+export const saveContractTemplateHtml = async (type: 'INDIVIDUAL' | 'LEGAL_ENTITY', html: string): Promise<{ success: boolean }> => {
+  const response = await api.post(`/settings/contract-templates/html?type=${type}`, { html });
+  return response.data;
+};
+
+export const getContractTemplateHtml = async (type: 'INDIVIDUAL' | 'LEGAL_ENTITY'): Promise<string> => {
+  const response = await api.get(`/settings/contract-templates/html?type=${type}`);
+  return response.data?.html || '';
+};
+
