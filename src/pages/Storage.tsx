@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Package, Wrench, Layers } from 'lucide-react';
+import { Search, Plus, Package, Wrench, Layers, Trash2 } from 'lucide-react';
 import type { Material, MaterialType } from '../api/storage';
-import { getMaterials, createMaterial, updateMaterial } from '../api/storage';
+import { getMaterials, createMaterial, updateMaterial, deleteMaterial } from '../api/storage';
 import { useAppStore } from '../store/useAppStore';
 import '../styles/clients.css';
 
@@ -120,6 +120,21 @@ export const Storage = () => {
     }
   };
 
+  const handleDeleteMaterial = async (id: number, name: string) => {
+    if (!window.confirm(`Вы уверены, что хотите удалить позицию «${name}»?`)) return;
+    try {
+      await deleteMaterial(id);
+      setMaterials(prev => prev.filter(m => m.id !== id));
+      if (editingId === id) {
+        setIsModalOpen(false);
+      }
+      fetchLowStockMaterials();
+    } catch (err) {
+      console.error(err);
+      alert('Не удалось удалить позицию.');
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-white">Загрузка каталога...</div>;
   }
@@ -202,12 +217,13 @@ export const Storage = () => {
               <th style={{ width: '100px' }}>Мин. остаток</th>
               <th style={{ textAlign: 'right', width: '130px' }}>Себестоимость</th>
               <th style={{ textAlign: 'right', width: '140px', color: 'var(--accent-primary)' }}>Цена продажи</th>
+              <th style={{ width: '50px', textAlign: 'center' }}></th>
             </tr>
           </thead>
           <tbody>
             {filteredMaterials.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', opacity: 0.6, padding: '32px' }}>
+                <td colSpan={8} style={{ textAlign: 'center', opacity: 0.6, padding: '32px' }}>
                   {t('storage.noMaterials')}
                 </td>
               </tr>
@@ -266,6 +282,17 @@ export const Storage = () => {
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: 700, color: '#4ade80' }}>
                       {(sPrice || 0).toLocaleString('ru-RU')} ₽
+                    </td>
+                    <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMaterial(material.id, material.name)}
+                        className="btn-icon"
+                        style={{ color: 'var(--danger)', opacity: 0.75, padding: '6px' }}
+                        title="Удалить позицию"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </td>
                   </tr>
                 );
@@ -425,7 +452,17 @@ export const Storage = () => {
                   </div>
                 )}
               </div>
-              <div className="modal-actions">
+              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {editingId ? (
+                  <button 
+                    type="button" 
+                    onClick={() => handleDeleteMaterial(editingId, formData.name)}
+                    className="btn btn-ghost"
+                    style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Trash2 size={16} /> Удалить позицию
+                  </button>
+                ) : <div />}
                 <div className="modal-action-btns">
                   <button 
                     type="button" 

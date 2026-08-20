@@ -794,3 +794,333 @@ section.docx th,
 @keyframes spin {
   100% { transform: rotate(360deg); }
 }
+
+/* ==========================================================================
+   Mobile & Tablet Responsive Adaptations
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+  .template-editor-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 900px) {
+  .contract-templates-page {
+    padding: 16px;
+  }
+
+  .editor-top-actions {
+    padding: 12px 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .contract-templates-page {
+    padding: 12px 8px;
+  }
+
+  .page-header {
+    margin-bottom: 12px;
+  }
+
+  .page-title-group {
+    gap: 10px;
+  }
+
+  .page-icon-badge {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .page-title-group h1 {
+    font-size: 1.15rem;
+  }
+
+  .page-subtitle {
+    font-size: 0.78rem;
+    line-height: 1.35;
+  }
+
+  /* Template Type Tabs */
+  .template-tabs-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .template-tab-btn {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    gap: 6px;
+    border-radius: 10px;
+    justify-content: space-between;
+  }
+
+  .tab-status-badge {
+    font-size: 0.68rem;
+    padding: 1px 6px;
+  }
+
+  /* Editor Header & Switcher */
+  .editor-top-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .editor-title-box {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .view-mode-toggle-group {
+    width: 100%;
+    display: flex;
+  }
+
+  .view-mode-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 6px 8px;
+    font-size: 0.78rem;
+    gap: 6px;
+  }
+
+  .view-mode-title {
+    font-size: 0.78rem;
+  }
+
+  .view-mode-tag {
+    font-size: 0.62rem;
+    padding: 1px 4px;
+  }
+
+  .modified-badge {
+    text-align: center;
+    font-size: 0.7rem;
+    padding: 4px 8px;
+  }
+
+  /* Action Buttons */
+  .editor-main-btns {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .editor-main-btns .btn {
+    flex: 1 1 calc(50% - 6px);
+    font-size: 0.78rem;
+    padding: 7px 10px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .editor-main-btns .btn-danger-ghost {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 34px;
+    padding: 0;
+  }
+
+  /* Formatting Toolbar - Horizontal Touch Scrolling */
+  .editor-toolbar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding: 6px 8px;
+    gap: 3px;
+    scrollbar-width: none;
+  }
+
+  .editor-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .toolbar-group {
+    flex-shrink: 0;
+  }
+
+  .toolbar-divider {
+    height: 16px;
+    margin: 0 2px;
+    flex-shrink: 0;
+  }
+
+  .tool-btn {
+    min-width: 26px;
+    height: 26px;
+    padding: 3px 5px;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .image-insert-tool,
+  .page-break-tool {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    padding: 3px 8px;
+  }
+
+  /* A4 Canvas Scroll & Paper Layout */
+  .a4-canvas-scroll {
+    padding: 10px 4px;
+    max-height: 520px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .a4-page-sheet {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    padding: 16px 12px !important;
+    box-shadow: none !important;
+    border-radius: 6px !important;
+  }
+
+  .a4-content-editable {
+    font-size: 11pt !important;
+    min-height: 320px !important;
+    line-height: 1.45 !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .a4-content-editable h1,
+  .a4-content-editable h2 {
+    font-size: 13pt !important;
+    margin: 10px 0 6px 0 !important;
+  }
+
+  .a4-content-editable h3 {
+    font-size: 11pt !important;
+    margin: 8px 0 4px 0 !important;
+  }
+
+  .a4-content-editable table {
+    font-size: 8.5pt !important;
+    margin: 8px 0 !important;
+    table-layout: auto !important;
+  }
+
+  .a4-content-editable th,
+  .a4-content-editable td {
+    padding: 4px 5px !important;
+  }
+
+  .page-break-badge-wrapper {
+    margin: 18px -12px;
+    padding: 8px 0;
+  }
+
+  .page-break-badge {
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    gap: 6px;
+  }
+
+  .page-break-remove-btn {
+    font-size: 0.68rem;
+    padding: 1px 6px;
+  }
+
+  /* DOCX Preview */
+  .docx-preview-wrapper .docx-wrapper > section.docx,
+  .docx-preview-wrapper section.docx,
+  .docx-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    padding: 14px 10px !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+    margin: 0 0 16px 0 !important;
+    font-size: 9.5pt !important;
+  }
+
+  /* Tag Assistant Panel */
+  .tag-assistant-panel {
+    padding: 14px 12px;
+    border-radius: 12px;
+    gap: 12px;
+  }
+
+  .tag-panel-header h3 {
+    font-size: 0.95rem;
+  }
+
+  .tag-panel-sub {
+    font-size: 0.75rem;
+  }
+
+  .tag-search-input-box input {
+    padding: 7px 10px 7px 32px;
+    font-size: 0.8rem;
+  }
+
+  .category-chips {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .category-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-chips .chip {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    padding: 3px 8px;
+  }
+
+  .tags-scroll-container {
+    max-height: 300px;
+  }
+
+  .tag-card {
+    padding: 8px 10px;
+    gap: 2px;
+  }
+
+  .tag-code {
+    font-size: 0.75rem;
+  }
+
+  .tag-card-name {
+    font-size: 0.75rem;
+  }
+
+  .tag-card-example {
+    font-size: 0.68rem;
+  }
+
+  .contract-toast {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    font-size: 0.8rem;
+    padding: 10px 14px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .template-tabs-container {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-main-btns .btn {
+    flex: 1 1 100%;
+  }
+}

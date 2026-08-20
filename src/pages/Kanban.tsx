@@ -21,7 +21,168 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useSearchParams } from 'react-router-dom';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import '../styles/kanban.css';
-import '../styles/clients.css'; 
+interface MaterialSearchSelectProps {
+  value: number;
+  materials: Material[];
+  onChange: (materialId: number) => void;
+}
+
+const MaterialSearchSelect: React.FC<MaterialSearchSelectProps> = ({ value, materials, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedMaterial = materials.find(m => m.id === value);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return materials;
+    const q = search.toLowerCase().trim();
+    return materials.filter(m => m.name.toLowerCase().includes(q));
+  }, [materials, search]);
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', minWidth: 0, flex: 3 }}>
+      <button
+        type="button"
+        onClick={() => {
+          setIsOpen(!isOpen);
+          setSearch('');
+        }}
+        style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '6px',
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: '1px solid var(--glass-border)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '6px 10px',
+          color: selectedMaterial ? 'var(--text-primary)' : 'var(--text-secondary)',
+          fontSize: '0.82rem',
+          textAlign: 'left',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          height: '32px'
+        }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selectedMaterial ? (
+            <span>
+              <span style={{ fontWeight: 600 }}>{selectedMaterial.name}</span>
+              {selectedMaterial.unit && (
+                <span style={{ opacity: 0.6, marginLeft: '4px', fontSize: '0.75rem' }}>
+                  ({selectedMaterial.unit})
+                </span>
+              )}
+            </span>
+          ) : 'Выберите позицию...'}
+        </span>
+        <ChevronDown size={14} style={{ opacity: 0.6, flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+      </button>
+
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+          marginTop: '4px',
+          background: 'var(--surface-primary, #1e2230)',
+          border: '1px solid var(--glass-border)',
+          borderRadius: 'var(--radius-sm)',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
+          padding: '6px',
+          maxHeight: '230px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px'
+        }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Search size={13} style={{ position: 'absolute', left: '8px', opacity: 0.5, pointerEvents: 'none' }} />
+            <input
+              type="text"
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Поиск по названию..."
+              style={{
+                width: '100%',
+                padding: '5px 8px 5px 26px',
+                fontSize: '0.8rem',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '4px',
+                color: 'var(--text-primary)',
+                outline: 'none'
+              }}
+              onClick={e => e.stopPropagation()}
+            />
+          </div>
+
+          <div style={{ overflowY: 'auto', maxHeight: '180px', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: '8px', fontSize: '0.78rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                Ничего не найдено
+              </div>
+            ) : (
+              filtered.map(m => {
+                const isSelected = m.id === value;
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => {
+                      onChange(m.id);
+                      setIsOpen(false);
+                    }}
+                    style={{
+                      padding: '5px 8px',
+                      fontSize: '0.8rem',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      background: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                      color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      transition: 'background 0.1s'
+                    }}
+                    onMouseEnter={e => {
+                      if (!isSelected) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                    }}
+                    onMouseLeave={e => {
+                      if (!isSelected) e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <span style={{ fontWeight: isSelected ? 600 : 400 }}>{m.name}</span>
+                    {m.unit && <span style={{ fontSize: '0.72rem', opacity: 0.5 }}>{m.unit}</span>}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Kanban = () => {
   const { t } = useTranslation();
@@ -794,10 +955,10 @@ const Kanban = () => {
     });
   };
 
-  const updateMaterialRow = (index: number, field: string, value: string) => {
+  const updateMaterialRow = (index: number, field: string, value: string | number) => {
     const updated = [...formData.materials];
-    if (field === 'materialId') updated[index].materialId = parseInt(value);
-    if (field === 'quantity') updated[index].quantity = parseFloat(value) || 0;
+    if (field === 'materialId') updated[index].materialId = typeof value === 'number' ? value : parseInt(value);
+    if (field === 'quantity') updated[index].quantity = typeof value === 'number' ? value : (parseFloat(value) || 0);
     setFormData({ ...formData, materials: updated });
   };
 
@@ -2777,40 +2938,30 @@ const Kanban = () => {
                     </div>
 
                     {formData.materials.length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {formData.materials.map((mat, index) => (
                           <div key={index} style={{
                             display: 'flex', 
-                            gap: '12px', 
+                            gap: '8px', 
                             alignItems: 'center',
                             background: 'rgba(255, 255, 255, 0.02)',
                             border: '1px solid var(--glass-border)',
                             borderRadius: 'var(--radius-sm)',
-                            padding: '8px 12px'
+                            padding: '6px 8px'
                           }}>
-                            <div className="custom-select-wrapper" style={{flex: 3, minWidth: '180px'}}>
-                              <select 
-                                value={mat.materialId} 
-                                onChange={(e) => updateMaterialRow(index, 'materialId', e.target.value)}
-                                className="custom-select"
-                              >
-                                {allMaterials.map(m => (
-                                  <option key={m.id} value={m.id}>
-                                    {m.type === 'SERVICE' ? '🛠️ [Услуга] ' : '📦 [Материал] '}
-                                    {m.name} (Цена: {m.salePrice || m.costPrice} ₽ / {m.unit || 'шт'})
-                                  </option>
-                                ))}
-                              </select>
-                              <ChevronDown className="custom-select-icon" size={16} />
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: '100px' }}>
+                            <MaterialSearchSelect
+                              value={mat.materialId}
+                              materials={allMaterials}
+                              onChange={(newId) => updateMaterialRow(index, 'materialId', newId)}
+                            />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '85px', flexShrink: 0 }}>
                               <input 
                                 type="number" 
                                 step="0.01" 
                                 min="0"
                                 value={mat.quantity} 
                                 onChange={(e) => updateMaterialRow(index, 'quantity', e.target.value)}
-                                style={{ width: '100%' }}
+                                style={{ width: '100%', padding: '5px 8px', fontSize: '0.82rem', height: '32px' }}
                                 placeholder="Кол-во"
                                 className="custom-number-input"
                               />
@@ -2818,10 +2969,10 @@ const Kanban = () => {
                             <button 
                               type="button" 
                               onClick={() => removeMaterialRow(index)} 
-                              style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '6px', display: 'flex', alignItems: 'center'}}
+                              style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', opacity: 0.8}}
                               title="Удалить строку"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={15} />
                             </button>
                           </div>
                         ))}
