@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   FileText, Upload, Download, Trash2, CheckCircle2, Copy, Check, Search, 
   User, Building2, RefreshCw, FileCheck, Save, Sparkles, Bold, Italic, 
   Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify, 
-  List, ListOrdered, Table, Eraser, Undo, Redo, Edit3
+  List, ListOrdered, Table, Eraser, Undo, Redo, Edit3, Eye, SplitSquareVertical
 } from 'lucide-react';
 import mammoth from 'mammoth';
+import * as docx from 'docx-preview';
 import { 
   getContractTemplateStatus, uploadContractTemplate, downloadContractTemplateBlob, 
   deleteContractTemplate, generateTestContractDocxBlob, saveContractTemplateHtml, 
@@ -149,6 +150,8 @@ const STARTER_TEMPLATE_INDIVIDUAL = `
 <p>2.2. Заказчик вносит авансовый платеж в размере <strong>{{prepayment}}</strong> при подписании договора.</p>
 <p>2.3. Оставшаяся сумма в размере <strong>{{remainder}}</strong> оплачивается Заказчиком после выполнения монтажа.</p>
 
+<hr class="page-break" />
+
 <h3>3. СРОКИ ВЫПОЛНЕНИЯ РАБОТ</h3>
 <p>3.1. Срок готовности и монтажа: до <strong>{{handover_date}}</strong>.</p>
 
@@ -202,6 +205,8 @@ const STARTER_TEMPLATE_LEGAL = `
 <p>2.2. Авансовый платеж: <strong>{{prepayment}}</strong>.</p>
 <p>2.3. Окончательный расчет в размере <strong>{{remainder}}</strong> осуществляется в течение 3 банковских дней после подписания Акта приема-передачи.</p>
 
+<hr class="page-break" />
+
 <h3>3. РЕКВИЗИТЫ И ПОДПИСИ СТОРОН</h3>
 <table border="1" cellpadding="8" style="width: 100%; border-collapse: collapse;">
   <thead>
@@ -241,8 +246,10 @@ const STARTER_TEMPLATE_LEGAL = `
 
 export const ContractTemplates = () => {
   const [activeTab, setActiveTab] = useState<'INDIVIDUAL' | 'LEGAL_ENTITY'>('INDIVIDUAL');
+  const [viewMode, setViewMode] = useState<'PREVIEW' | 'EDITOR'>('PREVIEW');
   const [status, setStatus] = useState<ContractTemplateStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testGenerating, setTestGenerating] = useState(false);
   const [copiedTag, setCopiedTag] = useState<string | null>(null);
@@ -254,13 +261,42 @@ export const ContractTemplates = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
   const lastSavedRangeRef = useRef<Range | null>(null);
 
-  useEffect(() => {
-    fetchInitialData();
-  }, [activeTab]);
+  const renderDocxPreview = useCallback(async (blob: Blob) => {
+    if (!previewContainerRef.current) return;
+    try {
+      setPreviewLoading(true);
+      previewContainerRef.current.innerHTML = '';
+      await docx.renderAsync(blob, previewContainerRef.current, undefined, {
+        className: 'docx-page-render',
+        inWrapper: true,
+        ignoreWidth: false,
+        ignoreHeight: false,
+        ignoreFonts: false,
+        breakPages: true,
+        ignoreLastRenderedPageBreak: false,
+        experimental: true,
+        trimXmlDeclaration: true,
+        debug: false
+      });
+    } catch (err) {
+      console.error('Failed to render DOCX preview', err);
+      if (previewContainerRef.current) {
+        previewContainerRef.current.innerHTML = `
+          <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+            <p>Не удалось отобразить точный предпросмотр DOCX.</p>
+            <p style="font-size: 0.85rem;">Переключитесь в режим «Редактор текста» для просмотра и правки.</p>
+          </div>
+        `;
+      }
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
 
-  const fetchInitialData = async () => {
+  const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true);
       const [statusRes, htmlContent] = await Promise.all([
@@ -269,27 +305,44 @@ export const ContractTemplates = () => {
       ]);
       setStatus(statusRes);
       
+      const hasTemplate = activeTab === 'INDIVIDUAL' ? statusRes.individual : statusRes.legal;
+
       if (htmlContent && htmlContent.trim()) {
         setEditorContent(htmlContent);
       } else {
-        // Use starter preset by default for quick editing
         const defaultPreset = activeTab === 'INDIVIDUAL' ? STARTER_TEMPLATE_INDIVIDUAL : STARTER_TEMPLATE_LEGAL;
         setEditorContent(defaultPreset);
       }
       setIsModified(false);
+
+      if (hasTemplate) {
+        setViewMode('PREVIEW');
+        try {
+          const blob = await downloadContractTemplateBlob(activeTab);
+          // Wait a tick for container to mount
+          setTimeout(() => renderDocxPreview(blob), 50);
+        } catch (e) {
+          console.warn('Could not fetch docx for preview', e);
+        }
+      } else {
+        setViewMode('EDITOR');
+      }
     } catch (e) {
       console.error('Failed to load contract template', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, renderDocxPreview]);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 2500);
   };
 
-  // Save current selection range so clicking tags doesn't lose cursor
   const saveSelection = () => {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
@@ -305,28 +358,40 @@ export const ContractTemplates = () => {
     }
   };
 
+  const handleInsertPageBreak = () => {
+    const pageBreakHtml = '<hr class="page-break" /><p></p>';
+    document.execCommand('insertHTML', false, pageBreakHtml);
+    if (editorRef.current) {
+      setEditorContent(editorRef.current.innerHTML);
+      setIsModified(true);
+    }
+  };
+
   const handleInsertTagAtCursor = (tag: string) => {
-    if (!editorRef.current) return;
-
-    editorRef.current.focus();
-
-    // Restore selection
-    if (lastSavedRangeRef.current) {
-      const sel = window.getSelection();
-      if (sel) {
-        sel.removeAllRanges();
-        sel.addRange(lastSavedRangeRef.current);
-      }
+    if (viewMode !== 'EDITOR') {
+      setViewMode('EDITOR');
     }
 
-    // Insert tag text or span
-    document.execCommand('insertText', false, tag);
+    setTimeout(() => {
+      if (!editorRef.current) return;
+      editorRef.current.focus();
 
-    setEditorContent(editorRef.current.innerHTML);
-    setIsModified(true);
-    setCopiedTag(tag);
-    showToast(`Метка ${tag} вставлена в документ!`);
-    setTimeout(() => setCopiedTag(null), 2000);
+      if (lastSavedRangeRef.current) {
+        const sel = window.getSelection();
+        if (sel) {
+          sel.removeAllRanges();
+          sel.addRange(lastSavedRangeRef.current);
+        }
+      }
+
+      document.execCommand('insertText', false, tag);
+
+      setEditorContent(editorRef.current.innerHTML);
+      setIsModified(true);
+      setCopiedTag(tag);
+      showToast(`Метка ${tag} вставлена в документ!`);
+      setTimeout(() => setCopiedTag(null), 2000);
+    }, 50);
   };
 
   const handleSaveHtml = async () => {
@@ -338,6 +403,14 @@ export const ContractTemplates = () => {
       setStatus(updatedStatus);
       setIsModified(false);
       showToast('Шаблон договора успешно сохранен в CRM!');
+      
+      // Update preview
+      try {
+        const blob = await downloadContractTemplateBlob(activeTab);
+        renderDocxPreview(blob);
+      } catch (e) {
+        console.warn('Could not re-render preview', e);
+      }
     } catch (e: any) {
       alert('Ошибка сохранения шаблона: ' + (e.response?.data?.error || e.message));
     } finally {
@@ -355,6 +428,7 @@ export const ContractTemplates = () => {
       editorRef.current.innerHTML = preset;
     }
     setIsModified(true);
+    setViewMode('EDITOR');
     showToast('Стандартный образец договора загружен в редактор');
   };
 
@@ -367,7 +441,17 @@ export const ContractTemplates = () => {
     try {
       setLoading(true);
       const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.convertToHtml({ arrayBuffer });
+
+      // Convert images to base64 embedded data URLs
+      const mammothOptions = {
+        convertImage: mammoth.images.imgElement((element: any) => {
+          return element.read("base64").then((imageBuffer: string) => ({
+            src: "data:" + element.contentType + ";base64," + imageBuffer
+          }));
+        })
+      };
+
+      const result = await mammoth.convertToHtml({ arrayBuffer }, mammothOptions);
       const convertedHtml = result.value;
 
       if (convertedHtml && convertedHtml.trim()) {
@@ -375,12 +459,18 @@ export const ContractTemplates = () => {
         if (editorRef.current) {
           editorRef.current.innerHTML = convertedHtml;
         }
-        setIsModified(true);
-        // Also upload file to backend
+        setIsModified(false);
+
+        // Upload to backend
         await uploadContractTemplate(activeTab, file);
         const updatedStatus = await getContractTemplateStatus();
         setStatus(updatedStatus);
-        showToast('DOCX файл успешно открыт в редакторе и сохранен!');
+        showToast('DOCX файл успешно загружен и сохранен со всеми изображениями!');
+
+        // Render preview
+        setViewMode('PREVIEW');
+        const blob = new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        setTimeout(() => renderDocxPreview(blob), 50);
       }
     } catch (e: any) {
       alert('Ошибка при чтении DOCX файла: ' + (e.message || e));
@@ -392,7 +482,6 @@ export const ContractTemplates = () => {
 
   const handleDownloadDocx = async () => {
     try {
-      // If modified, save first
       if (isModified && editorRef.current) {
         await saveContractTemplateHtml(activeTab, editorRef.current.innerHTML);
         setIsModified(false);
@@ -427,6 +516,8 @@ export const ContractTemplates = () => {
       setEditorContent(preset);
       if (editorRef.current) editorRef.current.innerHTML = preset;
       setIsModified(false);
+      setViewMode('EDITOR');
+      if (previewContainerRef.current) previewContainerRef.current.innerHTML = '';
       showToast(`Шаблон ${typeLabel} удален.`);
     } catch (e: any) {
       alert('Ошибка при удалении шаблона: ' + (e.response?.data?.error || e.message));
@@ -527,7 +618,7 @@ export const ContractTemplates = () => {
           </div>
           <div>
             <h1>Шаблоны договоров</h1>
-            <p className="page-subtitle">Визуальный редактор документа прямо в браузере и интерактивный помощник по меткам</p>
+            <p className="page-subtitle">Точное отображение страниц Word, поддержка изображений и встроенный редактор договора</p>
           </div>
         </div>
       </div>
@@ -563,14 +654,39 @@ export const ContractTemplates = () => {
 
       {/* Editor & Tag Assistant Split Grid */}
       <div className="template-editor-grid">
-        {/* Left / Center Column: Visual Document Editor */}
+        {/* Left / Center Column: Document Canvas & Editor */}
         <div className="document-editor-container glass-panel">
           {/* Editor Action Header */}
           <div className="editor-top-actions">
             <div className="editor-title-box">
-              <Edit3 size={18} style={{ color: 'var(--accent-primary)' }} />
-              <h3>{activeTab === 'INDIVIDUAL' ? 'Редактор договора физ. лица' : 'Редактор договора юр. лица'}</h3>
-              {isModified && <span className="modified-badge">Не сохраненные изменения</span>}
+              {/* View Mode Switcher */}
+              <div className="view-mode-toggle-group">
+                <button
+                  type="button"
+                  className={`view-mode-btn ${viewMode === 'PREVIEW' ? 'active' : ''}`}
+                  onClick={() => {
+                    setViewMode('PREVIEW');
+                    if (isTemplateLoaded) {
+                      downloadContractTemplateBlob(activeTab).then(blob => renderDocxPreview(blob)).catch(() => {});
+                    }
+                  }}
+                  title="Оригинальный постраничный вид файла DOCX (100% верстка Word)"
+                >
+                  <Eye size={15} />
+                  <span>Оригинал (DOCX)</span>
+                </button>
+                <button
+                  type="button"
+                  className={`view-mode-btn ${viewMode === 'EDITOR' ? 'active' : ''}`}
+                  onClick={() => setViewMode('EDITOR')}
+                  title="Визуальное редактирование текста и меток"
+                >
+                  <Edit3 size={15} />
+                  <span>Редактор текста</span>
+                </button>
+              </div>
+
+              {isModified && <span className="modified-badge">Есть несохраненные изменения</span>}
             </div>
 
             <div className="editor-main-btns">
@@ -588,10 +704,10 @@ export const ContractTemplates = () => {
               <button 
                 className="btn btn-secondary"
                 onClick={() => fileInputRef.current?.click()}
-                title="Импортировать готовый .docx файл в редактор"
+                title="Загрузить готовый .docx файл договора"
               >
                 <Upload size={15} />
-                <span>Открыть .docx</span>
+                <span>Загрузить .docx</span>
               </button>
 
               <button 
@@ -610,7 +726,7 @@ export const ContractTemplates = () => {
                 title="Скачать договор в формате Word (.docx)"
               >
                 <Download size={15} />
-                <span>DOCX</span>
+                <span>Скачать DOCX</span>
               </button>
 
               <button 
@@ -645,66 +761,93 @@ export const ContractTemplates = () => {
             </div>
           </div>
 
-          {/* Formatting Toolbar */}
-          <div className="editor-toolbar">
-            <div className="toolbar-group">
-              <button type="button" className="tool-btn" onClick={() => executeCommand('undo')} title="Отменить (Ctrl+Z)"><Undo size={15} /></button>
-              <button type="button" className="tool-btn" onClick={() => executeCommand('redo')} title="Повторить (Ctrl+Y)"><Redo size={15} /></button>
+          {/* Formatting Toolbar (Only in EDITOR Mode) */}
+          {viewMode === 'EDITOR' && (
+            <div className="editor-toolbar">
+              <div className="toolbar-group">
+                <button type="button" className="tool-btn" onClick={() => executeCommand('undo')} title="Отменить (Ctrl+Z)"><Undo size={15} /></button>
+                <button type="button" className="tool-btn" onClick={() => executeCommand('redo')} title="Повторить (Ctrl+Y)"><Redo size={15} /></button>
+              </div>
+
+              <div className="toolbar-divider" />
+
+              <div className="toolbar-group">
+                <button type="button" className="tool-btn" onClick={() => executeCommand('bold')} title="Жирный"><Bold size={15} /></button>
+                <button type="button" className="tool-btn" onClick={() => executeCommand('italic')} title="Курсив"><Italic size={15} /></button>
+                <button type="button" className="tool-btn" onClick={() => executeCommand('underline')} title="Подчеркнутый"><UnderlineIcon size={15} /></button>
+                <button type="button" className="tool-btn" onClick={() => executeCommand('removeFormat')} title="Очистить форматирование"><Eraser size={15} /></button>
+              </div>
+
+              <div className="toolbar-divider" />
+
+              <div className="toolbar-group">
+                <button type="button" className="tool-btn" onClick={() => executeCommand('formatBlock', '<h2>')} title="Заголовок H2">H2</button>
+                <button type="button" className="tool-btn" onClick={() => executeCommand('formatBlock', '<h3>')} title="Заголовок H3">H3</button>
+                <button type="button" className="tool-btn" onClick={() => executeCommand('formatBlock', '<p>')} title="Обычный текст">P</button>
+              </div>
+
+              <div className="toolbar-divider" />
+
+              <div className="toolbar-group">
+                <button type="button" className="tool-btn" onClick={() => executeCommand('justifyLeft')} title="По левому краю"><AlignLeft size={15} /></button>
+                <button type="button" className="tool-btn" onClick={() => executeCommand('justifyCenter')} title="По центру"><AlignCenter size={15} /></button>
+                <button type="button" className="tool-btn" onClick={() => executeCommand('justifyRight')} title="По правому краю"><AlignRight size={15} /></button>
+                <button type="button" className="tool-btn" onClick={() => executeCommand('justifyFull')} title="По ширине"><AlignJustify size={15} /></button>
+              </div>
+
+              <div className="toolbar-divider" />
+
+              <div className="toolbar-group">
+                <button type="button" className="tool-btn" onClick={() => executeCommand('insertUnorderedList')} title="Маркированный список"><List size={15} /></button>
+                <button type="button" className="tool-btn" onClick={() => executeCommand('insertOrderedList')} title="Нумерованный список"><ListOrdered size={15} /></button>
+                <button type="button" className="tool-btn" onClick={insertTable} title="Вставить таблицу"><Table size={15} /></button>
+                <button type="button" className="tool-btn page-break-tool" onClick={handleInsertPageBreak} title="Вставить разрыв страницы А4">
+                  <SplitSquareVertical size={15} />
+                  <span>Разрыв страницы</span>
+                </button>
+              </div>
             </div>
+          )}
 
-            <div className="toolbar-divider" />
-
-            <div className="toolbar-group">
-              <button type="button" className="tool-btn" onClick={() => executeCommand('bold')} title="Жирный"><Bold size={15} /></button>
-              <button type="button" className="tool-btn" onClick={() => executeCommand('italic')} title="Курсив"><Italic size={15} /></button>
-              <button type="button" className="tool-btn" onClick={() => executeCommand('underline')} title="Подчеркнутый"><UnderlineIcon size={15} /></button>
-              <button type="button" className="tool-btn" onClick={() => executeCommand('removeFormat')} title="Очистить форматирование"><Eraser size={15} /></button>
-            </div>
-
-            <div className="toolbar-divider" />
-
-            <div className="toolbar-group">
-              <button type="button" className="tool-btn" onClick={() => executeCommand('formatBlock', '<h2>')} title="Заголовок H2">H2</button>
-              <button type="button" className="tool-btn" onClick={() => executeCommand('formatBlock', '<h3>')} title="Заголовок H3">H3</button>
-              <button type="button" className="tool-btn" onClick={() => executeCommand('formatBlock', '<p>')} title="Обычный текст">P</button>
-            </div>
-
-            <div className="toolbar-divider" />
-
-            <div className="toolbar-group">
-              <button type="button" className="tool-btn" onClick={() => executeCommand('justifyLeft')} title="По левому краю"><AlignLeft size={15} /></button>
-              <button type="button" className="tool-btn" onClick={() => executeCommand('justifyCenter')} title="По центру"><AlignCenter size={15} /></button>
-              <button type="button" className="tool-btn" onClick={() => executeCommand('justifyRight')} title="По правому краю"><AlignRight size={15} /></button>
-              <button type="button" className="tool-btn" onClick={() => executeCommand('justifyFull')} title="По ширине"><AlignJustify size={15} /></button>
-            </div>
-
-            <div className="toolbar-divider" />
-
-            <div className="toolbar-group">
-              <button type="button" className="tool-btn" onClick={() => executeCommand('insertUnorderedList')} title="Маркированный список"><List size={15} /></button>
-              <button type="button" className="tool-btn" onClick={() => executeCommand('insertOrderedList')} title="Нумерованный список"><ListOrdered size={15} /></button>
-              <button type="button" className="tool-btn" onClick={insertTable} title="Вставить таблицу"><Table size={15} /></button>
-            </div>
-          </div>
-
-          {/* A4 Paper Canvas */}
+          {/* Document Display Canvas */}
           <div className="a4-canvas-scroll">
-            <div className="a4-page-sheet">
+            {/* View Mode: PREVIEW (DOCX-PREVIEW 100% Fidelity) */}
+            <div 
+              style={{ display: viewMode === 'PREVIEW' ? 'block' : 'none', width: '100%' }}
+            >
+              {previewLoading && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px', gap: '10px', color: 'var(--text-muted)' }}>
+                  <RefreshCw size={24} className="spin" />
+                  <span>Рендеринг страниц документа...</span>
+                </div>
+              )}
               <div 
-                ref={editorRef}
-                className="a4-content-editable"
-                contentEditable
-                suppressContentEditableWarning
-                dangerouslySetInnerHTML={{ __html: editorContent }}
-                onInput={() => {
-                  if (editorRef.current) {
-                    setEditorContent(editorRef.current.innerHTML);
-                    setIsModified(true);
-                  }
-                }}
-                onKeyUp={saveSelection}
-                onMouseUp={saveSelection}
+                ref={previewContainerRef} 
+                className="docx-preview-wrapper"
               />
+            </div>
+
+            {/* View Mode: EDITOR (A4 Multi-page WYSIWYG Editor) */}
+            <div 
+              style={{ display: viewMode === 'EDITOR' ? 'flex' : 'none', width: '100%', justifyContent: 'center' }}
+            >
+              <div className="a4-page-sheet">
+                <div 
+                  ref={editorRef}
+                  className="a4-content-editable"
+                  contentEditable
+                  suppressContentEditableWarning
+                  dangerouslySetInnerHTML={{ __html: editorContent }}
+                  onInput={() => {
+                    if (editorRef.current) {
+                      setEditorContent(editorRef.current.innerHTML);
+                      setIsModified(true);
+                    }
+                  }}
+                  onKeyUp={saveSelection}
+                  onMouseUp={saveSelection}
+                />
+              </div>
             </div>
           </div>
         </div>

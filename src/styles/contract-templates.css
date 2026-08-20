@@ -1,6 +1,6 @@
 .contract-templates-page {
   padding: 24px;
-  max-width: 1560px;
+  max-width: 1600px;
   margin: 0 auto;
   animation: fadeIn 0.3s ease-in-out;
 }
@@ -136,7 +136,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 14px 18px;
   background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
   flex-wrap: wrap;
@@ -146,14 +146,41 @@
 .editor-title-box {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-.editor-title-box h3 {
-  font-size: 1.05rem;
-  font-weight: 700;
+/* Mode Switcher Toggle */
+.view-mode-toggle-group {
+  display: inline-flex;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.view-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.view-mode-btn:hover {
   color: var(--text-main, #f8fafc);
-  margin: 0;
+}
+
+.view-mode-btn.active {
+  background: var(--accent-primary, #6366f1);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .modified-badge {
@@ -162,7 +189,7 @@
   border: 1px solid rgba(245, 158, 11, 0.3);
   font-size: 0.72rem;
   font-weight: 600;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 12px;
 }
 
@@ -179,7 +206,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.22);
   border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
   flex-wrap: wrap;
 }
@@ -225,25 +252,69 @@
   color: #ffffff;
 }
 
-/* A4 Paper Canvas Scroll Area */
-.a4-canvas-scroll {
-  background: rgba(15, 23, 42, 0.5);
-  padding: 30px 20px;
-  display: flex;
-  justify-content: center;
-  max-height: 720px;
-  overflow-y: auto;
+.page-break-tool {
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent-primary, #818cf8);
+  border-color: rgba(99, 102, 241, 0.25);
 }
 
+/* A4 Paper Canvas Scroll Area */
+.a4-canvas-scroll {
+  background: #0b1329;
+  padding: 36px 20px;
+  display: flex;
+  justify-content: center;
+  max-height: 780px;
+  overflow-y: auto;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+/* DOCX-PREVIEW Exact Rendering */
+.docx-preview-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.docx-preview-wrapper .docx-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.docx-preview-wrapper .docx-wrapper > section.docx {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5) !important;
+  margin: 0 auto !important;
+  box-sizing: border-box !important;
+  border-radius: 3px !important;
+}
+
+.docx-preview-wrapper img {
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
+
+/* A4 Sheet in WYSIWYG Editor */
 .a4-page-sheet {
   width: 100%;
   max-width: 820px;
-  min-height: 1050px;
+  min-height: 1120px;
   background: #ffffff;
-  color: #1e293b;
-  border-radius: 4px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-  padding: 48px 56px;
+  color: #0f172a;
+  border-radius: 3px;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
+  padding: 50px 60px;
   box-sizing: border-box;
   font-family: 'Times New Roman', Times, serif;
 }
@@ -256,12 +327,20 @@
 
 .a4-content-editable {
   outline: none;
-  min-height: 900px;
+  min-height: 980px;
   line-height: 1.55;
   font-size: 13.5pt;
   color: #0f172a;
 }
 
+.a4-content-editable img {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+  margin: 6px 0;
+}
+
+.a4-content-editable h1,
 .a4-content-editable h2 {
   font-size: 16pt;
   font-weight: bold;
@@ -289,13 +368,42 @@
 
 .a4-content-editable th,
 .a4-content-editable td {
-  border: 1px solid #94a3b8;
+  border: 1px solid #64748b;
   padding: 6px 8px;
 }
 
 .a4-content-editable th {
   background: #f1f5f9;
   font-weight: bold;
+}
+
+/* Page Break Divider in Editor */
+.a4-content-editable hr.page-break,
+hr.page-break {
+  border: none;
+  height: 28px;
+  position: relative;
+  margin: 32px -60px;
+  background: #0b1329;
+  cursor: default;
+}
+
+.a4-content-editable hr.page-break::after,
+hr.page-break::after {
+  content: "✂ --- Разрыв страницы А4 ---";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: #1e293b;
+  padding: 2px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  letter-spacing: 0.5px;
 }
 
 /* Tag Assistant Panel */
@@ -406,7 +514,7 @@
 
 /* Tags Scroll */
 .tags-scroll-container {
-  max-height: 620px;
+  max-height: 640px;
   overflow-y: auto;
   padding-right: 4px;
 }
