@@ -59,7 +59,7 @@ export const Earnings: React.FC = () => {
 
     return data.items.filter((item) => {
       // Date filtering
-      const itemDateStr = item.installationDate || item.createdAt;
+      const itemDateStr = item.installedAt || item.installationDate || item.createdAt;
       if (itemDateStr) {
         const itemDate = new Date(itemDateStr);
         if (period === 'THIS_MONTH') {
@@ -530,12 +530,17 @@ export const Earnings: React.FC = () => {
                     </a>
                   )}
 
-                  {item.installationDate && (
+                  {item.installedAt ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#4ade80' }}>
+                      <CheckCircle2 size={13} />
+                      <span>Выполнен: {new Date(item.installedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  ) : item.installationDate ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Clock size={13} />
                       <span>Монтаж: {new Date(item.installationDate).toLocaleDateString('ru-RU')}</span>
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
                 {item.description && (

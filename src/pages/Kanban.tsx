@@ -57,6 +57,10 @@ const Kanban = () => {
     clientId: '',
     statusId: '',
     assigneeId: '',
+    installedById: '',
+    installedByName: '',
+    installedByAvatarUrl: '',
+    installedAt: '',
     orderNumber: '',
     address: '',
     entrance: '',
@@ -176,6 +180,10 @@ const Kanban = () => {
             clientId: orderToOpen.clientId ? orderToOpen.clientId.toString() : '',
             statusId: orderToOpen.statusId ? orderToOpen.statusId.toString() : (sortedColumns[0]?.id ? sortedColumns[0].id.toString() : ''),
             assigneeId: orderToOpen.assigneeId ? orderToOpen.assigneeId.toString() : '',
+            installedById: orderToOpen.installedById ? orderToOpen.installedById.toString() : '',
+            installedByName: orderToOpen.installedByName || '',
+            installedByAvatarUrl: orderToOpen.installedByAvatarUrl || '',
+            installedAt: orderToOpen.installedAt || '',
             orderNumber: orderToOpen.orderNumber || '',
             address: orderToOpen.address || '',
             entrance: orderToOpen.entrance || '',
@@ -243,6 +251,10 @@ const Kanban = () => {
       clientId: '',
       statusId: columns[0]?.id ? columns[0].id.toString() : '',
       assigneeId: '',
+      installedById: '',
+      installedByName: '',
+      installedByAvatarUrl: '',
+      installedAt: '',
       orderNumber: '',
       address: '',
       entrance: '',
@@ -345,6 +357,10 @@ const Kanban = () => {
       clientId: order.clientId ? order.clientId.toString() : '',
       statusId: order.statusId ? order.statusId.toString() : (columns[0]?.id ? columns[0].id.toString() : ''),
       assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
+      installedById: order.installedById ? order.installedById.toString() : '',
+      installedByName: order.installedByName || '',
+      installedByAvatarUrl: order.installedByAvatarUrl || '',
+      installedAt: order.installedAt || '',
       orderNumber: order.orderNumber || '',
       address: order.address || '',
       entrance: order.entrance || '',
@@ -379,6 +395,8 @@ const Kanban = () => {
     const payload = {
       clientId: parseInt(formData.clientId),
       assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
+      installedById: formData.installedById ? parseInt(formData.installedById) : undefined,
+      installedAt: formData.installedAt || undefined,
       statusId: formData.statusId ? parseInt(formData.statusId) : (editingOrderId ? cards.find(c => c.id === editingOrderId)?.statusId || columns[0].id : columns[0].id),
       orderNumber: (formData.orderNumber && formData.orderNumber.trim()) ? formData.orderNumber.trim() : null,
       address: formData.address,
@@ -503,6 +521,8 @@ const Kanban = () => {
         clientId,
         statusId: formData.statusId ? parseInt(formData.statusId) : (editingOrderId ? cards.find(c => c.id === editingOrderId)?.statusId || columns[0].id : columns[0].id),
         assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
+        installedById: formData.installedById ? parseInt(formData.installedById) : undefined,
+        installedAt: formData.installedAt || undefined,
         orderNumber: currentOrderNumber,
         address: formData.address,
         entrance: formData.entrance || undefined,
@@ -1384,6 +1404,30 @@ const Kanban = () => {
                         <span>Аванс: <strong style={{ color: 'var(--text-primary)' }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
                         <span>Остаток: <strong style={{ color: 'var(--text-primary)' }}>{((card.remainder != null ? card.remainder : card.totalPrice) || 0).toLocaleString('ru-RU')} ₽</strong></span>
                       </div>
+                      {card.installedByName && (
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          color: '#4ade80',
+                          background: 'rgba(34, 197, 94, 0.08)',
+                          border: '1px solid rgba(34, 197, 94, 0.2)',
+                          padding: '3px 7px',
+                          borderRadius: '4px',
+                          gap: '4px'
+                        }} title={card.installedAt ? `Монтаж завершен: ${new Date(card.installedAt).toLocaleString('ru-RU')}` : 'Монтаж выполнен'}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <CheckCircle2 size={12} style={{ flexShrink: 0 }} /> Монтажник: {card.installedByName}
+                          </span>
+                          {card.installedAt && (
+                            <span style={{ fontSize: '0.68rem', opacity: 0.8, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                              {new Date(card.installedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1787,6 +1831,92 @@ const Kanban = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* Исполнитель монтажа (если монтаж выполнен или заказ в завершенном статусе) */}
+                    {(() => {
+                      const currentOrder = cards.find(c => c.id === editingOrderId);
+                      const statusObj = columns.find(c => c.id.toString() === formData.statusId);
+                      const isCompleted = statusObj ? (
+                        statusObj.name.toLowerCase().includes('заверш') ||
+                        statusObj.name.toLowerCase().includes('готов') ||
+                        statusObj.name.toLowerCase().includes('выполнен')
+                      ) : false;
+
+                      const hasInstaller = !!(formData.installedById || currentOrder?.installedByName || isCompleted);
+                      if (!hasInstaller && !isCompleted) return null;
+
+                      const installerEmployee = employees.find(e => e.id.toString() === formData.installedById);
+                      const installerName = installerEmployee?.name || currentOrder?.installedByName || (formData.assigneeId ? employees.find(e => e.id.toString() === formData.assigneeId)?.name : null);
+                      const installerAvatar = installerEmployee?.avatarUrl || currentOrder?.installedByAvatarUrl;
+                      const installedAt = formData.installedAt || currentOrder?.installedAt;
+
+                      return (
+                        <div style={{
+                          marginBottom: '16px',
+                          padding: '12px 14px',
+                          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(16, 185, 129, 0.03) 100%)',
+                          border: '1px solid rgba(34, 197, 94, 0.25)',
+                          borderRadius: 'var(--radius-sm)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, color: '#4ade80' }}>
+                              <CheckCircle2 size={16} /> Исполнитель монтажа
+                            </div>
+                            {installedAt && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                Завершен: <strong style={{ color: 'var(--text-primary)' }}>{new Date(installedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
+                              </div>
+                            )}
+                          </div>
+
+                          {isWorker ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                overflow: 'hidden',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: '#fff',
+                                background: installerAvatar ? 'transparent' : getAvatarGradient(installerName || 'Монтажник'),
+                                border: '2px solid rgba(34, 197, 94, 0.4)'
+                              }}>
+                                {installerAvatar ? (
+                                  <img src={installerAvatar} alt={installerName || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  getEmployeeInitials(installerName || 'М')
+                                )}
+                              </div>
+                              <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {installerName || 'Не указан'}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="custom-select-wrapper">
+                              <select
+                                value={formData.installedById || (currentOrder?.installedById ? currentOrder.installedById.toString() : '')}
+                                onChange={(e) => setFormData({ ...formData, installedById: e.target.value })}
+                                className="custom-select"
+                                style={{ background: 'rgba(0, 0, 0, 0.2)' }}
+                              >
+                                <option value="">{installerName ? `Текущий: ${installerName}` : 'Выберите монтажника...'}</option>
+                                {employees.map(e => (
+                                  <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
+                                ))}
+                              </select>
+                              <ChevronDown className="custom-select-icon" size={16} />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     <div className="form-group">
                       <label>{t('kanban.modal.address')}</label>

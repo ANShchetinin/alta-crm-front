@@ -8,6 +8,7 @@ export interface WorkerEarningsItem {
   address?: string;
   description?: string;
   installationDate?: string;
+  installedAt?: string;
   createdAt?: string;
   installationPrice: number;
   statusName?: string;
