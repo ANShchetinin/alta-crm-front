@@ -9,8 +9,8 @@ import {
 import * as docx from 'docx-preview';
 import { 
   getContractTemplateStatus, uploadContractTemplate, downloadContractTemplateBlob, 
-  deleteContractTemplate, generateTestContractDocxBlob, saveContractTemplateHtml, 
-  getContractTemplateHtml 
+  deleteContractTemplate, generateTestContractDocxBlob, generateTestContractPdfBlob, 
+  saveContractTemplateHtml, getContractTemplateHtml 
 } from '../api/settings';
 import type { ContractTemplateStatus } from '../api/settings';
 import '../styles/contract-templates.css';
@@ -558,6 +558,8 @@ export const ContractTemplates = () => {
     }
   };
 
+  const [testPdfGenerating, setTestPdfGenerating] = useState(false);
+
   const handleTestGeneration = async () => {
     try {
       setTestGenerating(true);
@@ -574,11 +576,29 @@ export const ContractTemplates = () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      showToast('Тестовый договор успешно сформирован и скачан!');
+      showToast('Тестовый договор (Word) успешно сформирован и скачан!');
     } catch (e: any) {
-      alert('Ошибка тестовой генерации: ' + (e.response?.data?.error || e.message));
+      alert('Ошибка тестовой генерации Word: ' + (e.response?.data?.error || e.message));
     } finally {
       setTestGenerating(false);
+    }
+  };
+
+  const handleTestPdfGeneration = async () => {
+    try {
+      setTestPdfGenerating(true);
+      if (viewMode === 'HTML_EDITOR' && isModified && editorRef.current) {
+        await saveContractTemplateHtml(activeTab, editorRef.current.innerHTML);
+        setIsModified(false);
+      }
+      const blob = await generateTestContractPdfBlob(activeTab);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      showToast('Тестовый PDF договора успешно сформирован!');
+    } catch (e: any) {
+      alert('Ошибка генерации PDF: ' + (e.response?.data?.error || e.message));
+    } finally {
+      setTestPdfGenerating(false);
     }
   };
 
@@ -777,10 +797,20 @@ export const ContractTemplates = () => {
                 className="btn btn-secondary"
                 disabled={!isTemplateLoaded || testGenerating}
                 onClick={handleTestGeneration}
-                title="Сформировать тестовый заполненный договор"
+                title="Сформировать тестовый заполненный договор в формате Word (.docx)"
               >
                 {testGenerating ? <RefreshCw size={15} className="spin" /> : <FileCheck size={15} />}
-                <span>Тест</span>
+                <span>Тест Word</span>
+              </button>
+
+              <button 
+                className="btn btn-secondary"
+                disabled={!isTemplateLoaded || testPdfGenerating}
+                onClick={handleTestPdfGeneration}
+                title="Сформировать тестовый заполненный договор в формате PDF"
+              >
+                {testPdfGenerating ? <RefreshCw size={15} className="spin" /> : <FileText size={15} />}
+                <span>Тест PDF</span>
               </button>
 
               {isTemplateLoaded && (
