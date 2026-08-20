@@ -3,10 +3,9 @@ import {
   FileText, Upload, Download, Trash2, CheckCircle2, Copy, Check, Search, 
   User, Building2, RefreshCw, FileCheck, Save, Sparkles, Bold, Italic, 
   Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify, 
-  List, ListOrdered, Table, Eraser, Undo, Redo, Edit3, Eye, SplitSquareVertical,
+  List, ListOrdered, Table, Eraser, Undo, Redo, SplitSquareVertical,
   Image as ImageIcon
 } from 'lucide-react';
-import mammoth from 'mammoth';
 import * as docx from 'docx-preview';
 import { 
   getContractTemplateStatus, uploadContractTemplate, downloadContractTemplateBlob, 
@@ -112,17 +111,28 @@ const AVAILABLE_TAGS: TagItem[] = [
 ];
 
 const STARTER_TEMPLATE_INDIVIDUAL = `
-<h2 style="text-align: center;">ДОГОВОР ПОДРЯДА № {{order_num}}</h2>
-<p style="display: flex; justify-content: space-between;"><strong>г. {{city}}</strong> <span style="float: right;"><strong>{{contract_date}}</strong></span></p>
+<h2 style="text-align: center; margin-bottom: 20px;">ДОГОВОР ПОДРЯДА № {{order_num}}</h2>
+<p style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+  <strong>г. {{city}}</strong>
+  <strong style="float: right;">{{contract_date}}</strong>
+</p>
 <div style="clear: both;"></div>
-<p><strong>{{executor_name}}</strong>, именуемый(ое) в дальнейшем «Исполнитель», с одной стороны, и гражданин(ка) <strong>{{client_name}}</strong>, именуемый(ая) в дальнейшем «Заказчик», с другой стороны, заключили настоящий договор о нижеследующем:</p>
 
-<h3>1. ПРЕДМЕТ ДОГОВОРА</h3>
-<p>1.1. Исполнитель обязуется выполнить работы по установке натяжного потолка по адресу: <strong>{{install_address}}</strong>, а Заказчик обязуется принять результат работ и оплатить его.</p>
-<p>1.2. Сводные параметры помещения:</p>
-<table border="1" cellpadding="6" style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 12px;">
+  <strong>{{executor_name}}</strong>, именуемый(ое) в дальнейшем «Исполнитель», с одной стороны, и гражданин(ка) <strong>{{client_name}}</strong>, именуемый(ая) в дальнейшем «Заказчик», с другой стороны, заключили настоящий договор о нижеследующем:
+</p>
+
+<h3 style="margin-top: 18px; margin-bottom: 10px;">1. ПРЕДМЕТ ДОГОВОРА</h3>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 10px;">
+  1.1. Исполнитель обязуется выполнить работы по установке натяжного потолка по адресу: <strong>{{install_address}}</strong>, а Заказчик обязуется принять результат работ и оплатить его в соответствии с условиями настоящего Договора.
+</p>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 10px;">
+  1.2. Сводные параметры помещения и спецификация конструкций:
+</p>
+
+<table border="1" cellpadding="8" style="width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 11pt;">
   <thead>
-    <tr style="background: rgba(0,0,0,0.05);">
+    <tr style="background: #f1f5f9; text-align: center;">
       <th>Площадь (м²)</th>
       <th>Периметр (м/п)</th>
       <th>Полотен (шт)</th>
@@ -133,58 +143,75 @@ const STARTER_TEMPLATE_INDIVIDUAL = `
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td align="center">{{area}}</td>
-      <td align="center">{{perimeter}}</td>
-      <td align="center">{{canvases_count}}</td>
-      <td align="center">{{insert_length}}</td>
-      <td align="center">{{pipe_count}}</td>
-      <td align="center">{{lights_count}}</td>
-      <td align="center">{{timber_length}}</td>
+    <tr style="text-align: center;">
+      <td>{{area}}</td>
+      <td>{{perimeter}}</td>
+      <td>{{canvases_count}}</td>
+      <td>{{insert_length}}</td>
+      <td>{{pipe_count}}</td>
+      <td>{{lights_count}}</td>
+      <td>{{timber_length}}</td>
     </tr>
   </tbody>
 </table>
-<p>Артикул / фактура полотна: <strong>{{canvas_article}}</strong>.</p>
 
-<h3>2. СТОИМОСТЬ И ПОРЯДОК ОПЛАТЫ</h3>
-<p>2.1. Общая стоимость работ и материалов составляет <strong>{{total_price}}</strong> ({{total_price_words}}).</p>
-<p>2.2. Заказчик вносит авансовый платеж в размере <strong>{{prepayment}}</strong> при подписании договора.</p>
-<p>2.3. Оставшаяся сумма в размере <strong>{{remainder}}</strong> оплачивается Заказчиком после выполнения монтажа.</p>
+<p style="margin-bottom: 12px;">Артикул и фактура полотна: <strong>{{canvas_article}}</strong>.</p>
 
-<hr class="page-break" />
+<h3 style="margin-top: 18px; margin-bottom: 10px;">2. СТОИМОСТЬ И ПОРЯДОК ОПЛАТЫ</h3>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 8px;">
+  2.1. Общая стоимость работ и материалов по Договору составляет <strong>{{total_price}}</strong> ({{total_price_words}}).
+</p>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 8px;">
+  2.2. Заказчик вносит авансовый платеж в размере <strong>{{prepayment}}</strong> при подписании настоящего Договора.
+</p>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 8px;">
+  2.3. Окончательный расчет в размере <strong>{{remainder}}</strong> производится Заказчиком в день завершения монтажных работ.
+</p>
 
-<h3>3. СРОКИ ВЫПОЛНЕНИЯ РАБОТ</h3>
-<p>3.1. Срок готовности и монтажа: до <strong>{{handover_date}}</strong>.</p>
+<div class="page-break-badge-wrapper" contenteditable="false" data-page-break="true">
+  <div class="page-break-badge">
+    <span>✂ --- Разрыв страницы А4 ---</span>
+    <button type="button" class="page-break-remove-btn" onclick="this.closest('.page-break-badge-wrapper').remove()">✕ Удалить</button>
+  </div>
+</div>
 
-<h3>4. РЕКВИЗИТЫ И ПОДПИСИ СТОРОН</h3>
-<table border="1" cellpadding="8" style="width: 100%; border-collapse: collapse;">
+<h3 style="margin-top: 18px; margin-bottom: 10px;">3. СРОКИ И ПОРЯДОК СДАЧИ-ПРИЕМКИ</h3>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 8px;">
+  3.1. Срок готовности и монтажа: до <strong>{{handover_date}}</strong>.
+</p>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 14px;">
+  3.2. По завершении работ стороны подписывают Акт приема-сдачи выполненных работ.
+</p>
+
+<h3 style="margin-top: 18px; margin-bottom: 10px;">4. АДРЕСА, РЕКВИЗИТЫ И ПОДПИСИ СТОРОН</h3>
+<table border="1" cellpadding="10" style="width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 10.5pt;">
   <thead>
-    <tr style="background: rgba(0,0,0,0.05);">
-      <th style="width: 50%;">ИСПОЛНИТЕЛЬ</th>
-      <th style="width: 50%;">ЗАКАЗЧИК</th>
+    <tr style="background: #f1f5f9;">
+      <th style="width: 50%; text-align: left;">ИСПОЛНИТЕЛЬ</th>
+      <th style="width: 50%; text-align: left;">ЗАКАЗЧИК</th>
     </tr>
   </thead>
   <tbody>
     <tr valign="top">
       <td>
-        <p><strong>{{executor_name}}</strong></p>
-        <p>ИНН: {{executor_inn}} / ОГРН: {{executor_ogrn}}</p>
-        <p>Адрес: {{executor_legal_address}}</p>
-        <p>Банк: {{executor_bank_name}}</p>
-        <p>БИК: {{executor_bik}}, Р/с: {{executor_rs}}</p>
-        <p>Телефон: {{executor_phone}}, Email: {{executor_email}}</p>
-        <br/>
-        <p>________________ / {{executor_short}} /</p>
+        <p style="margin: 0 0 6px 0;"><strong>{{executor_name}}</strong></p>
+        <p style="margin: 0 0 4px 0;">ИНН: {{executor_inn}} / ОГРН: {{executor_ogrn}}</p>
+        <p style="margin: 0 0 4px 0;">Юр. адрес: {{executor_legal_address}}</p>
+        <p style="margin: 0 0 4px 0;">Банк: {{executor_bank_name}}</p>
+        <p style="margin: 0 0 4px 0;">БИК: {{executor_bik}}, Р/с: {{executor_rs}}</p>
+        <p style="margin: 0 0 4px 0;">Телефон: {{executor_phone}}, Email: {{executor_email}}</p>
+        <br/><br/>
+        <p style="margin: 0;">________________ / {{executor_short}} /</p>
       </td>
       <td>
-        <p><strong>{{client_name}}</strong></p>
-        <p>Паспорт: {{client_passport_series}} {{client_passport_number}}</p>
-        <p>Выдан: {{client_passport_issued_by}}</p>
-        <p>Дата выдачи: {{client_passport_issued_date}}</p>
-        <p>Адрес регистрации: {{client_reg_address}}</p>
-        <p>Телефон: {{client_phone}}</p>
-        <br/>
-        <p>________________ / {{client_short}} /</p>
+        <p style="margin: 0 0 6px 0;"><strong>{{client_name}}</strong></p>
+        <p style="margin: 0 0 4px 0;">Паспорт: {{client_passport_series}} {{client_passport_number}}</p>
+        <p style="margin: 0 0 4px 0;">Выдан: {{client_passport_issued_by}}</p>
+        <p style="margin: 0 0 4px 0;">Дата выдачи: {{client_passport_issued_date}}</p>
+        <p style="margin: 0 0 4px 0;">Адрес регистрации: {{client_reg_address}}</p>
+        <p style="margin: 0 0 4px 0;">Телефон: {{client_phone}}</p>
+        <br/><br/>
+        <p style="margin: 0;">________________ / {{client_short}} /</p>
       </td>
     </tr>
   </tbody>
@@ -192,53 +219,74 @@ const STARTER_TEMPLATE_INDIVIDUAL = `
 `;
 
 const STARTER_TEMPLATE_LEGAL = `
-<h2 style="text-align: center;">ДОГОВОР ПОДРЯДА № {{order_num}}</h2>
-<p style="display: flex; justify-content: space-between;"><strong>г. {{city}}</strong> <span style="float: right;"><strong>{{contract_date}}</strong></span></p>
+<h2 style="text-align: center; margin-bottom: 20px;">ДОГОВОР ПОДРЯДА № {{order_num}}</h2>
+<p style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+  <strong>г. {{city}}</strong>
+  <strong style="float: right;">{{contract_date}}</strong>
+</p>
 <div style="clear: both;"></div>
-<p><strong>{{executor_name}}</strong>, именуемый в дальнейшем «Исполнитель», в лице <strong>{{executor_signer_name}}</strong>, действующего на основании {{executor_signer_authority}}, с одной стороны, и <strong>{{client_legal_name}}</strong>, именуемое в дальнейшем «Заказчик», в лице <strong>{{client_contact_person}}</strong>, действующего на основании Устава, с другой стороны, заключили настоящий договор о нижеследующем:</p>
 
-<h3>1. ПРЕДМЕТ ДОГОВОРА</h3>
-<p>1.1. Исполнитель обязуется выполнить комплекс монтажных работ по установке натяжных потолков на объекте Заказчика по адресу: <strong>{{install_address}}</strong>.</p>
-<p>1.2. Площадь объекта: <strong>{{area}} м²</strong>, периметр: <strong>{{perimeter}} м/п</strong>, количество светильников: <strong>{{lights_count}} шт.</strong></p>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 12px;">
+  <strong>{{executor_name}}</strong>, именуемый в дальнейшем «Исполнитель», в лице <strong>{{executor_signer_name}}</strong>, действующего на основании {{executor_signer_authority}}, с одной стороны, и <strong>{{client_legal_name}}</strong>, именуемое в дальнейшем «Заказчик», в лице <strong>{{client_contact_person}}</strong>, действующего на основании Устава, с другой стороны, заключили настоящий договор о нижеследующем:
+</p>
 
-<h3>2. СТОИМОСТЬ И ПОРЯДОК РАСЧЕТОВ</h3>
-<p>2.1. Стоимость работ по настоящему договору составляет <strong>{{total_price}}</strong> ({{total_price_words}}), {{client_vat_status}}.</p>
-<p>2.2. Авансовый платеж: <strong>{{prepayment}}</strong>.</p>
-<p>2.3. Окончательный расчет в размере <strong>{{remainder}}</strong> осуществляется в течение 3 банковских дней после подписания Акта приема-передачи.</p>
+<h3 style="margin-top: 18px; margin-bottom: 10px;">1. ПРЕДМЕТ ДОГОВОРА</h3>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 10px;">
+  1.1. Исполнитель обязуется выполнить комплекс монтажных работ по установке натяжных потолков на объекте Заказчика по адресу: <strong>{{install_address}}</strong>.
+</p>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 10px;">
+  1.2. Площадь объекта: <strong>{{area}} м²</strong>, периметр: <strong>{{perimeter}} м/п</strong>, количество светильников: <strong>{{lights_count}} шт.</strong>
+</p>
 
-<hr class="page-break" />
+<h3 style="margin-top: 18px; margin-bottom: 10px;">2. СТОИМОСТЬ И ПОРЯДОК РАСЧЕТОВ</h3>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 8px;">
+  2.1. Стоимость работ по настоящему договору составляет <strong>{{total_price}}</strong> ({{total_price_words}}), {{client_vat_status}}.
+</p>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 8px;">
+  2.2. Авансовый платеж: <strong>{{prepayment}}</strong>.
+</p>
+<p style="text-align: justify; text-indent: 25px; margin-bottom: 8px;">
+  2.3. Окончательный расчет в размере <strong>{{remainder}}</strong> осуществляется в течение 3 банковских дней после подписания Акта приема-передачи.
+</p>
 
-<h3>3. РЕКВИЗИТЫ И ПОДПИСИ СТОРОН</h3>
-<table border="1" cellpadding="8" style="width: 100%; border-collapse: collapse;">
+<div class="page-break-badge-wrapper" contenteditable="false" data-page-break="true">
+  <div class="page-break-badge">
+    <span>✂ --- Разрыв страницы А4 ---</span>
+    <button type="button" class="page-break-remove-btn" onclick="this.closest('.page-break-badge-wrapper').remove()">✕ Удалить</button>
+  </div>
+</div>
+
+<h3 style="margin-top: 18px; margin-bottom: 10px;">3. АДРЕСА, РЕКВИЗИТЫ И ПОДПИСИ СТОРОН</h3>
+<table border="1" cellpadding="10" style="width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 10.5pt;">
   <thead>
-    <tr style="background: rgba(0,0,0,0.05);">
-      <th style="width: 50%;">ИСПОЛНИТЕЛЬ</th>
-      <th style="width: 50%;">ЗАКАЗЧИК</th>
+    <tr style="background: #f1f5f9;">
+      <th style="width: 50%; text-align: left;">ИСПОЛНИТЕЛЬ</th>
+      <th style="width: 50%; text-align: left;">ЗАКАЗЧИК</th>
     </tr>
   </thead>
   <tbody>
     <tr valign="top">
       <td>
-        <p><strong>{{executor_name}}</strong></p>
-        <p>ИНН / КПП: {{executor_inn}} / {{executor_kpp}}</p>
-        <p>ОГРН: {{executor_ogrn}}</p>
-        <p>Юр. адрес: {{executor_legal_address}}</p>
-        <p>Банк: {{executor_bank_name}} (БИК: {{executor_bik}})</p>
-        <p>Р/с: {{executor_rs}}, К/с: {{executor_ks}}</p>
-        <p>Тел: {{executor_phone}}, Email: {{executor_email}}</p>
-        <br/>
-        <p>________________ / {{executor_signer_name}} /</p>
+        <p style="margin: 0 0 6px 0;"><strong>{{executor_name}}</strong></p>
+        <p style="margin: 0 0 4px 0;">ИНН / КПП: {{executor_inn}} / {{executor_kpp}}</p>
+        <p style="margin: 0 0 4px 0;">ОГРН: {{executor_ogrn}}</p>
+        <p style="margin: 0 0 4px 0;">Юр. адрес: {{executor_legal_address}}</p>
+        <p style="margin: 0 0 4px 0;">Банк: {{executor_bank_name}} (БИК: {{executor_bik}})</p>
+        <p style="margin: 0 0 4px 0;">Р/с: {{executor_rs}}, К/с: {{executor_ks}}</p>
+        <p style="margin: 0 0 4px 0;">Тел: {{executor_phone}}, Email: {{executor_email}}</p>
+        <br/><br/>
+        <p style="margin: 0;">________________ / {{executor_signer_name}} /</p>
       </td>
       <td>
-        <p><strong>{{client_legal_name}}</strong></p>
-        <p>ИНН / КПП: {{client_inn}} / {{client_kpp}}</p>
-        <p>ОГРН: {{client_ogrn}}</p>
-        <p>Юр. адрес: {{client_legal_address}}</p>
-        <p>Банк: {{client_bank_name}} (БИК: {{client_bik}})</p>
-        <p>Р/с: {{client_rs}}, К/с: {{client_ks}}</p>
-        <p>Тел: {{client_phone}}, Email: {{client_email}}</p>
-        <br/>
-        <p>________________ / {{client_contact_person}} /</p>
+        <p style="margin: 0 0 6px 0;"><strong>{{client_legal_name}}</strong></p>
+        <p style="margin: 0 0 4px 0;">ИНН / КПП: {{client_inn}} / {{client_kpp}}</p>
+        <p style="margin: 0 0 4px 0;">ОГРН: {{client_ogrn}}</p>
+        <p style="margin: 0 0 4px 0;">Юр. адрес: {{client_legal_address}}</p>
+        <p style="margin: 0 0 4px 0;">Банк: {{client_bank_name}} (БИК: {{client_bik}})</p>
+        <p style="margin: 0 0 4px 0;">Р/с: {{client_rs}}, К/с: {{client_ks}}</p>
+        <p style="margin: 0 0 4px 0;">Тел: {{client_phone}}, Email: {{client_email}}</p>
+        <br/><br/>
+        <p style="margin: 0;">________________ / {{client_contact_person}} /</p>
       </td>
     </tr>
   </tbody>
@@ -247,56 +295,62 @@ const STARTER_TEMPLATE_LEGAL = `
 
 export const ContractTemplates = () => {
   const [activeTab, setActiveTab] = useState<'INDIVIDUAL' | 'LEGAL_ENTITY'>('INDIVIDUAL');
-  const [viewMode, setViewMode] = useState<'PREVIEW' | 'EDITOR'>('PREVIEW');
   const [status, setStatus] = useState<ContractTemplateStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [documentLoading, setDocumentLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testGenerating, setTestGenerating] = useState(false);
   const [copiedTag, setCopiedTag] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [editorContent, setEditorContent] = useState<string>('');
   const [isModified, setIsModified] = useState(false);
+  const [hasDocxRender, setHasDocxRender] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
-  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const docxMountRef = useRef<HTMLDivElement>(null);
   const lastSavedRangeRef = useRef<Range | null>(null);
 
-  const renderDocxPreview = useCallback(async (blob: Blob) => {
-    if (!previewContainerRef.current) return;
+  const makeDocxEditable = useCallback(() => {
+    if (!docxMountRef.current) return;
+    const editableElements = docxMountRef.current.querySelectorAll('.docx-wrapper, section.docx, p, td, th, h1, h2, h3, h4, span');
+    editableElements.forEach(el => {
+      (el as HTMLElement).contentEditable = 'true';
+    });
+  }, []);
+
+  const renderDocxDirectly = useCallback(async (blob: Blob) => {
+    if (!docxMountRef.current) return;
     try {
-      setPreviewLoading(true);
-      previewContainerRef.current.innerHTML = '';
-      await docx.renderAsync(blob, previewContainerRef.current, undefined, {
-        className: 'docx-page-render',
+      setDocumentLoading(true);
+      docxMountRef.current.innerHTML = '';
+      await docx.renderAsync(blob, docxMountRef.current, undefined, {
+        className: 'docx-page',
         inWrapper: true,
         ignoreWidth: false,
         ignoreHeight: false,
         ignoreFonts: false,
         breakPages: true,
         ignoreLastRenderedPageBreak: false,
+        renderHeaders: true,
+        renderFooters: true,
+        useBase64URL: true,
         experimental: true,
         trimXmlDeclaration: true,
         debug: false
       });
+      makeDocxEditable();
+      setHasDocxRender(true);
+      setIsModified(false);
     } catch (err) {
-      console.error('Failed to render DOCX preview', err);
-      if (previewContainerRef.current) {
-        previewContainerRef.current.innerHTML = `
-          <div style="padding: 40px; text-align: center; color: var(--text-muted);">
-            <p>Не удалось отобразить точный предпросмотр DOCX.</p>
-            <p style="font-size: 0.85rem;">Переключитесь в режим «Редактор текста» для просмотра и правки.</p>
-          </div>
-        `;
-      }
+      console.error('Failed to render DOCX with docx-preview', err);
+      setHasDocxRender(false);
     } finally {
-      setPreviewLoading(false);
+      setDocumentLoading(false);
     }
-  }, []);
+  }, [makeDocxEditable]);
 
   const fetchInitialData = useCallback(async () => {
     try {
@@ -309,52 +363,31 @@ export const ContractTemplates = () => {
       
       const hasTemplate = activeTab === 'INDIVIDUAL' ? statusRes.individual : statusRes.legal;
 
-      if (htmlContent && htmlContent.trim()) {
-        setEditorContent(htmlContent);
-      } else if (hasTemplate) {
-        // If HTML is not yet cached but DOCX exists on backend, fetch and convert via mammoth
+      if (hasTemplate) {
         try {
           const blob = await downloadContractTemplateBlob(activeTab);
-          const arrayBuffer = await blob.arrayBuffer();
-          const mammothOptions = {
-            convertImage: mammoth.images.imgElement((element: any) => {
-              return element.read("base64").then((imageBuffer: string) => ({
-                src: `data:${element.contentType || 'image/png'};base64,${imageBuffer}`
-              }));
-            })
-          };
-          const result = await mammoth.convertToHtml({ arrayBuffer }, mammothOptions);
-          if (result.value && result.value.trim()) {
-            setEditorContent(result.value);
-            // Sync with backend
-            saveContractTemplateHtml(activeTab, result.value).catch(() => {});
-          }
+          setTimeout(() => renderDocxDirectly(blob), 50);
         } catch (e) {
-          console.warn('Could not extract HTML from DOCX blob', e);
+          console.warn('Could not fetch docx binary, using cached HTML', e);
+          setHasDocxRender(false);
+          if (editorRef.current) {
+            editorRef.current.innerHTML = htmlContent || (activeTab === 'INDIVIDUAL' ? STARTER_TEMPLATE_INDIVIDUAL : STARTER_TEMPLATE_LEGAL);
+          }
         }
       } else {
+        setHasDocxRender(false);
         const defaultPreset = activeTab === 'INDIVIDUAL' ? STARTER_TEMPLATE_INDIVIDUAL : STARTER_TEMPLATE_LEGAL;
-        setEditorContent(defaultPreset);
+        if (editorRef.current) {
+          editorRef.current.innerHTML = defaultPreset;
+        }
       }
       setIsModified(false);
-
-      if (hasTemplate) {
-        setViewMode('PREVIEW');
-        try {
-          const blob = await downloadContractTemplateBlob(activeTab);
-          setTimeout(() => renderDocxPreview(blob), 50);
-        } catch (e) {
-          console.warn('Could not fetch docx for preview', e);
-        }
-      } else {
-        setViewMode('EDITOR');
-      }
     } catch (e) {
       console.error('Failed to load contract template', e);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, renderDocxPreview]);
+  }, [activeTab, renderDocxDirectly]);
 
   useEffect(() => {
     fetchInitialData();
@@ -374,19 +407,21 @@ export const ContractTemplates = () => {
 
   const executeCommand = (command: string, value: string | undefined = undefined) => {
     document.execCommand(command, false, value);
-    if (editorRef.current) {
-      setEditorContent(editorRef.current.innerHTML);
-      setIsModified(true);
-    }
+    setIsModified(true);
   };
 
   const handleInsertPageBreak = () => {
-    const pageBreakHtml = '<hr class="page-break" /><p></p>';
+    const pageBreakHtml = `
+      <div class="page-break-badge-wrapper" contenteditable="false" data-page-break="true">
+        <div class="page-break-badge">
+          <span>✂ --- Разрыв страницы А4 ---</span>
+          <button type="button" class="page-break-remove-btn" onclick="this.closest('.page-break-badge-wrapper').remove()">✕ Удалить</button>
+        </div>
+      </div>
+      <p></p>
+    `;
     document.execCommand('insertHTML', false, pageBreakHtml);
-    if (editorRef.current) {
-      setEditorContent(editorRef.current.innerHTML);
-      setIsModified(true);
-    }
+    setIsModified(true);
   };
 
   const handleInsertImageFile = (file: File) => {
@@ -396,10 +431,7 @@ export const ContractTemplates = () => {
       if (dataUrl) {
         const imgHtml = `<p><img src="${dataUrl}" style="max-width: 100%; height: auto; display: block; margin: 12px 0;" /></p><p></p>`;
         document.execCommand('insertHTML', false, imgHtml);
-        if (editorRef.current) {
-          setEditorContent(editorRef.current.innerHTML);
-          setIsModified(true);
-        }
+        setIsModified(true);
         showToast('Изображение успешно вставлено в документ!');
       }
     };
@@ -407,49 +439,41 @@ export const ContractTemplates = () => {
   };
 
   const handleInsertTagAtCursor = (tag: string) => {
-    if (viewMode !== 'EDITOR') {
-      setViewMode('EDITOR');
+    // Restore selection
+    if (lastSavedRangeRef.current) {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(lastSavedRangeRef.current);
+      }
     }
 
-    setTimeout(() => {
-      if (!editorRef.current) return;
-      editorRef.current.focus();
+    document.execCommand('insertText', false, tag);
+    setIsModified(true);
+    setCopiedTag(tag);
+    showToast(`Метка ${tag} вставлена в документ!`);
+    setTimeout(() => setCopiedTag(null), 2000);
+  };
 
-      if (lastSavedRangeRef.current) {
-        const sel = window.getSelection();
-        if (sel) {
-          sel.removeAllRanges();
-          sel.addRange(lastSavedRangeRef.current);
-        }
-      }
-
-      document.execCommand('insertText', false, tag);
-
-      setEditorContent(editorRef.current.innerHTML);
-      setIsModified(true);
-      setCopiedTag(tag);
-      showToast(`Метка ${tag} вставлена в документ!`);
-      setTimeout(() => setCopiedTag(null), 2000);
-    }, 50);
+  const getCurrentDocumentHtml = (): string => {
+    if (hasDocxRender && docxMountRef.current) {
+      return docxMountRef.current.innerHTML;
+    }
+    if (editorRef.current) {
+      return editorRef.current.innerHTML;
+    }
+    return '';
   };
 
   const handleSaveHtml = async () => {
     try {
       setSaving(true);
-      const contentToSave = editorRef.current ? editorRef.current.innerHTML : editorContent;
+      const contentToSave = getCurrentDocumentHtml();
       await saveContractTemplateHtml(activeTab, contentToSave);
       const updatedStatus = await getContractTemplateStatus();
       setStatus(updatedStatus);
       setIsModified(false);
       showToast('Шаблон договора успешно сохранен в CRM!');
-      
-      // Update preview
-      try {
-        const blob = await downloadContractTemplateBlob(activeTab);
-        renderDocxPreview(blob);
-      } catch (e) {
-        console.warn('Could not re-render preview', e);
-      }
     } catch (e: any) {
       alert('Ошибка сохранения шаблона: ' + (e.response?.data?.error || e.message));
     } finally {
@@ -461,13 +485,12 @@ export const ContractTemplates = () => {
     if (isModified && !window.confirm('Текущие изменения в редакторе будут заменены стандартным образцом. Продолжить?')) {
       return;
     }
+    setHasDocxRender(false);
     const preset = activeTab === 'INDIVIDUAL' ? STARTER_TEMPLATE_INDIVIDUAL : STARTER_TEMPLATE_LEGAL;
-    setEditorContent(preset);
     if (editorRef.current) {
       editorRef.current.innerHTML = preset;
     }
     setIsModified(true);
-    setViewMode('EDITOR');
     showToast('Стандартный образец договора загружен в редактор');
   };
 
@@ -479,41 +502,18 @@ export const ContractTemplates = () => {
 
     try {
       setLoading(true);
-      const arrayBuffer = await file.arrayBuffer();
-
-      // Convert images to base64 embedded data URLs
-      const mammothOptions = {
-        convertImage: mammoth.images.imgElement((element: any) => {
-          return element.read("base64").then((imageBuffer: string) => ({
-            src: `data:${element.contentType || 'image/png'};base64,${imageBuffer}`
-          }));
-        })
-      };
-
-      const result = await mammoth.convertToHtml({ arrayBuffer }, mammothOptions);
-      const convertedHtml = result.value;
-
       // 1. Upload DOCX binary to backend
       await uploadContractTemplate(activeTab, file);
 
-      // 2. Save converted HTML with embedded images to backend
-      if (convertedHtml && convertedHtml.trim()) {
-        await saveContractTemplateHtml(activeTab, convertedHtml);
-        setEditorContent(convertedHtml);
-        if (editorRef.current) {
-          editorRef.current.innerHTML = convertedHtml;
-        }
-      }
+      // 2. Render DOCX directly with docx-preview
+      const arrayBuffer = await file.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      await renderDocxDirectly(blob);
 
       const updatedStatus = await getContractTemplateStatus();
       setStatus(updatedStatus);
       setIsModified(false);
-      showToast('DOCX файл успешно загружен и сохранен со всеми изображениями!');
-
-      // Render preview
-      setViewMode('PREVIEW');
-      const blob = new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-      setTimeout(() => renderDocxPreview(blob), 50);
+      showToast('DOCX файл успешно загружен со 100% версткой и картинками!');
     } catch (e: any) {
       alert('Ошибка при чтении DOCX файла: ' + (e.message || e));
     } finally {
@@ -524,8 +524,8 @@ export const ContractTemplates = () => {
 
   const handleDownloadDocx = async () => {
     try {
-      if (isModified && editorRef.current) {
-        await saveContractTemplateHtml(activeTab, editorRef.current.innerHTML);
+      if (isModified) {
+        await saveContractTemplateHtml(activeTab, getCurrentDocumentHtml());
         setIsModified(false);
       }
       const blob = await downloadContractTemplateBlob(activeTab);
@@ -554,12 +554,11 @@ export const ContractTemplates = () => {
       await deleteContractTemplate(activeTab);
       const updatedStatus = await getContractTemplateStatus();
       setStatus(updatedStatus);
+      setHasDocxRender(false);
       const preset = activeTab === 'INDIVIDUAL' ? STARTER_TEMPLATE_INDIVIDUAL : STARTER_TEMPLATE_LEGAL;
-      setEditorContent(preset);
       if (editorRef.current) editorRef.current.innerHTML = preset;
+      if (docxMountRef.current) docxMountRef.current.innerHTML = '';
       setIsModified(false);
-      setViewMode('EDITOR');
-      if (previewContainerRef.current) previewContainerRef.current.innerHTML = '';
       showToast(`Шаблон ${typeLabel} удален.`);
     } catch (e: any) {
       alert('Ошибка при удалении шаблона: ' + (e.response?.data?.error || e.message));
@@ -571,8 +570,8 @@ export const ContractTemplates = () => {
   const handleTestGeneration = async () => {
     try {
       setTestGenerating(true);
-      if (isModified && editorRef.current) {
-        await saveContractTemplateHtml(activeTab, editorRef.current.innerHTML);
+      if (isModified) {
+        await saveContractTemplateHtml(activeTab, getCurrentDocumentHtml());
         setIsModified(false);
       }
       const blob = await generateTestContractDocxBlob(activeTab);
@@ -596,7 +595,7 @@ export const ContractTemplates = () => {
     const tableHtml = `
       <table border="1" cellpadding="6" style="width: 100%; border-collapse: collapse; margin: 12px 0;">
         <thead>
-          <tr style="background: rgba(0,0,0,0.05);">
+          <tr style="background: #f1f5f9;">
             <th>Колонка 1</th>
             <th>Колонка 2</th>
           </tr>
@@ -610,10 +609,7 @@ export const ContractTemplates = () => {
       </table><p></p>
     `;
     document.execCommand('insertHTML', false, tableHtml);
-    if (editorRef.current) {
-      setEditorContent(editorRef.current.innerHTML);
-      setIsModified(true);
-    }
+    setIsModified(true);
   };
 
   const isTemplateLoaded = activeTab === 'INDIVIDUAL' ? status?.individual : status?.legal;
@@ -660,7 +656,7 @@ export const ContractTemplates = () => {
           </div>
           <div>
             <h1>Шаблоны договоров</h1>
-            <p className="page-subtitle">Точное отображение страниц Word, поддержка изображений и встроенный редактор договора</p>
+            <p className="page-subtitle">Прямое редактирование Word-шаблона со 100% сохранением верстки, изображений и страниц</p>
           </div>
         </div>
       </div>
@@ -696,39 +692,15 @@ export const ContractTemplates = () => {
 
       {/* Editor & Tag Assistant Split Grid */}
       <div className="template-editor-grid">
-        {/* Left / Center Column: Document Canvas & Editor */}
+        {/* Left / Center Column: Word Document Live Editor */}
         <div className="document-editor-container glass-panel">
           {/* Editor Action Header */}
           <div className="editor-top-actions">
             <div className="editor-title-box">
-              {/* View Mode Switcher */}
-              <div className="view-mode-toggle-group">
-                <button
-                  type="button"
-                  className={`view-mode-btn ${viewMode === 'PREVIEW' ? 'active' : ''}`}
-                  onClick={() => {
-                    setViewMode('PREVIEW');
-                    if (isTemplateLoaded) {
-                      downloadContractTemplateBlob(activeTab).then(blob => renderDocxPreview(blob)).catch(() => {});
-                    }
-                  }}
-                  title="Оригинальный постраничный вид файла DOCX (100% верстка Word)"
-                >
-                  <Eye size={15} />
-                  <span>Оригинал (DOCX)</span>
-                </button>
-                <button
-                  type="button"
-                  className={`view-mode-btn ${viewMode === 'EDITOR' ? 'active' : ''}`}
-                  onClick={() => setViewMode('EDITOR')}
-                  title="Визуальное редактирование текста и меток"
-                >
-                  <Edit3 size={15} />
-                  <span>Редактор текста</span>
-                </button>
-              </div>
-
-              {isModified && <span className="modified-badge">Есть несохраненные изменения</span>}
+              <span className="editor-badge-mode">
+                {hasDocxRender ? 'Word-верстка (.docx)' : 'Стандартный шаблон А4'}
+              </span>
+              {isModified && <span className="modified-badge">Не сохраненные изменения</span>}
             </div>
 
             <div className="editor-main-btns">
@@ -803,104 +775,106 @@ export const ContractTemplates = () => {
             </div>
           </div>
 
-          {/* Formatting Toolbar (Only in EDITOR Mode) */}
-          {viewMode === 'EDITOR' && (
-            <div className="editor-toolbar">
-              <input 
-                type="file"
-                ref={imageInputRef}
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleInsertImageFile(e.target.files[0]);
-                    e.target.value = '';
-                  }
-                }}
-              />
+          {/* Formatting Toolbar */}
+          <div className="editor-toolbar">
+            <input 
+              type="file" 
+              ref={imageInputRef} 
+              accept="image/*" 
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleInsertImageFile(e.target.files[0]);
+                  e.target.value = '';
+                }
+              }}
+            />
 
-              <div className="toolbar-group">
-                <button type="button" className="tool-btn" onClick={() => executeCommand('undo')} title="Отменить (Ctrl+Z)"><Undo size={15} /></button>
-                <button type="button" className="tool-btn" onClick={() => executeCommand('redo')} title="Повторить (Ctrl+Y)"><Redo size={15} /></button>
-              </div>
-
-              <div className="toolbar-divider" />
-
-              <div className="toolbar-group">
-                <button type="button" className="tool-btn" onClick={() => executeCommand('bold')} title="Жирный"><Bold size={15} /></button>
-                <button type="button" className="tool-btn" onClick={() => executeCommand('italic')} title="Курсив"><Italic size={15} /></button>
-                <button type="button" className="tool-btn" onClick={() => executeCommand('underline')} title="Подчеркнутый"><UnderlineIcon size={15} /></button>
-                <button type="button" className="tool-btn" onClick={() => executeCommand('removeFormat')} title="Очистить форматирование"><Eraser size={15} /></button>
-              </div>
-
-              <div className="toolbar-divider" />
-
-              <div className="toolbar-group">
-                <button type="button" className="tool-btn" onClick={() => executeCommand('formatBlock', '<h2>')} title="Заголовок H2">H2</button>
-                <button type="button" className="tool-btn" onClick={() => executeCommand('formatBlock', '<h3>')} title="Заголовок H3">H3</button>
-                <button type="button" className="tool-btn" onClick={() => executeCommand('formatBlock', '<p>')} title="Обычный текст">P</button>
-              </div>
-
-              <div className="toolbar-divider" />
-
-              <div className="toolbar-group">
-                <button type="button" className="tool-btn" onClick={() => executeCommand('justifyLeft')} title="По левому краю"><AlignLeft size={15} /></button>
-                <button type="button" className="tool-btn" onClick={() => executeCommand('justifyCenter')} title="По центру"><AlignCenter size={15} /></button>
-                <button type="button" className="tool-btn" onClick={() => executeCommand('justifyRight')} title="По правому краю"><AlignRight size={15} /></button>
-                <button type="button" className="tool-btn" onClick={() => executeCommand('justifyFull')} title="По ширине"><AlignJustify size={15} /></button>
-              </div>
-
-              <div className="toolbar-divider" />
-
-              <div className="toolbar-group">
-                <button type="button" className="tool-btn" onClick={() => executeCommand('insertUnorderedList')} title="Маркированный список"><List size={15} /></button>
-                <button type="button" className="tool-btn" onClick={() => executeCommand('insertOrderedList')} title="Нумерованный список"><ListOrdered size={15} /></button>
-                <button type="button" className="tool-btn" onClick={insertTable} title="Вставить таблицу"><Table size={15} /></button>
-                
-                <button 
-                  type="button" 
-                  className="tool-btn image-insert-tool" 
-                  onClick={() => imageInputRef.current?.click()} 
-                  title="Вставить картинку или логотип в документ"
-                >
-                  <ImageIcon size={15} />
-                  <span>Картинка</span>
-                </button>
-
-                <button 
-                  type="button" 
-                  className="tool-btn page-break-tool" 
-                  onClick={handleInsertPageBreak} 
-                  title="Вставить разрыв страницы А4"
-                >
-                  <SplitSquareVertical size={15} />
-                  <span>Разрыв страницы</span>
-                </button>
-              </div>
+            <div className="toolbar-group">
+              <button type="button" className="tool-btn" onClick={() => executeCommand('undo')} title="Отменить (Ctrl+Z)"><Undo size={15} /></button>
+              <button type="button" className="tool-btn" onClick={() => executeCommand('redo')} title="Повторить (Ctrl+Y)"><Redo size={15} /></button>
             </div>
-          )}
 
-          {/* Document Display Canvas */}
+            <div className="toolbar-divider" />
+
+            <div className="toolbar-group">
+              <button type="button" className="tool-btn" onClick={() => executeCommand('bold')} title="Жирный"><Bold size={15} /></button>
+              <button type="button" className="tool-btn" onClick={() => executeCommand('italic')} title="Курсив"><Italic size={15} /></button>
+              <button type="button" className="tool-btn" onClick={() => executeCommand('underline')} title="Подчеркнутый"><UnderlineIcon size={15} /></button>
+              <button type="button" className="tool-btn" onClick={() => executeCommand('removeFormat')} title="Очистить форматирование"><Eraser size={15} /></button>
+            </div>
+
+            <div className="toolbar-divider" />
+
+            <div className="toolbar-group">
+              <button type="button" className="tool-btn" onClick={() => executeCommand('formatBlock', '<h2>')} title="Заголовок H2">H2</button>
+              <button type="button" className="tool-btn" onClick={() => executeCommand('formatBlock', '<h3>')} title="Заголовок H3">H3</button>
+              <button type="button" className="tool-btn" onClick={() => executeCommand('formatBlock', '<p>')} title="Обычный текст">P</button>
+            </div>
+
+            <div className="toolbar-divider" />
+
+            <div className="toolbar-group">
+              <button type="button" className="tool-btn" onClick={() => executeCommand('justifyLeft')} title="По левому краю"><AlignLeft size={15} /></button>
+              <button type="button" className="tool-btn" onClick={() => executeCommand('justifyCenter')} title="По центру"><AlignCenter size={15} /></button>
+              <button type="button" className="tool-btn" onClick={() => executeCommand('justifyRight')} title="По правому краю"><AlignRight size={15} /></button>
+              <button type="button" className="tool-btn" onClick={() => executeCommand('justifyFull')} title="По ширине"><AlignJustify size={15} /></button>
+            </div>
+
+            <div className="toolbar-divider" />
+
+            <div className="toolbar-group">
+              <button type="button" className="tool-btn" onClick={() => executeCommand('insertUnorderedList')} title="Маркированный список"><List size={15} /></button>
+              <button type="button" className="tool-btn" onClick={() => executeCommand('insertOrderedList')} title="Нумерованный список"><ListOrdered size={15} /></button>
+              <button type="button" className="tool-btn" onClick={insertTable} title="Вставить таблицу"><Table size={15} /></button>
+              
+              <button 
+                type="button" 
+                className="tool-btn image-insert-tool" 
+                onClick={() => imageInputRef.current?.click()} 
+                title="Вставить картинку или логотип в документ"
+              >
+                <ImageIcon size={15} />
+                <span>Картинка</span>
+              </button>
+
+              <button 
+                type="button" 
+                className="tool-btn page-break-tool" 
+                onClick={handleInsertPageBreak} 
+                title="Вставить разрыв страницы А4"
+              >
+                <SplitSquareVertical size={15} />
+                <span>Разрыв страницы</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Document Live Multi-Page A4 Canvas */}
           <div className="a4-canvas-scroll">
-            {/* View Mode: PREVIEW (DOCX-PREVIEW 100% Fidelity) */}
+            {documentLoading && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px', gap: '10px', color: 'var(--text-muted)' }}>
+                <RefreshCw size={24} className="spin" />
+                <span>Загрузка и форматирование страниц Word...</span>
+              </div>
+            )}
+
+            {/* Render with exact Word DOM from docx-preview */}
             <div 
-              style={{ display: viewMode === 'PREVIEW' ? 'block' : 'none', width: '100%' }}
+              style={{ display: hasDocxRender ? 'block' : 'none', width: '100%' }}
             >
-              {previewLoading && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px', gap: '10px', color: 'var(--text-muted)' }}>
-                  <RefreshCw size={24} className="spin" />
-                  <span>Рендеринг страниц документа...</span>
-                </div>
-              )}
               <div 
-                ref={previewContainerRef} 
+                ref={docxMountRef} 
                 className="docx-preview-wrapper"
+                onInput={() => setIsModified(true)}
+                onKeyUp={saveSelection}
+                onMouseUp={saveSelection}
               />
             </div>
 
-            {/* View Mode: EDITOR (A4 Multi-page WYSIWYG Editor) */}
+            {/* Fallback A4 Editable Canvas */}
             <div 
-              style={{ display: viewMode === 'EDITOR' ? 'flex' : 'none', width: '100%', justifyContent: 'center' }}
+              style={{ display: !hasDocxRender ? 'flex' : 'none', width: '100%', justifyContent: 'center' }}
             >
               <div className="a4-page-sheet">
                 <div 
@@ -908,13 +882,7 @@ export const ContractTemplates = () => {
                   className="a4-content-editable"
                   contentEditable
                   suppressContentEditableWarning
-                  dangerouslySetInnerHTML={{ __html: editorContent }}
-                  onInput={() => {
-                    if (editorRef.current) {
-                      setEditorContent(editorRef.current.innerHTML);
-                      setIsModified(true);
-                    }
-                  }}
+                  onInput={() => setIsModified(true)}
                   onKeyUp={saveSelection}
                   onMouseUp={saveSelection}
                 />
