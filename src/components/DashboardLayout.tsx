@@ -86,7 +86,9 @@ const DashboardLayout = () => {
       } catch (err) {
         console.error("Failed to fetch new orders count", err);
       }
-      fetchLowStockMaterials();
+      if (role !== 'WORKER') {
+        fetchLowStockMaterials();
+      }
     };
     fetchNewOrdersCount();
 
