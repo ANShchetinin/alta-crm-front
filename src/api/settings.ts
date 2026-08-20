@@ -122,3 +122,14 @@ export const generateTestContractDocxBlob = async (type: 'INDIVIDUAL' | 'LEGAL_E
   });
   return response.data;
 };
+
+export const saveContractTemplateHtml = async (type: 'INDIVIDUAL' | 'LEGAL_ENTITY', html: string): Promise<{ success: boolean }> => {
+  const response = await api.post(`/settings/contract-templates/html?type=${type}`, { html });
+  return response.data;
+};
+
+export const getContractTemplateHtml = async (type: 'INDIVIDUAL' | 'LEGAL_ENTITY'): Promise<string> => {
+  const response = await api.get(`/settings/contract-templates/html?type=${type}`);
+  return response.data?.html || '';
+};
+
