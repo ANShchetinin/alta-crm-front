@@ -233,8 +233,33 @@ const Kanban = () => {
     { id: '11', name: 'Установка пожарных сигнализаций, камер, и навесного оборудования', checked: false },
     { id: '12', name: 'Установка обвода трубы', checked: false },
     { id: '13', name: 'Демонтаж замена полотна', checked: false },
-    { id: '14', name: 'Установка бруса и 2х уровневых конструкций', checked: false }
+    { id: '14', name: 'Установка бруса и 2х уровневых конструкций', checked: false },
+    { id: '15', name: 'Установка карнизов', checked: false }
   ];
+
+  const mergeActChecklist = (savedList?: import('../api/kanban').ActChecklistItem[]): import('../api/kanban').ActChecklistItem[] => {
+    if (!savedList || savedList.length === 0) {
+      return DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }));
+    }
+    const savedMap = new Map(savedList.map(it => [it.id, it.checked]));
+    const savedNameMap = new Map(savedList.map(it => [it.name, it.checked]));
+
+    const merged = DEFAULT_ACT_CHECKLIST.map(defItem => ({
+      ...defItem,
+      checked: savedMap.has(defItem.id)
+        ? !!savedMap.get(defItem.id)
+        : (savedNameMap.has(defItem.name) ? !!savedNameMap.get(defItem.name) : false)
+    }));
+
+    const defIds = new Set(DEFAULT_ACT_CHECKLIST.map(d => d.id));
+    savedList.forEach(savedItem => {
+      if (!defIds.has(savedItem.id)) {
+        merged.push(savedItem);
+      }
+    });
+
+    return merged;
+  };
 
   useEffect(() => {
     fetchData();
@@ -425,9 +450,7 @@ const Kanban = () => {
     const initialContractParams: ContractParams = order.contractParams ? {
       ...order.contractParams,
       contractDate: order.contractParams.contractDate || new Date().toISOString().slice(0, 10),
-      actChecklist: (order.contractParams.actChecklist && order.contractParams.actChecklist.length > 0)
-        ? order.contractParams.actChecklist
-        : DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false })),
+      actChecklist: mergeActChecklist(order.contractParams.actChecklist),
       specItems: order.contractParams.specItems || []
     } : {
       area: '70,3',
@@ -908,7 +931,10 @@ const Kanban = () => {
   };
 
   const getContractParams = (): ContractParams => {
-    return formData.contractParams || {
+    return formData.contractParams ? {
+      ...formData.contractParams,
+      actChecklist: mergeActChecklist(formData.contractParams.actChecklist)
+    } : {
       area: '70,3',
       perimeter: '110,5',
       canvasesCount: '5',
@@ -920,7 +946,7 @@ const Kanban = () => {
       discount: '',
       handoverDate: '',
       specItems: [],
-      actChecklist: DEFAULT_ACT_CHECKLIST
+      actChecklist: DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }))
     };
   };
 
@@ -996,7 +1022,7 @@ const Kanban = () => {
 
   const toggleActItem = (itemId: string) => {
     const cp = getContractParams();
-    const list = cp.actChecklist && cp.actChecklist.length > 0 ? cp.actChecklist : DEFAULT_ACT_CHECKLIST;
+    const list = mergeActChecklist(cp.actChecklist);
     const updated = list.map(it => it.id === itemId ? { ...it, checked: !it.checked } : it);
     updateContractParam('actChecklist', updated);
   };
