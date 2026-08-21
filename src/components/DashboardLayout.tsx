@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { getOrders, getOrderStatuses } from '../api/kanban';
@@ -18,11 +18,26 @@ const DashboardLayout = () => {
   const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings } = useAppStore();
   const { logout, role } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [userName, setUserName] = useState<string>('User');
   const [userEmail, setUserEmail] = useState<string>('');
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
   
   // PWA Install States
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
@@ -355,8 +370,13 @@ const DashboardLayout = () => {
             <button className="btn-icon" onClick={toggleTheme} title="Toggle Theme">
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <div style={{ position: 'relative' }}>
-              <button className="btn-icon" onClick={() => setShowNotifications(!showNotifications)} title="Уведомления">
+            <div ref={notificationsRef} style={{ position: 'relative' }}>
+              <button 
+                type="button" 
+                className="btn-icon" 
+                onClick={() => setShowNotifications(!showNotifications)} 
+                title="Уведомления"
+              >
                 <Bell size={18} />
                 {totalUnreadBadge > 0 && (
                   <span className="notification-badge">
@@ -366,12 +386,8 @@ const DashboardLayout = () => {
               </button>
               {showNotifications && (
                 <div 
-                  className="notifications-dropdown glass-panel"
+                  className="notifications-dropdown"
                   style={{ 
-                    width: '350px', 
-                    maxHeight: '480px', 
-                    overflowY: 'auto', 
-                    padding: '14px',
                     right: 0,
                     left: 'auto'
                   }}
@@ -391,7 +407,7 @@ const DashboardLayout = () => {
                           fontSize: '0.75rem', 
                           cursor: 'pointer', 
                           padding: 0,
-                          fontWeight: 500
+                          fontWeight: 600
                         }}
                       >
                         Прочитать все
@@ -400,7 +416,7 @@ const DashboardLayout = () => {
                   </div>
 
                   {recentNotifications.length === 0 && lowStockMaterials.length === 0 ? (
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '20px 0' }}>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '24px 0' }}>
                       За последние сутки новых уведомлений нет
                     </div>
                   ) : (
@@ -409,29 +425,19 @@ const DashboardLayout = () => {
                         <div
                           key={n.id}
                           onClick={() => handleNotificationClick(n)}
-                          style={{
-                            padding: '9px 11px',
-                            borderRadius: 'var(--radius-sm)',
-                            background: n.isRead ? 'rgba(255, 255, 255, 0.02)' : 'rgba(59, 130, 246, 0.08)',
-                            border: n.isRead ? '1px solid var(--glass-border)' : '1px solid rgba(59, 130, 246, 0.3)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '3px',
-                            transition: 'all 0.15s ease'
-                          }}
+                          className={`notification-item-card ${!n.isRead ? 'unread' : ''}`}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
                             <div style={{ 
                               fontWeight: n.isRead ? 500 : 700, 
                               fontSize: '0.83rem', 
-                              color: n.isRead ? 'var(--text-primary)' : '#60a5fa',
+                              color: n.isRead ? 'var(--text-primary)' : 'var(--accent-primary)',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '5px'
                             }}>
                               {!n.isRead && (
-                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block', flexShrink: 0 }} />
                               )}
                               {n.title}
                             </div>
