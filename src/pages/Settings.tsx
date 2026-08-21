@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import { Globe, Moon, Sun, User, Building2, Eye, EyeOff, FileText, Hash } from 'lucide-react';
+import { Globe, Moon, Sun, User, Building2, Eye, EyeOff, FileText, Hash, Clock } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { updateProfile, updateTenantSettings, uploadTenantLogo, getProfile } from '../api/settings';
 import type { TenantRequisites } from '../api/settings';
 import { useState, useRef, useEffect } from 'react';
 import { PushNotificationSettings } from '../components/PushNotificationSettings';
+import { TIMEZONE_OPTIONS } from '../utils/dateUtils';
 import '../styles/clients.css'; // Reusing standard wrapper/header styles
 
 export const Settings = () => {
@@ -41,6 +42,7 @@ export const Settings = () => {
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [primaryColor, setPrimaryColor] = useState(tenantSettings?.primaryColor || '#0ea5e9');
   const [orderNumberFormat, setOrderNumberFormat] = useState(tenantSettings?.orderNumberFormat || 'А{ddMMyy}_{INDEX}');
+  const [timezone, setTimezone] = useState(tenantSettings?.timezone || 'Europe/Moscow');
   const [profileSaving, setProfileSaving] = useState(false);
   const [tenantSaving, setTenantSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -82,6 +84,9 @@ export const Settings = () => {
     }
     if (tenantSettings?.orderNumberFormat) {
       setOrderNumberFormat(tenantSettings.orderNumberFormat);
+    }
+    if (tenantSettings?.timezone) {
+      setTimezone(tenantSettings.timezone);
     }
   }, [tenantSettings]);
 
@@ -153,7 +158,8 @@ export const Settings = () => {
       const res = await updateTenantSettings({ 
         primaryColor, 
         requisites, 
-        orderNumberFormat: orderNumberFormat.trim() || 'А{ddMMyy}_{INDEX}' 
+        orderNumberFormat: orderNumberFormat.trim() || 'А{ddMMyy}_{INDEX}',
+        timezone: timezone || 'Europe/Moscow'
       });
       updateTenantSettingsLocally(res);
       alert('Реквизиты и настройки компании успешно сохранены');
@@ -352,6 +358,28 @@ export const Settings = () => {
                     style={{ flex: 1 }}
                   />
                 </div>
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '6px' }}>
+                  <Clock size={16} style={{ color: 'var(--primary-color, #0ea5e9)' }} />
+                  Часовой пояс компании
+                </label>
+                <select
+                  value={timezone}
+                  onChange={e => setTimezone(e.target.value)}
+                  className="search-input"
+                  style={{ width: '100%', height: '42px', cursor: 'pointer', appearance: 'auto', padding: '0 12px' }}
+                >
+                  {TIMEZONE_OPTIONS.map(tz => (
+                    <option key={tz.value} value={tz.value}>
+                      {tz.label} ({tz.offsetLabel})
+                    </option>
+                  ))}
+                </select>
+                <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '5px' }}>
+                  Используется для корректного отображения времени уведомлений, журнала действий и заказов
+                </span>
               </div>
 
               {/* Реквизиты для договоров и счетов */}

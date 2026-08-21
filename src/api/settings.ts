@@ -46,6 +46,7 @@ export interface UpdateTenantSettingsRequest {
   primaryColor?: string;
   requisites?: TenantRequisites;
   orderNumberFormat?: string;
+  timezone?: string;
 }
 
 export interface TenantDto {
@@ -56,6 +57,7 @@ export interface TenantDto {
   primaryColor?: string;
   requisites?: TenantRequisites;
   orderNumberFormat?: string;
+  timezone?: string;
   createdAt: string;
 }
 

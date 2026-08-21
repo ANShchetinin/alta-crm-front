@@ -8,6 +8,7 @@ import { getOrders, getOrderStatuses } from '../api/kanban';
 import { getProfile } from '../api/settings';
 import { getRecentNotifications, markNotificationAsRead, markAllNotificationsAsRead, type AppNotificationItem } from '../api/notifications';
 import { PushNotificationSettings } from './PushNotificationSettings';
+import { formatTimeAgo } from '../utils/dateUtils';
 import '../styles/dashboard.css';
 
 const DashboardLayout = () => {
@@ -160,24 +161,6 @@ const DashboardLayout = () => {
       setUnreadNotifCount(0);
     } catch (e) {
       console.error('Failed to mark all read', e);
-    }
-  };
-
-  const formatTimeAgo = (dateStr: string) => {
-    if (!dateStr) return '';
-    try {
-      const date = new Date(dateStr);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMins / 60);
-
-      if (diffMins < 1) return 'только что';
-      if (diffMins < 60) return `${diffMins} мин назад`;
-      if (diffHours < 24) return `${diffHours} ч назад`;
-      return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return '';
     }
   };
 
@@ -336,6 +319,7 @@ const DashboardLayout = () => {
             <div className="topbar-search">
               <span className="topbar-date">
                 {currentTime.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', {
+                  timeZone: tenantSettings?.timezone || undefined,
                   weekday: 'short', 
                   day: 'numeric', 
                   month: 'short'
@@ -344,6 +328,7 @@ const DashboardLayout = () => {
               <span className="topbar-divider">|</span>
               <span className="topbar-time">
                 {currentTime.toLocaleTimeString(language === 'ru' ? 'ru-RU' : 'en-US', {
+                  timeZone: tenantSettings?.timezone || undefined,
                   hour: '2-digit',
                   minute: '2-digit'
                 })}
@@ -451,7 +436,7 @@ const DashboardLayout = () => {
                               {n.title}
                             </div>
                             <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                              {formatTimeAgo(n.createdAt)}
+                              {formatTimeAgo(n.createdAt, tenantSettings?.timezone)}
                             </span>
                           </div>
                           <div style={{ fontSize: '0.77rem', color: 'var(--text-secondary)', lineHeight: 1.35, whiteSpace: 'pre-wrap' }}>
