@@ -3,6 +3,7 @@ import { Bell, BellOff, CheckCircle2, AlertTriangle, Send, RefreshCw, Smartphone
 import {
   checkPushSupport,
   getNotificationPermission,
+  isCurrentDeviceSubscribed,
   enablePushNotifications,
   disablePushNotifications,
   testPushNotification,
@@ -31,8 +32,14 @@ export const PushNotificationSettings = () => {
     setPermission(perm);
 
     try {
+      const deviceSubscribed = await isCurrentDeviceSubscribed();
       const status = await getPushStatus();
-      setIsSubscribed(status.isSubscribed && perm === 'granted');
+      
+      const active = deviceSubscribed || (status.isSubscribed && perm !== 'denied');
+      setIsSubscribed(active);
+      if (active && perm === 'default') {
+        setPermission('granted');
+      }
     } catch (e) {
       console.error('Failed to get push status', e);
     }

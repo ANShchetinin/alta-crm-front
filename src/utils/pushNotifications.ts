@@ -90,10 +90,30 @@ export function isPushNotificationSupported(): boolean {
  */
 export function getNotificationPermission(): NotificationPermission | 'unsupported' {
   if (typeof window === 'undefined') return 'unsupported';
-  if ('Notification' in window) {
+  if ('Notification' in window && Notification.permission) {
     return Notification.permission;
   }
   return isPushNotificationSupported() ? 'default' : 'unsupported';
+}
+
+/**
+ * Checks if the current browser/device has an active PushSubscription in PushManager
+ */
+export async function isCurrentDeviceSubscribed(): Promise<boolean> {
+  try {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+      return false;
+    }
+    const registration = await navigator.serviceWorker.ready;
+    if (!registration || !registration.pushManager) {
+      return false;
+    }
+    const subscription = await registration.pushManager.getSubscription();
+    return !!subscription;
+  } catch (e) {
+    console.warn('Error checking device push subscription:', e);
+    return false;
+  }
 }
 
 /**
@@ -115,12 +135,10 @@ export async function enablePushNotifications(): Promise<{ success: boolean; mes
       permission = await Notification.requestPermission();
     }
 
-    if (permission !== 'granted') {
+    if (permission !== 'granted' && permission !== 'default') {
       return { 
         success: false, 
-        message: permission === 'denied'
-          ? 'Уведомления заблокированы в настройках устройства/браузера. Разрешите их в настройках.'
-          : 'Разрешение на отправку уведомлений не предоставлено.'
+        message: 'Уведомления заблокированы в настройках устройства/браузера. Разрешите их в настройках сайта.'
       };
     }
 
@@ -191,7 +209,11 @@ export async function disablePushNotifications(): Promise<{ success: boolean; me
     const subscription = await registration.pushManager.getSubscription();
 
     if (subscription) {
-      await unsubscribeFromPush(subscription.endpoint);
+      try {
+        await unsubscribeFromPush(subscription.endpoint);
+      } catch (e) {
+        console.warn('Failed to delete subscription on server:', e);
+      }
       await subscription.unsubscribe();
     }
 
