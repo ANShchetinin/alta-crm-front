@@ -22,7 +22,9 @@ export const Calendar: React.FC = () => {
   const isWorker = role === 'WORKER';
 
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'agenda'>('month');
+  const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth <= 768);
   
   const [filterMeasurement, setFilterMeasurement] = useState(true);
   const [filterInstallation, setFilterInstallation] = useState(true);
@@ -32,6 +34,14 @@ export const Calendar: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   
   const [events, setEvents] = useState<CalendarEventDto[]>([]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (!isWorker) {
@@ -133,7 +143,9 @@ export const Calendar: React.FC = () => {
   };
 
   const handleToday = () => {
-    setCurrentDate(new Date());
+    const now = new Date();
+    setCurrentDate(now);
+    setSelectedDate(now);
   };
 
   const formattedHeaderTitle = useMemo(() => {
@@ -161,6 +173,9 @@ export const Calendar: React.FC = () => {
       const isToday = curr.getDate() === today.getDate() && 
                       curr.getMonth() === today.getMonth() && 
                       curr.getFullYear() === today.getFullYear();
+      const isSelected = curr.getDate() === selectedDate.getDate() &&
+                         curr.getMonth() === selectedDate.getMonth() &&
+                         curr.getFullYear() === selectedDate.getFullYear();
 
       // Events on this day
       const dayEvents = events.filter(e => {
@@ -176,13 +191,24 @@ export const Calendar: React.FC = () => {
         dayNumber: curr.getDate(),
         isCurrentMonth,
         isToday,
+        isSelected,
         events: dayEvents
       });
 
       curr.setDate(curr.getDate() + 1);
     }
     return days;
-  }, [rangeStart, rangeEnd, currentDate, events, viewMode]);
+  }, [rangeStart, rangeEnd, currentDate, selectedDate, events, viewMode]);
+
+  // Selected Day Events list
+  const selectedDayEvents = useMemo(() => {
+    return events.filter(e => {
+      const eDate = new Date(e.start);
+      return eDate.getFullYear() === selectedDate.getFullYear() &&
+             eDate.getMonth() === selectedDate.getMonth() &&
+             eDate.getDate() === selectedDate.getDate();
+    }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  }, [events, selectedDate]);
 
   // Week days builder
   const weekDays = useMemo(() => {
@@ -196,6 +222,9 @@ export const Calendar: React.FC = () => {
       const isToday = curr.getDate() === today.getDate() && 
                       curr.getMonth() === today.getMonth() && 
                       curr.getFullYear() === today.getFullYear();
+      const isSelected = curr.getDate() === selectedDate.getDate() &&
+                         curr.getMonth() === selectedDate.getMonth() &&
+                         curr.getFullYear() === selectedDate.getFullYear();
 
       const dayEvents = events.filter(e => {
         const eDate = new Date(e.start);
@@ -210,13 +239,14 @@ export const Calendar: React.FC = () => {
         dayNumber: curr.getDate(),
         dayName: WEEKDAYS[(curr.getDay() + 6) % 7],
         isToday,
+        isSelected,
         events: dayEvents
       });
 
       curr.setDate(curr.getDate() + 1);
     }
     return days;
-  }, [rangeStart, rangeEnd, events, viewMode]);
+  }, [rangeStart, rangeEnd, selectedDate, events, viewMode]);
 
   // Agenda groups builder
   const agendaGroups = useMemo(() => {
@@ -247,11 +277,148 @@ export const Calendar: React.FC = () => {
     }
   };
 
+  const handleDaySelect = (date: Date) => {
+    setSelectedDate(date);
+    if (date.getMonth() !== currentDate.getMonth()) {
+      setCurrentDate(new Date(date));
+    }
+  };
+
+  const renderEventCard = (ev: CalendarEventDto) => {
+    const timeStr = !ev.allDay
+      ? new Date(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+      : 'В течение дня';
+    const isOverdue = ev.isOverdue;
+    const typeClass = ev.type.toLowerCase();
+
+    return (
+      <div
+        key={ev.id}
+        onClick={() => handleEventClick(ev)}
+        className={`calendar-agenda-card ${typeClass} ${isOverdue ? 'overdue' : ''}`}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: 1 }}>
+          <div style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: 'var(--radius-md)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.25rem',
+            background: ev.type === 'MEASUREMENT'
+              ? 'rgba(139, 92, 246, 0.18)'
+              : (ev.type === 'INSTALLATION' ? 'rgba(34, 197, 94, 0.18)' : 'rgba(245, 158, 11, 0.18)'),
+            border: ev.type === 'MEASUREMENT'
+              ? '1px solid rgba(139, 92, 246, 0.35)'
+              : (ev.type === 'INSTALLATION' ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(245, 158, 11, 0.35)'),
+            flexShrink: 0
+          }}>
+            {ev.type === 'MEASUREMENT' ? '📏' : (ev.type === 'INSTALLATION' ? '🔨' : '⏰')}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: '6px',
+                textTransform: 'uppercase',
+                background: ev.type === 'MEASUREMENT' ? 'rgba(139, 92, 246, 0.2)' : (ev.type === 'INSTALLATION' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(245, 158, 11, 0.2)'),
+                color: ev.type === 'MEASUREMENT' ? '#a78bfa' : (ev.type === 'INSTALLATION' ? '#4ade80' : '#fbbf24')
+              }}>
+                {ev.type === 'MEASUREMENT' ? 'Замер' : (ev.type === 'INSTALLATION' ? 'Монтаж' : 'Напоминание')}
+              </span>
+
+              {ev.orderNumber && (
+                <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '1px 6px', borderRadius: '4px' }}>
+                  № {ev.orderNumber}
+                </span>
+              )}
+
+              <span style={{
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                color: isOverdue ? '#ef4444' : 'var(--text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                <Clock size={13} /> {timeStr}
+                {isOverdue && <strong style={{ color: '#ef4444' }}> (просрочено)</strong>}
+              </span>
+            </div>
+
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', marginTop: '2px', wordBreak: 'break-word' }}>
+              {ev.title || ev.clientName}
+            </div>
+
+            {ev.clientName && ev.title !== ev.clientName && (
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                Клиент: {ev.clientName}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', fontSize: '0.82rem' }}>
+              {ev.clientPhone && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <a
+                    href={`tel:${ev.clientPhone}`}
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      color: 'var(--success, #22c55e)',
+                      textDecoration: 'none',
+                      background: 'rgba(34, 197, 94, 0.1)',
+                      border: '1px solid rgba(34, 197, 94, 0.25)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontWeight: 600
+                    }}
+                  >
+                    <Phone size={13} /> {ev.clientPhone}
+                  </a>
+                </div>
+              )}
+
+              {ev.address && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', color: 'var(--text-secondary)' }}>
+                  <MapPin size={13} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--accent-primary)' }} />
+                  <span>{ev.address}</span>
+                </div>
+              )}
+
+              {ev.assigneeName && (
+                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Ответственный: <strong>{ev.assigneeName}</strong>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {ev.orderId && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={(e) => { e.stopPropagation(); handleEventClick(ev); }}
+            style={{ fontSize: '0.8rem', padding: '6px 12px', color: 'var(--accent-primary)', flexShrink: 0, alignSelf: 'center' }}
+          >
+            Открыть сделку →
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="calendar-page-container animate-fade-in">
       {/* Верхний тулбар */}
       <div className="calendar-header-toolbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
           {/* Переход к Канбану */}
           <button
             type="button"
@@ -263,13 +430,13 @@ export const Calendar: React.FC = () => {
               gap: '6px',
               border: '1px solid var(--glass-border)',
               borderRadius: 'var(--radius-md)',
-              padding: '6px 12px',
-              fontSize: '0.85rem',
+              padding: '6px 10px',
+              fontSize: '0.82rem',
               fontWeight: 600
             }}
           >
-            <LayoutDashboard size={16} />
-            Канбан-доска
+            <LayoutDashboard size={15} />
+            {isMobile ? 'Канбан' : 'Канбан-доска'}
           </button>
 
           {/* Навигация по датам */}
@@ -277,18 +444,19 @@ export const Calendar: React.FC = () => {
             <button type="button" onClick={handlePrev} className="btn-icon" title="Назад">
               <ChevronLeft size={18} />
             </button>
-            <button type="button" onClick={handleToday} className="btn btn-ghost" style={{ fontSize: '0.82rem', fontWeight: 600, padding: '4px 10px' }}>
+            <button type="button" onClick={handleToday} className="btn btn-ghost" style={{ fontSize: '0.8rem', fontWeight: 600, padding: '4px 8px' }}>
               Сегодня
             </button>
             <button type="button" onClick={handleNext} className="btn-icon" title="Вперед">
               <ChevronRight size={18} />
             </button>
-            <span className="calendar-current-title">{formattedHeaderTitle}</span>
           </div>
         </div>
 
+        <div className="calendar-current-title">{formattedHeaderTitle}</div>
+
         {/* Фильтры и переключатель режима */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-end' }}>
           {/* Фильтры по типам событий */}
           <div className="calendar-filters-row">
             <div
@@ -297,7 +465,7 @@ export const Calendar: React.FC = () => {
               title="Показать / скрыть замеры"
             >
               <span>📏</span>
-              <span>Замеры</span>
+              <span>{isMobile ? 'Замеры' : 'Замеры'}</span>
             </div>
             <div
               className={`calendar-type-pill installation ${!filterInstallation ? 'disabled' : ''}`}
@@ -305,22 +473,20 @@ export const Calendar: React.FC = () => {
               title="Показать / скрыть монтажи"
             >
               <span>🔨</span>
-              <span>Монтажи</span>
+              <span>{isMobile ? 'Монтажи' : 'Монтажи'}</span>
             </div>
-            {!isWorker && (
-              <div
-                className={`calendar-type-pill reminder ${!filterReminder ? 'disabled' : ''}`}
-                onClick={() => setFilterReminder(!filterReminder)}
-                title="Показать / скрыть напоминания и звонки"
-              >
-                <span>⏰</span>
-                <span>Напоминания</span>
-              </div>
-            )}
+            <div
+              className={`calendar-type-pill reminder ${!filterReminder ? 'disabled' : ''}`}
+              onClick={() => setFilterReminder(!filterReminder)}
+              title="Показать / скрыть напоминания и звонки"
+            >
+              <span>⏰</span>
+              <span>{isMobile ? 'Звонки' : 'Напоминания'}</span>
+            </div>
           </div>
 
           {/* Выбор сотрудника */}
-          {!isWorker && employees.length > 0 && (
+          {!isWorker && employees.length > 0 && !isMobile && (
             <select
               value={selectedEmployeeId || ''}
               onChange={e => setSelectedEmployeeId(e.target.value ? parseInt(e.target.value) : undefined)}
@@ -361,57 +527,108 @@ export const Calendar: React.FC = () => {
         </div>
       </div>
 
-      {/* Основная сетка Календаря */}
+      {/* Основная сетка Календаря: Месяц */}
       {viewMode === 'month' && (
-        <div className="calendar-month-grid">
-          <div className="calendar-weekdays-header">
-            {WEEKDAYS.map(day => (
-              <div key={day} className="calendar-weekday-cell">
-                {day}
-              </div>
-            ))}
-          </div>
-
-          <div className="calendar-month-body">
-            {monthDays.map(d => (
-              <div
-                key={d.dateKey}
-                className={`calendar-day-cell ${!d.isCurrentMonth ? 'other-month' : ''} ${d.isToday ? 'today' : ''}`}
-              >
-                <div className="calendar-day-header">
-                  <span className="calendar-day-number">{d.dayNumber}</span>
-                  {d.events.length > 0 && (
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                      {d.events.length}
-                    </span>
-                  )}
+        <div className="calendar-month-and-events-layout">
+          <div className="calendar-month-grid">
+            <div className="calendar-weekdays-header">
+              {WEEKDAYS.map(day => (
+                <div key={day} className="calendar-weekday-cell">
+                  {day}
                 </div>
+              ))}
+            </div>
 
-                <div className="calendar-day-events-list">
-                  {d.events.map(ev => {
-                    const timeStr = !ev.allDay
-                      ? new Date(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-                      : '';
-                    const typeClass = ev.type.toLowerCase();
-                    const overdueClass = ev.isOverdue ? 'overdue' : '';
+            <div className="calendar-month-body">
+              {monthDays.map(d => {
+                const isSelected = d.isSelected;
+                const hasEvents = d.events.length > 0;
 
-                    return (
-                      <div
-                        key={ev.id}
-                        onClick={() => handleEventClick(ev)}
-                        className={`calendar-event-item ${typeClass} ${overdueClass}`}
-                        title={`${ev.title}\nКлиент: ${ev.clientName}${ev.clientPhone ? ` (${ev.clientPhone})` : ''}\nАдрес: ${ev.address || '—'}`}
-                      >
-                        <span>{ev.type === 'MEASUREMENT' ? '📏' : (ev.type === 'INSTALLATION' ? '🔨' : '⏰')}</span>
-                        {timeStr && <span style={{ opacity: 0.9 }}>{timeStr}</span>}
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.clientName}</span>
+                return (
+                  <div
+                    key={d.dateKey}
+                    onClick={() => handleDaySelect(d.date)}
+                    className={`calendar-day-cell ${!d.isCurrentMonth ? 'other-month' : ''} ${d.isToday ? 'today' : ''} ${isSelected ? 'selected-day' : ''}`}
+                  >
+                    <div className="calendar-day-header">
+                      <span className="calendar-day-number">{d.dayNumber}</span>
+                      {hasEvents && !isMobile && (
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          {d.events.length}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* На мобильных устройствах — аккуратные цветные точки событий */}
+                    {isMobile ? (
+                      <div className="calendar-day-dots">
+                        {d.events.slice(0, 3).map((ev, i) => (
+                          <span 
+                            key={i} 
+                            className={`calendar-event-dot ${ev.type.toLowerCase()} ${ev.isOverdue ? 'overdue' : ''}`}
+                          />
+                        ))}
+                        {d.events.length > 3 && (
+                          <span className="calendar-event-dot-more">+{d.events.length - 3}</span>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+                    ) : (
+                      /* На десктопе — плашки с текстом */
+                      <div className="calendar-day-events-list">
+                        {d.events.map(ev => {
+                          const timeStr = !ev.allDay
+                            ? new Date(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                            : '';
+                          const typeClass = ev.type.toLowerCase();
+                          const overdueClass = ev.isOverdue ? 'overdue' : '';
+
+                          return (
+                            <div
+                              key={ev.id}
+                              onClick={(e) => { e.stopPropagation(); handleEventClick(ev); }}
+                              className={`calendar-event-item ${typeClass} ${overdueClass}`}
+                              title={`${ev.title}\nКлиент: ${ev.clientName}${ev.clientPhone ? ` (${ev.clientPhone})` : ''}\nАдрес: ${ev.address || '—'}`}
+                            >
+                              <span>{ev.type === 'MEASUREMENT' ? '📏' : (ev.type === 'INSTALLATION' ? '🔨' : '⏰')}</span>
+                              {timeStr && <span style={{ opacity: 0.9 }}>{timeStr}</span>}
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.clientName}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
+
+          {/* На мобильных устройствах (или при клике на день) — подробная панель событий выбранного дня */}
+          {isMobile && (
+            <div className="calendar-selected-day-section glass-panel">
+              <div className="calendar-selected-day-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CalendarIcon size={18} style={{ color: 'var(--accent-primary)' }} />
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', textTransform: 'capitalize' }}>
+                    {selectedDate.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' })}
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  {selectedDayEvents.length > 0 ? `${selectedDayEvents.length} событ.` : 'Нет событий'}
+                </span>
+              </div>
+
+              <div className="calendar-selected-day-list">
+                {selectedDayEvents.length > 0 ? (
+                  selectedDayEvents.map(renderEventCard)
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    На этот день событий не запланировано.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -420,7 +637,15 @@ export const Calendar: React.FC = () => {
         <div className="calendar-month-grid" style={{ minHeight: '400px' }}>
           <div className="calendar-weekdays-header">
             {weekDays.map(d => (
-              <div key={d.dateKey} className="calendar-weekday-cell" style={{ background: d.isToday ? 'rgba(59, 130, 246, 0.08)' : 'transparent' }}>
+              <div 
+                key={d.dateKey} 
+                className="calendar-weekday-cell" 
+                onClick={() => handleDaySelect(d.date)}
+                style={{ 
+                  background: d.isSelected ? 'rgba(59, 130, 246, 0.15)' : (d.isToday ? 'rgba(59, 130, 246, 0.05)' : 'transparent'),
+                  cursor: 'pointer'
+                }}
+              >
                 <div>{d.dayName}</div>
                 <div style={{ fontSize: '1rem', fontWeight: 700, color: d.isToday ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
                   {d.dayNumber}
@@ -433,13 +658,15 @@ export const Calendar: React.FC = () => {
             {weekDays.map(d => (
               <div
                 key={d.dateKey}
+                onClick={() => handleDaySelect(d.date)}
                 style={{
                   borderRight: '1px solid var(--glass-border)',
                   padding: '8px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '6px',
-                  background: d.isToday ? 'rgba(59, 130, 246, 0.02)' : 'transparent'
+                  background: d.isSelected ? 'rgba(59, 130, 246, 0.04)' : (d.isToday ? 'rgba(59, 130, 246, 0.02)' : 'transparent'),
+                  cursor: 'pointer'
                 }}
               >
                 {d.events.map(ev => {
@@ -451,7 +678,7 @@ export const Calendar: React.FC = () => {
                   return (
                     <div
                       key={ev.id}
-                      onClick={() => handleEventClick(ev)}
+                      onClick={(e) => { e.stopPropagation(); handleEventClick(ev); }}
                       className={`calendar-event-item ${typeClass}`}
                       style={{ padding: '6px 8px', fontSize: '0.78rem', whiteSpace: 'normal', flexDirection: 'column', alignItems: 'flex-start' }}
                     >
@@ -493,90 +720,7 @@ export const Calendar: React.FC = () => {
                 </div>
 
                 <div className="calendar-agenda-items">
-                  {grp.events.map(ev => {
-                    const timeStr = !ev.allDay
-                      ? new Date(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-                      : 'В течение дня';
-                    const isOverdue = ev.isOverdue;
-
-                    return (
-                      <div
-                        key={ev.id}
-                        onClick={() => handleEventClick(ev)}
-                        className="calendar-agenda-card"
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                          <div style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: 'var(--radius-md)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '1.2rem',
-                            background: ev.type === 'MEASUREMENT'
-                              ? 'rgba(139, 92, 246, 0.15)'
-                              : (ev.type === 'INSTALLATION' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)'),
-                            flexShrink: 0
-                          }}>
-                            {ev.type === 'MEASUREMENT' ? '📏' : (ev.type === 'INSTALLATION' ? '🔨' : '⏰')}
-                          </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                              <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-                                {ev.title}
-                              </span>
-                              {ev.orderNumber && (
-                                <span style={{ fontSize: '0.72rem', color: '#4ade80', background: 'rgba(34, 197, 94, 0.12)', padding: '1px 5px', borderRadius: '4px' }}>
-                                  № {ev.orderNumber}
-                                </span>
-                              )}
-                              <span style={{
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                color: isOverdue ? '#ef4444' : 'var(--text-secondary)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '3px'
-                              }}>
-                                <Clock size={12} /> {timeStr}
-                                {isOverdue && ' (просрочено)'}
-                              </span>
-                            </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                              {ev.clientPhone && (
-                                <a
-                                  href={`tel:${ev.clientPhone}`}
-                                  onClick={e => e.stopPropagation()}
-                                  style={{ color: 'var(--accent-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                >
-                                  <Phone size={12} /> {ev.clientPhone}
-                                </a>
-                              )}
-                              {ev.address && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <MapPin size={12} /> {ev.address}
-                                </span>
-                              )}
-                              {ev.assigneeName && (
-                                <span>👤 {ev.assigneeName}</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          style={{ fontSize: '0.8rem', padding: '6px 10px', color: 'var(--accent-primary)' }}
-                        >
-                          Открыть сделку →
-                        </button>
-                      </div>
-                    );
-                  })}
+                  {grp.events.map(renderEventCard)}
                 </div>
               </div>
             ))

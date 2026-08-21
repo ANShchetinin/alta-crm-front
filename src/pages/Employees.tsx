@@ -298,7 +298,12 @@ export const Employees = () => {
                   .map(s => s.name);
 
                 return (
-                  <tr key={employee.id}>
+                  <tr 
+                    key={employee.id}
+                    onClick={() => openEditModal(employee)}
+                    style={{ cursor: 'pointer' }}
+                    className="client-row-hover"
+                  >
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                         <div style={{
@@ -340,7 +345,7 @@ export const Employees = () => {
                                   fontSize: '0.72rem', 
                                   color: '#38bdf8', 
                                   background: 'rgba(56, 189, 248, 0.12)', 
-                                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                                  border: '1px solid rgba(56, 189, 248, 0.25)', 
                                   padding: '1px 6px', 
                                   borderRadius: '6px',
                                   cursor: 'default'
@@ -383,16 +388,18 @@ export const Employees = () => {
                       )}
                     </td>
                     <td>
-                      <div className="client-actions" style={{ justifyContent: 'flex-end' }}>
+                      <div className="client-actions" style={{ justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
                         <button 
-                          onClick={() => openEditModal(employee)}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openEditModal(employee); }}
                           className="action-btn"
                           title="Редактировать сотрудника и права"
                         >
                           <Edit2 size={16} />
                         </button>
                         <button 
-                          onClick={() => handleDelete(employee.id)}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleDelete(employee.id); }}
                           className="action-btn delete"
                           title="Удалить"
                         >

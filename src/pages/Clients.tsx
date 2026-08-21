@@ -374,7 +374,12 @@ export const Clients = () => {
               filteredClients.map(client => {
                 const isLegal = client.clientType === 'LEGAL_ENTITY';
                 return (
-                  <tr key={client.id}>
+                  <tr 
+                    key={client.id}
+                    onClick={() => openEditModal(client)}
+                    style={{ cursor: 'pointer' }}
+                    className="client-row-hover"
+                  >
                     <td>
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                         <div style={{
@@ -457,6 +462,7 @@ export const Clients = () => {
                           <a 
                             href={`tel:${client.phone}`} 
                             title="Позвонить"
+                            onClick={(e) => e.stopPropagation()}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -505,33 +511,37 @@ export const Clients = () => {
                       </div>
                     </td>
                     <td>
-                      <div className="client-actions">
+                      <div className="client-actions" onClick={(e) => e.stopPropagation()}>
                         {client.phone && (
                           <a 
                             href={`tel:${client.phone}`}
                             className="action-btn"
                             style={{ color: 'var(--success)' }}
                             title="Позвонить клиенту"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <Phone size={16} />
                           </a>
                         )}
                         <button 
-                          onClick={() => openHistoryModal(client)}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openHistoryModal(client); }}
                           className="action-btn"
                           title="История заявок"
                         >
                           <FileText size={16} />
                         </button>
                         <button 
-                          onClick={() => openEditModal(client)}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openEditModal(client); }}
                           className="action-btn"
                           title={t('clients.modal.editTitle')}
                         >
                           <Edit2 size={16} />
                         </button>
                         <button 
-                          onClick={() => handleDelete(client.id)}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleDelete(client.id); }}
                           className="action-btn delete"
                           title="Удалить"
                         >
