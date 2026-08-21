@@ -2857,12 +2857,25 @@ const Kanban = () => {
                                   </div>
                                   <div className="spec-card-field">
                                     <label>Ед. изм.</label>
-                                    <input
-                                      type="text"
-                                      value={it.unit}
+                                    <select
+                                      value={it.unit || 'м²'}
                                       onChange={e => updateSpecRow(idx, 'unit', e.target.value)}
-                                      placeholder="м²"
-                                    />
+                                      style={{
+                                        width: '100%',
+                                        height: '36px',
+                                        borderRadius: 'var(--radius-sm)',
+                                        background: 'var(--input-bg)',
+                                        border: '1px solid var(--glass-border)',
+                                        color: 'var(--text-primary)',
+                                        padding: '0 6px',
+                                        cursor: 'pointer',
+                                        appearance: 'auto'
+                                      }}
+                                    >
+                                      <option value="м²">м²</option>
+                                      <option value="м.пог">м.пог</option>
+                                      <option value="шт.">шт.</option>
+                                    </select>
                                   </div>
                                   <div className="spec-card-field">
                                     <label>Цена (₽)</label>
@@ -2922,13 +2935,22 @@ const Kanban = () => {
                                       />
                                     </td>
                                     <td>
-                                      <input
-                                        type="text"
-                                        value={it.unit}
+                                      <select
+                                        value={it.unit || 'м²'}
                                         onChange={e => updateSpecRow(idx, 'unit', e.target.value)}
-                                        placeholder="м² / шт."
                                         className="spec-table-input"
-                                      />
+                                        style={{
+                                          width: '100%',
+                                          padding: '4px 2px',
+                                          textAlign: 'center',
+                                          cursor: 'pointer',
+                                          appearance: 'auto'
+                                        }}
+                                      >
+                                        <option value="м²">м²</option>
+                                        <option value="м.пог">м.пог</option>
+                                        <option value="шт.">шт.</option>
+                                      </select>
                                     </td>
                                     <td>
                                       <input

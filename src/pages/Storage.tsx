@@ -7,6 +7,8 @@ import { getMaterials, createMaterial, updateMaterial, deleteMaterial } from '..
 import { useAppStore } from '../store/useAppStore';
 import '../styles/clients.css';
 
+export const UNIT_OPTIONS = ['м²', 'м.пог', 'шт.'] as const;
+
 export const Storage = () => {
   const { t } = useTranslation();
   const { fetchLowStockMaterials } = useAppStore();
@@ -66,7 +68,7 @@ export const Storage = () => {
     setFormData({
       name: '',
       type: defaultType,
-      unit: defaultType === 'SERVICE' ? 'шт' : 'шт',
+      unit: defaultType === 'SERVICE' ? 'шт.' : 'м²',
       quantityInStock: '0',
       costPrice: '',
       salePrice: '',
@@ -380,13 +382,17 @@ export const Storage = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
                     <label>Единица измерения *</label>
-                    <input 
-                      type="text" 
+                    <select 
                       required
-                      placeholder="шт, м/п, м², усл., компл."
-                      value={formData.unit}
+                      value={formData.unit || 'м²'}
                       onChange={(e) => setFormData({...formData, unit: e.target.value})}
-                    />
+                      className="search-input"
+                      style={{ width: '100%', height: '42px', cursor: 'pointer', appearance: 'auto', padding: '0 10px' }}
+                    >
+                      <option value="м²">м²</option>
+                      <option value="м.пог">м.пог</option>
+                      <option value="шт.">шт.</option>
+                    </select>
                   </div>
                   <div className="form-group">
                     <label style={{ color: '#4ade80', fontWeight: 600 }}>Цена продажи клиенту (₽) *</label>
