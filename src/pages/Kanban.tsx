@@ -62,27 +62,9 @@ const MaterialSearchSelect: React.FC<MaterialSearchSelectProps> = ({ value, mate
           setIsOpen(!isOpen);
           setSearch('');
         }}
-        style={{
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '6px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid var(--glass-border)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '6px 10px',
-          color: selectedMaterial ? 'var(--text-primary)' : 'var(--text-secondary)',
-          fontSize: '0.82rem',
-          textAlign: 'left',
-          cursor: 'pointer',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          height: '32px'
-        }}
+        className="material-select-btn"
       >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: selectedMaterial ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
           {selectedMaterial ? (
             <span>
               <span style={{ fontWeight: 600 }}>{selectedMaterial.name}</span>
@@ -98,48 +80,23 @@ const MaterialSearchSelect: React.FC<MaterialSearchSelectProps> = ({ value, mate
       </button>
 
       {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          right: 0,
-          zIndex: 1000,
-          marginTop: '4px',
-          background: 'var(--surface-primary, #1e2230)',
-          border: '1px solid var(--glass-border)',
-          borderRadius: 'var(--radius-sm)',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
-          padding: '6px',
-          maxHeight: '230px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '4px'
-        }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Search size={13} style={{ position: 'absolute', left: '8px', opacity: 0.5, pointerEvents: 'none' }} />
+        <div className="material-select-dropdown">
+          <div className="material-select-search-box">
+            <Search size={13} className="material-select-search-icon" />
             <input
               type="text"
               autoFocus
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Поиск по названию..."
-              style={{
-                width: '100%',
-                padding: '5px 8px 5px 26px',
-                fontSize: '0.8rem',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: '4px',
-                color: 'var(--text-primary)',
-                outline: 'none'
-              }}
+              className="material-select-search-input"
               onClick={e => e.stopPropagation()}
             />
           </div>
 
-          <div style={{ overflowY: 'auto', maxHeight: '180px', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
+          <div className="material-select-list">
             {filtered.length === 0 ? (
-              <div style={{ padding: '8px', fontSize: '0.78rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+              <div className="material-select-empty">
                 Ничего не найдено
               </div>
             ) : (
@@ -148,31 +105,14 @@ const MaterialSearchSelect: React.FC<MaterialSearchSelectProps> = ({ value, mate
                 return (
                   <div
                     key={m.id}
+                    className={`material-select-item ${isSelected ? 'selected' : ''}`}
                     onClick={() => {
                       onChange(m.id);
                       setIsOpen(false);
                     }}
-                    style={{
-                      padding: '5px 8px',
-                      fontSize: '0.8rem',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      background: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
-                      color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      transition: 'background 0.1s'
-                    }}
-                    onMouseEnter={e => {
-                      if (!isSelected) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                    }}
-                    onMouseLeave={e => {
-                      if (!isSelected) e.currentTarget.style.background = 'transparent';
-                    }}
                   >
-                    <span style={{ fontWeight: isSelected ? 600 : 400 }}>{m.name}</span>
-                    {m.unit && <span style={{ fontSize: '0.72rem', opacity: 0.5 }}>{m.unit}</span>}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
+                    {m.unit && <span style={{ fontSize: '0.72rem', opacity: 0.6, marginLeft: '6px', flexShrink: 0 }}>{m.unit}</span>}
                   </div>
                 );
               })
@@ -2944,7 +2884,7 @@ const Kanban = () => {
                             display: 'flex', 
                             gap: '8px', 
                             alignItems: 'center',
-                            background: 'rgba(255, 255, 255, 0.02)',
+                            background: 'var(--input-bg)',
                             border: '1px solid var(--glass-border)',
                             borderRadius: 'var(--radius-sm)',
                             padding: '6px 8px'
@@ -2996,7 +2936,7 @@ const Kanban = () => {
                       </div>
                     ) : (
                       <div style={{
-                        background: 'rgba(255, 255, 255, 0.02)',
+                        background: 'var(--input-bg)',
                         border: '1px dashed var(--glass-border)',
                         borderRadius: 'var(--radius-md)',
                         padding: '32px 16px',
