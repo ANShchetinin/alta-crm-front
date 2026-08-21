@@ -1274,8 +1274,8 @@ const Kanban = () => {
             }}
             title={hideEmptyColumns ? 'Показать все колонки статусов' : 'Скрыть колонки, в которых нет заявок'}
           >
-            {hideEmptyColumns ? <EyeOff size={16} /> : <Eye size={16} />}
-            <span>{hideEmptyColumns ? 'Скрывать пустые' : 'Все колонки'}</span>
+            {hideEmptyColumns ? <Eye size={16} /> : <EyeOff size={16} />}
+            <span>{hideEmptyColumns ? 'Показать все' : 'Скрыть пустые'}</span>
           </button>
 
           <div className="search-input-wrapper" style={{ minWidth: '260px', maxWidth: '360px', position: 'relative' }}>
