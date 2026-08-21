@@ -305,10 +305,10 @@ const Kanban = () => {
       entrance: order.entrance || '',
       floor: order.floor || '',
       description: order.description || '',
-      totalPrice: tot.toString(),
-      prepayment: prep.toString(),
-      remainder: rem.toString(),
-      installationPrice: order.installationPrice != null ? order.installationPrice.toString() : '0',
+      totalPrice: (tot != null && tot > 0) ? tot.toString() : '',
+      prepayment: (prep != null && prep > 0) ? prep.toString() : '',
+      remainder: (rem != null && rem > 0) ? rem.toString() : '',
+      installationPrice: (order.installationPrice != null && order.installationPrice > 0) ? order.installationPrice.toString() : '',
       installationDate: order.installationDate || '',
       measurementDate: order.measurementDate ? order.measurementDate.slice(0, 16) : '',
       materials: order.materials ? [...order.materials] : [],
@@ -436,10 +436,10 @@ const Kanban = () => {
       entrance: '',
       floor: '',
       description: '',
-      totalPrice: '0',
-      prepayment: '0',
-      remainder: '0',
-      installationPrice: '0',
+      totalPrice: '',
+      prepayment: '',
+      remainder: '',
+      installationPrice: '',
       installationDate: '',
       measurementDate: '',
       contractParams: {
@@ -2374,10 +2374,10 @@ const Kanban = () => {
                               <label>{t('kanban.modal.installationPrice')}</label>
                               <input 
                                 type="number" 
-                                required
                                 min="0"
                                 step="0.01"
-                                value={formData.installationPrice}
+                                placeholder="0"
+                                value={formData.installationPrice || ''}
                                 onChange={(e) => setFormData({...formData, installationPrice: e.target.value})}
                                 className="custom-number-input"
                               />
@@ -2388,19 +2388,20 @@ const Kanban = () => {
                                 type="number" 
                                 min="0"
                                 step="0.01"
-                                value={formData.prepayment}
+                                placeholder="0"
+                                value={formData.prepayment || ''}
                                 onChange={(e) => {
                                   const newPrep = e.target.value;
                                   const prepNum = parseFloat(newPrep || '0');
                                   const remNum = parseFloat(formData.remainder || '0');
+                                  const sum = prepNum + remNum;
                                   setFormData({
                                     ...formData, 
                                     prepayment: newPrep,
-                                    totalPrice: (prepNum + remNum).toString()
+                                    totalPrice: sum > 0 ? sum.toString() : ''
                                   });
                                 }}
                                 className="custom-number-input"
-                                placeholder="0"
                               />
                             </div>
                             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -2409,19 +2410,20 @@ const Kanban = () => {
                                 type="number" 
                                 min="0"
                                 step="0.01"
-                                value={formData.remainder}
+                                placeholder="0"
+                                value={formData.remainder || ''}
                                 onChange={(e) => {
                                   const newRem = e.target.value;
                                   const remNum = parseFloat(newRem || '0');
                                   const prepNum = parseFloat(formData.prepayment || '0');
+                                  const sum = prepNum + remNum;
                                   setFormData({
                                     ...formData, 
                                     remainder: newRem,
-                                    totalPrice: (prepNum + remNum).toString()
+                                    totalPrice: sum > 0 ? sum.toString() : ''
                                   });
                                 }}
                                 className="custom-number-input"
-                                placeholder="0"
                               />
                             </div>
                           </div>
