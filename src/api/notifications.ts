@@ -8,12 +8,16 @@ export interface AppNotificationItem {
   url?: string;
   orderId?: number;
   isRead: boolean;
+  read?: boolean;
   createdAt: string;
 }
 
 export const getRecentNotifications = async (): Promise<AppNotificationItem[]> => {
   const response = await api.get('/notifications');
-  return response.data;
+  return (response.data || []).map((item: any) => ({
+    ...item,
+    isRead: Boolean(item.isRead ?? item.read)
+  }));
 };
 
 export const markNotificationAsRead = async (id: number): Promise<{ message: string }> => {
