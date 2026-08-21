@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Clock, Bell } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -19,8 +19,10 @@ import { getEmployeeInitials, getAvatarGradient } from './Employees';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { formatDateTimeInTimezone } from '../utils/dateUtils';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
+import { OrderRemindersSection } from '../components/OrderRemindersSection';
+import { getMyReminders, type OrderReminderDto } from '../api/reminders';
 import '../styles/kanban.css';
 interface MaterialSearchSelectProps {
   value: number;
@@ -140,6 +142,11 @@ const Kanban = () => {
   const boardRef = useRef<HTMLDivElement>(null);
   
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
+  const [remindersMap, setRemindersMap] = useState<Record<number, OrderReminderDto[]>>({});
+  const [reminderFilter, setReminderFilter] = useState<'all' | 'today' | 'overdue'>('all');
+  const [hideEmptyColumns, setHideEmptyColumns] = useState<boolean>(() => localStorage.getItem('kanban_hide_empty_columns') === 'true');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
@@ -355,13 +362,14 @@ const Kanban = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [statuses, orders, clientsData, materialsData, employeesData, tStatus] = await Promise.all([
+      const [statuses, orders, clientsData, materialsData, employeesData, tStatus, remindersData] = await Promise.all([
         getOrderStatuses().catch(() => []),
         getOrders().catch(() => []),
         !isWorker ? getClients().catch(() => []) : Promise.resolve([]),
         !isWorker ? getMaterials().catch(() => []) : Promise.resolve([]),
         !isWorker ? getEmployees().catch(() => []) : Promise.resolve([]),
-        !isWorker ? getContractTemplateStatus().catch(() => null) : Promise.resolve(null)
+        !isWorker ? getContractTemplateStatus().catch(() => null) : Promise.resolve(null),
+        !isWorker ? getMyReminders('all').catch(() => []) : Promise.resolve([])
       ]);
       const sortedColumns = statuses.sort((a, b) => a.sortOrder - b.sortOrder);
       setColumns(sortedColumns);
@@ -370,6 +378,15 @@ const Kanban = () => {
       setAllMaterials(materialsData);
       setEmployees(employeesData);
       if (tStatus) setTemplateStatus(tStatus);
+
+      const rMap: Record<number, OrderReminderDto[]> = {};
+      (remindersData as OrderReminderDto[]).forEach(r => {
+        if (r.orderId) {
+          if (!rMap[r.orderId]) rMap[r.orderId] = [];
+          rMap[r.orderId].push(r);
+        }
+      });
+      setRemindersMap(rMap);
       
       const firstStatus = sortedColumns.find(s => s.sortOrder === 1);
       if (firstStatus) {
@@ -390,6 +407,23 @@ const Kanban = () => {
       console.error("Failed to fetch kanban data", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshRemindersOnly = async () => {
+    if (isWorker) return;
+    try {
+      const remindersData = await getMyReminders('all');
+      const rMap: Record<number, OrderReminderDto[]> = {};
+      (remindersData as OrderReminderDto[]).forEach(r => {
+        if (r.orderId) {
+          if (!rMap[r.orderId]) rMap[r.orderId] = [];
+          rMap[r.orderId].push(r);
+        }
+      });
+      setRemindersMap(rMap);
+    } catch (e) {
+      console.error('Failed to refresh reminders', e);
     }
   };
 
@@ -1147,26 +1181,49 @@ const Kanban = () => {
     return Math.round((currentProfit / currentTotalPrice) * 100);
   }, [currentProfit, currentTotalPrice]);
 
+  const filteredCards = useMemo(() => {
+    return cards.filter(card => {
+      if (reminderFilter === 'today') {
+        const cardReminders = remindersMap[card.id] || [];
+        const hasToday = cardReminders.some(r => {
+          if (r.status !== 'PENDING') return false;
+          const d = new Date(r.remindAt);
+          return d.toDateString() === new Date().toDateString();
+        });
+        if (!hasToday) return false;
+      } else if (reminderFilter === 'overdue') {
+        const cardReminders = remindersMap[card.id] || [];
+        const hasOverdue = cardReminders.some(r => r.status === 'PENDING' && r.isOverdue);
+        if (!hasOverdue) return false;
+      }
+
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      const client = clients.find(cl => cl.id === card.clientId);
+      const employee = employees.find(e => e.id === card.assigneeId);
+
+      const orderNumMatch = card.orderNumber?.toLowerCase().includes(q) || false;
+      const clientNameMatch = client?.name?.toLowerCase().includes(q) || false;
+      const clientPhoneMatch = client?.phone?.includes(q) || false;
+      const addressMatch = card.address?.toLowerCase().includes(q) || false;
+      const descMatch = card.description?.toLowerCase().includes(q) || false;
+      const employeeMatch = employee?.name?.toLowerCase().includes(q) || false;
+      const idMatch = card.id.toString() === q || `№${card.id}` === q;
+
+      return orderNumMatch || clientNameMatch || clientPhoneMatch || addressMatch || descMatch || employeeMatch || idMatch;
+    });
+  }, [cards, reminderFilter, remindersMap, searchQuery, clients, employees]);
+
+  const displayedColumns = useMemo(() => {
+    if (!hideEmptyColumns) return columns;
+    return columns.filter(col => {
+      return filteredCards.some(c => c.statusId === col.id);
+    });
+  }, [columns, hideEmptyColumns, filteredCards]);
+
   if (loading) {
     return <div style={{padding: 24}}>Loading board...</div>;
   }
-
-  const filteredCards = cards.filter(card => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    const client = clients.find(cl => cl.id === card.clientId);
-    const employee = employees.find(e => e.id === card.assigneeId);
-
-    const orderNumMatch = card.orderNumber?.toLowerCase().includes(q) || false;
-    const clientNameMatch = client?.name?.toLowerCase().includes(q) || false;
-    const clientPhoneMatch = client?.phone?.includes(q) || false;
-    const addressMatch = card.address?.toLowerCase().includes(q) || false;
-    const descMatch = card.description?.toLowerCase().includes(q) || false;
-    const employeeMatch = employee?.name?.toLowerCase().includes(q) || false;
-    const idMatch = card.id.toString() === q || `№${card.id}` === q;
-
-    return orderNumMatch || clientNameMatch || clientPhoneMatch || addressMatch || descMatch || employeeMatch || idMatch;
-  });
 
   return (
     <div className="kanban-wrapper">
@@ -1174,7 +1231,54 @@ const Kanban = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
           <h1 style={{ margin: 0 }}>{t('kanban.title')}</h1>
           
-          <div className="search-input-wrapper" style={{ minWidth: '300px', maxWidth: '400px', position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => navigate('/calendar')}
+            className="btn btn-ghost"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              border: '1px solid var(--glass-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '6px 12px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              color: 'var(--text-primary)'
+            }}
+          >
+            <CalendarDays size={16} style={{ color: 'var(--accent-primary)' }} />
+            Календарь
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const next = !hideEmptyColumns;
+              setHideEmptyColumns(next);
+              localStorage.setItem('kanban_hide_empty_columns', String(next));
+            }}
+            className="btn btn-ghost"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              border: hideEmptyColumns ? '1px solid var(--accent-primary)' : '1px solid var(--glass-border)',
+              background: hideEmptyColumns ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+              color: hideEmptyColumns ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              borderRadius: 'var(--radius-md)',
+              padding: '6px 12px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+            title={hideEmptyColumns ? 'Показать все колонки статусов' : 'Скрыть колонки, в которых нет заявок'}
+          >
+            {hideEmptyColumns ? <EyeOff size={16} /> : <Eye size={16} />}
+            <span>{hideEmptyColumns ? 'Скрывать пустые' : 'Все колонки'}</span>
+          </button>
+
+          <div className="search-input-wrapper" style={{ minWidth: '260px', maxWidth: '360px', position: 'relative' }}>
             <Search className="search-icon" size={18} />
             <input 
               type="text" 
@@ -1196,6 +1300,59 @@ const Kanban = () => {
               </button>
             )}
           </div>
+
+          {!isWorker && (
+            <div style={{ display: 'flex', gap: '4px', background: 'rgba(255, 255, 255, 0.03)', padding: '3px', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
+              <button
+                type="button"
+                onClick={() => setReminderFilter('all')}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  background: reminderFilter === 'all' ? 'var(--accent-primary)' : 'transparent',
+                  color: reminderFilter === 'all' ? '#fff' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer'
+                }}
+              >
+                Все
+              </button>
+              <button
+                type="button"
+                onClick={() => setReminderFilter('today')}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  background: reminderFilter === 'today' ? 'rgba(245, 158, 11, 0.9)' : 'transparent',
+                  color: reminderFilter === 'today' ? '#fff' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer'
+                }}
+              >
+                ⏰ Сегодня
+              </button>
+              <button
+                type="button"
+                onClick={() => setReminderFilter('overdue')}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  background: reminderFilter === 'overdue' ? 'rgba(239, 68, 68, 0.9)' : 'transparent',
+                  color: reminderFilter === 'overdue' ? '#fff' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer'
+                }}
+              >
+                🔥 Просроченные
+              </button>
+            </div>
+          )}
         </div>
 
         {!isWorker && (
@@ -1225,7 +1382,7 @@ const Kanban = () => {
           }
         }}
       >
-        {columns.map(col => {
+        {displayedColumns.map(col => {
           const colCards = filteredCards.filter(c => c.statusId === col.id);
           const totalInCol = cards.filter(c => c.statusId === col.id).length;
 
@@ -1385,6 +1542,40 @@ const Kanban = () => {
                               <Phone size={12} />
                             </a>
                           )}
+                          {(() => {
+                            const cardReminders = remindersMap[card.id] || [];
+                            const pending = cardReminders.filter(r => r.status === 'PENDING');
+                            if (pending.length === 0) return null;
+                            const isOverdue = pending.some(r => r.isOverdue);
+                            const isToday = pending.some(r => {
+                              const d = new Date(r.remindAt);
+                              return d.toDateString() === new Date().toDateString();
+                            });
+                            const nearest = pending[0];
+                            const timeStr = new Date(nearest.remindAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+                            return (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  padding: '2px 6px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  background: isOverdue ? 'rgba(239, 68, 68, 0.18)' : (isToday ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.15)'),
+                                  color: isOverdue ? '#ef4444' : (isToday ? '#f59e0b' : '#60a5fa'),
+                                  border: isOverdue ? '1px solid rgba(239, 68, 68, 0.35)' : (isToday ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(59, 130, 246, 0.3)'),
+                                  cursor: 'default'
+                                }}
+                                title={`Активных напоминаний: ${pending.length}\nБлижайшее: ${nearest.comment || 'Звонок'} (${timeStr})${isOverdue ? ' [ПРОСРОЧЕНО]' : ''}`}
+                              >
+                                <Bell size={11} />
+                                {pending.length > 1 ? pending.length : ''}
+                              </span>
+                            );
+                          })()}
                         </div>
                       );
                     })()}
@@ -1543,6 +1734,41 @@ const Kanban = () => {
                         </span>
                       </div>
                     )}
+                    {(() => {
+                      const cardReminders = remindersMap[card.id] || [];
+                      const pending = cardReminders.filter(r => r.status === 'PENDING');
+                      if (pending.length === 0) return null;
+                      const nearest = pending[0];
+                      const dateObj = new Date(nearest.remindAt);
+                      const isOverdue = nearest.isOverdue;
+                      const isToday = dateObj.toDateString() === new Date().toDateString();
+                      const timeStr = dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                      const dateStr = isToday ? `Сегодня, ${timeStr}` : dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + `, ${timeStr}`;
+
+                      return (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '0.73rem',
+                            fontWeight: 600,
+                            color: isOverdue ? '#ef4444' : (isToday ? '#f59e0b' : '#60a5fa'),
+                            background: isOverdue ? 'rgba(239, 68, 68, 0.12)' : (isToday ? 'rgba(245, 158, 11, 0.12)' : 'rgba(59, 130, 246, 0.1)'),
+                            border: isOverdue ? '1px solid rgba(239, 68, 68, 0.25)' : (isToday ? '1px solid rgba(245, 158, 11, 0.25)' : '1px solid rgba(59, 130, 246, 0.2)'),
+                            padding: '3px 6px',
+                            borderRadius: 'var(--radius-sm)',
+                            marginTop: '2px'
+                          }}
+                          title={`Напоминание: ${nearest.comment || 'Связаться с клиентом'}${isOverdue ? ' (просрочено)' : ''}`}
+                        >
+                          <Clock size={12} style={{ flexShrink: 0 }} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            ⏰ {dateStr}: {nearest.comment || 'Звонок'}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                   {isWorker ? (() => {
                     const col = columns.find(c => c.id === card.statusId);
@@ -2498,6 +2724,14 @@ const Kanban = () => {
                           </div>
                         </div>
                       </>
+                    )}
+
+                    {editingOrderId && !isWorker && (
+                      <OrderRemindersSection
+                        orderId={editingOrderId}
+                        employees={employees}
+                        onReminderCountChanged={refreshRemindersOnly}
+                      />
                     )}
                   </>
                 )}
