@@ -94,8 +94,11 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
     setCustomDateTime(`${year}-${month}-${day}T${hours}:${minutes}`);
   };
 
-  const handleCreateReminder = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateReminder = async (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!customDateTime) {
       alert('Пожалуйста, выберите дату и время напоминания');
       return;
@@ -103,10 +106,8 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
 
     try {
       setSubmitting(true);
-      // Convert to ISO-8601 UTC
-      const isoRemindAt = new Date(customDateTime).toISOString();
       await createReminder(orderId, {
-        remindAt: isoRemindAt,
+        remindAt: customDateTime,
         comment: comment.trim() || undefined,
         userId: selectedUserId
       });
@@ -114,9 +115,10 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
       setCustomDateTime('');
       await fetchReminders();
       if (onReminderCountChanged) onReminderCountChanged();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create reminder', err);
-      alert('Ошибка при создании напоминания');
+      const errMsg = err?.response?.data?.message || err?.message || 'Ошибка при создании напоминания';
+      alert(`Ошибка при создании напоминания: ${errMsg}`);
     } finally {
       setSubmitting(false);
     }
@@ -233,8 +235,8 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
         </div>
       </div>
 
-      {/* Форма добавления */}
-      <form onSubmit={handleCreateReminder} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+      {/* Форма добавления напоминания */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>Дата и время звонка *</label>
@@ -243,6 +245,13 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
               required
               value={customDateTime}
               onChange={e => setCustomDateTime(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCreateReminder(e);
+                }
+              }}
               className="custom-date-input"
               style={{ width: '100%', fontSize: '0.85rem' }}
             />
@@ -298,11 +307,19 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
             placeholder="Комментарий или цель звонка (напр. спросить по замеру)..."
             value={comment}
             onChange={e => setComment(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleCreateReminder(e);
+              }
+            }}
             className="search-input"
             style={{ flex: 1, fontSize: '0.85rem', paddingLeft: '10px' }}
           />
           <button
-            type="submit"
+            type="button"
+            onClick={handleCreateReminder}
             disabled={submitting || !customDateTime}
             className="btn btn-primary"
             style={{
@@ -318,7 +335,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
             Поставить
           </button>
         </div>
-      </form>
+      </div>
 
       {/* Список активных напоминаний */}
       {pendingReminders.length > 0 ? (
