@@ -3210,20 +3210,20 @@ const Kanban = () => {
                                       type="button"
                                       onClick={() => handleOpenAttachment(actAttachment)}
                                       className="btn btn-ghost"
-                                      style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                      style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                       title="Посмотреть в браузере"
                                     >
-                                      <Eye size={13} /> Просмотр
+                                      <Eye size={16} />
                                     </button>
                                   )}
                                   <button
                                     type="button"
                                     onClick={() => handleDownloadAttachment(actAttachment)}
                                     className="btn btn-ghost"
-                                    style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                     title="Скачать файл"
                                   >
-                                    <Download size={13} /> Скачать
+                                    <Download size={16} />
                                   </button>
                                 </div>
                               )}
@@ -3341,20 +3341,20 @@ const Kanban = () => {
                                         type="button" 
                                         onClick={() => handleOpenAttachment(att)} 
                                         className="btn btn-ghost" 
-                                        style={{padding: '5px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                                        style={{padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
                                         title="Посмотреть в браузере"
                                       >
-                                        <Eye size={14} /> Просмотр
+                                        <Eye size={16} />
                                       </button>
                                     )}
                                     <button 
                                       type="button" 
                                       onClick={() => handleDownloadAttachment(att)} 
                                       className="btn btn-ghost" 
-                                      style={{padding: '5px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                                      style={{padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
                                       title="Скачать файл"
                                     >
-                                      <Download size={14} /> {t('kanban.modal.download')}
+                                      <Download size={16} />
                                     </button>
                                     {!isWorker && (
                                       <button 
