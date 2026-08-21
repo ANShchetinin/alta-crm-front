@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -231,6 +231,10 @@ const DashboardLayout = () => {
                 <LayoutDashboard size={20} />
                 <span style={{ flex: 1 }}>{t('nav.orders') || 'Мои заявки'}</span>
               </NavLink>
+              <NavLink to="/calendar" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <CalendarDays size={20} />
+                <span style={{ flex: 1 }}>Календарь</span>
+              </NavLink>
               <NavLink to="/earnings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Wallet size={20} />
                 <span style={{ flex: 1 }}>Мой заработок</span>
@@ -247,6 +251,10 @@ const DashboardLayout = () => {
                     {newOrdersCount}
                   </span>
                 )}
+              </NavLink>
+              <NavLink to="/calendar" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <CalendarDays size={20} />
+                <span>{t('nav.calendar') || 'Календарь'}</span>
               </NavLink>
               <NavLink to="/clients" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Users size={20} />

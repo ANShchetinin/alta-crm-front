@@ -10,6 +10,7 @@ import { Reports } from './pages/Reports';
 import { Tenants } from './pages/Tenants';
 import { ContractTemplates } from './pages/ContractTemplates';
 import { Earnings } from './pages/Earnings';
+import { Calendar } from './pages/Calendar';
 import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
@@ -137,6 +138,7 @@ function App() {
         <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
           <Route index element={<IndexRedirect />} />
           <Route path="kanban" element={<Kanban />} />
+          <Route path="calendar" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER', 'SUPERADMIN']}><Calendar /></RoleRoute>} />
           <Route path="earnings" element={<RoleRoute allowedRoles={['WORKER', 'OWNER', 'MANAGER', 'SUPERADMIN']}><Earnings /></RoleRoute>} />
           <Route path="clients" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Clients /></RoleRoute>} />
           <Route path="employees" element={<RoleRoute allowedRoles={['OWNER', 'SUPERADMIN']}><Employees /></RoleRoute>} />
