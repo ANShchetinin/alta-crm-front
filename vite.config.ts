@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'favicon.jpg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+      includeAssets: ['favicon.svg', 'favicon.jpg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'push-worker.js'],
       manifest: {
         name: 'Alta CRM — Управление потолками',
         short_name: 'Alta CRM',
@@ -39,7 +39,8 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,woff2}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,woff2}'],
+        importScripts: ['/push-worker.js']
       }
     })
   ],

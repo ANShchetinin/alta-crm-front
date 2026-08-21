@@ -10,6 +10,8 @@ import { getClients, createClient, updateClient, deleteClient } from '../api/cli
 import type { Order, OrderStatus } from '../api/kanban';
 import { getOrdersByClient, getOrderStatuses, moveOrder } from '../api/kanban';
 import { useNavigate } from 'react-router-dom';
+import { useAppStore } from '../store/useAppStore';
+import { formatDateInTimezone } from '../utils/dateUtils';
 import '../styles/clients.css';
 
 export const PRESET_LEAD_SOURCES = [
@@ -37,6 +39,7 @@ export const PRESET_VAT_STATUSES = [
 export const Clients = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { tenantSettings } = useAppStore();
   const [clients, setClients] = useState<Client[]>([]);
   const [statuses, setStatuses] = useState<OrderStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -498,7 +501,7 @@ export const Clients = () => {
                     </td>
                     <td>
                       <div className="client-date">
-                        {new Date(client.createdAt).toLocaleDateString()}
+                        {formatDateInTimezone(client.createdAt, tenantSettings?.timezone)}
                       </div>
                     </td>
                     <td>
@@ -1165,7 +1168,7 @@ export const Clients = () => {
                                   </div>
                                 )}
                               </td>
-                              <td>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</td>
+                              <td>{order.createdAt ? formatDateInTimezone(order.createdAt, tenantSettings?.timezone) : '-'}</td>
                               <td style={{textAlign: 'right'}}>
                                 <button 
                                   onClick={() => {

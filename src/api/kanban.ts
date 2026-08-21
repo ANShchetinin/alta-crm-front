@@ -177,6 +177,11 @@ export const deleteOrder = async (orderId: number): Promise<void> => {
   await api.delete(`/orders/${orderId}`);
 };
 
+export const completeOrder = async (orderId: number): Promise<Order> => {
+  const response = await api.post(`/orders/${orderId}/complete`);
+  return response.data;
+};
+
 export const uploadAudio = async (orderId: number, file: File): Promise<void> => {
   const formData = new FormData();
   formData.append('file', file);

@@ -4,7 +4,7 @@ import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Ey
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, completeOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary, ContractParams } from '../api/kanban';
 import { getClients, createClient, updateClient } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -18,6 +18,7 @@ import type { Employee } from '../api/employees';
 import { getEmployeeInitials, getAvatarGradient } from './Employees';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { formatDateTimeInTimezone } from '../utils/dateUtils';
 import { useSearchParams } from 'react-router-dom';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import '../styles/kanban.css';
@@ -128,7 +129,7 @@ const Kanban = () => {
   const { t } = useTranslation();
   const role = useAuthStore(state => state.role);
   const isWorker = role === 'WORKER';
-  const { setNewOrdersCount, fetchLowStockMaterials } = useAppStore();
+  const { setNewOrdersCount, fetchLowStockMaterials, tenantSettings } = useAppStore();
   const [columns, setColumns] = useState<OrderStatus[]>([]);
   const [cards, setCards] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -264,9 +265,92 @@ const Kanban = () => {
     return merged;
   };
 
+  const openEditModal = (order: Order) => {
+    const prep = order.prepayment != null ? order.prepayment : 0;
+    const rem = order.remainder != null ? order.remainder : (order.totalPrice != null ? Math.max(0, order.totalPrice - prep) : 0);
+    const tot = order.totalPrice != null ? order.totalPrice : (prep + rem);
+
+    const initialContractParams: ContractParams = order.contractParams ? {
+      ...order.contractParams,
+      contractDate: order.contractParams.contractDate || new Date().toISOString().slice(0, 10),
+      actChecklist: mergeActChecklist(order.contractParams.actChecklist),
+      specItems: order.contractParams.specItems || []
+    } : {
+      area: '70,3',
+      perimeter: '110,5',
+      canvasesCount: '5',
+      insertLength: '20',
+      pipeCount: '0',
+      lightsCount: '30',
+      timberLength: '17',
+      canvasArticle: 'Полотно Мат 303',
+      contractDate: new Date().toISOString().slice(0, 10),
+      discount: '',
+      handoverDate: '',
+      specItems: [],
+      actChecklist: DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }))
+    };
+
+    setEditingOrderId(order.id);
+    setOrderModalTab('MAIN');
+    setFormData({
+      clientId: order.clientId ? order.clientId.toString() : '',
+      statusId: order.statusId ? order.statusId.toString() : (columns[0]?.id ? columns[0].id.toString() : ''),
+      assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
+      installedById: order.installedById ? order.installedById.toString() : '',
+      installedByName: order.installedByName || '',
+      installedByAvatarUrl: order.installedByAvatarUrl || '',
+      installedAt: order.installedAt || '',
+      orderNumber: order.orderNumber || '',
+      address: order.address || '',
+      entrance: order.entrance || '',
+      floor: order.floor || '',
+      description: order.description || '',
+      totalPrice: (tot != null && tot > 0) ? tot.toString() : '',
+      prepayment: (prep != null && prep > 0) ? prep.toString() : '',
+      remainder: (rem != null && rem > 0) ? rem.toString() : '',
+      installationPrice: (order.installationPrice != null && order.installationPrice > 0) ? order.installationPrice.toString() : '',
+      installationDate: order.installationDate || '',
+      measurementDate: order.measurementDate ? order.measurementDate.slice(0, 16) : '',
+      materials: order.materials ? [...order.materials] : [],
+      attachments: order.attachments ? [...order.attachments] : [],
+      contractParams: initialContractParams
+    });
+    setPendingFiles([]);
+    setAiSummary(null);
+    setIsModalOpen(true);
+    getAiSummary(order.id).then(setAiSummary).catch(() => setAiSummary(null));
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Reactive listener for opening order modal from notifications or external navigation
+  useEffect(() => {
+    const orderIdParam = searchParams.get('orderId');
+    if (!orderIdParam) return;
+    const targetId = parseInt(orderIdParam);
+    if (isNaN(targetId)) return;
+
+    const orderToOpen = cards.find(o => o.id === targetId);
+    if (orderToOpen) {
+      openEditModal(orderToOpen);
+      searchParams.delete('orderId');
+      setSearchParams(searchParams, { replace: true });
+    } else if (!loading && cards.length > 0) {
+      // If cards are loaded but order is missing, fetch fresh list
+      getOrders().then(orders => {
+        setCards(orders);
+        const freshOrder = orders.find(o => o.id === targetId);
+        if (freshOrder) {
+          openEditModal(freshOrder);
+          searchParams.delete('orderId');
+          setSearchParams(searchParams, { replace: true });
+        }
+      }).catch(err => console.error("Failed to load order from query param", err));
+    }
+  }, [searchParams, cards, loading]);
 
   const fetchData = async () => {
     try {
@@ -296,38 +380,7 @@ const Kanban = () => {
       if (orderIdParam) {
         const orderToOpen = orders.find(o => o.id === parseInt(orderIdParam));
         if (orderToOpen) {
-          // Open edit modal directly
-          const prep = orderToOpen.prepayment != null ? orderToOpen.prepayment : 0;
-          const rem = orderToOpen.remainder != null ? orderToOpen.remainder : (orderToOpen.totalPrice != null ? Math.max(0, orderToOpen.totalPrice - prep) : 0);
-          const tot = orderToOpen.totalPrice != null ? orderToOpen.totalPrice : (prep + rem);
-
-          setEditingOrderId(orderToOpen.id);
-          setFormData({
-            clientId: orderToOpen.clientId ? orderToOpen.clientId.toString() : '',
-            statusId: orderToOpen.statusId ? orderToOpen.statusId.toString() : (sortedColumns[0]?.id ? sortedColumns[0].id.toString() : ''),
-            assigneeId: orderToOpen.assigneeId ? orderToOpen.assigneeId.toString() : '',
-            installedById: orderToOpen.installedById ? orderToOpen.installedById.toString() : '',
-            installedByName: orderToOpen.installedByName || '',
-            installedByAvatarUrl: orderToOpen.installedByAvatarUrl || '',
-            installedAt: orderToOpen.installedAt || '',
-            orderNumber: orderToOpen.orderNumber || '',
-            address: orderToOpen.address || '',
-            entrance: orderToOpen.entrance || '',
-            floor: orderToOpen.floor || '',
-            description: orderToOpen.description || '',
-            totalPrice: tot.toString(),
-            prepayment: prep.toString(),
-            remainder: rem.toString(),
-            installationPrice: orderToOpen.installationPrice != null ? orderToOpen.installationPrice.toString() : '0',
-            installationDate: orderToOpen.installationDate || '',
-            measurementDate: orderToOpen.measurementDate ? orderToOpen.measurementDate.slice(0, 16) : '',
-            contractParams: orderToOpen.contractParams ? { ...orderToOpen.contractParams } : undefined,
-            materials: orderToOpen.materials ? [...orderToOpen.materials] : [],
-            attachments: orderToOpen.attachments ? [...orderToOpen.attachments] : []
-          });
-          setPendingFiles([]);
-          setIsModalOpen(true);
-          getAiSummary(orderToOpen.id).then(setAiSummary).catch(() => setAiSummary(null));
+          openEditModal(orderToOpen);
         }
         searchParams.delete('orderId');
         setSearchParams(searchParams, { replace: true });
@@ -384,10 +437,10 @@ const Kanban = () => {
       entrance: '',
       floor: '',
       description: '',
-      totalPrice: '0',
-      prepayment: '0',
-      remainder: '0',
-      installationPrice: '0',
+      totalPrice: '',
+      prepayment: '',
+      remainder: '',
+      installationPrice: '',
       installationDate: '',
       measurementDate: '',
       contractParams: {
@@ -443,63 +496,6 @@ const Kanban = () => {
     } finally {
       setCreatingClient(false);
     }
-  };
-
-  const openEditModal = (order: Order) => {
-    const prep = order.prepayment != null ? order.prepayment : 0;
-    const rem = order.remainder != null ? order.remainder : (order.totalPrice != null ? Math.max(0, order.totalPrice - prep) : 0);
-    const tot = order.totalPrice != null ? order.totalPrice : (prep + rem);
-
-    const initialContractParams: ContractParams = order.contractParams ? {
-      ...order.contractParams,
-      contractDate: order.contractParams.contractDate || new Date().toISOString().slice(0, 10),
-      actChecklist: mergeActChecklist(order.contractParams.actChecklist),
-      specItems: order.contractParams.specItems || []
-    } : {
-      area: '70,3',
-      perimeter: '110,5',
-      canvasesCount: '5',
-      insertLength: '20',
-      pipeCount: '0',
-      lightsCount: '30',
-      timberLength: '17',
-      canvasArticle: 'Полотно Мат 303',
-      contractDate: new Date().toISOString().slice(0, 10),
-      discount: '',
-      handoverDate: '',
-      specItems: [],
-      actChecklist: DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }))
-    };
-
-    setEditingOrderId(order.id);
-    setOrderModalTab('MAIN');
-    setFormData({
-      clientId: order.clientId ? order.clientId.toString() : '',
-      statusId: order.statusId ? order.statusId.toString() : (columns[0]?.id ? columns[0].id.toString() : ''),
-      assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
-      installedById: order.installedById ? order.installedById.toString() : '',
-      installedByName: order.installedByName || '',
-      installedByAvatarUrl: order.installedByAvatarUrl || '',
-      installedAt: order.installedAt || '',
-      orderNumber: order.orderNumber || '',
-      address: order.address || '',
-      entrance: order.entrance || '',
-      floor: order.floor || '',
-      description: order.description || '',
-      totalPrice: tot.toString(),
-      prepayment: prep.toString(),
-      remainder: rem.toString(),
-      installationPrice: order.installationPrice != null ? order.installationPrice.toString() : '0',
-      installationDate: order.installationDate || '',
-      measurementDate: order.measurementDate ? order.measurementDate.slice(0, 16) : '',
-      materials: order.materials ? [...order.materials] : [],
-      attachments: order.attachments ? [...order.attachments] : [],
-      contractParams: initialContractParams
-    });
-    setPendingFiles([]);
-    setAiSummary(null);
-    setIsModalOpen(true);
-    getAiSummary(order.id).then(setAiSummary).catch(() => setAiSummary(null));
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -687,24 +683,38 @@ const Kanban = () => {
     }
   };
 
+  const isActFile = (fileName?: string) => {
+    if (!fileName) return false;
+    const lower = fileName.trim().toLowerCase();
+    return lower.includes('акт') || lower.includes('act') || lower.includes('akt');
+  };
+
   const handleCompleteInstallation = async (e: React.MouseEvent, orderId: number) => {
     e.stopPropagation();
-    const completedStatus = columns.find(c => {
-      const name = c.name.toLowerCase();
-      return name.includes('заверш') || name.includes('готов') || name.includes('выполнен');
-    }) || columns[columns.length - 1];
-
-    if (!completedStatus) return;
+    const card = cards.find(c => c.id === orderId);
+    const currentAttachments = (editingOrderId === orderId && formData.attachments.length > 0)
+      ? formData.attachments 
+      : (card?.attachments || []);
+    const hasAct = currentAttachments.some(a => isActFile(a.fileName));
+    if (!hasAct) {
+      alert('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы».');
+      return;
+    }
 
     try {
-      await moveOrder(orderId, completedStatus.id);
-      setCards(prevCards => prevCards.map(c => c.id === orderId ? { ...c, statusId: completedStatus.id } : c));
-      if (editingOrderId === orderId) {
-        setFormData(prev => ({ ...prev, statusId: completedStatus.id.toString() }));
-      }
+      const updatedOrder = await completeOrder(orderId);
+      setCards(prevCards => prevCards.map(c => c.id === orderId ? {
+        ...c,
+        statusId: updatedOrder.statusId || c.statusId,
+        installedByName: updatedOrder.installedByName || c.installedByName,
+        installedAt: updatedOrder.installedAt || new Date().toISOString()
+      } : c));
+      setIsModalOpen(false);
+      setEditingOrderId(null);
+      fetchData();
     } catch (err: any) {
       console.error('Failed to complete installation', err);
-      alert(err.response?.data?.message || 'Не удалось перевести заявку в завершенный статус');
+      alert(err.response?.data?.message || err.message || 'Не удалось перевести заявку в завершенный статус');
     }
   };
 
@@ -757,9 +767,14 @@ const Kanban = () => {
           ...prev,
           attachments: [...prev.attachments, newAttachment]
         }));
+        setCards(prev => prev.map(c => c.id === editingOrderId ? {
+          ...c,
+          attachments: [...(c.attachments || []), newAttachment]
+        } : c));
         fetchData();
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to upload file", err);
+        alert(err.response?.data?.message || "Не удалось загрузить файл");
       } finally {
         setUploadingFile(false);
         e.target.value = '';
@@ -772,6 +787,42 @@ const Kanban = () => {
 
   const removePendingFile = (index: number) => {
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleActUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const originalFile = e.target.files?.[0];
+    if (!originalFile) return;
+
+    let newFileName = originalFile.name;
+    if (!isActFile(newFileName)) {
+      newFileName = `Акт выполненных работ - ${originalFile.name}`;
+    }
+    const file = new File([originalFile], newFileName, { type: originalFile.type });
+
+    if (editingOrderId) {
+      setUploadingFile(true);
+      try {
+        const newAttachment = await uploadAttachment(editingOrderId, file);
+        setFormData(prev => ({
+          ...prev,
+          attachments: [...prev.attachments, newAttachment]
+        }));
+        setCards(prev => prev.map(c => c.id === editingOrderId ? {
+          ...c,
+          attachments: [...(c.attachments || []), newAttachment]
+        } : c));
+        fetchData();
+      } catch (err: any) {
+        console.error("Failed to upload act file", err);
+        alert(err.response?.data?.message || "Не удалось загрузить Акт");
+      } finally {
+        setUploadingFile(false);
+        e.target.value = '';
+      }
+    } else {
+      setPendingFiles(prev => [...prev, file]);
+      e.target.value = '';
+    }
   };
 
   const isViewableInBrowser = (fileName: string, contentType?: string) => {
@@ -1383,7 +1434,17 @@ const Kanban = () => {
                       })()}
                     </div>
                   </div>
-                  <div className="card-desc">{card.description}</div>
+                  <div 
+                    className="card-desc" 
+                    style={{ 
+                      whiteSpace: 'pre-wrap', 
+                      wordBreak: 'break-word',
+                      maxHeight: '140px',
+                      overflowY: 'auto'
+                    }}
+                  >
+                    {card.description}
+                  </div>
                   
                   {card.address && (
                     <div 
@@ -1490,6 +1551,7 @@ const Kanban = () => {
                       col.name.toLowerCase().includes('готов') ||
                       col.name.toLowerCase().includes('выполнен')
                     ) : false;
+                    const hasAct = (card.attachments || []).some(a => isActFile(a.fileName));
 
                     return (
                       <div className="card-footer" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'stretch' }}>
@@ -1498,8 +1560,8 @@ const Kanban = () => {
                             Остаток к оплате: <strong style={{ color: 'var(--accent-primary)', fontSize: '0.9rem' }}>{(card.remainder != null ? card.remainder : (card.totalPrice || 0)).toLocaleString('ru-RU')} ₽</strong>
                           </div>
                           {card.attachments && card.attachments.length > 0 && (
-                            <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
-                              <Paperclip size={12} /> {card.attachments.length}
+                            <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: hasAct ? '#4ade80' : 'var(--text-secondary)'}} title={hasAct ? 'Акт выполненных работ прикреплен' : undefined}>
+                              <Paperclip size={12} /> {card.attachments.length} {hasAct && <span style={{ fontWeight: 600 }}>✓ Акт</span>}
                             </div>
                           )}
                         </div>
@@ -1521,29 +1583,38 @@ const Kanban = () => {
                             <CheckCircle2 size={14} /> Монтаж завершен
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={(e) => handleCompleteInstallation(e, card.id)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '6px',
-                              padding: '7px 12px',
-                              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                              border: 'none',
-                              borderRadius: 'var(--radius-sm)',
-                              color: '#fff',
-                              fontSize: '0.82rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              boxShadow: '0 2px 8px rgba(34, 197, 94, 0.25)',
-                              transition: 'transform 0.1s ease, box-shadow 0.1s ease'
-                            }}
-                            title="Перевести заявку в статус «Завершено»"
-                          >
-                            <CheckCircle2 size={15} /> Завершить монтаж
-                          </button>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <button
+                              type="button"
+                              disabled={!hasAct}
+                              onClick={(e) => handleCompleteInstallation(e, card.id)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px',
+                                padding: '7px 12px',
+                                background: hasAct ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
+                                border: hasAct ? 'none' : '1px solid var(--glass-border)',
+                                borderRadius: 'var(--radius-sm)',
+                                color: hasAct ? '#fff' : 'var(--text-secondary)',
+                                fontSize: '0.82rem',
+                                fontWeight: 600,
+                                cursor: hasAct ? 'pointer' : 'not-allowed',
+                                opacity: hasAct ? 1 : 0.6,
+                                boxShadow: hasAct ? '0 2px 8px rgba(34, 197, 94, 0.25)' : 'none',
+                                transition: 'all 0.15s ease'
+                              }}
+                              title={hasAct ? 'Перевести заявку в статус «Завершено»' : 'Для завершения монтажа необходимо прикрепить Акт выполненных работ в карточке заказа'}
+                            >
+                              <CheckCircle2 size={15} /> Завершить монтаж
+                            </button>
+                            {!hasAct && (
+                              <div style={{ fontSize: '0.72rem', color: '#f59e0b', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                                <AlertTriangle size={11} /> Требуется Акт выполненных работ
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     );
@@ -2038,7 +2109,7 @@ const Kanban = () => {
                             </div>
                             {installedAt && (
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                Завершен: <strong style={{ color: 'var(--text-primary)' }}>{new Date(installedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
+                                Завершен: <strong style={{ color: 'var(--text-primary)' }}>{formatDateTimeInTimezone(installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
                               </div>
                             )}
                           </div>
@@ -2085,6 +2156,40 @@ const Kanban = () => {
                               <ChevronDown className="custom-select-icon" size={16} />
                             </div>
                           )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Баннер статуса Акта выполненных работ (для монтажников) */}
+                    {isWorker && (() => {
+                      const hasAct = formData.attachments.some(a => isActFile(a.fileName)) || pendingFiles.some(f => isActFile(f.name));
+                      return (
+                        <div style={{
+                          marginBottom: '16px',
+                          padding: '10px 14px',
+                          background: hasAct ? 'rgba(34, 197, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                          border: hasAct ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)',
+                          borderRadius: 'var(--radius-sm)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                          flexWrap: 'wrap'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                            <FileCheck size={16} style={{ color: hasAct ? '#4ade80' : '#fbbf24' }} />
+                            <span style={{ color: hasAct ? '#4ade80' : '#fbbf24', fontWeight: 600 }}>
+                              {hasAct ? 'Акт выполненных работ прикреплен' : 'Акт выполненных работ не прикреплен'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setOrderModalTab('FILES')}
+                            className="btn btn-ghost"
+                            style={{ padding: '3px 8px', fontSize: '0.78rem', color: 'var(--accent-primary)', textDecoration: 'underline' }}
+                          >
+                            {hasAct ? 'Посмотреть во вкладке «Файлы»' : 'Перейти в «Файлы» для загрузки →'}
+                          </button>
                         </div>
                       );
                     })()}
@@ -2186,14 +2291,24 @@ const Kanban = () => {
                     </div>
 
                     <div className="form-group">
-                      <label>{t('kanban.modal.description')}</label>
-                      <input 
-                        type="text" 
+                      <label>{t('kanban.modal.description') || 'Комментарии к заявке'}</label>
+                      <textarea 
                         required
+                        rows={3}
                         value={formData.description}
                         onChange={(e) => setFormData({...formData, description: e.target.value})}
                         className="search-input"
-                        style={{width: '100%', paddingLeft: '12px'}}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          minHeight: '80px',
+                          maxHeight: '300px',
+                          resize: 'vertical',
+                          lineHeight: '1.45',
+                          fontFamily: 'inherit',
+                          fontSize: '0.9rem'
+                        }}
+                        placeholder="Описание или комментарии к заявке..."
                       />
                     </div>
 
@@ -2260,10 +2375,10 @@ const Kanban = () => {
                               <label>{t('kanban.modal.installationPrice')}</label>
                               <input 
                                 type="number" 
-                                required
                                 min="0"
                                 step="0.01"
-                                value={formData.installationPrice}
+                                placeholder="0"
+                                value={formData.installationPrice || ''}
                                 onChange={(e) => setFormData({...formData, installationPrice: e.target.value})}
                                 className="custom-number-input"
                               />
@@ -2274,19 +2389,20 @@ const Kanban = () => {
                                 type="number" 
                                 min="0"
                                 step="0.01"
-                                value={formData.prepayment}
+                                placeholder="0"
+                                value={formData.prepayment || ''}
                                 onChange={(e) => {
                                   const newPrep = e.target.value;
                                   const prepNum = parseFloat(newPrep || '0');
                                   const remNum = parseFloat(formData.remainder || '0');
+                                  const sum = prepNum + remNum;
                                   setFormData({
                                     ...formData, 
                                     prepayment: newPrep,
-                                    totalPrice: (prepNum + remNum).toString()
+                                    totalPrice: sum > 0 ? sum.toString() : ''
                                   });
                                 }}
                                 className="custom-number-input"
-                                placeholder="0"
                               />
                             </div>
                             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -2295,19 +2411,20 @@ const Kanban = () => {
                                 type="number" 
                                 min="0"
                                 step="0.01"
-                                value={formData.remainder}
+                                placeholder="0"
+                                value={formData.remainder || ''}
                                 onChange={(e) => {
                                   const newRem = e.target.value;
                                   const remNum = parseFloat(newRem || '0');
                                   const prepNum = parseFloat(formData.prepayment || '0');
+                                  const sum = prepNum + remNum;
                                   setFormData({
                                     ...formData, 
                                     remainder: newRem,
-                                    totalPrice: (prepNum + remNum).toString()
+                                    totalPrice: sum > 0 ? sum.toString() : ''
                                   });
                                 }}
                                 className="custom-number-input"
-                                placeholder="0"
                               />
                             </div>
                           </div>
@@ -2741,12 +2858,25 @@ const Kanban = () => {
                                   </div>
                                   <div className="spec-card-field">
                                     <label>Ед. изм.</label>
-                                    <input
-                                      type="text"
-                                      value={it.unit}
+                                    <select
+                                      value={it.unit || 'м²'}
                                       onChange={e => updateSpecRow(idx, 'unit', e.target.value)}
-                                      placeholder="м²"
-                                    />
+                                      style={{
+                                        width: '100%',
+                                        height: '36px',
+                                        borderRadius: 'var(--radius-sm)',
+                                        background: 'var(--input-bg)',
+                                        border: '1px solid var(--glass-border)',
+                                        color: 'var(--text-primary)',
+                                        padding: '0 6px',
+                                        cursor: 'pointer',
+                                        appearance: 'auto'
+                                      }}
+                                    >
+                                      <option value="м²">м²</option>
+                                      <option value="м.пог">м.пог</option>
+                                      <option value="шт.">шт.</option>
+                                    </select>
                                   </div>
                                   <div className="spec-card-field">
                                     <label>Цена (₽)</label>
@@ -2806,13 +2936,22 @@ const Kanban = () => {
                                       />
                                     </td>
                                     <td>
-                                      <input
-                                        type="text"
-                                        value={it.unit}
+                                      <select
+                                        value={it.unit || 'м²'}
                                         onChange={e => updateSpecRow(idx, 'unit', e.target.value)}
-                                        placeholder="м² / шт."
                                         className="spec-table-input"
-                                      />
+                                        style={{
+                                          width: '100%',
+                                          padding: '4px 2px',
+                                          textAlign: 'center',
+                                          cursor: 'pointer',
+                                          appearance: 'auto'
+                                        }}
+                                      >
+                                        <option value="м²">м²</option>
+                                        <option value="м.пог">м.пог</option>
+                                        <option value="шт.">шт.</option>
+                                      </select>
                                     </td>
                                     <td>
                                       <input
@@ -3018,6 +3157,102 @@ const Kanban = () => {
                 {/* 4. ФАЙЛЫ */}
                 {orderModalTab === 'FILES' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+                    {/* Выделенный блок для Акта выполненных работ */}
+                    {(() => {
+                      const actAttachment = formData.attachments.find(a => isActFile(a.fileName));
+                      const pendingActFile = pendingFiles.find(f => isActFile(f.name));
+                      const hasAct = !!(actAttachment || pendingActFile);
+
+                      return (
+                        <div style={{
+                          padding: '14px 16px',
+                          background: hasAct 
+                            ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.04) 100%)' 
+                            : 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.04) 100%)',
+                          border: hasAct ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(245, 158, 11, 0.35)',
+                          borderRadius: 'var(--radius-md)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '10px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <FileCheck size={20} style={{ color: hasAct ? '#4ade80' : '#fbbf24', flexShrink: 0 }} />
+                              <div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: hasAct ? '#4ade80' : '#fbbf24' }}>
+                                  Акт выполненных работ (Приложение №3)
+                                </div>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                  {hasAct ? 'Подписанный Акт прикреплен к заявке' : 'Обязателен для возможности завершения монтажа'}
+                                </div>
+                              </div>
+                            </div>
+
+                            <label 
+                              className="file-upload-btn" 
+                              style={{ 
+                                cursor: 'pointer', 
+                                display: 'inline-flex', 
+                                alignItems: 'center', 
+                                gap: '6px',
+                                background: hasAct ? 'rgba(34, 197, 94, 0.2)' : 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                border: hasAct ? '1px solid rgba(34, 197, 94, 0.4)' : 'none',
+                                color: '#fff',
+                                fontWeight: 600,
+                                fontSize: '0.82rem',
+                                padding: '6px 12px',
+                                borderRadius: 'var(--radius-sm)'
+                              }}
+                            >
+                              <Paperclip size={14} />
+                              {hasAct ? 'Заменить Акт' : 'Загрузить Акт выполненных работ'}
+                              <input type="file" onChange={handleActUpload} disabled={uploadingFile} />
+                            </label>
+                          </div>
+
+                          {hasAct && (actAttachment || pendingActFile) && (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '8px 12px',
+                              background: 'rgba(0, 0, 0, 0.25)',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid rgba(34, 197, 94, 0.25)'
+                            }}>
+                              <span style={{ fontSize: '0.88rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>
+                                📄 {actAttachment ? actAttachment.fileName : `${pendingActFile?.name} (ожидает сохранения)`}
+                              </span>
+                              {actAttachment && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  {isViewableInBrowser(actAttachment.fileName, actAttachment.contentType) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenAttachment(actAttachment)}
+                                      className="btn btn-ghost"
+                                      style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                      title="Посмотреть в браузере"
+                                    >
+                                      <Eye size={16} />
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadAttachment(actAttachment)}
+                                    className="btn btn-ghost"
+                                    style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    title="Скачать файл"
+                                  >
+                                    <Download size={16} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
                       <div>
                         <h3 style={{margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)'}}>{t('kanban.modal.attachments')}</h3>
@@ -3110,43 +3345,47 @@ const Kanban = () => {
                                     {att.fileName}
                                   </span>
                                   <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                    <button 
-                                      type="button" 
-                                      onClick={() => handleStartRenameAttachment(att)} 
-                                      className="btn btn-ghost" 
-                                      style={{padding: '5px 8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
-                                      title="Переименовать файл"
-                                    >
-                                      <Edit2 size={13} />
-                                    </button>
+                                    {!isWorker && (
+                                      <button 
+                                        type="button" 
+                                        onClick={() => handleStartRenameAttachment(att)} 
+                                        className="btn btn-ghost" 
+                                        style={{padding: '5px 8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                                        title="Переименовать файл"
+                                      >
+                                        <Edit2 size={13} />
+                                      </button>
+                                    )}
                                     {canPreview && (
                                       <button 
                                         type="button" 
                                         onClick={() => handleOpenAttachment(att)} 
                                         className="btn btn-ghost" 
-                                        style={{padding: '5px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                                        style={{padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
                                         title="Посмотреть в браузере"
                                       >
-                                        <Eye size={14} /> Просмотр
+                                        <Eye size={16} />
                                       </button>
                                     )}
                                     <button 
                                       type="button" 
                                       onClick={() => handleDownloadAttachment(att)} 
                                       className="btn btn-ghost" 
-                                      style={{padding: '5px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                                      style={{padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
                                       title="Скачать файл"
                                     >
-                                      <Download size={14} /> {t('kanban.modal.download')}
+                                      <Download size={16} />
                                     </button>
-                                    <button 
-                                      type="button" 
-                                      onClick={() => handleDeleteAttachment(att.id)} 
-                                      title={t('kanban.modal.delete') || 'Удалить'} 
-                                      style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px'}}
-                                    >
-                                      <Trash2 size={15} />
-                                    </button>
+                                    {!isWorker && (
+                                      <button 
+                                        type="button" 
+                                        onClick={() => handleDeleteAttachment(att.id)} 
+                                        title={t('kanban.modal.delete') || 'Удалить'} 
+                                        style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px'}}
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    )}
                                   </div>
                                 </>
                               )}
@@ -3263,21 +3502,26 @@ const Kanban = () => {
                   ) : false;
 
                   if (!isCompleted) {
+                    const hasAct = formData.attachments.some(a => isActFile(a.fileName)) || pendingFiles.some(f => isActFile(f.name));
                     return (
                       <button
                         type="button"
+                        disabled={!hasAct}
                         onClick={(e) => handleCompleteInstallation(e, editingOrderId)}
                         className="btn"
                         style={{
-                          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                          color: '#fff',
-                          border: 'none',
+                          background: hasAct ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
+                          color: hasAct ? '#fff' : 'var(--text-secondary)',
+                          border: hasAct ? 'none' : '1px solid var(--glass-border)',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '6px',
                           fontWeight: 600,
-                          padding: '8px 14px'
+                          padding: '8px 14px',
+                          cursor: hasAct ? 'pointer' : 'not-allowed',
+                          opacity: hasAct ? 1 : 0.6
                         }}
+                        title={hasAct ? 'Завершить монтаж' : 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»'}
                       >
                         <CheckCircle2 size={16} /> Завершить монтаж
                       </button>
