@@ -1181,40 +1181,38 @@ const Kanban = () => {
     return Math.round((currentProfit / currentTotalPrice) * 100);
   }, [currentProfit, currentTotalPrice]);
 
-  if (loading) {
-    return <div style={{padding: 24}}>Loading board...</div>;
-  }
+  const filteredCards = useMemo(() => {
+    return cards.filter(card => {
+      if (reminderFilter === 'today') {
+        const cardReminders = remindersMap[card.id] || [];
+        const hasToday = cardReminders.some(r => {
+          if (r.status !== 'PENDING') return false;
+          const d = new Date(r.remindAt);
+          return d.toDateString() === new Date().toDateString();
+        });
+        if (!hasToday) return false;
+      } else if (reminderFilter === 'overdue') {
+        const cardReminders = remindersMap[card.id] || [];
+        const hasOverdue = cardReminders.some(r => r.status === 'PENDING' && r.isOverdue);
+        if (!hasOverdue) return false;
+      }
 
-  const filteredCards = cards.filter(card => {
-    if (reminderFilter === 'today') {
-      const cardReminders = remindersMap[card.id] || [];
-      const hasToday = cardReminders.some(r => {
-        if (r.status !== 'PENDING') return false;
-        const d = new Date(r.remindAt);
-        return d.toDateString() === new Date().toDateString();
-      });
-      if (!hasToday) return false;
-    } else if (reminderFilter === 'overdue') {
-      const cardReminders = remindersMap[card.id] || [];
-      const hasOverdue = cardReminders.some(r => r.status === 'PENDING' && r.isOverdue);
-      if (!hasOverdue) return false;
-    }
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      const client = clients.find(cl => cl.id === card.clientId);
+      const employee = employees.find(e => e.id === card.assigneeId);
 
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    const client = clients.find(cl => cl.id === card.clientId);
-    const employee = employees.find(e => e.id === card.assigneeId);
+      const orderNumMatch = card.orderNumber?.toLowerCase().includes(q) || false;
+      const clientNameMatch = client?.name?.toLowerCase().includes(q) || false;
+      const clientPhoneMatch = client?.phone?.includes(q) || false;
+      const addressMatch = card.address?.toLowerCase().includes(q) || false;
+      const descMatch = card.description?.toLowerCase().includes(q) || false;
+      const employeeMatch = employee?.name?.toLowerCase().includes(q) || false;
+      const idMatch = card.id.toString() === q || `№${card.id}` === q;
 
-    const orderNumMatch = card.orderNumber?.toLowerCase().includes(q) || false;
-    const clientNameMatch = client?.name?.toLowerCase().includes(q) || false;
-    const clientPhoneMatch = client?.phone?.includes(q) || false;
-    const addressMatch = card.address?.toLowerCase().includes(q) || false;
-    const descMatch = card.description?.toLowerCase().includes(q) || false;
-    const employeeMatch = employee?.name?.toLowerCase().includes(q) || false;
-    const idMatch = card.id.toString() === q || `№${card.id}` === q;
-
-    return orderNumMatch || clientNameMatch || clientPhoneMatch || addressMatch || descMatch || employeeMatch || idMatch;
-  });
+      return orderNumMatch || clientNameMatch || clientPhoneMatch || addressMatch || descMatch || employeeMatch || idMatch;
+    });
+  }, [cards, reminderFilter, remindersMap, searchQuery, clients, employees]);
 
   const displayedColumns = useMemo(() => {
     if (!hideEmptyColumns) return columns;
@@ -1222,6 +1220,10 @@ const Kanban = () => {
       return filteredCards.some(c => c.statusId === col.id);
     });
   }, [columns, hideEmptyColumns, filteredCards]);
+
+  if (loading) {
+    return <div style={{padding: 24}}>Loading board...</div>;
+  }
 
   return (
     <div className="kanban-wrapper">
