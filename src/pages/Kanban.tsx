@@ -3048,12 +3048,9 @@ const Kanban = () => {
                               gap: '12px'
                             }}>
                               {editingAttachmentId === att.id ? (
-                                <form
-                                  onSubmit={(e) => {
-                                    e.preventDefault();
-                                    handleSaveRenameAttachment(att.id);
-                                  }}
+                                <div
                                   style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <input
                                     type="text"
@@ -3061,14 +3058,27 @@ const Kanban = () => {
                                     value={editingAttachmentName}
                                     onChange={(e) => setEditingAttachmentName(e.target.value)}
                                     onKeyDown={(e) => {
-                                      if (e.key === 'Escape') handleCancelRenameAttachment();
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleSaveRenameAttachment(att.id);
+                                      } else if (e.key === 'Escape') {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleCancelRenameAttachment();
+                                      }
                                     }}
                                     disabled={renamingAttachment}
                                     className="search-input"
                                     style={{ flex: 1, padding: '4px 10px', fontSize: '0.88rem', height: '32px' }}
                                   />
                                   <button
-                                    type="submit"
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleSaveRenameAttachment(att.id);
+                                    }}
                                     disabled={renamingAttachment}
                                     className="btn btn-primary"
                                     style={{ padding: '4px 10px', fontSize: '0.8rem', height: '32px', display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -3078,7 +3088,11 @@ const Kanban = () => {
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={handleCancelRenameAttachment}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleCancelRenameAttachment();
+                                    }}
                                     disabled={renamingAttachment}
                                     className="btn btn-ghost"
                                     style={{ padding: '4px 8px', height: '32px', display: 'flex', alignItems: 'center' }}
@@ -3086,7 +3100,7 @@ const Kanban = () => {
                                   >
                                     <X size={14} />
                                   </button>
-                                </form>
+                                </div>
                               ) : (
                                 <>
                                   <span 
