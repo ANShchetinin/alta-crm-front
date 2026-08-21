@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { updateProfile, updateTenantSettings, uploadTenantLogo, getProfile } from '../api/settings';
 import type { TenantRequisites } from '../api/settings';
 import { useState, useRef, useEffect } from 'react';
+import { PushNotificationSettings } from '../components/PushNotificationSettings';
 import '../styles/clients.css'; // Reusing standard wrapper/header styles
 
 export const Settings = () => {
@@ -303,6 +304,10 @@ export const Settings = () => {
             {profileSaving ? 'Сохранение...' : 'Сохранить профиль'}
           </button>
         </form>
+
+        <div style={{ marginTop: '24px' }}>
+          <PushNotificationSettings />
+        </div>
 
         <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '24px 0' }} />
 

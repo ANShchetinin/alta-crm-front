@@ -6,6 +6,7 @@ import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { getOrders, getOrderStatuses } from '../api/kanban';
 import { getProfile } from '../api/settings';
+import { PushNotificationSettings } from './PushNotificationSettings';
 import '../styles/dashboard.css';
 
 const DashboardLayout = () => {
@@ -16,7 +17,9 @@ const DashboardLayout = () => {
   const { logout, role } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [userName, setUserName] = useState<string>('User');
+  const [userEmail, setUserEmail] = useState<string>('');
   const [currentTime, setCurrentTime] = useState(new Date());
   
   // PWA Install States
@@ -103,6 +106,7 @@ const DashboardLayout = () => {
         const profile = await getProfile();
         const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
         setUserName(fullName || profile.email || 'User');
+        setUserEmail(profile.email || '');
       } catch (err) {
         console.error("Failed to fetch user profile", err);
       }
@@ -319,10 +323,25 @@ const DashboardLayout = () => {
                       </div>
                     ))
                   )}
+                  <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => { setShowNotifications(false); setIsProfileModalOpen(true); }}
+                      className="btn btn-ghost"
+                      style={{ fontSize: '0.78rem', color: 'var(--accent-primary)', padding: '4px 8px', width: '100%', justifyContent: 'center' }}
+                    >
+                      🔔 Настройка Push-уведомлений
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
-            <div className="user-profile">
+            <div 
+              className="user-profile" 
+              onClick={() => setIsProfileModalOpen(true)}
+              style={{ cursor: 'pointer' }}
+              title="Мой профиль и настройка уведомлений"
+            >
               <div className="avatar">{userName.charAt(0).toUpperCase()}</div>
               <span className="user-name-text">{userName}</span>
             </div>
@@ -349,6 +368,17 @@ const DashboardLayout = () => {
             </div>
             <span>Заработок</span>
           </NavLink>
+          <button 
+            type="button" 
+            className="bottom-nav-item"
+            style={{ flex: 1 }}
+            onClick={() => setIsProfileModalOpen(true)}
+          >
+            <div className="bottom-nav-icon-wrapper">
+              <Bell size={20} />
+            </div>
+            <span>Профиль</span>
+          </button>
         </nav>
       )}
 
@@ -382,6 +412,57 @@ const DashboardLayout = () => {
             <span>{t('nav.more') || 'Еще'}</span>
           </button>
         </nav>
+      )}
+
+      {/* Profile and Push Notifications Modal */}
+      {isProfileModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsProfileModalOpen(false)} style={{ zIndex: 1100 }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', padding: '24px' }}>
+            <div className="modal-header" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  background: 'var(--primary-gradient)',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '1rem'
+                }}>
+                  {userName.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{userName}</h3>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    {userEmail || 'Пользователь CRM'} • <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{role}</span>
+                  </div>
+                </div>
+              </div>
+              <button className="btn-icon" onClick={() => setIsProfileModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <PushNotificationSettings />
+
+              {role !== 'WORKER' && (
+                <div style={{ textAlign: 'center', marginTop: '4px' }}>
+                  <NavLink
+                    to="/settings"
+                    onClick={() => setIsProfileModalOpen(false)}
+                    style={{ fontSize: '0.82rem', color: 'var(--accent-primary)', textDecoration: 'underline' }}
+                  >
+                    Перейти ко всем настройкам профиля и компании →
+                  </NavLink>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* iOS PWA Install Guide Modal */}
