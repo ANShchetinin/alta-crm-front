@@ -532,6 +532,32 @@
     background: var(--bg-secondary) !important;
   }
 
+  /* Centered Dialog Modals on mobile (confirmations, small prompts) */
+  .modal-overlay.dialog-overlay {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 16px !important;
+    padding-top: max(24px, calc(env(safe-area-inset-top, 0px) + 20px)) !important;
+    padding-bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 20px)) !important;
+    z-index: 100060 !important;
+  }
+
+  .modal-content.dialog-content {
+    width: 92% !important;
+    max-width: 440px !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: 85dvh !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 22px !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8) !important;
+    background: var(--bg-secondary) !important;
+    margin: auto !important;
+    flex: none !important;
+  }
+
   .spec-desktop-table {
     display: none !important;
   }
@@ -542,7 +568,7 @@
 
   .modal-header {
     padding: 14px 16px !important;
-    padding-top: max(48px, calc(env(safe-area-inset-top, 0px) + 14px)) !important;
+    padding-top: max(52px, calc(env(safe-area-inset-top, 0px) + 20px)) !important;
     margin-bottom: 0 !important;
     background: var(--bg-secondary) !important;
     border-bottom: 1px solid var(--glass-border) !important;
@@ -555,7 +581,7 @@
 
   .modal-body {
     padding: 16px !important;
-    padding-bottom: calc(110px + env(safe-area-inset-bottom, 16px)) !important;
+    padding-bottom: max(32px, calc(env(safe-area-inset-bottom, 0px) + 24px)) !important;
     flex: 1 1 auto !important;
     min-height: 0 !important;
     overflow-y: auto !important;
@@ -563,19 +589,18 @@
   }
 
   .modal-actions {
-    padding: 12px 16px !important;
-    padding-bottom: max(14px, env(safe-area-inset-bottom, 0px)) !important;
-    margin-top: 0 !important;
-    gap: 10px !important;
-    position: relative !important;
-    bottom: 0 !important;
-    background: var(--bg-secondary) !important;
-    z-index: 30 !important;
+    padding: 16px 0 0 0 !important;
+    margin-top: 24px !important;
+    gap: 12px !important;
+    position: static !important;
+    bottom: auto !important;
+    background: transparent !important;
+    z-index: 1 !important;
     border-top: 1px solid var(--glass-border) !important;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4) !important;
+    box-shadow: none !important;
     flex-shrink: 0 !important;
     display: flex !important;
-    flex-direction: column-reverse !important;
+    flex-direction: column !important;
     align-items: stretch !important;
   }
 
@@ -588,8 +613,8 @@
   .modal-action-btns .btn,
   .modal-actions .modal-action-btns .btn {
     flex: 1 !important;
-    height: 46px !important;
-    min-height: 46px !important;
+    height: 44px !important;
+    min-height: 44px !important;
     font-size: 0.95rem !important;
     font-weight: 600 !important;
     display: inline-flex !important;
@@ -599,9 +624,9 @@
 
   .modal-actions > button.btn-ghost {
     width: 100% !important;
-    height: 38px !important;
-    min-height: 38px !important;
-    font-size: 0.85rem !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    font-size: 0.9rem !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;

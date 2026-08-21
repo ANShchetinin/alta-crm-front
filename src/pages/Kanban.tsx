@@ -150,6 +150,8 @@ const Kanban = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
+  const [initialFormDataJson, setInitialFormDataJson] = useState<string>('');
+  const [isUnsavedConfirmOpen, setIsUnsavedConfirmOpen] = useState(false);
 
   // Quick Client Creation
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
@@ -298,9 +300,7 @@ const Kanban = () => {
       actChecklist: DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }))
     };
 
-    setEditingOrderId(order.id);
-    setOrderModalTab('MAIN');
-    setFormData({
+    const initialData = {
       clientId: order.clientId ? order.clientId.toString() : '',
       statusId: order.statusId ? order.statusId.toString() : (columns[0]?.id ? columns[0].id.toString() : ''),
       assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
@@ -322,7 +322,12 @@ const Kanban = () => {
       materials: order.materials ? [...order.materials] : [],
       attachments: order.attachments ? [...order.attachments] : [],
       contractParams: initialContractParams
-    });
+    };
+
+    setEditingOrderId(order.id);
+    setOrderModalTab('MAIN');
+    setFormData(initialData);
+    setInitialFormDataJson(JSON.stringify({ formData: initialData, pendingFilesCount: 0 }));
     setPendingFiles([]);
     setAiSummary(null);
     setIsModalOpen(true);
@@ -456,9 +461,7 @@ const Kanban = () => {
   };
 
   const openCreateModal = () => {
-    setEditingOrderId(null);
-    setOrderModalTab('MAIN');
-    setFormData({
+    const initialData = {
       clientId: '',
       statusId: columns[0]?.id ? columns[0].id.toString() : '',
       assigneeId: '',
@@ -493,7 +496,11 @@ const Kanban = () => {
       },
       materials: [],
       attachments: []
-    });
+    };
+    setEditingOrderId(null);
+    setOrderModalTab('MAIN');
+    setFormData(initialData);
+    setInitialFormDataJson(JSON.stringify({ formData: initialData, pendingFilesCount: 0 }));
     setPendingFiles([]);
     setAiSummary(null);
     setIsModalOpen(true);
@@ -532,8 +539,7 @@ const Kanban = () => {
     }
   };
 
-  const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitOrderForm = async () => {
     if (!columns.length) return;
     
     const prep = parseFloat(formData.prepayment || '0');
@@ -580,6 +586,51 @@ const Kanban = () => {
       fetchLowStockMaterials();
     } catch (err) {
       console.error("Failed to save order", err);
+      alert('Ошибка при сохранении заявки');
+    }
+  };
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitOrderForm();
+  };
+
+  const handleRequestCloseModal = () => {
+    if (isDirty) {
+      setIsUnsavedConfirmOpen(true);
+    } else {
+      setIsModalOpen(false);
+    }
+  };
+
+  const handleConfirmSaveAndClose = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsUnsavedConfirmOpen(false);
+    await submitOrderForm();
+  };
+
+  const handleConfirmDiscardAndClose = () => {
+    setIsUnsavedConfirmOpen(false);
+    setIsModalOpen(false);
+  };
+
+  const handleCancelChanges = () => {
+    if (!editingOrderId) {
+      setIsModalOpen(false);
+      return;
+    }
+    if (initialFormDataJson) {
+      try {
+        const parsed = JSON.parse(initialFormDataJson);
+        if (parsed.formData) {
+          setFormData(parsed.formData);
+          setPendingFiles([]);
+        }
+      } catch (e) {
+        setIsModalOpen(false);
+      }
+    } else {
+      setIsModalOpen(false);
     }
   };
 
@@ -1220,6 +1271,28 @@ const Kanban = () => {
       return filteredCards.some(c => c.statusId === col.id);
     });
   }, [columns, hideEmptyColumns, filteredCards]);
+
+  const isDirty = useMemo(() => {
+    if (!isModalOpen) return false;
+    if (!editingOrderId) {
+      return !!(
+        (formData.clientId && formData.clientId !== '') ||
+        (formData.address && formData.address.trim() !== '') ||
+        (formData.description && formData.description.trim() !== '') ||
+        (formData.totalPrice && formData.totalPrice !== '') ||
+        (formData.prepayment && formData.prepayment !== '') ||
+        (formData.remainder && formData.remainder !== '') ||
+        (formData.installationPrice && formData.installationPrice !== '') ||
+        (formData.installationDate && formData.installationDate !== '') ||
+        (formData.measurementDate && formData.measurementDate !== '') ||
+        formData.materials.length > 0 ||
+        pendingFiles.length > 0
+      );
+    }
+    if (!initialFormDataJson) return false;
+    const currentJson = JSON.stringify({ formData, pendingFilesCount: pendingFiles.length });
+    return currentJson !== initialFormDataJson;
+  }, [isModalOpen, editingOrderId, formData, pendingFiles.length, initialFormDataJson]);
 
   if (loading) {
     return <div style={{padding: 24}}>Loading board...</div>;
@@ -1923,8 +1996,8 @@ const Kanban = () => {
       </div>
 
       {isModalOpen && createPortal(
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '800px', width: '92%', minHeight: '620px', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal-overlay" onClick={handleRequestCloseModal}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '92%', minHeight: '620px', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1, minWidth: 0, paddingRight: '8px' }}>
                 <h2 style={{ margin: 0, whiteSpace: 'nowrap' }}>
@@ -1959,7 +2032,7 @@ const Kanban = () => {
 
               <button 
                 type="button" 
-                onClick={() => setIsModalOpen(false)} 
+                onClick={handleRequestCloseModal} 
                 className="btn-icon"
                 aria-label="Close"
               >
@@ -3714,84 +3787,148 @@ const Kanban = () => {
                     )}
                   </div>
                 )}
-              </div>
+                <div className="modal-actions">
+                  {editingOrderId && !isWorker ? (
+                    <button 
+                      type="button" 
+                      onClick={handleDeleteOrder}
+                      className="btn btn-ghost"
+                      style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Trash2 size={16} /> {t('kanban.modal.delete')}
+                    </button>
+                  ) : <div />}
 
-              <div className="modal-actions">
-                {editingOrderId && !isWorker ? (
-                  <button 
-                    type="button" 
-                    onClick={handleDeleteOrder}
-                    className="btn btn-ghost"
-                    style={{color: 'var(--danger)'}}
-                  >
-                    <Trash2 size={16} style={{marginRight: '6px'}} /> {t('kanban.modal.delete')}
-                  </button>
-                ) : null}
-                {isWorker && editingOrderId && (() => {
-                  const currentStatus = columns.find(c => c.id.toString() === formData.statusId);
-                  const isCompleted = currentStatus ? (
-                    currentStatus.name.toLowerCase().includes('заверш') ||
-                    currentStatus.name.toLowerCase().includes('готов') ||
-                    currentStatus.name.toLowerCase().includes('выполнен')
-                  ) : false;
+                  {isWorker && editingOrderId && (() => {
+                    const currentStatus = columns.find(c => c.id.toString() === formData.statusId);
+                    const isCompleted = currentStatus ? (
+                      currentStatus.name.toLowerCase().includes('заверш') ||
+                      currentStatus.name.toLowerCase().includes('готов') ||
+                      currentStatus.name.toLowerCase().includes('выполнен')
+                    ) : false;
 
-                  if (!isCompleted) {
-                    const hasAct = formData.attachments.some(a => isActFile(a.fileName)) || pendingFiles.some(f => isActFile(f.name));
+                    if (!isCompleted) {
+                      const hasAct = formData.attachments.some(a => isActFile(a.fileName)) || pendingFiles.some(f => isActFile(f.name));
+                      return (
+                        <button
+                          type="button"
+                          disabled={!hasAct}
+                          onClick={(e) => handleCompleteInstallation(e, editingOrderId)}
+                          className="btn"
+                          style={{
+                            background: hasAct ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
+                            color: hasAct ? '#fff' : 'var(--text-secondary)',
+                            border: hasAct ? 'none' : '1px solid var(--glass-border)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontWeight: 600,
+                            padding: '8px 14px',
+                            cursor: hasAct ? 'pointer' : 'not-allowed',
+                            opacity: hasAct ? 1 : 0.6
+                          }}
+                          title={hasAct ? 'Завершить монтаж' : 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»'}
+                        >
+                          <CheckCircle2 size={16} /> Завершить монтаж
+                        </button>
+                      );
+                    }
                     return (
-                      <button
-                        type="button"
-                        disabled={!hasAct}
-                        onClick={(e) => handleCompleteInstallation(e, editingOrderId)}
-                        className="btn"
-                        style={{
-                          background: hasAct ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
-                          color: hasAct ? '#fff' : 'var(--text-secondary)',
-                          border: hasAct ? 'none' : '1px solid var(--glass-border)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          fontWeight: 600,
-                          padding: '8px 14px',
-                          cursor: hasAct ? 'pointer' : 'not-allowed',
-                          opacity: hasAct ? 1 : 0.6
-                        }}
-                        title={hasAct ? 'Завершить монтаж' : 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»'}
-                      >
-                        <CheckCircle2 size={16} /> Завершить монтаж
-                      </button>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        color: '#4ade80',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        background: 'rgba(34, 197, 94, 0.12)',
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid rgba(34, 197, 94, 0.25)'
+                      }}>
+                        <CheckCircle2 size={16} /> Монтаж завершен
+                      </div>
                     );
-                  }
-                  return (
-                    <div style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      color: '#4ade80',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      background: 'rgba(34, 197, 94, 0.12)',
-                      padding: '6px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid rgba(34, 197, 94, 0.25)'
-                    }}>
-                      <CheckCircle2 size={16} /> Монтаж завершен
+                  })()}
+
+                  {(!editingOrderId || isDirty) && (
+                    <div className="modal-action-btns animate-fade-in">
+                      <button 
+                        type="button" 
+                        onClick={handleCancelChanges}
+                        className="btn btn-ghost"
+                      >
+                        {t('kanban.modal.cancel')}
+                      </button>
+                      <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <Check size={16} />
+                        {editingOrderId ? t('kanban.modal.save') : (t('kanban.createOrder') || 'Создать заявку')}
+                      </button>
                     </div>
-                  );
-                })()}
-                <div className="modal-action-btns">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsModalOpen(false)}
-                    className="btn btn-ghost"
-                  >
-                    {t('kanban.modal.cancel')}
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    {t('kanban.modal.save')}
-                  </button>
+                  )}
                 </div>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Unsaved Changes Confirmation Modal */}
+      {isUnsavedConfirmOpen && createPortal(
+        <div className="modal-overlay dialog-overlay" style={{ zIndex: 100060 }} onClick={() => setIsUnsavedConfirmOpen(false)}>
+          <div className="modal-content dialog-content animate-fade-in" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+              <div style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: 'rgba(245, 158, 11, 0.15)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#f59e0b',
+                flexShrink: 0
+              }}>
+                <AlertCircle size={24} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Несохраненные изменения
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                  В заявке есть несохраненные данные. Сохранить их перед закрытием?
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleConfirmSaveAndClose}
+                style={{ width: '100%', justifyContent: 'center', height: '42px', fontWeight: 600 }}
+              >
+                <Check size={16} /> Сохранить изменения
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={handleConfirmDiscardAndClose}
+                style={{ width: '100%', justifyContent: 'center', height: '40px', color: 'var(--danger)' }}
+              >
+                Не сохранять
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setIsUnsavedConfirmOpen(false)}
+                style={{ width: '100%', justifyContent: 'center', height: '38px', color: 'var(--text-secondary)' }}
+              >
+                Продолжить редактирование
+              </button>
+            </div>
           </div>
         </div>,
         document.body

@@ -242,10 +242,9 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>Дата и время звонка *</label>
+            <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>Дата и время звонка</label>
             <input
               type="datetime-local"
-              required
               value={customDateTime}
               onChange={e => setCustomDateTime(e.target.value)}
               onKeyDown={e => {
