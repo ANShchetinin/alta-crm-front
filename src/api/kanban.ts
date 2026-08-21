@@ -168,6 +168,11 @@ export const deleteAttachment = async (attachmentId: number): Promise<void> => {
   await api.delete(`/orders/attachments/${attachmentId}`);
 };
 
+export const renameAttachment = async (attachmentId: number, fileName: string): Promise<OrderAttachment> => {
+  const response = await api.patch(`/orders/attachments/${attachmentId}`, { fileName });
+  return response.data;
+};
+
 export const deleteOrder = async (orderId: number): Promise<void> => {
   await api.delete(`/orders/${orderId}`);
 };

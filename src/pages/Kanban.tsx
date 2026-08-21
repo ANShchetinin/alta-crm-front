@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2 } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary, ContractParams } from '../api/kanban';
 import { getClients, createClient, updateClient } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -179,6 +179,9 @@ const Kanban = () => {
   });
   const [uploadingFile, setUploadingFile] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [editingAttachmentId, setEditingAttachmentId] = useState<number | null>(null);
+  const [editingAttachmentName, setEditingAttachmentName] = useState('');
+  const [renamingAttachment, setRenamingAttachment] = useState(false);
   
   const [aiSummary, setAiSummary] = useState<OrderAiSummary | null>(null);
   const [uploadingAudio, setUploadingAudio] = useState(false);
@@ -821,6 +824,42 @@ const Kanban = () => {
       } : c));
     } catch (err) {
       console.error("Failed to delete attachment", err);
+    }
+  };
+
+  const handleStartRenameAttachment = (att: OrderAttachment) => {
+    setEditingAttachmentId(att.id);
+    setEditingAttachmentName(att.fileName);
+  };
+
+  const handleCancelRenameAttachment = () => {
+    setEditingAttachmentId(null);
+    setEditingAttachmentName('');
+  };
+
+  const handleSaveRenameAttachment = async (attachmentId: number) => {
+    if (!editingAttachmentName.trim()) {
+      alert('Имя файла не может быть пустым');
+      return;
+    }
+    setRenamingAttachment(true);
+    try {
+      const updated = await renameAttachment(attachmentId, editingAttachmentName.trim());
+      setFormData(prev => ({
+        ...prev,
+        attachments: prev.attachments.map(a => a.id === attachmentId ? { ...a, fileName: updated.fileName } : a)
+      }));
+      setCards(prev => prev.map(c => c.id === editingOrderId ? {
+        ...c,
+        attachments: (c.attachments || []).map(a => a.id === attachmentId ? { ...a, fileName: updated.fileName } : a)
+      } : c));
+      setEditingAttachmentId(null);
+      setEditingAttachmentName('');
+    } catch (err: any) {
+      console.error('Failed to rename attachment', err);
+      alert(err.response?.data?.message || 'Не удалось переименовать файл');
+    } finally {
+      setRenamingAttachment(false);
     }
   };
 
@@ -3005,41 +3044,98 @@ const Kanban = () => {
                               padding: '10px 14px',
                               background: 'rgba(255, 255, 255, 0.02)',
                               border: '1px solid var(--glass-border)',
-                              borderRadius: 'var(--radius-sm)'
+                              borderRadius: 'var(--radius-sm)',
+                              gap: '12px'
                             }}>
-                              <span style={{fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '55%'}}>
-                                {att.fileName}
-                              </span>
-                              <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                {canPreview && (
-                                  <button 
-                                    type="button" 
-                                    onClick={() => handleOpenAttachment(att)} 
-                                    className="btn btn-ghost" 
-                                    style={{padding: '5px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
-                                    title="Посмотреть в браузере"
+                              {editingAttachmentId === att.id ? (
+                                <form
+                                  onSubmit={(e) => {
+                                    e.preventDefault();
+                                    handleSaveRenameAttachment(att.id);
+                                  }}
+                                  style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}
+                                >
+                                  <input
+                                    type="text"
+                                    autoFocus
+                                    value={editingAttachmentName}
+                                    onChange={(e) => setEditingAttachmentName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Escape') handleCancelRenameAttachment();
+                                    }}
+                                    disabled={renamingAttachment}
+                                    className="search-input"
+                                    style={{ flex: 1, padding: '4px 10px', fontSize: '0.88rem', height: '32px' }}
+                                  />
+                                  <button
+                                    type="submit"
+                                    disabled={renamingAttachment}
+                                    className="btn btn-primary"
+                                    style={{ padding: '4px 10px', fontSize: '0.8rem', height: '32px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    title="Сохранить имя"
                                   >
-                                    <Eye size={14} /> Просмотр
+                                    <Check size={14} /> Сохранить
                                   </button>
-                                )}
-                                <button 
-                                  type="button" 
-                                  onClick={() => handleDownloadAttachment(att)} 
-                                  className="btn btn-ghost" 
-                                  style={{padding: '5px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
-                                  title="Скачать файл"
-                                >
-                                  <Download size={14} /> {t('kanban.modal.download')}
-                                </button>
-                                <button 
-                                  type="button" 
-                                  onClick={() => handleDeleteAttachment(att.id)} 
-                                  title={t('kanban.modal.delete') || 'Удалить'} 
-                                  style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px'}}
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              </div>
+                                  <button
+                                    type="button"
+                                    onClick={handleCancelRenameAttachment}
+                                    disabled={renamingAttachment}
+                                    className="btn btn-ghost"
+                                    style={{ padding: '4px 8px', height: '32px', display: 'flex', alignItems: 'center' }}
+                                    title="Отмена"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </form>
+                              ) : (
+                                <>
+                                  <span 
+                                    style={{fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '50%'}}
+                                    title={att.fileName}
+                                  >
+                                    {att.fileName}
+                                  </span>
+                                  <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => handleStartRenameAttachment(att)} 
+                                      className="btn btn-ghost" 
+                                      style={{padding: '5px 8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                                      title="Переименовать файл"
+                                    >
+                                      <Edit2 size={13} />
+                                    </button>
+                                    {canPreview && (
+                                      <button 
+                                        type="button" 
+                                        onClick={() => handleOpenAttachment(att)} 
+                                        className="btn btn-ghost" 
+                                        style={{padding: '5px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                                        title="Посмотреть в браузере"
+                                      >
+                                        <Eye size={14} /> Просмотр
+                                      </button>
+                                    )}
+                                    <button 
+                                      type="button" 
+                                      onClick={() => handleDownloadAttachment(att)} 
+                                      className="btn btn-ghost" 
+                                      style={{padding: '5px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                                      title="Скачать файл"
+                                    >
+                                      <Download size={14} /> {t('kanban.modal.download')}
+                                    </button>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => handleDeleteAttachment(att.id)} 
+                                      title={t('kanban.modal.delete') || 'Удалить'} 
+                                      style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px'}}
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  </div>
+                                </>
+                              )}
                             </div>
                           );
                         })}
