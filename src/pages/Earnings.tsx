@@ -14,10 +14,13 @@ import {
 } from 'lucide-react';
 import { getMyEarnings } from '../api/earnings';
 import type { WorkerEarnings } from '../api/earnings';
+import { useAppStore } from '../store/useAppStore';
+import { formatDateTimeInTimezone, formatDateInTimezone } from '../utils/dateUtils';
 
 type PeriodFilter = 'THIS_MONTH' | 'PREV_MONTH' | 'ALL_TIME' | 'CUSTOM';
 
 export const Earnings: React.FC = () => {
+  const { tenantSettings } = useAppStore();
   const [data, setData] = useState<WorkerEarnings | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodFilter>('THIS_MONTH');
@@ -533,12 +536,12 @@ export const Earnings: React.FC = () => {
                   {item.installedAt ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#4ade80' }}>
                       <CheckCircle2 size={13} />
-                      <span>Выполнен: {new Date(item.installedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>Выполнен: {formatDateTimeInTimezone(item.installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   ) : item.installationDate ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Clock size={13} />
-                      <span>Монтаж: {new Date(item.installationDate).toLocaleDateString('ru-RU')}</span>
+                      <span>Монтаж: {formatDateInTimezone(item.installationDate, tenantSettings?.timezone)}</span>
                     </div>
                   ) : null}
                 </div>

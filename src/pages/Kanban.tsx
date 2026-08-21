@@ -18,6 +18,7 @@ import type { Employee } from '../api/employees';
 import { getEmployeeInitials, getAvatarGradient } from './Employees';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { formatDateTimeInTimezone } from '../utils/dateUtils';
 import { useSearchParams } from 'react-router-dom';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import '../styles/kanban.css';
@@ -128,7 +129,7 @@ const Kanban = () => {
   const { t } = useTranslation();
   const role = useAuthStore(state => state.role);
   const isWorker = role === 'WORKER';
-  const { setNewOrdersCount, fetchLowStockMaterials } = useAppStore();
+  const { setNewOrdersCount, fetchLowStockMaterials, tenantSettings } = useAppStore();
   const [columns, setColumns] = useState<OrderStatus[]>([]);
   const [cards, setCards] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2108,7 +2109,7 @@ const Kanban = () => {
                             </div>
                             {installedAt && (
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                Завершен: <strong style={{ color: 'var(--text-primary)' }}>{new Date(installedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
+                                Завершен: <strong style={{ color: 'var(--text-primary)' }}>{formatDateTimeInTimezone(installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
                               </div>
                             )}
                           </div>

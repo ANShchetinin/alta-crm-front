@@ -89,3 +89,30 @@ export function formatDateTimeInTimezone(
     return date.toLocaleString('ru-RU');
   }
 }
+
+/**
+ * Форматирует только дату (день.месяц.год) в установленном часовом поясе компании.
+ */
+export function formatDateInTimezone(
+  dateStr: string | Date | null | undefined,
+  timeZone = 'Europe/Moscow',
+  options?: Intl.DateTimeFormatOptions
+): string {
+  if (!dateStr) return '';
+  const date = dateStr instanceof Date ? dateStr : parseUtcDate(dateStr);
+  if (!date) return '';
+
+  const defaultOptions: Intl.DateTimeFormatOptions = {
+    timeZone: timeZone || 'Europe/Moscow',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    ...options
+  };
+
+  try {
+    return new Intl.DateTimeFormat('ru-RU', defaultOptions).format(date);
+  } catch {
+    return date.toLocaleDateString('ru-RU');
+  }
+}
