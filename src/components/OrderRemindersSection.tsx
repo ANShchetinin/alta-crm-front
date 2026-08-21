@@ -284,8 +284,8 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
               style={{ width: '100%', height: '38px', fontSize: '0.85rem' }}
             >
               <option value="">Текущий пользователь (Я)</option>
-              {employees.filter(emp => emp.userId).map(emp => (
-                <option key={emp.id} value={emp.userId}>
+              {employees.map(emp => (
+                <option key={emp.id} value={emp.userId || emp.id}>
                   {emp.name} {emp.position ? `(${emp.position})` : ''}
                 </option>
               ))}
