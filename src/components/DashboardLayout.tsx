@@ -6,6 +6,7 @@ import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { getOrders, getOrderStatuses } from '../api/kanban';
 import { getProfile } from '../api/settings';
+import { getRecentNotifications, markNotificationAsRead, markAllNotificationsAsRead, type AppNotificationItem } from '../api/notifications';
 import { PushNotificationSettings } from './PushNotificationSettings';
 import '../styles/dashboard.css';
 
@@ -112,7 +113,71 @@ const DashboardLayout = () => {
       }
     };
     fetchUserProfile();
+
+    fetchNotificationsList();
+    const interval = setInterval(fetchNotificationsList, 25000);
+    return () => clearInterval(interval);
   }, [role]);
+
+  const [recentNotifications, setRecentNotifications] = useState<AppNotificationItem[]>([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
+
+  const fetchNotificationsList = async () => {
+    try {
+      const list = await getRecentNotifications();
+      setRecentNotifications(list);
+      const unread = list.filter(n => !n.isRead).length;
+      setUnreadNotifCount(unread);
+    } catch (err) {
+      console.error("Failed to fetch recent notifications", err);
+    }
+  };
+
+  const handleNotificationClick = async (notif: AppNotificationItem) => {
+    if (!notif.isRead) {
+      try {
+        await markNotificationAsRead(notif.id);
+        setRecentNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
+        setUnreadNotifCount(prev => Math.max(0, prev - 1));
+      } catch (e) {
+        console.error('Failed to mark read', e);
+      }
+    }
+    setShowNotifications(false);
+    if (notif.url) {
+      navigate(notif.url);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsAsRead();
+      setRecentNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadNotifCount(0);
+    } catch (e) {
+      console.error('Failed to mark all read', e);
+    }
+  };
+
+  const formatTimeAgo = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+
+      if (diffMins < 1) return 'только что';
+      if (diffMins < 60) return `${diffMins} мин назад`;
+      if (diffHours < 24) return `${diffHours} ч назад`;
+      return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+
+  const totalUnreadBadge = unreadNotifCount + (role !== 'WORKER' ? lowStockMaterials.length : 0);
 
   const handleLogout = () => {
     logout();
@@ -304,25 +369,108 @@ const DashboardLayout = () => {
             <div style={{ position: 'relative' }}>
               <button className="btn-icon" onClick={() => setShowNotifications(!showNotifications)} title="Уведомления">
                 <Bell size={18} />
-                {lowStockMaterials.length > 0 && (
+                {totalUnreadBadge > 0 && (
                   <span className="notification-badge">
-                    {lowStockMaterials.length}
+                    {totalUnreadBadge}
                   </span>
                 )}
               </button>
               {showNotifications && (
-                <div className="notifications-dropdown glass-panel">
-                  <h4 style={{ margin: '0 0 8px 0' }}>Уведомления</h4>
-                  {lowStockMaterials.length === 0 ? (
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Нет новых уведомлений</div>
+                <div 
+                  className="notifications-dropdown glass-panel"
+                  style={{ 
+                    width: '350px', 
+                    maxHeight: '480px', 
+                    overflowY: 'auto', 
+                    padding: '14px',
+                    right: 0,
+                    left: 'auto'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Bell size={15} style={{ color: 'var(--accent-primary)' }} /> Уведомления за 24 ч
+                    </h4>
+                    {unreadNotifCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleMarkAllRead}
+                        style={{ 
+                          background: 'none', 
+                          border: 'none', 
+                          color: 'var(--accent-primary)', 
+                          fontSize: '0.75rem', 
+                          cursor: 'pointer', 
+                          padding: 0,
+                          fontWeight: 500
+                        }}
+                      >
+                        Прочитать все
+                      </button>
+                    )}
+                  </div>
+
+                  {recentNotifications.length === 0 && lowStockMaterials.length === 0 ? (
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '20px 0' }}>
+                      За последние сутки новых уведомлений нет
+                    </div>
                   ) : (
-                    lowStockMaterials.map(m => (
-                      <div key={m.id} className="notification-item">
-                        <strong>{m.name}</strong> заканчивается!
-                        <br/> Остаток: {m.quantityInStock} {m.unit} (Мин: {m.minQuantity})
-                      </div>
-                    ))
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {recentNotifications.map(n => (
+                        <div
+                          key={n.id}
+                          onClick={() => handleNotificationClick(n)}
+                          style={{
+                            padding: '9px 11px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: n.isRead ? 'rgba(255, 255, 255, 0.02)' : 'rgba(59, 130, 246, 0.08)',
+                            border: n.isRead ? '1px solid var(--glass-border)' : '1px solid rgba(59, 130, 246, 0.3)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
+                            <div style={{ 
+                              fontWeight: n.isRead ? 500 : 700, 
+                              fontSize: '0.83rem', 
+                              color: n.isRead ? 'var(--text-primary)' : '#60a5fa',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}>
+                              {!n.isRead && (
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
+                              )}
+                              {n.title}
+                            </div>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                              {formatTimeAgo(n.createdAt)}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.77rem', color: 'var(--text-secondary)', lineHeight: 1.35, whiteSpace: 'pre-wrap' }}>
+                            {n.body}
+                          </div>
+                        </div>
+                      ))}
+
+                      {lowStockMaterials.length > 0 && role !== 'WORKER' && (
+                        <div style={{ marginTop: '6px', paddingTop: '8px', borderTop: '1px solid var(--glass-border)' }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#f59e0b', marginBottom: '6px' }}>
+                            ⚠️ Заканчивающиеся материалы:
+                          </div>
+                          {lowStockMaterials.map(m => (
+                            <div key={m.id} className="notification-item" style={{ fontSize: '0.76rem', padding: '6px 8px', marginBottom: '4px' }}>
+                              <strong>{m.name}</strong>: остаток {m.quantityInStock} {m.unit} (мин: {m.minQuantity})
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
+
                   <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'center' }}>
                     <button
                       type="button"
@@ -330,7 +478,7 @@ const DashboardLayout = () => {
                       className="btn btn-ghost"
                       style={{ fontSize: '0.78rem', color: 'var(--accent-primary)', padding: '4px 8px', width: '100%', justifyContent: 'center' }}
                     >
-                      🔔 Настройка Push-уведомлений
+                      ⚙️ Настройка Push-уведомлений
                     </button>
                   </div>
                 </div>

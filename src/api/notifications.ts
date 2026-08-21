@@ -1,5 +1,33 @@
 import { api } from './axiosConfig';
 
+export interface AppNotificationItem {
+  id: number;
+  title: string;
+  body: string;
+  type?: string;
+  url?: string;
+  orderId?: number;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export const getRecentNotifications = async (): Promise<AppNotificationItem[]> => {
+  const response = await api.get('/notifications');
+  return response.data;
+};
+
+export const markNotificationAsRead = async (id: number): Promise<{ message: string }> => {
+  const response = await api.post(`/notifications/${id}/read`);
+  return response.data;
+};
+
+export const markAllNotificationsAsRead = async (): Promise<{ message: string }> => {
+  const response = await api.post('/notifications/read-all');
+  return response.data;
+};
+
+// --- Push API ---
+
 export interface PushStatus {
   isSubscribed: boolean;
   publicKey: string;
