@@ -24,6 +24,7 @@ import {
   deleteReminder 
 } from '../api/reminders';
 import type { Employee } from '../api/employees';
+import { localInputToUtcIso, utcToLocalInput, parseUtcDate } from '../utils/dateUtils';
 
 interface OrderRemindersSectionProps {
   orderId: number;
@@ -112,14 +113,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
 
   const openEditModal = (rem: OrderReminderDto) => {
     setEditingReminder(rem);
-    const date = new Date(rem.remindAt);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    setCustomDateTime(`${year}-${month}-${day}T${hours}:${minutes}`);
-
+    setCustomDateTime(utcToLocalInput(rem.remindAt));
     setComment(rem.comment || '');
     setSelectedUserId(rem.userId || currentUserId);
     setNotifyBeforeMinutes(rem.notifyBeforeMinutes || 0);
@@ -136,18 +130,20 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
       return;
     }
 
+    const utcRemindAt = localInputToUtcIso(customDateTime) || customDateTime;
+
     try {
       setSubmitting(true);
       if (editingReminder) {
         await updateReminder(editingReminder.id, {
-          remindAt: customDateTime,
+          remindAt: utcRemindAt,
           comment: comment.trim() || undefined,
           userId: selectedUserId,
           notifyBeforeMinutes: notifyBeforeMinutes
         });
       } else {
         await createReminder(orderId, {
-          remindAt: customDateTime,
+          remindAt: utcRemindAt,
           comment: comment.trim() || undefined,
           userId: selectedUserId,
           notifyBeforeMinutes: notifyBeforeMinutes
@@ -252,7 +248,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
             Активные напоминания ({pendingReminders.length}):
           </div>
           {pendingReminders.map(rem => {
-            const dateObj = new Date(rem.remindAt);
+            const dateObj = parseUtcDate(rem.remindAt) || new Date(rem.remindAt);
             const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
             const timeStr = dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 

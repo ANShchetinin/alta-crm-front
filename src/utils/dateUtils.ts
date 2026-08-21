@@ -116,3 +116,48 @@ export function formatDateInTimezone(
     return date.toLocaleDateString('ru-RU');
   }
 }
+
+/**
+ * Конвертирует строку из input type="datetime-local" (локальное время браузера "YYYY-MM-DDTHH:mm")
+ * в ISO-строку UTC для отправки на бэкенд ("YYYY-MM-DDTHH:mm:ss.sssZ").
+ */
+export function localInputToUtcIso(localDateTimeStr: string | null | undefined): string | undefined {
+  if (!localDateTimeStr || !localDateTimeStr.trim()) return undefined;
+  const trimmed = localDateTimeStr.trim();
+  if (trimmed.endsWith('Z') || /[+-]\d{2}(:\d{2})?$/.test(trimmed)) {
+    return trimmed;
+  }
+  const date = new Date(trimmed);
+  if (isNaN(date.getTime())) return undefined;
+  return date.toISOString();
+}
+
+/**
+ * Конвертирует строку даты/времени из бэкенда (в UTC)
+ * в строку формата "YYYY-MM-DDTHH:mm" для подстановки в input type="datetime-local".
+ */
+export function utcToLocalInput(utcDateStr: string | null | undefined): string {
+  if (!utcDateStr) return '';
+  const d = parseUtcDate(utcDateStr);
+  if (!d) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/**
+ * Форматирует только дату без временных сдвигов (например, "2026-08-22" -> "22.08.2026").
+ */
+export function formatDateOnly(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  if (dateStr.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    const [y, m, d] = dateStr.slice(0, 10).split('-');
+    return `${d}.${m}.${y}`;
+  }
+  const d = parseUtcDate(dateStr);
+  return d ? d.toLocaleDateString('ru-RU') : '';
+}
+

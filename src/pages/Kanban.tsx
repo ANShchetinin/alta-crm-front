@@ -18,7 +18,7 @@ import type { Employee } from '../api/employees';
 import { getEmployeeInitials, getAvatarGradient } from './Employees';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { formatDateTimeInTimezone } from '../utils/dateUtils';
+import { formatDateTimeInTimezone, localInputToUtcIso, utcToLocalInput, parseUtcDate, formatDateOnly } from '../utils/dateUtils';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import { OrderRemindersSection } from '../components/OrderRemindersSection';
@@ -317,8 +317,8 @@ const Kanban = () => {
       prepayment: (prep != null && prep > 0) ? prep.toString() : '',
       remainder: (rem != null && rem > 0) ? rem.toString() : '',
       installationPrice: (order.installationPrice != null && order.installationPrice > 0) ? order.installationPrice.toString() : '',
-      installationDate: order.installationDate || '',
-      measurementDate: order.measurementDate ? order.measurementDate.slice(0, 16) : '',
+      installationDate: order.installationDate ? order.installationDate.slice(0, 10) : '',
+      measurementDate: utcToLocalInput(order.measurementDate),
       materials: order.materials ? [...order.materials] : [],
       attachments: order.attachments ? [...order.attachments] : [],
       contractParams: initialContractParams
@@ -562,7 +562,7 @@ const Kanban = () => {
       totalPrice: total,
       installationPrice: parseFloat(formData.installationPrice || '0'),
       installationDate: formData.installationDate || undefined,
-      measurementDate: formData.measurementDate || undefined,
+      measurementDate: localInputToUtcIso(formData.measurementDate),
       contractParams: formData.contractParams,
       materials: formData.materials.map(m => ({
         materialId: m.materialId,
@@ -1791,14 +1791,14 @@ const Kanban = () => {
                     {card.installationDate && (
                       <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 500}}>
                         <span>{t('kanban.modal.installationDate')}:</span>
-                        <span>{new Date(card.installationDate).toLocaleDateString('ru-RU')}</span>
+                        <span>{formatDateOnly(card.installationDate)}</span>
                       </div>
                     )}
                     {card.measurementDate && (
                       <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500}}>
                         <span>Замер:</span>
                         <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {new Date(card.measurementDate).toLocaleString('ru-RU', {
+                          {formatDateTimeInTimezone(card.measurementDate, tenantSettings?.timezone, {
                             day: 'numeric',
                             month: 'short',
                             hour: '2-digit',
@@ -1812,11 +1812,11 @@ const Kanban = () => {
                       const pending = cardReminders.filter(r => r.status === 'PENDING');
                       if (pending.length === 0) return null;
                       const nearest = pending[0];
-                      const dateObj = new Date(nearest.remindAt);
+                      const dateObj = parseUtcDate(nearest.remindAt) || new Date(nearest.remindAt);
                       const isOverdue = nearest.isOverdue;
                       const isToday = dateObj.toDateString() === new Date().toDateString();
-                      const timeStr = dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-                      const dateStr = isToday ? `Сегодня, ${timeStr}` : dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + `, ${timeStr}`;
+                      const timeStr = formatDateTimeInTimezone(nearest.remindAt, tenantSettings?.timezone, { hour: '2-digit', minute: '2-digit' });
+                      const dateStr = isToday ? `Сегодня, ${timeStr}` : formatDateTimeInTimezone(nearest.remindAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
                       return (
                         <div
