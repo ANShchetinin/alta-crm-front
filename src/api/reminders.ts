@@ -56,6 +56,11 @@ export const createReminder = async (orderId: number, data: CreateReminderReques
   return res.data;
 };
 
+export const updateReminder = async (reminderId: number, data: CreateReminderRequest): Promise<OrderReminderDto> => {
+  const res = await api.put(`/reminders/${reminderId}`, data);
+  return res.data;
+};
+
 export const completeReminder = async (reminderId: number): Promise<OrderReminderDto> => {
   const res = await api.patch(`/reminders/${reminderId}/complete`);
   return res.data;
