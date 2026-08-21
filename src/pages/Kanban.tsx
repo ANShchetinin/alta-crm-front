@@ -713,14 +713,8 @@ const Kanban = () => {
         installedByName: updatedOrder.installedByName || c.installedByName,
         installedAt: updatedOrder.installedAt || new Date().toISOString()
       } : c));
-      if (editingOrderId === orderId) {
-        setFormData(prev => ({
-          ...prev,
-          statusId: (updatedOrder.statusId || prev.statusId).toString(),
-          installedByName: updatedOrder.installedByName || prev.installedByName,
-          installedAt: updatedOrder.installedAt || prev.installedAt
-        }));
-      }
+      setIsModalOpen(false);
+      setEditingOrderId(null);
       fetchData();
     } catch (err: any) {
       console.error('Failed to complete installation', err);
