@@ -264,9 +264,92 @@ const Kanban = () => {
     return merged;
   };
 
+  const openEditModal = (order: Order) => {
+    const prep = order.prepayment != null ? order.prepayment : 0;
+    const rem = order.remainder != null ? order.remainder : (order.totalPrice != null ? Math.max(0, order.totalPrice - prep) : 0);
+    const tot = order.totalPrice != null ? order.totalPrice : (prep + rem);
+
+    const initialContractParams: ContractParams = order.contractParams ? {
+      ...order.contractParams,
+      contractDate: order.contractParams.contractDate || new Date().toISOString().slice(0, 10),
+      actChecklist: mergeActChecklist(order.contractParams.actChecklist),
+      specItems: order.contractParams.specItems || []
+    } : {
+      area: '70,3',
+      perimeter: '110,5',
+      canvasesCount: '5',
+      insertLength: '20',
+      pipeCount: '0',
+      lightsCount: '30',
+      timberLength: '17',
+      canvasArticle: 'Полотно Мат 303',
+      contractDate: new Date().toISOString().slice(0, 10),
+      discount: '',
+      handoverDate: '',
+      specItems: [],
+      actChecklist: DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }))
+    };
+
+    setEditingOrderId(order.id);
+    setOrderModalTab('MAIN');
+    setFormData({
+      clientId: order.clientId ? order.clientId.toString() : '',
+      statusId: order.statusId ? order.statusId.toString() : (columns[0]?.id ? columns[0].id.toString() : ''),
+      assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
+      installedById: order.installedById ? order.installedById.toString() : '',
+      installedByName: order.installedByName || '',
+      installedByAvatarUrl: order.installedByAvatarUrl || '',
+      installedAt: order.installedAt || '',
+      orderNumber: order.orderNumber || '',
+      address: order.address || '',
+      entrance: order.entrance || '',
+      floor: order.floor || '',
+      description: order.description || '',
+      totalPrice: tot.toString(),
+      prepayment: prep.toString(),
+      remainder: rem.toString(),
+      installationPrice: order.installationPrice != null ? order.installationPrice.toString() : '0',
+      installationDate: order.installationDate || '',
+      measurementDate: order.measurementDate ? order.measurementDate.slice(0, 16) : '',
+      materials: order.materials ? [...order.materials] : [],
+      attachments: order.attachments ? [...order.attachments] : [],
+      contractParams: initialContractParams
+    });
+    setPendingFiles([]);
+    setAiSummary(null);
+    setIsModalOpen(true);
+    getAiSummary(order.id).then(setAiSummary).catch(() => setAiSummary(null));
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Reactive listener for opening order modal from notifications or external navigation
+  useEffect(() => {
+    const orderIdParam = searchParams.get('orderId');
+    if (!orderIdParam) return;
+    const targetId = parseInt(orderIdParam);
+    if (isNaN(targetId)) return;
+
+    const orderToOpen = cards.find(o => o.id === targetId);
+    if (orderToOpen) {
+      openEditModal(orderToOpen);
+      searchParams.delete('orderId');
+      setSearchParams(searchParams, { replace: true });
+    } else if (!loading && cards.length > 0) {
+      // If cards are loaded but order is missing, fetch fresh list
+      getOrders().then(orders => {
+        setCards(orders);
+        const freshOrder = orders.find(o => o.id === targetId);
+        if (freshOrder) {
+          openEditModal(freshOrder);
+          searchParams.delete('orderId');
+          setSearchParams(searchParams, { replace: true });
+        }
+      }).catch(err => console.error("Failed to load order from query param", err));
+    }
+  }, [searchParams, cards, loading]);
 
   const fetchData = async () => {
     try {
@@ -296,38 +379,7 @@ const Kanban = () => {
       if (orderIdParam) {
         const orderToOpen = orders.find(o => o.id === parseInt(orderIdParam));
         if (orderToOpen) {
-          // Open edit modal directly
-          const prep = orderToOpen.prepayment != null ? orderToOpen.prepayment : 0;
-          const rem = orderToOpen.remainder != null ? orderToOpen.remainder : (orderToOpen.totalPrice != null ? Math.max(0, orderToOpen.totalPrice - prep) : 0);
-          const tot = orderToOpen.totalPrice != null ? orderToOpen.totalPrice : (prep + rem);
-
-          setEditingOrderId(orderToOpen.id);
-          setFormData({
-            clientId: orderToOpen.clientId ? orderToOpen.clientId.toString() : '',
-            statusId: orderToOpen.statusId ? orderToOpen.statusId.toString() : (sortedColumns[0]?.id ? sortedColumns[0].id.toString() : ''),
-            assigneeId: orderToOpen.assigneeId ? orderToOpen.assigneeId.toString() : '',
-            installedById: orderToOpen.installedById ? orderToOpen.installedById.toString() : '',
-            installedByName: orderToOpen.installedByName || '',
-            installedByAvatarUrl: orderToOpen.installedByAvatarUrl || '',
-            installedAt: orderToOpen.installedAt || '',
-            orderNumber: orderToOpen.orderNumber || '',
-            address: orderToOpen.address || '',
-            entrance: orderToOpen.entrance || '',
-            floor: orderToOpen.floor || '',
-            description: orderToOpen.description || '',
-            totalPrice: tot.toString(),
-            prepayment: prep.toString(),
-            remainder: rem.toString(),
-            installationPrice: orderToOpen.installationPrice != null ? orderToOpen.installationPrice.toString() : '0',
-            installationDate: orderToOpen.installationDate || '',
-            measurementDate: orderToOpen.measurementDate ? orderToOpen.measurementDate.slice(0, 16) : '',
-            contractParams: orderToOpen.contractParams ? { ...orderToOpen.contractParams } : undefined,
-            materials: orderToOpen.materials ? [...orderToOpen.materials] : [],
-            attachments: orderToOpen.attachments ? [...orderToOpen.attachments] : []
-          });
-          setPendingFiles([]);
-          setIsModalOpen(true);
-          getAiSummary(orderToOpen.id).then(setAiSummary).catch(() => setAiSummary(null));
+          openEditModal(orderToOpen);
         }
         searchParams.delete('orderId');
         setSearchParams(searchParams, { replace: true });
@@ -443,63 +495,6 @@ const Kanban = () => {
     } finally {
       setCreatingClient(false);
     }
-  };
-
-  const openEditModal = (order: Order) => {
-    const prep = order.prepayment != null ? order.prepayment : 0;
-    const rem = order.remainder != null ? order.remainder : (order.totalPrice != null ? Math.max(0, order.totalPrice - prep) : 0);
-    const tot = order.totalPrice != null ? order.totalPrice : (prep + rem);
-
-    const initialContractParams: ContractParams = order.contractParams ? {
-      ...order.contractParams,
-      contractDate: order.contractParams.contractDate || new Date().toISOString().slice(0, 10),
-      actChecklist: mergeActChecklist(order.contractParams.actChecklist),
-      specItems: order.contractParams.specItems || []
-    } : {
-      area: '70,3',
-      perimeter: '110,5',
-      canvasesCount: '5',
-      insertLength: '20',
-      pipeCount: '0',
-      lightsCount: '30',
-      timberLength: '17',
-      canvasArticle: 'Полотно Мат 303',
-      contractDate: new Date().toISOString().slice(0, 10),
-      discount: '',
-      handoverDate: '',
-      specItems: [],
-      actChecklist: DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }))
-    };
-
-    setEditingOrderId(order.id);
-    setOrderModalTab('MAIN');
-    setFormData({
-      clientId: order.clientId ? order.clientId.toString() : '',
-      statusId: order.statusId ? order.statusId.toString() : (columns[0]?.id ? columns[0].id.toString() : ''),
-      assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
-      installedById: order.installedById ? order.installedById.toString() : '',
-      installedByName: order.installedByName || '',
-      installedByAvatarUrl: order.installedByAvatarUrl || '',
-      installedAt: order.installedAt || '',
-      orderNumber: order.orderNumber || '',
-      address: order.address || '',
-      entrance: order.entrance || '',
-      floor: order.floor || '',
-      description: order.description || '',
-      totalPrice: tot.toString(),
-      prepayment: prep.toString(),
-      remainder: rem.toString(),
-      installationPrice: order.installationPrice != null ? order.installationPrice.toString() : '0',
-      installationDate: order.installationDate || '',
-      measurementDate: order.measurementDate ? order.measurementDate.slice(0, 16) : '',
-      materials: order.materials ? [...order.materials] : [],
-      attachments: order.attachments ? [...order.attachments] : [],
-      contractParams: initialContractParams
-    });
-    setPendingFiles([]);
-    setAiSummary(null);
-    setIsModalOpen(true);
-    getAiSummary(order.id).then(setAiSummary).catch(() => setAiSummary(null));
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {

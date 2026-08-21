@@ -144,8 +144,12 @@ const DashboardLayout = () => {
       }
     }
     setShowNotifications(false);
-    if (notif.url) {
+    if (notif.orderId) {
+      navigate(`/kanban?orderId=${notif.orderId}`);
+    } else if (notif.url) {
       navigate(notif.url);
+    } else {
+      navigate('/kanban');
     }
   };
 
