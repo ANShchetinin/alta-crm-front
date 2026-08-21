@@ -18,39 +18,110 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+export interface PushSupportInfo {
+  supported: boolean;
+  isSecureContext: boolean;
+  hasServiceWorker: boolean;
+  hasNotification: boolean;
+  hasPushManager: boolean;
+  isIos: boolean;
+  isStandalone: boolean;
+  reason?: string;
+}
+
+/**
+ * Detailed diagnostics of push notification support on the current device
+ */
+export function checkPushSupport(): PushSupportInfo {
+  if (typeof window === 'undefined') {
+    return {
+      supported: false,
+      isSecureContext: false,
+      hasServiceWorker: false,
+      hasNotification: false,
+      hasPushManager: false,
+      isIos: false,
+      isStandalone: false,
+      reason: 'Окружение не поддерживает браузерные API'
+    };
+  }
+
+  const isSecure = window.isSecureContext === true;
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+  const hasSW = 'serviceWorker' in navigator;
+  const hasNotif = 'Notification' in window;
+  const hasPM = 'PushManager' in window || (hasSW && 'ServiceWorkerRegistration' in window && 'pushManager' in ServiceWorkerRegistration.prototype);
+
+  let reason = '';
+  if (!isSecure) {
+    reason = 'Push-уведомления требуют защищенного протокола HTTPS (или localhost). При открытии сайта по обычному HTTP (например, по IP-адресу в локальной сети) мобильные браузеры Android и iOS отключают Service Worker и Push API из соображений безопасности.';
+  } else if (isIos && !isStandalone) {
+    reason = 'На iPhone / iPad (iOS 16.4+) браузер Safari поддерживает Push-уведомления только после добавления сайта на экран «Домой» как PWA-приложения.';
+  } else if (!hasSW) {
+    reason = 'Service Worker не поддерживается данным браузером.';
+  } else if (!hasNotif && !hasPM) {
+    reason = 'Push-уведомления не поддерживаются этой версией браузера.';
+  }
+
+  const supported = isSecure && hasSW && (hasNotif || hasPM || isIos);
+
+  return {
+    supported,
+    isSecureContext: isSecure,
+    hasServiceWorker: hasSW,
+    hasNotification: hasNotif,
+    hasPushManager: hasPM,
+    isIos,
+    isStandalone,
+    reason: supported ? undefined : reason
+  };
+}
+
 /**
  * Checks if Service Worker and Push Notifications are supported by the browser
  */
 export function isPushNotificationSupported(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    'serviceWorker' in navigator &&
-    'PushManager' in window &&
-    'Notification' in window
-  );
+  return checkPushSupport().supported;
 }
 
 /**
  * Returns the current notification permission state
  */
 export function getNotificationPermission(): NotificationPermission | 'unsupported' {
-  if (!isPushNotificationSupported()) return 'unsupported';
-  return Notification.permission;
+  if (typeof window === 'undefined') return 'unsupported';
+  if ('Notification' in window) {
+    return Notification.permission;
+  }
+  return isPushNotificationSupported() ? 'default' : 'unsupported';
 }
 
 /**
  * Subscribes the current device/browser to Web Push notifications
  */
 export async function enablePushNotifications(): Promise<{ success: boolean; message: string }> {
-  if (!isPushNotificationSupported()) {
-    return { success: false, message: 'Push-уведомления не поддерживаются вашим браузером' };
+  const support = checkPushSupport();
+  if (!support.supported) {
+    return { 
+      success: false, 
+      message: support.reason || 'Push-уведомления не поддерживаются вашим браузером' 
+    };
   }
 
   try {
     // 1. Request user permission
-    const permission = await Notification.requestPermission();
+    let permission: NotificationPermission = 'default';
+    if ('Notification' in window && typeof Notification.requestPermission === 'function') {
+      permission = await Notification.requestPermission();
+    }
+
     if (permission !== 'granted') {
-      return { success: false, message: 'Разрешение на отправку уведомлений не предоставлено' };
+      return { 
+        success: false, 
+        message: permission === 'denied'
+          ? 'Уведомления заблокированы в настройках устройства/браузера. Разрешите их в настройках.'
+          : 'Разрешение на отправку уведомлений не предоставлено.'
+      };
     }
 
     // 2. Fetch VAPID public key from backend
@@ -60,7 +131,16 @@ export async function enablePushNotifications(): Promise<{ success: boolean; mes
     }
 
     // 3. Wait for service worker ready
-    const registration = await navigator.serviceWorker.ready;
+    let registration: ServiceWorkerRegistration;
+    if (navigator.serviceWorker.ready) {
+      registration = await navigator.serviceWorker.ready;
+    } else {
+      registration = await navigator.serviceWorker.register('/sw.js');
+    }
+
+    if (!registration.pushManager) {
+      return { success: false, message: 'PushManager недоступен в Service Worker на этом устройстве' };
+    }
 
     // 4. Subscribe via PushManager
     const applicationServerKey = urlBase64ToUint8Array(publicKey);
@@ -102,11 +182,11 @@ export async function enablePushNotifications(): Promise<{ success: boolean; mes
  * Unsubscribes the current device/browser from Web Push notifications
  */
 export async function disablePushNotifications(): Promise<{ success: boolean; message: string }> {
-  if (!isPushNotificationSupported()) {
-    return { success: false, message: 'Push-уведомления не поддерживаются' };
-  }
-
   try {
+    if (!('serviceWorker' in navigator)) {
+      return { success: false, message: 'Service Worker не поддерживается' };
+    }
+
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
 

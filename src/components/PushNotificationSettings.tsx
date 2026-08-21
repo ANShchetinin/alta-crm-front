@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Bell, BellOff, CheckCircle2, AlertTriangle, Send, RefreshCw } from 'lucide-react';
+import { Bell, BellOff, CheckCircle2, AlertTriangle, Send, RefreshCw, Smartphone, ShieldAlert } from 'lucide-react';
 import {
-  isPushNotificationSupported,
+  checkPushSupport,
   getNotificationPermission,
   enablePushNotifications,
   disablePushNotifications,
-  testPushNotification
+  testPushNotification,
+  type PushSupportInfo
 } from '../utils/pushNotifications';
 import { getPushStatus } from '../api/notifications';
 
 export const PushNotificationSettings = () => {
-  const [supported, setSupported] = useState(true);
+  const [supportInfo, setSupportInfo] = useState<PushSupportInfo>(() => checkPushSupport());
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,12 +19,14 @@ export const PushNotificationSettings = () => {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const checkStatus = async () => {
-    const isSupp = isPushNotificationSupported();
-    setSupported(isSupp);
-    if (!isSupp) {
+    const info = checkPushSupport();
+    setSupportInfo(info);
+
+    if (!info.supported) {
       setPermission('unsupported');
       return;
     }
+
     const perm = getNotificationPermission();
     setPermission(perm);
 
@@ -82,21 +85,76 @@ export const PushNotificationSettings = () => {
     }
   };
 
-  if (!supported) {
+  if (!supportInfo.supported) {
     return (
       <div style={{
-        padding: '14px 16px',
-        background: 'rgba(255, 255, 255, 0.03)',
+        padding: '16px',
+        background: 'rgba(255, 255, 255, 0.02)',
         border: '1px solid var(--glass-border)',
         borderRadius: 'var(--radius-md)',
-        fontSize: '0.88rem',
-        color: 'var(--text-secondary)'
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-          <AlertTriangle size={16} style={{ color: '#f59e0b' }} />
-          <strong>Push-уведомления не поддерживаются</strong>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+          {!supportInfo.isSecureContext ? (
+            <ShieldAlert size={20} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
+          ) : (
+            <AlertTriangle size={20} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '2px' }} />
+          )}
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
+              Push-уведомления недоступны на этом устройстве
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              {supportInfo.reason}
+            </div>
+          </div>
         </div>
-        Ваш текущий браузер не поддерживает Web Push API. Рекомендуется использовать Chrome, Edge, Safari (iOS 16.4+) или установить CRM как PWA приложение на телефон.
+
+        {supportInfo.isIos && !supportInfo.isStandalone && (
+          <div style={{
+            fontSize: '0.82rem',
+            padding: '10px 14px',
+            background: 'rgba(59, 130, 246, 0.08)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <Smartphone size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+            <span>
+              <strong>Как включить на iPhone/iPad:</strong> в Safari нажмите <strong>«Поделиться»</strong> (квадрат со стрелкой) → <strong>«На экран “Домой”»</strong>, затем откройте CRM с экрана телефона.
+            </span>
+          </div>
+        )}
+
+        {!supportInfo.isSecureContext && (
+          <div style={{
+            fontSize: '0.82rem',
+            padding: '10px 14px',
+            background: 'rgba(239, 68, 68, 0.08)',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--text-primary)',
+            lineHeight: 1.4
+          }}>
+            🔒 <strong>Почему это происходит:</strong> Веб-стандарт Push API работает исключительно через защищенный протокол <strong>HTTPS</strong>. На ПК через <code>localhost</code> браузер разрешает пуши, но при открытии по IP/HTTP на телефоне мобильный Chrome и Safari их блокируют.
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+          <button
+            type="button"
+            onClick={checkStatus}
+            className="btn btn-ghost"
+            style={{ fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <RefreshCw size={14} /> Проверить снова
+          </button>
+        </div>
       </div>
     );
   }
