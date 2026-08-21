@@ -26,7 +26,7 @@ export const Calendar: React.FC = () => {
   
   const [filterMeasurement, setFilterMeasurement] = useState(true);
   const [filterInstallation, setFilterInstallation] = useState(true);
-  const [filterReminder, setFilterReminder] = useState(!isWorker);
+  const [filterReminder, setFilterReminder] = useState(true);
   
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | undefined>(undefined);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -43,9 +43,9 @@ export const Calendar: React.FC = () => {
     const types: string[] = [];
     if (filterMeasurement) types.push('MEASUREMENT');
     if (filterInstallation) types.push('INSTALLATION');
-    if (filterReminder && !isWorker) types.push('REMINDER');
+    if (filterReminder) types.push('REMINDER');
     return types;
-  }, [filterMeasurement, filterInstallation, filterReminder, isWorker]);
+  }, [filterMeasurement, filterInstallation, filterReminder]);
 
   // Calculate Date Bounds
   const { rangeStart, rangeEnd } = useMemo(() => {

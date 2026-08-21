@@ -513,6 +513,12 @@ const DashboardLayout = () => {
             </div>
             <span>{t('nav.orders') || 'Мои заявки'}</span>
           </NavLink>
+          <NavLink to="/calendar" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} style={{ flex: 1 }}>
+            <div className="bottom-nav-icon-wrapper">
+              <CalendarDays size={20} />
+            </div>
+            <span>Календарь</span>
+          </NavLink>
           <NavLink to="/earnings" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} style={{ flex: 1 }}>
             <div className="bottom-nav-icon-wrapper">
               <Wallet size={20} />

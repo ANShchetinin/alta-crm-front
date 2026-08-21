@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Clock, Bell } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Clock, Bell } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -146,6 +146,7 @@ const Kanban = () => {
   
   const [remindersMap, setRemindersMap] = useState<Record<number, OrderReminderDto[]>>({});
   const [reminderFilter, setReminderFilter] = useState<'all' | 'today' | 'overdue'>('all');
+  const [hideEmptyColumns, setHideEmptyColumns] = useState<boolean>(() => localStorage.getItem('kanban_hide_empty_columns') === 'true');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
@@ -1215,6 +1216,13 @@ const Kanban = () => {
     return orderNumMatch || clientNameMatch || clientPhoneMatch || addressMatch || descMatch || employeeMatch || idMatch;
   });
 
+  const displayedColumns = useMemo(() => {
+    if (!hideEmptyColumns) return columns;
+    return columns.filter(col => {
+      return filteredCards.some(c => c.statusId === col.id);
+    });
+  }, [columns, hideEmptyColumns, filteredCards]);
+
   return (
     <div className="kanban-wrapper">
       <div className="kanban-header">
@@ -1239,6 +1247,33 @@ const Kanban = () => {
           >
             <CalendarDays size={16} style={{ color: 'var(--accent-primary)' }} />
             Календарь
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const next = !hideEmptyColumns;
+              setHideEmptyColumns(next);
+              localStorage.setItem('kanban_hide_empty_columns', String(next));
+            }}
+            className="btn btn-ghost"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              border: hideEmptyColumns ? '1px solid var(--accent-primary)' : '1px solid var(--glass-border)',
+              background: hideEmptyColumns ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+              color: hideEmptyColumns ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              borderRadius: 'var(--radius-md)',
+              padding: '6px 12px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+            title={hideEmptyColumns ? 'Показать все колонки статусов' : 'Скрыть колонки, в которых нет заявок'}
+          >
+            {hideEmptyColumns ? <EyeOff size={16} /> : <Eye size={16} />}
+            <span>{hideEmptyColumns ? 'Скрывать пустые' : 'Все колонки'}</span>
           </button>
 
           <div className="search-input-wrapper" style={{ minWidth: '260px', maxWidth: '360px', position: 'relative' }}>
@@ -1345,7 +1380,7 @@ const Kanban = () => {
           }
         }}
       >
-        {columns.map(col => {
+        {displayedColumns.map(col => {
           const colCards = filteredCards.filter(c => c.statusId === col.id);
           const totalInCol = cards.filter(c => c.statusId === col.id).length;
 
