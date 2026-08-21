@@ -4,7 +4,7 @@ import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Ey
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, completeOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary, ContractParams } from '../api/kanban';
 import { getClients, createClient, updateClient } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -689,35 +689,42 @@ const Kanban = () => {
 
   const isActFile = (fileName?: string) => {
     if (!fileName) return false;
-    const lower = fileName.toLowerCase();
-    return lower.includes('акт') || lower.includes('act');
+    const lower = fileName.trim().toLowerCase();
+    return lower.includes('акт') || lower.includes('act') || lower.includes('akt');
   };
 
   const handleCompleteInstallation = async (e: React.MouseEvent, orderId: number) => {
     e.stopPropagation();
     const card = cards.find(c => c.id === orderId);
-    const hasAct = (card?.attachments || []).some(a => isActFile(a.fileName));
+    const currentAttachments = (editingOrderId === orderId && formData.attachments.length > 0)
+      ? formData.attachments 
+      : (card?.attachments || []);
+    const hasAct = currentAttachments.some(a => isActFile(a.fileName));
     if (!hasAct) {
       alert('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы».');
       return;
     }
 
-    const completedStatus = columns.find(c => {
-      const name = c.name.toLowerCase();
-      return name.includes('заверш') || name.includes('готов') || name.includes('выполнен');
-    }) || columns[columns.length - 1];
-
-    if (!completedStatus) return;
-
     try {
-      await moveOrder(orderId, completedStatus.id);
-      setCards(prevCards => prevCards.map(c => c.id === orderId ? { ...c, statusId: completedStatus.id } : c));
+      const updatedOrder = await completeOrder(orderId);
+      setCards(prevCards => prevCards.map(c => c.id === orderId ? {
+        ...c,
+        statusId: updatedOrder.statusId || c.statusId,
+        installedByName: updatedOrder.installedByName || c.installedByName,
+        installedAt: updatedOrder.installedAt || new Date().toISOString()
+      } : c));
       if (editingOrderId === orderId) {
-        setFormData(prev => ({ ...prev, statusId: completedStatus.id.toString() }));
+        setFormData(prev => ({
+          ...prev,
+          statusId: (updatedOrder.statusId || prev.statusId).toString(),
+          installedByName: updatedOrder.installedByName || prev.installedByName,
+          installedAt: updatedOrder.installedAt || prev.installedAt
+        }));
       }
+      fetchData();
     } catch (err: any) {
       console.error('Failed to complete installation', err);
-      alert(err.response?.data?.message || 'Не удалось перевести заявку в завершенный статус');
+      alert(err.response?.data?.message || err.message || 'Не удалось перевести заявку в завершенный статус');
     }
   };
 
@@ -770,9 +777,14 @@ const Kanban = () => {
           ...prev,
           attachments: [...prev.attachments, newAttachment]
         }));
+        setCards(prev => prev.map(c => c.id === editingOrderId ? {
+          ...c,
+          attachments: [...(c.attachments || []), newAttachment]
+        } : c));
         fetchData();
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to upload file", err);
+        alert(err.response?.data?.message || "Не удалось загрузить файл");
       } finally {
         setUploadingFile(false);
         e.target.value = '';
@@ -3476,21 +3488,26 @@ const Kanban = () => {
                   ) : false;
 
                   if (!isCompleted) {
+                    const hasAct = formData.attachments.some(a => isActFile(a.fileName)) || pendingFiles.some(f => isActFile(f.name));
                     return (
                       <button
                         type="button"
+                        disabled={!hasAct}
                         onClick={(e) => handleCompleteInstallation(e, editingOrderId)}
                         className="btn"
                         style={{
-                          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                          color: '#fff',
-                          border: 'none',
+                          background: hasAct ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
+                          color: hasAct ? '#fff' : 'var(--text-secondary)',
+                          border: hasAct ? 'none' : '1px solid var(--glass-border)',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '6px',
                           fontWeight: 600,
-                          padding: '8px 14px'
+                          padding: '8px 14px',
+                          cursor: hasAct ? 'pointer' : 'not-allowed',
+                          opacity: hasAct ? 1 : 0.6
                         }}
+                        title={hasAct ? 'Завершить монтаж' : 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»'}
                       >
                         <CheckCircle2 size={16} /> Завершить монтаж
                       </button>
