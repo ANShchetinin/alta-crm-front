@@ -409,6 +409,23 @@ const Kanban = () => {
     }
   };
 
+  const refreshRemindersOnly = async () => {
+    if (isWorker) return;
+    try {
+      const remindersData = await getMyReminders('all');
+      const rMap: Record<number, OrderReminderDto[]> = {};
+      (remindersData as OrderReminderDto[]).forEach(r => {
+        if (r.orderId) {
+          if (!rMap[r.orderId]) rMap[r.orderId] = [];
+          rMap[r.orderId].push(r);
+        }
+      });
+      setRemindersMap(rMap);
+    } catch (e) {
+      console.error('Failed to refresh reminders', e);
+    }
+  };
+
   const handleDragStart = (e: React.DragEvent, id: number) => {
     e.dataTransfer.setData('cardId', id.toString());
   };
@@ -2642,7 +2659,7 @@ const Kanban = () => {
                       <OrderRemindersSection
                         orderId={editingOrderId}
                         employees={employees}
-                        onReminderCountChanged={fetchData}
+                        onReminderCountChanged={refreshRemindersOnly}
                       />
                     )}
                   </>

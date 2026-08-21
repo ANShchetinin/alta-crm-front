@@ -55,7 +55,6 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
     try {
       const data = await getOrderReminders(orderId);
       setReminders(data);
-      if (onReminderCountChanged) onReminderCountChanged();
     } catch (err) {
       console.error('Failed to fetch reminders', err);
     }
@@ -114,6 +113,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
       setComment('');
       setCustomDateTime('');
       await fetchReminders();
+      if (onReminderCountChanged) onReminderCountChanged();
     } catch (err) {
       console.error('Failed to create reminder', err);
       alert('Ошибка при создании напоминания');
@@ -126,6 +126,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
     try {
       await completeReminder(id);
       await fetchReminders();
+      if (onReminderCountChanged) onReminderCountChanged();
     } catch (err) {
       console.error('Failed to complete reminder', err);
     }
@@ -135,6 +136,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
     try {
       await snoozeReminder(id, { hours });
       await fetchReminders();
+      if (onReminderCountChanged) onReminderCountChanged();
     } catch (err) {
       console.error('Failed to snooze reminder', err);
     }
@@ -145,6 +147,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
       try {
         await deleteReminder(id);
         await fetchReminders();
+        if (onReminderCountChanged) onReminderCountChanged();
       } catch (err) {
         console.error('Failed to delete reminder', err);
       }
