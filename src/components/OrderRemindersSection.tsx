@@ -48,6 +48,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
   const [customDateTime, setCustomDateTime] = useState('');
   const [comment, setComment] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<number | undefined>(currentUserId);
+  const [notifyBeforeMinutes, setNotifyBeforeMinutes] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchReminders = async () => {
@@ -109,10 +110,12 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
       await createReminder(orderId, {
         remindAt: customDateTime,
         comment: comment.trim() || undefined,
-        userId: selectedUserId
+        userId: selectedUserId,
+        notifyBeforeMinutes: notifyBeforeMinutes
       });
       setComment('');
       setCustomDateTime('');
+      setNotifyBeforeMinutes(0);
       await fetchReminders();
       if (onReminderCountChanged) onReminderCountChanged();
     } catch (err: any) {
@@ -237,7 +240,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
 
       {/* Форма добавления напоминания */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>Дата и время звонка *</label>
             <input
@@ -257,7 +260,23 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
             />
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>Ответственный менеджер</label>
+            <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>Уведомить заранее</label>
+            <select
+              value={notifyBeforeMinutes}
+              onChange={e => setNotifyBeforeMinutes(parseInt(e.target.value))}
+              className="search-input"
+              style={{ width: '100%', height: '38px', fontSize: '0.85rem' }}
+            >
+              <option value={0}>В момент события</option>
+              <option value={15}>За 15 минут</option>
+              <option value={30}>За 30 минут</option>
+              <option value={60}>За 1 час</option>
+              <option value={120}>За 2 часа</option>
+              <option value={1440}>За 1 день (24 ч)</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label style={{ fontSize: '0.78rem', marginBottom: '4px' }}>Ответственный</label>
             <select
               value={selectedUserId || ''}
               onChange={e => setSelectedUserId(e.target.value ? parseInt(e.target.value) : undefined)}
@@ -326,7 +345,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '0 14px',
+              padding: '0 16px',
               whiteSpace: 'nowrap',
               fontSize: '0.85rem'
             }}
@@ -363,7 +382,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
                   flexWrap: 'wrap'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px', flexWrap: 'wrap' }}>
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -380,6 +399,22 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
                     {dateStr}, {timeStr}
                     {rem.isOverdue && <span style={{ fontSize: '0.7rem', fontWeight: 600 }}> (просрочено)</span>}
                   </div>
+                  {rem.notifyBeforeMinutes && rem.notifyBeforeMinutes > 0 ? (
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                        color: '#60a5fa',
+                        background: 'rgba(59, 130, 246, 0.12)',
+                        border: '1px solid rgba(59, 130, 246, 0.25)',
+                        padding: '1px 5px',
+                        borderRadius: '4px'
+                      }}
+                      title={`Пуш-уведомление придет за ${rem.notifyBeforeMinutes} мин`}
+                    >
+                      🔔 за {rem.notifyBeforeMinutes >= 1440 ? `${rem.notifyBeforeMinutes / 1440}д` : (rem.notifyBeforeMinutes >= 60 ? `${rem.notifyBeforeMinutes / 60}ч` : `${rem.notifyBeforeMinutes}м`)}
+                    </span>
+                  ) : null}
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
                     {rem.comment || 'Связаться с клиентом'}
                   </div>
@@ -394,23 +429,21 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
                   <button
                     type="button"
                     onClick={() => handleComplete(rem.id)}
-                    className="btn"
+                    className="btn btn-primary"
                     style={{
-                      background: 'rgba(34, 197, 94, 0.15)',
-                      color: '#4ade80',
-                      border: '1px solid rgba(34, 197, 94, 0.3)',
-                      padding: '4px 8px',
+                      padding: '4px 10px',
                       fontSize: '0.78rem',
+                      fontWeight: 600,
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '4px',
                       cursor: 'pointer',
                       borderRadius: 'var(--radius-sm)'
                     }}
-                    title="Отметить выполненным"
+                    title="Завершить контакт и перенести в историю"
                   >
                     <CheckCircle2 size={13} />
-                    Выполнено
+                    Завершить
                   </button>
                   <button
                     type="button"

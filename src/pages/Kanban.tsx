@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Clock } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Clock, Bell } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -1505,6 +1505,40 @@ const Kanban = () => {
                               <Phone size={12} />
                             </a>
                           )}
+                          {(() => {
+                            const cardReminders = remindersMap[card.id] || [];
+                            const pending = cardReminders.filter(r => r.status === 'PENDING');
+                            if (pending.length === 0) return null;
+                            const isOverdue = pending.some(r => r.isOverdue);
+                            const isToday = pending.some(r => {
+                              const d = new Date(r.remindAt);
+                              return d.toDateString() === new Date().toDateString();
+                            });
+                            const nearest = pending[0];
+                            const timeStr = new Date(nearest.remindAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+                            return (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  padding: '2px 6px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  background: isOverdue ? 'rgba(239, 68, 68, 0.18)' : (isToday ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.15)'),
+                                  color: isOverdue ? '#ef4444' : (isToday ? '#f59e0b' : '#60a5fa'),
+                                  border: isOverdue ? '1px solid rgba(239, 68, 68, 0.35)' : (isToday ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(59, 130, 246, 0.3)'),
+                                  cursor: 'default'
+                                }}
+                                title={`Активных напоминаний: ${pending.length}\nБлижайшее: ${nearest.comment || 'Звонок'} (${timeStr})${isOverdue ? ' [ПРОСРОЧЕНО]' : ''}`}
+                              >
+                                <Bell size={11} />
+                                {pending.length > 1 ? pending.length : ''}
+                              </span>
+                            );
+                          })()}
                         </div>
                       );
                     })()}

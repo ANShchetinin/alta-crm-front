@@ -17,6 +17,7 @@ export interface OrderReminderDto {
   remindAt: string; // ISO-8601 UTC
   status: ReminderStatus;
   comment?: string;
+  notifyBeforeMinutes?: number;
   notificationSent: boolean;
   isOverdue: boolean;
   completedAt?: string;
@@ -29,6 +30,7 @@ export interface CreateReminderRequest {
   remindAt: string; // ISO-8601 UTC
   comment?: string;
   userId?: number;
+  notifyBeforeMinutes?: number;
 }
 
 export interface SnoozeReminderRequest {
