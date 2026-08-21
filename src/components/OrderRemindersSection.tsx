@@ -420,7 +420,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
                   </div>
                   {rem.userName && (
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '1px 5px', borderRadius: '4px' }}>
-                      👤 {rem.userName}
+                      👤 {rem.userName.replace(/\bnull\b/g, '').trim()}
                     </span>
                   )}
                 </div>
