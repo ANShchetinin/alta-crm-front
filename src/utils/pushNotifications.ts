@@ -160,16 +160,22 @@ export async function enablePushNotifications(): Promise<{ success: boolean; mes
       return { success: false, message: 'PushManager недоступен в Service Worker на этом устройстве' };
     }
 
-    // 4. Subscribe via PushManager
+    // 4. Subscribe via PushManager with fresh key
     const applicationServerKey = urlBase64ToUint8Array(publicKey);
     let subscription = await registration.pushManager.getSubscription();
 
-    if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey as any
-      });
+    if (subscription) {
+      try {
+        await subscription.unsubscribe();
+      } catch (unsubErr) {
+        console.warn('Failed to unsubscribe previous push token:', unsubErr);
+      }
     }
+
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: applicationServerKey as any
+    });
 
     // 5. Send subscription to backend
     const subscriptionJson = subscription.toJSON();
