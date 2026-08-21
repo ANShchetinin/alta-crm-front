@@ -23,3 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Local task notes
+TODO.md
+TODO*.md
+TODO*
+
