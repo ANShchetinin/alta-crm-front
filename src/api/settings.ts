@@ -13,6 +13,7 @@ export interface ProfileData {
   firstName?: string;
   lastName?: string;
   role: string;
+  avatarUrl?: string;
 }
 
 export interface TenantRequisites {

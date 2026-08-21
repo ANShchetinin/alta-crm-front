@@ -23,6 +23,7 @@ const DashboardLayout = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [userName, setUserName] = useState<string>('User');
   const [userEmail, setUserEmail] = useState<string>('');
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -124,6 +125,9 @@ const DashboardLayout = () => {
         const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
         setUserName(fullName || profile.email || 'User');
         setUserEmail(profile.email || '');
+        if (profile.avatarUrl) {
+          setUserAvatarUrl(profile.avatarUrl);
+        }
       } catch (err) {
         console.error("Failed to fetch user profile", err);
       }
@@ -493,7 +497,28 @@ const DashboardLayout = () => {
               style={{ cursor: 'pointer' }}
               title="Мой профиль и настройка уведомлений"
             >
-              <div className="avatar">{userName.charAt(0).toUpperCase()}</div>
+              <div 
+                className="avatar" 
+                style={{ 
+                  overflow: 'hidden', 
+                  padding: 0, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  background: userAvatarUrl ? 'transparent' : undefined,
+                  border: userAvatarUrl ? '1px solid rgba(255, 255, 255, 0.15)' : undefined
+                }}
+              >
+                {userAvatarUrl ? (
+                  <img 
+                    src={userAvatarUrl} 
+                    alt={userName} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  />
+                ) : (
+                  userName.charAt(0).toUpperCase()
+                )}
+              </div>
               <span className="user-name-text">{userName}</span>
             </div>
           </div>
@@ -578,18 +603,29 @@ const DashboardLayout = () => {
             <div className="modal-header" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{
-                  width: '36px',
-                  height: '36px',
+                  width: '40px',
+                  height: '40px',
                   borderRadius: '50%',
-                  background: 'var(--primary-gradient)',
+                  background: userAvatarUrl ? 'transparent' : 'var(--primary-gradient)',
                   color: 'white',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 'bold',
-                  fontSize: '1rem'
+                  fontSize: '1rem',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  border: userAvatarUrl ? '1px solid rgba(255, 255, 255, 0.2)' : undefined
                 }}>
-                  {userName.charAt(0).toUpperCase()}
+                  {userAvatarUrl ? (
+                    <img 
+                      src={userAvatarUrl} 
+                      alt={userName} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    />
+                  ) : (
+                    userName.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{userName}</h3>
