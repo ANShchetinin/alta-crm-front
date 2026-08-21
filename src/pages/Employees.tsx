@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Edit2, Trash2, Camera, X, User, Crop, Key, Shield, CheckSquare, Square, Eye, EyeOff } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Camera, X, User, Crop, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText } from 'lucide-react';
 import type { Employee } from '../api/employees';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../api/employees';
 import { getOrderStatuses } from '../api/kanban';
@@ -50,6 +50,12 @@ export const Employees = () => {
     phone: '', 
     position: '',
     avatarUrl: '',
+    birthDate: '',
+    passportSeriesNumber: '',
+    passportIssuedBy: '',
+    passportIssuedDate: '',
+    passportDepartmentCode: '',
+    registrationAddress: '',
     hasAccount: false,
     email: '',
     password: '',
@@ -92,7 +98,9 @@ export const Employees = () => {
     c.name.toLowerCase().includes(search.toLowerCase()) || 
     (c.phone && c.phone.includes(search)) ||
     (c.position && c.position.toLowerCase().includes(search.toLowerCase())) ||
-    (c.email && c.email.toLowerCase().includes(search.toLowerCase()))
+    (c.email && c.email.toLowerCase().includes(search.toLowerCase())) ||
+    (c.passportSeriesNumber && c.passportSeriesNumber.includes(search)) ||
+    (c.registrationAddress && c.registrationAddress.toLowerCase().includes(search.toLowerCase()))
   );
 
   const openAddModal = () => {
@@ -103,6 +111,12 @@ export const Employees = () => {
       phone: '+7', 
       position: '', 
       avatarUrl: '',
+      birthDate: '',
+      passportSeriesNumber: '',
+      passportIssuedBy: '',
+      passportIssuedDate: '',
+      passportDepartmentCode: '',
+      registrationAddress: '',
       hasAccount: false,
       email: '',
       password: '',
@@ -120,6 +134,12 @@ export const Employees = () => {
       phone: employee.phone || '', 
       position: employee.position || '',
       avatarUrl: employee.avatarUrl || '',
+      birthDate: employee.birthDate || '',
+      passportSeriesNumber: employee.passportSeriesNumber || '',
+      passportIssuedBy: employee.passportIssuedBy || '',
+      passportIssuedDate: employee.passportIssuedDate || '',
+      passportDepartmentCode: employee.passportDepartmentCode || '',
+      registrationAddress: employee.registrationAddress || '',
       hasAccount: !!employee.hasAccount,
       email: employee.email || '',
       password: '',
@@ -171,6 +191,12 @@ export const Employees = () => {
         phone: formData.phone.trim(),
         position: formData.position.trim(),
         avatarUrl: formData.avatarUrl || undefined,
+        birthDate: formData.birthDate.trim() || undefined,
+        passportSeriesNumber: formData.passportSeriesNumber.trim() || undefined,
+        passportIssuedBy: formData.passportIssuedBy.trim() || undefined,
+        passportIssuedDate: formData.passportIssuedDate.trim() || undefined,
+        passportDepartmentCode: formData.passportDepartmentCode.trim() || undefined,
+        registrationAddress: formData.registrationAddress.trim() || undefined,
         allowedStatusIds: formData.allowedStatusIds
       };
 
@@ -302,7 +328,28 @@ export const Employees = () => {
                           )}
                         </div>
                         <div>
-                          <div className="client-name" style={{ fontWeight: 600, fontSize: '0.95rem' }}>{employee.name}</div>
+                          <div className="client-name" style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>{employee.name}</span>
+                            {employee.passportSeriesNumber && (
+                              <span 
+                                title={`Паспорт: ${employee.passportSeriesNumber}${employee.birthDate ? ', Д.Р.: ' + employee.birthDate : ''}${employee.registrationAddress ? ', Прописка: ' + employee.registrationAddress : ''}`} 
+                                style={{ 
+                                  display: 'inline-flex', 
+                                  alignItems: 'center', 
+                                  gap: '4px', 
+                                  fontSize: '0.72rem', 
+                                  color: '#38bdf8', 
+                                  background: 'rgba(56, 189, 248, 0.12)', 
+                                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                                  padding: '1px 6px', 
+                                  borderRadius: '6px',
+                                  cursor: 'default'
+                                }}
+                              >
+                                <FileText size={11} /> Паспорт
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -505,6 +552,93 @@ export const Employees = () => {
                       placeholder="+7 (999) 000-00-00"
                       value={formData.phone}
                       onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                {/* Блок Паспортных данных сотрудника */}
+                <div style={{
+                  marginTop: '16px',
+                  padding: '16px',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-md)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <FileText size={16} style={{ color: '#38bdf8' }} />
+                    <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Паспортные данные</span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.8rem' }}>Серия и номер паспорта</label>
+                      <input 
+                        type="text" 
+                        placeholder="6305 123456"
+                        value={formData.passportSeriesNumber}
+                        onChange={(e) => setFormData({ ...formData, passportSeriesNumber: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.8rem' }}>Дата рождения</label>
+                      <input 
+                        type="date" 
+                        value={formData.birthDate}
+                        onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.8rem' }}>Дата выдачи паспорта</label>
+                      <input 
+                        type="date" 
+                        value={formData.passportIssuedDate}
+                        onChange={(e) => setFormData({ ...formData, passportIssuedDate: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.8rem' }}>Код подразделения</label>
+                      <input 
+                        type="text" 
+                        placeholder="640-001"
+                        value={formData.passportDepartmentCode}
+                        onChange={(e) => setFormData({ ...formData, passportDepartmentCode: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: '12px', marginBottom: 0 }}>
+                    <label style={{ fontSize: '0.8rem' }}>Кем выдан паспорт</label>
+                    <input 
+                      type="text" 
+                      placeholder="Отделом УФМС России по Саратовской обл."
+                      value={formData.passportIssuedBy}
+                      onChange={(e) => setFormData({ ...formData, passportIssuedBy: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: '12px', marginBottom: 0 }}>
+                    <label style={{ fontSize: '0.8rem' }}>Адрес регистрации (прописка)</label>
+                    <textarea 
+                      rows={2}
+                      placeholder="г. Саратов, ул. Московская, д. 10, кв. 25"
+                      value={formData.registrationAddress}
+                      onChange={(e) => setFormData({ ...formData, registrationAddress: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--glass-border)',
+                        color: 'var(--text-main)',
+                        fontSize: '0.875rem',
+                        resize: 'vertical',
+                        boxSizing: 'border-box'
+                      }}
                     />
                   </div>
                 </div>

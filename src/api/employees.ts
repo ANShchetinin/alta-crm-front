@@ -6,6 +6,12 @@ export interface Employee {
   phone?: string;
   position?: string;
   avatarUrl?: string;
+  birthDate?: string;
+  passportSeriesNumber?: string;
+  passportIssuedBy?: string;
+  passportIssuedDate?: string;
+  passportDepartmentCode?: string;
+  registrationAddress?: string;
   userId?: number;
   email?: string;
   password?: string;
