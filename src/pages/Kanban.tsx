@@ -234,7 +234,7 @@ const Kanban = () => {
     { id: '12', name: 'Установка обвода трубы', checked: false },
     { id: '13', name: 'Демонтаж замена полотна', checked: false },
     { id: '14', name: 'Установка бруса и 2х уровневых конструкций', checked: false },
-    { id: '15', name: 'Установка карнизов', checked: false }
+    { id: '15', name: 'Установка карниза', checked: false }
   ];
 
   const mergeActChecklist = (savedList?: import('../api/kanban').ActChecklistItem[]): import('../api/kanban').ActChecklistItem[] => {
