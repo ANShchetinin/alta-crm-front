@@ -23,7 +23,8 @@ import {
   Sparkles, 
   RefreshCw, 
   X, 
-  Check 
+  Check,
+  Box 
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { getOrders, getOrderStatuses, togglePrepaymentPaid, toggleRemainderPaid, type Order, type OrderStatus } from '../api/kanban';
@@ -529,7 +530,23 @@ export const Finances = () => {
           </div>
         </div>
 
-        {/* Card 3: Расходы компании */}
+        {/* Card 3: Затраты на материалы */}
+        <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(251, 191, 36, 0.25)', background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.08), rgba(255, 255, 255, 0.02))' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Затраты на материалы</span>
+            <div style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', padding: '5px', borderRadius: '8px' }}>
+              <Box size={18} />
+            </div>
+          </div>
+          <div style={{ fontSize: '1.45rem', fontWeight: 700, color: '#fbbf24' }}>
+            {metrics.materialsCost.toLocaleString('ru-RU')} ₽
+          </div>
+          <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            Себестоимость комплектующих по сделкам
+          </div>
+        </div>
+
+        {/* Card 4: Расходы компании */}
         <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.25)', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(255, 255, 255, 0.02))' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Расходы компании</span>
