@@ -1676,104 +1676,36 @@ const Kanban = () => {
                         const assignee = employees.find(e => e.id === card.assigneeId);
                         const aName = card.assigneeName || assignee?.name;
                         const aAvatar = card.assigneeAvatarUrl || assignee?.avatarUrl;
-
-                        const measurer = employees.find(e => e.id === card.measurerId);
-                        const mName = card.measurerName || measurer?.name;
-                        const mAvatar = card.measurerAvatarUrl || measurer?.avatarUrl;
-
-                        const installer = employees.find(e => e.id === card.installedById);
-                        const iName = card.installedByName || installer?.name;
-                        const iAvatar = card.installedByAvatarUrl || installer?.avatarUrl;
-
-                        if (!aName && !mName && !iName) return null;
-
+                        if (!aName) return null;
                         return (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {aName && (
-                              <div
-                                title={`Ответственный: ${aName}${assignee?.position ? ` (${assignee.position})` : ''}`}
-                                style={{
-                                  width: '32px',
-                                  height: '32px',
-                                  borderRadius: '50%',
-                                  overflow: 'hidden',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 700,
-                                  color: '#fff',
-                                  background: aAvatar ? 'transparent' : getAvatarGradient(aName),
-                                  border: '2px solid rgba(255, 255, 255, 0.25)',
-                                  boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-                                  flexShrink: 0,
-                                  cursor: 'default'
-                                }}
-                              >
-                                {aAvatar ? (
-                                  <img src={aAvatar} alt={aName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                  getEmployeeInitials(aName)
-                                )}
-                              </div>
-                            )}
-
-                            {mName && mName !== aName && (
-                              <div
-                                title={`Замерщик: ${mName}${measurer?.position ? ` (${measurer.position})` : ''}`}
-                                style={{
-                                  width: '28px',
-                                  height: '28px',
-                                  borderRadius: '50%',
-                                  overflow: 'hidden',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '0.7rem',
-                                  fontWeight: 700,
-                                  color: '#fff',
-                                  background: mAvatar ? 'transparent' : getAvatarGradient(mName),
-                                  border: '2px solid #a855f7',
-                                  boxShadow: '0 2px 6px rgba(168, 85, 247, 0.3)',
-                                  flexShrink: 0,
-                                  cursor: 'default'
-                                }}
-                              >
-                                {mAvatar ? (
-                                  <img src={mAvatar} alt={mName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                  getEmployeeInitials(mName)
-                                )}
-                              </div>
-                            )}
-
-                            {iName && iName !== aName && iName !== mName && (
-                              <div
-                                title={`Монтажник: ${iName}${installer?.position ? ` (${installer.position})` : ''}`}
-                                style={{
-                                  width: '28px',
-                                  height: '28px',
-                                  borderRadius: '50%',
-                                  overflow: 'hidden',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '0.7rem',
-                                  fontWeight: 700,
-                                  color: '#fff',
-                                  background: iAvatar ? 'transparent' : getAvatarGradient(iName),
-                                  border: '2px solid #22c55e',
-                                  boxShadow: '0 2px 6px rgba(34, 197, 94, 0.3)',
-                                  flexShrink: 0,
-                                  cursor: 'default'
-                                }}
-                              >
-                                {iAvatar ? (
-                                  <img src={iAvatar} alt={iName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                  getEmployeeInitials(iName)
-                                )}
-                              </div>
+                          <div
+                            title={`Ответственный: ${aName}${assignee?.position ? ` (${assignee.position})` : ''}`}
+                            style={{
+                              width: '34px',
+                              height: '34px',
+                              borderRadius: '50%',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.78rem',
+                              fontWeight: 700,
+                              color: '#fff',
+                              background: aAvatar ? 'transparent' : getAvatarGradient(aName),
+                              border: '2px solid rgba(255, 255, 255, 0.18)',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                              flexShrink: 0,
+                              cursor: 'default'
+                            }}
+                          >
+                            {aAvatar ? (
+                              <img 
+                                src={aAvatar} 
+                                alt={aName} 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                              />
+                            ) : (
+                              getEmployeeInitials(aName)
                             )}
                           </div>
                         );
