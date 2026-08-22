@@ -1986,31 +1986,56 @@ const Kanban = () => {
                           col.name.toLowerCase().includes('выполнен')
                         ) : false;
 
-                        if (!isCardCompleted || !card.installedByName || !card.installedAt) {
-                          return null;
+                        if (isCardCompleted) {
+                          if (!card.installedByName || !card.installedAt) return null;
+                          return (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              fontSize: '0.74rem',
+                              fontWeight: 600,
+                              color: '#4ade80',
+                              background: 'rgba(34, 197, 94, 0.08)',
+                              border: '1px solid rgba(34, 197, 94, 0.2)',
+                              padding: '3px 7px',
+                              borderRadius: '4px',
+                              gap: '4px'
+                            }} title={`Монтаж завершен: ${formatDateTimeInTimezone(card.installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <CheckCircle2 size={12} style={{ flexShrink: 0 }} /> Монтажник: {card.installedByName}
+                              </span>
+                              <span style={{ fontSize: '0.68rem', opacity: 0.8, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                                {formatDateTimeInTimezone(card.installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short' })}
+                              </span>
+                            </div>
+                          );
                         }
 
                         return (
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            fontSize: '0.74rem',
-                            fontWeight: 600,
-                            color: '#4ade80',
-                            background: 'rgba(34, 197, 94, 0.08)',
-                            border: '1px solid rgba(34, 197, 94, 0.2)',
-                            padding: '3px 7px',
-                            borderRadius: '4px',
-                            gap: '4px'
-                          }} title={`Монтаж завершен: ${formatDateTimeInTimezone(card.installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              <CheckCircle2 size={12} style={{ flexShrink: 0 }} /> Монтажник: {card.installedByName}
-                            </span>
-                            <span style={{ fontSize: '0.68rem', opacity: 0.8, color: 'var(--text-secondary)', flexShrink: 0 }}>
-                              {formatDateTimeInTimezone(card.installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short' })}
-                            </span>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => handleCompleteInstallation(e, card.id)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              padding: '5px 8px',
+                              background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(16, 185, 129, 0.06))',
+                              border: '1px solid rgba(34, 197, 94, 0.25)',
+                              borderRadius: 'var(--radius-sm)',
+                              color: '#4ade80',
+                              fontSize: '0.76rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              marginTop: '2px'
+                            }}
+                            title="Завершить монтаж и перевести заявку в завершенный статус"
+                          >
+                            <CheckCircle2 size={13} /> Завершить монтаж
+                          </button>
                         );
                       })()}
                     </div>
@@ -3877,7 +3902,7 @@ const Kanban = () => {
                     </button>
                   ) : <div />}
 
-                  {isWorker && editingOrderId && (() => {
+                  {editingOrderId && (() => {
                     const currentStatus = columns.find(c => c.id.toString() === formData.statusId);
                     const isCompleted = currentStatus ? (
                       currentStatus.name.toLowerCase().includes('заверш') ||
