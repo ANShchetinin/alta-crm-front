@@ -11,6 +11,7 @@ import { Tenants } from './pages/Tenants';
 import { ContractTemplates } from './pages/ContractTemplates';
 import { Earnings } from './pages/Earnings';
 import { Calendar } from './pages/Calendar';
+import { Finances } from './pages/Finances';
 import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
@@ -143,6 +144,7 @@ function App() {
           <Route path="clients" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Clients /></RoleRoute>} />
           <Route path="employees" element={<RoleRoute allowedRoles={['OWNER', 'SUPERADMIN']}><Employees /></RoleRoute>} />
           <Route path="storage" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Storage /></RoleRoute>} />
+          <Route path="finances" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Finances /></RoleRoute>} />
           <Route path="reports" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Reports /></RoleRoute>} />
           <Route path="contract-templates" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><ContractTemplates /></RoleRoute>} />
           <Route path="settings" element={<RoleRoute allowedRoles={['OWNER', 'SUPERADMIN']}><Settings /></RoleRoute>} />

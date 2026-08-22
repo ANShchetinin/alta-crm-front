@@ -85,7 +85,11 @@ export interface Order {
   description: string;
   totalPrice: number;
   prepayment?: number;
+  prepaymentPaid?: boolean;
+  prepaymentPaidAt?: string;
   remainder?: number;
+  remainderPaid?: boolean;
+  remainderPaidAt?: string;
   installationPrice?: number;
   installationDate?: string;
   measurementDate?: string;
@@ -212,5 +216,19 @@ export const downloadContractDocx = async (orderId: number): Promise<Blob> => {
   const response = await api.get(`/orders/${orderId}/contract/docx`, {
     responseType: 'blob'
   });
+  return response.data;
+};
+
+export const togglePrepaymentPaid = async (orderId: number, paid: boolean, paidAt?: string): Promise<Order> => {
+  const params: any = { paid };
+  if (paidAt) params.paidAt = paidAt;
+  const response = await api.patch(`/orders/${orderId}/prepayment-paid`, null, { params });
+  return response.data;
+};
+
+export const toggleRemainderPaid = async (orderId: number, paid: boolean, paidAt?: string): Promise<Order> => {
+  const params: any = { paid };
+  if (paidAt) params.paidAt = paidAt;
+  const response = await api.patch(`/orders/${orderId}/remainder-paid`, null, { params });
   return response.data;
 };

@@ -14,6 +14,7 @@ export interface ProfileData {
   lastName?: string;
   role: string;
   avatarUrl?: string;
+  canViewFinances?: boolean;
 }
 
 export interface TenantRequisites {
