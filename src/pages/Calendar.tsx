@@ -290,10 +290,11 @@ export const Calendar: React.FC = () => {
   };
 
   const renderEventCard = (ev: CalendarEventDto) => {
+    const startDate = parseUtcDate(ev.start) || new Date(ev.start);
     const timeStr = !ev.allDay
-      ? (parseUtcDate(ev.start) || new Date(ev.start)).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+      ? startDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
       : 'В течение дня';
-    const isOverdue = ev.isOverdue;
+    const isOverdue = ev.isOverdue || (ev.status !== 'COMPLETED' && startDate.getTime() < Date.now());
     const typeClass = ev.type.toLowerCase();
 
     return (

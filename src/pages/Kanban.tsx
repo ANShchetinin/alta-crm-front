@@ -1813,7 +1813,7 @@ const Kanban = () => {
                       if (pending.length === 0) return null;
                       const nearest = pending[0];
                       const dateObj = parseUtcDate(nearest.remindAt) || new Date(nearest.remindAt);
-                      const isOverdue = nearest.isOverdue;
+                      const isOverdue = nearest.isOverdue || (dateObj.getTime() < Date.now());
                       const isToday = dateObj.toDateString() === new Date().toDateString();
                       const timeStr = formatDateTimeInTimezone(nearest.remindAt, tenantSettings?.timezone, { hour: '2-digit', minute: '2-digit' });
                       const dateStr = isToday ? `Сегодня, ${timeStr}` : formatDateTimeInTimezone(nearest.remindAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });

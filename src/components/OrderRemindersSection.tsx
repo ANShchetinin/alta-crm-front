@@ -251,6 +251,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
             const dateObj = parseUtcDate(rem.remindAt) || new Date(rem.remindAt);
             const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
             const timeStr = dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            const isOverdue = rem.isOverdue || (dateObj.getTime() < Date.now());
 
             return (
               <div
@@ -260,8 +261,8 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '8px 12px',
-                  background: rem.isOverdue ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255, 255, 255, 0.03)',
-                  border: rem.isOverdue ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--glass-border)',
+                  background: isOverdue ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+                  border: isOverdue ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--glass-border)',
                   borderRadius: 'var(--radius-sm)',
                   gap: '8px',
                   flexWrap: 'wrap'
@@ -274,15 +275,15 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
                     gap: '4px',
                     fontSize: '0.8rem',
                     fontWeight: 700,
-                    color: rem.isOverdue ? '#ef4444' : '#f59e0b',
-                    background: rem.isOverdue ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.12)',
+                    color: isOverdue ? '#ef4444' : '#f59e0b',
+                    background: isOverdue ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.12)',
                     padding: '2px 6px',
                     borderRadius: '4px',
                     whiteSpace: 'nowrap'
                   }}>
-                    {rem.isOverdue ? <AlertCircle size={13} /> : <Clock size={13} />}
+                    {isOverdue ? <AlertCircle size={13} /> : <Clock size={13} />}
                     {dateStr}, {timeStr}
-                    {rem.isOverdue && <span style={{ fontSize: '0.7rem', fontWeight: 600 }}> (просрочено)</span>}
+                    {isOverdue && <span style={{ fontSize: '0.7rem', fontWeight: 600 }}> (просрочено)</span>}
                   </div>
                   {rem.notifyBeforeMinutes && rem.notifyBeforeMinutes > 0 ? (
                     <span
