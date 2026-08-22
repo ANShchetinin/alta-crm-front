@@ -21,6 +21,7 @@ const DashboardLayout = () => {
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [canViewFinances, setCanViewFinances] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>('User');
   const [userEmail, setUserEmail] = useState<string>('');
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
@@ -127,6 +128,9 @@ const DashboardLayout = () => {
         setUserEmail(profile.email || '');
         if (profile.avatarUrl) {
           setUserAvatarUrl(profile.avatarUrl);
+        }
+        if (profile.canViewFinances !== undefined) {
+          setCanViewFinances(Boolean(profile.canViewFinances));
         }
       } catch (err) {
         console.error("Failed to fetch user profile", err);
@@ -272,6 +276,12 @@ const DashboardLayout = () => {
                 <Box size={20} />
                 <span>{t('nav.storage')}</span>
               </NavLink>
+              {(role === 'OWNER' || role === 'SUPERADMIN' || (role === 'MANAGER' && canViewFinances)) && (
+                <NavLink to="/finances" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <Wallet size={20} />
+                  <span>{t('nav.finances') || 'Финансы'}</span>
+                </NavLink>
+              )}
               <NavLink to="/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <PieChart size={20} />
                 <span>{t('nav.reports') || 'Отчеты'}</span>

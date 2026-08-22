@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Edit2, Trash2, Camera, X, User, Crop, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Camera, X, User, Crop, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText, Wallet } from 'lucide-react';
 import type { Employee } from '../api/employees';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../api/employees';
 import { getOrderStatuses } from '../api/kanban';
@@ -59,7 +59,8 @@ export const Employees = () => {
     hasAccount: false,
     email: '',
     password: '',
-    allowedStatusIds: [] as number[]
+    allowedStatusIds: [] as number[],
+    canViewFinances: false
   });
 
   const [rawImageToCrop, setRawImageToCrop] = useState<string | null>(null);
@@ -120,7 +121,8 @@ export const Employees = () => {
       hasAccount: false,
       email: '',
       password: '',
-      allowedStatusIds: []
+      allowedStatusIds: [],
+      canViewFinances: false
     });
     setRawImageToCrop(null);
     setIsModalOpen(true);
@@ -143,7 +145,8 @@ export const Employees = () => {
       hasAccount: !!employee.hasAccount,
       email: employee.email || '',
       password: '',
-      allowedStatusIds: employee.allowedStatusIds || []
+      allowedStatusIds: employee.allowedStatusIds || [],
+      canViewFinances: !!employee.canViewFinances
     });
     setRawImageToCrop(null);
     setIsModalOpen(true);
@@ -787,6 +790,33 @@ export const Employees = () => {
                       })}
                     </div>
                   )}
+                </div>
+
+                {/* Блок Доступа к разделу Финансы */}
+                <div style={{
+                  marginTop: '16px',
+                  padding: '16px',
+                  background: 'rgba(34, 197, 94, 0.05)',
+                  border: '1px solid rgba(34, 197, 94, 0.2)',
+                  borderRadius: 'var(--radius-md)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Wallet size={18} style={{ color: '#4ade80', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Доступ к разделу «Финансы»</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Разрешить сотруднику (менеджеру) просмотр кассы, оплат, дебиторки и расходов</div>
+                      </div>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={formData.canViewFinances} 
+                        onChange={(e) => setFormData({ ...formData, canViewFinances: e.target.checked })}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                    </label>
+                  </div>
                 </div>
 
               </div>

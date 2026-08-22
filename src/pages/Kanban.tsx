@@ -182,7 +182,11 @@ const Kanban = () => {
     description: '',
     totalPrice: '',
     prepayment: '',
+    prepaymentPaid: false,
+    prepaymentPaidAt: '',
     remainder: '',
+    remainderPaid: false,
+    remainderPaidAt: '',
     installationPrice: '',
     installationDate: '',
     measurementDate: '',
@@ -321,7 +325,11 @@ const Kanban = () => {
       description: order.description || '',
       totalPrice: (tot != null && tot > 0) ? tot.toString() : '',
       prepayment: (prep != null && prep > 0) ? prep.toString() : '',
+      prepaymentPaid: !!order.prepaymentPaid,
+      prepaymentPaidAt: order.prepaymentPaidAt || '',
       remainder: (rem != null && rem > 0) ? rem.toString() : '',
+      remainderPaid: !!order.remainderPaid,
+      remainderPaidAt: order.remainderPaidAt || '',
       installationPrice: (order.installationPrice != null && order.installationPrice > 0) ? order.installationPrice.toString() : '',
       installationDate: order.installationDate ? order.installationDate.slice(0, 10) : '',
       measurementDate: utcToLocalInput(order.measurementDate),
@@ -485,7 +493,11 @@ const Kanban = () => {
       description: '',
       totalPrice: '',
       prepayment: '',
+      prepaymentPaid: false,
+      prepaymentPaidAt: '',
       remainder: '',
+      remainderPaid: false,
+      remainderPaidAt: '',
       installationPrice: '',
       installationDate: '',
       measurementDate: '',
@@ -568,7 +580,11 @@ const Kanban = () => {
       floor: formData.floor || undefined,
       description: formData.description,
       prepayment: prep,
+      prepaymentPaid: formData.prepaymentPaid,
+      prepaymentPaidAt: formData.prepaymentPaidAt || undefined,
       remainder: rem,
+      remainderPaid: formData.remainderPaid,
+      remainderPaidAt: formData.remainderPaidAt || undefined,
       totalPrice: total,
       installationPrice: parseFloat(formData.installationPrice || '0'),
       installationDate: formData.installationDate || undefined,
@@ -2193,7 +2209,7 @@ const Kanban = () => {
                       flexShrink: 0
                     }}
                   >
-                    <Tag size={15} /> Материалы и услуги {formData.materials.length > 0 && `(${formData.materials.length})`}
+                    <Tag size={15} /> {t('kanban.modal.materials') || 'Каталог'} {formData.materials.length > 0 && `(${formData.materials.length})`}
                   </button>
                 )}
                 <button
@@ -2832,6 +2848,51 @@ const Kanban = () => {
                                 className="custom-number-input"
                               />
                             </div>
+                          </div>
+
+                          {/* Статусы фактической оплаты */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginBottom: '14px' }}>
+                            <label style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '8px 12px',
+                              background: formData.prepaymentPaid ? 'rgba(34, 197, 94, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                              border: formData.prepaymentPaid ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)',
+                              borderRadius: 'var(--radius-sm)',
+                              cursor: 'pointer'
+                            }}>
+                              <input 
+                                type="checkbox"
+                                checked={!!formData.prepaymentPaid}
+                                onChange={(e) => setFormData({ ...formData, prepaymentPaid: e.target.checked })}
+                                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                              />
+                              <span style={{ fontSize: '0.82rem', fontWeight: 500, color: formData.prepaymentPaid ? '#4ade80' : 'var(--text-secondary)' }}>
+                                {formData.prepaymentPaid ? '✓ Аванс оплачен (в кассе)' : 'Аванс не оплачен'}
+                              </span>
+                            </label>
+
+                            <label style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '8px 12px',
+                              background: formData.remainderPaid ? 'rgba(34, 197, 94, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                              border: formData.remainderPaid ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)',
+                              borderRadius: 'var(--radius-sm)',
+                              cursor: 'pointer'
+                            }}>
+                              <input 
+                                type="checkbox"
+                                checked={!!formData.remainderPaid}
+                                onChange={(e) => setFormData({ ...formData, remainderPaid: e.target.checked })}
+                                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                              />
+                              <span style={{ fontSize: '0.82rem', fontWeight: 500, color: formData.remainderPaid ? '#4ade80' : 'var(--text-secondary)' }}>
+                                {formData.remainderPaid ? '✓ Остаток оплачен (в кассе)' : 'Остаток не оплачен'}
+                              </span>
+                            </label>
                           </div>
 
                           <div style={{

@@ -414,3 +414,21 @@ select.search-input option {
   }
 }
 
+.finances-desktop-table {
+  display: block;
+}
+.finances-mobile-cards {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .finances-desktop-table {
+    display: none !important;
+  }
+  .finances-mobile-cards {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
