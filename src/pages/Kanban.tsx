@@ -2012,9 +2012,11 @@ const Kanban = () => {
                           );
                         }
 
+                        const hasInstaller = Boolean(card.installedById || card.installedByName);
                         return (
                           <button
                             type="button"
+                            disabled={!hasInstaller}
                             onClick={(e) => handleCompleteInstallation(e, card.id)}
                             style={{
                               display: 'flex',
@@ -2022,17 +2024,18 @@ const Kanban = () => {
                               justifyContent: 'center',
                               gap: '6px',
                               padding: '5px 8px',
-                              background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(16, 185, 129, 0.06))',
-                              border: '1px solid rgba(34, 197, 94, 0.25)',
+                              background: hasInstaller ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(16, 185, 129, 0.06))' : 'rgba(255, 255, 255, 0.04)',
+                              border: hasInstaller ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid var(--glass-border)',
                               borderRadius: 'var(--radius-sm)',
-                              color: '#4ade80',
+                              color: hasInstaller ? '#4ade80' : 'var(--text-secondary)',
                               fontSize: '0.76rem',
                               fontWeight: 600,
-                              cursor: 'pointer',
+                              cursor: hasInstaller ? 'pointer' : 'not-allowed',
+                              opacity: hasInstaller ? 1 : 0.45,
                               transition: 'all 0.15s ease',
                               marginTop: '2px'
                             }}
-                            title="Завершить монтаж и перевести заявку в завершенный статус"
+                            title={!hasInstaller ? 'Для завершения монтажа необходимо назначить монтажника в деталях заявки' : 'Завершить монтаж и перевести заявку в завершенный статус'}
                           >
                             <CheckCircle2 size={13} /> Завершить монтаж
                           </button>
@@ -3903,6 +3906,7 @@ const Kanban = () => {
                   ) : <div />}
 
                   {editingOrderId && (() => {
+                    const currentOrder = cards.find(c => c.id === editingOrderId);
                     const currentStatus = columns.find(c => c.id.toString() === formData.statusId);
                     const isCompleted = currentStatus ? (
                       currentStatus.name.toLowerCase().includes('заверш') ||
@@ -3911,8 +3915,17 @@ const Kanban = () => {
                     ) : false;
 
                     if (!isCompleted) {
+                      const hasInstaller = Boolean(formData.installedById || currentOrder?.installedById || currentOrder?.installedByName);
                       const hasAct = formData.attachments.some(a => isActFile(a.fileName)) || pendingFiles.some(f => isActFile(f.name));
-                      const canComplete = !isWorker || hasAct;
+                      const canComplete = hasInstaller && (!isWorker || hasAct);
+
+                      let disabledTitle = 'Завершить монтаж и перевести заявку в статус «Завершен»';
+                      if (!hasInstaller) {
+                        disabledTitle = 'Для завершения монтажа необходимо выбрать монтажника';
+                      } else if (isWorker && !hasAct) {
+                        disabledTitle = 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»';
+                      }
+
                       return (
                         <button
                           type="button"
@@ -3929,9 +3942,9 @@ const Kanban = () => {
                             fontWeight: 600,
                             padding: '8px 14px',
                             cursor: canComplete ? 'pointer' : 'not-allowed',
-                            opacity: canComplete ? 1 : 0.6
+                            opacity: canComplete ? 1 : 0.45
                           }}
-                          title={isWorker && !hasAct ? 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»' : 'Завершить монтаж'}
+                          title={disabledTitle}
                         >
                           <CheckCircle2 size={16} /> Завершить монтаж
                         </button>
@@ -3966,7 +3979,7 @@ const Kanban = () => {
                       </button>
                       <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                         <Check size={16} />
-                        {editingOrderId ? t('kanban.modal.save') : (t('kanban.createOrder') || 'Создать заявку')}
+                        {editingOrderId ? (t('kanban.modal.save') || 'Сохранить') : (t('kanban.createOrder') || 'Создать заявку')}
                       </button>
                     </div>
                   )}
