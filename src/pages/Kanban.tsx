@@ -1823,6 +1823,7 @@ const Kanban = () => {
                           style={{
                             display: 'flex',
                             alignItems: 'center',
+                            justifyContent: 'space-between',
                             gap: '4px',
                             fontSize: '0.73rem',
                             fontWeight: 600,
@@ -1833,12 +1834,29 @@ const Kanban = () => {
                             borderRadius: 'var(--radius-sm)',
                             marginTop: '2px'
                           }}
-                          title={`Напоминание: ${nearest.comment || 'Связаться с клиентом'}${isOverdue ? ' (просрочено)' : ''}`}
+                          title={`Напоминание: ${nearest.comment || 'Связаться с клиентом'}${isOverdue ? ' (просрочено)' : ''}${nearest.notifyBeforeMinutes ? ` • Уведомление за ${nearest.notifyBeforeMinutes} мин` : ''}`}
                         >
-                          <Clock size={12} style={{ flexShrink: 0 }} />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            ⏰ {dateStr}: {nearest.comment || 'Звонок'}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                            <Clock size={12} style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              ⏰ {dateStr}: {nearest.comment || 'Звонок'}
+                            </span>
+                          </div>
+                          {nearest.notifyBeforeMinutes && nearest.notifyBeforeMinutes > 0 ? (
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                color: '#93c5fd',
+                                background: 'rgba(59, 130, 246, 0.2)',
+                                padding: '1px 4px',
+                                borderRadius: '3px',
+                                flexShrink: 0
+                              }}
+                              title={`Предварительное уведомление за ${nearest.notifyBeforeMinutes} мин`}
+                            >
+                              🔔-{nearest.notifyBeforeMinutes >= 1440 ? `${nearest.notifyBeforeMinutes / 1440}д` : (nearest.notifyBeforeMinutes >= 60 ? `${nearest.notifyBeforeMinutes / 60}ч` : `${nearest.notifyBeforeMinutes}м`)}
+                            </span>
+                          ) : null}
                         </div>
                       );
                     })()}
