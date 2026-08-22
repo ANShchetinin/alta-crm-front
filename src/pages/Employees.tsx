@@ -59,7 +59,8 @@ export const Employees = () => {
     hasAccount: false,
     email: '',
     password: '',
-    allowedStatusIds: [] as number[]
+    allowedStatusIds: [] as number[],
+    canViewFinances: false
   });
 
   const [rawImageToCrop, setRawImageToCrop] = useState<string | null>(null);

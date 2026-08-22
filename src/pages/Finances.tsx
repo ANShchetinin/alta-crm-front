@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { 
   Wallet, 
-  CreditCard, 
-  TrendingUp, 
   TrendingDown, 
   Receipt, 
-  Calendar, 
   Search, 
-  Filter, 
   CheckCircle2, 
   Clock, 
   AlertTriangle, 
@@ -25,12 +20,10 @@ import {
   PieChart, 
   ArrowUpRight, 
   ArrowDownRight, 
-  DollarSign,
-  Layers,
-  Sparkles,
-  RefreshCw,
-  X,
-  Check
+  Sparkles, 
+  RefreshCw, 
+  X, 
+  Check 
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { getOrders, getOrderStatuses, togglePrepaymentPaid, toggleRemainderPaid, type Order, type OrderStatus } from '../api/kanban';
@@ -45,19 +38,16 @@ import {
   type ExpenseCategory 
 } from '../api/finances';
 import { useAppStore } from '../store/useAppStore';
-import { useAuthStore } from '../store/useAuthStore';
 import { formatDateTimeInTimezone, formatDateOnly } from '../utils/dateUtils';
 import '../styles/clients.css';
 
 type TabType = 'TRANSACTIONS' | 'RECEIVABLES' | 'EXPENSES' | 'INSTALLERS' | 'PL_STRUCTURE';
-type PeriodFilter = 'THIS_MONTH' | 'LAST_MONTH' | 'THREE_MONTHS' | 'THIS_YEAR' | 'ALL' | 'CUSTOM';
+type PeriodFilter = 'THIS_MONTH' | 'LAST_MONTH' | 'THREE_MONTHS' | 'THIS_YEAR' | 'ALL';
 type PaymentStatusFilter = 'ALL' | 'PAID' | 'PREPAYMENT' | 'UNPAID' | 'DEBT';
 
 export const Finances = () => {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const { tenantSettings } = useAppStore();
-  const { role } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState<TabType>('TRANSACTIONS');
   const [loading, setLoading] = useState(true);
@@ -68,8 +58,6 @@ export const Finances = () => {
 
   // Filters
   const [period, setPeriod] = useState<PeriodFilter>('THIS_MONTH');
-  const [customFrom, setCustomFrom] = useState<string>('');
-  const [customTo, setCustomTo] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatusFilter>('ALL');
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState<string>('ALL');
@@ -136,19 +124,13 @@ export const Finances = () => {
       from = new Date(now.getFullYear(), now.getMonth() - 2, 1);
     } else if (period === 'THIS_YEAR') {
       from = new Date(now.getFullYear(), 0, 1);
-    } else if (period === 'CUSTOM' && customFrom) {
-      from = new Date(customFrom);
-      if (customTo) {
-        const toD = new Date(customTo);
-        to = new Date(toD.getFullYear(), toD.getMonth(), toD.getDate(), 23, 59, 59, 999);
-      }
     } else if (period === 'ALL') {
       from = null;
       to = null;
     }
 
     return { from, to };
-  }, [period, customFrom, customTo]);
+  }, [period]);
 
   // Filter helper: check if date is within selected range
   const isDateInRange = (dateStr?: string | null) => {
@@ -481,8 +463,7 @@ export const Finances = () => {
               LAST_MONTH: 'Прошлый месяц',
               THREE_MONTHS: '3 месяца',
               THIS_YEAR: 'Этот год',
-              ALL: 'Все время',
-              CUSTOM: 'Период'
+              ALL: 'Все время'
             };
             const active = period === pKey;
             return (
@@ -797,7 +778,6 @@ export const Finances = () => {
                     const rem = order.remainder != null ? order.remainder : Math.max(0, (order.totalPrice || 0) - prep);
                     const isFullyPaid = order.prepaymentPaid && order.remainderPaid;
                     const isPartiallyPaid = order.prepaymentPaid && !order.remainderPaid;
-                    const isNotPaid = !order.prepaymentPaid && !order.remainderPaid;
 
                     return (
                       <tr key={order.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
@@ -1054,7 +1034,6 @@ export const Finances = () => {
                 const prepDebt = !order.prepaymentPaid ? prep : 0;
                 const remDebt = !order.remainderPaid ? rem : 0;
                 const totalDebt = prepDebt + remDebt;
-                const statusObj = statuses.find(s => s.id === order.statusId);
 
                 return (
                   <div key={order.id} className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
