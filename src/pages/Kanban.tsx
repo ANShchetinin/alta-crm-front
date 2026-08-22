@@ -791,7 +791,7 @@ const Kanban = () => {
       ? formData.attachments 
       : (card?.attachments || []);
     const hasAct = currentAttachments.some(a => isActFile(a.fileName));
-    if (!hasAct) {
+    if (isWorker && !hasAct) {
       alert('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы».');
       return;
     }
@@ -801,6 +801,7 @@ const Kanban = () => {
       setCards(prevCards => prevCards.map(c => c.id === orderId ? {
         ...c,
         statusId: updatedOrder.statusId || c.statusId,
+        installedById: updatedOrder.installedById || c.installedById,
         installedByName: updatedOrder.installedByName || c.installedByName,
         installedAt: updatedOrder.installedAt || new Date().toISOString()
       } : c));
@@ -2498,8 +2499,14 @@ const Kanban = () => {
                     {/* Дополнительная инфо о завершении монтажа */}
                     {(() => {
                       const currentOrder = cards.find(c => c.id === editingOrderId);
+                      const statusObj = columns.find(c => c.id.toString() === formData.statusId);
+                      const isCompleted = statusObj ? (
+                        statusObj.name.toLowerCase().includes('заверш') ||
+                        statusObj.name.toLowerCase().includes('готов') ||
+                        statusObj.name.toLowerCase().includes('выполнен')
+                      ) : false;
                       const installedAt = formData.installedAt || currentOrder?.installedAt;
-                      if (!installedAt) return null;
+                      if (!isCompleted || !installedAt) return null;
                       return (
                         <div style={{
                           marginBottom: '16px',
@@ -3869,25 +3876,26 @@ const Kanban = () => {
 
                     if (!isCompleted) {
                       const hasAct = formData.attachments.some(a => isActFile(a.fileName)) || pendingFiles.some(f => isActFile(f.name));
+                      const canComplete = !isWorker || hasAct;
                       return (
                         <button
                           type="button"
-                          disabled={!hasAct}
+                          disabled={!canComplete}
                           onClick={(e) => handleCompleteInstallation(e, editingOrderId)}
                           className="btn"
                           style={{
-                            background: hasAct ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
-                            color: hasAct ? '#fff' : 'var(--text-secondary)',
-                            border: hasAct ? 'none' : '1px solid var(--glass-border)',
+                            background: canComplete ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
+                            color: canComplete ? '#fff' : 'var(--text-secondary)',
+                            border: canComplete ? 'none' : '1px solid var(--glass-border)',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '6px',
                             fontWeight: 600,
                             padding: '8px 14px',
-                            cursor: hasAct ? 'pointer' : 'not-allowed',
-                            opacity: hasAct ? 1 : 0.6
+                            cursor: canComplete ? 'pointer' : 'not-allowed',
+                            opacity: canComplete ? 1 : 0.6
                           }}
-                          title={hasAct ? 'Завершить монтаж' : 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»'}
+                          title={isWorker && !hasAct ? 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»' : 'Завершить монтаж'}
                         >
                           <CheckCircle2 size={16} /> Завершить монтаж
                         </button>
