@@ -20,6 +20,7 @@ export interface OrderAttachment {
   id: number;
   fileName: string;
   contentType: string;
+  isAct?: boolean;
 }
 
 export interface OrderAiSummary {
@@ -152,10 +153,14 @@ export const moveOrder = async (orderId: number, statusId: number): Promise<Orde
   return response.data;
 };
 
-export const uploadAttachment = async (orderId: number, file: File): Promise<OrderAttachment> => {
+export const uploadAttachment = async (orderId: number, file: File, isAct?: boolean): Promise<OrderAttachment> => {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await api.post(`/orders/${orderId}/attachments`, formData);
+  const params: any = {};
+  if (isAct !== undefined) {
+    params.isAct = isAct;
+  }
+  const response = await api.post(`/orders/${orderId}/attachments`, formData, { params });
   return response.data;
 };
 
@@ -177,6 +182,13 @@ export const deleteAttachment = async (attachmentId: number): Promise<void> => {
 
 export const renameAttachment = async (attachmentId: number, fileName: string): Promise<OrderAttachment> => {
   const response = await api.patch(`/orders/attachments/${attachmentId}`, { fileName });
+  return response.data;
+};
+
+export const toggleAttachmentIsAct = async (attachmentId: number, isAct: boolean): Promise<OrderAttachment> => {
+  const response = await api.patch(`/orders/attachments/${attachmentId}/act`, null, {
+    params: { isAct }
+  });
   return response.data;
 };
 
