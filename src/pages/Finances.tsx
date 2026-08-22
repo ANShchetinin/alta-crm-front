@@ -58,7 +58,7 @@ export const Finances = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
   // Filters
-  const [period, setPeriod] = useState<PeriodFilter>('THIS_MONTH');
+  const [period, setPeriod] = useState<PeriodFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatusFilter>('ALL');
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState<string>('ALL');
@@ -765,8 +765,8 @@ export const Finances = () => {
             </div>
           </div>
 
-          {/* Table */}
-          <div className="glass-panel" style={{ overflowX: 'auto', borderRadius: 'var(--radius-md)' }}>
+          {/* Desktop Table View */}
+          <div className="finances-desktop-table glass-panel" style={{ overflowX: 'auto', borderRadius: 'var(--radius-md)' }}>
             <table className="clients-table" style={{ width: '100%', fontSize: '0.85rem' }}>
               <thead>
                 <tr>
@@ -944,39 +944,39 @@ export const Finances = () => {
                           </div>
                         </td>
 
-                        {/* Overall Payment Status */}
+                        {/* Payment Summary Badge */}
                         <td>
                           {isFullyPaid ? (
-                            <span style={{ fontSize: '0.72rem', color: '#4ade80', background: 'rgba(34, 197, 94, 0.12)', padding: '3px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                              Оплачено
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#4ade80', fontSize: '0.75rem', fontWeight: 600 }}>
+                              <CheckCircle2 size={13} /> Оплачен
                             </span>
                           ) : isPartiallyPaid ? (
-                            <span style={{ fontSize: '0.72rem', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.12)', padding: '3px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                              Аванс внесен
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#f59e0b', fontSize: '0.75rem', fontWeight: 600 }}>
+                              <Clock size={13} /> Аванс
                             </span>
                           ) : (
-                            <span style={{ fontSize: '0.72rem', color: '#ef4444', background: 'rgba(239, 68, 68, 0.12)', padding: '3px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                              Не оплачено
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '0.75rem', fontWeight: 500 }}>
+                              <AlertTriangle size={13} /> Не оплачен
                             </span>
                           )}
                         </td>
 
-                        {/* Materials Cost */}
-                        <td style={{ color: '#f59e0b' }}>
+                        {/* Costs and Profit */}
+                        <td style={{ color: 'var(--text-secondary)' }}>
                           {(order.materialsCost || 0).toLocaleString('ru-RU')} ₽
                         </td>
-
-                        {/* Installation Cost */}
-                        <td style={{ color: '#60a5fa' }}>
+                        <td style={{ color: 'var(--text-secondary)' }}>
                           {(order.installationPrice || 0).toLocaleString('ru-RU')} ₽
                         </td>
-
-                        {/* Profit */}
                         <td style={{ fontWeight: 600, color: (order.profit || 0) >= 0 ? '#4ade80' : '#ef4444' }}>
-                          {(order.profit || 0).toLocaleString('ru-RU')} ₽
+                          {order.profit != null ? (
+                            `${order.profit.toLocaleString('ru-RU')} ₽`
+                          ) : (
+                            `${((order.totalPrice || 0) - (order.materialsCost || 0) - (order.installationPrice || 0)).toLocaleString('ru-RU')} ₽`
+                          )}
                           {order.profitMargin != null && (
-                            <span style={{ fontSize: '0.7rem', opacity: 0.8, display: 'block' }}>
-                              ({order.profitMargin.toFixed(1)}%)
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block' }}>
+                              {order.profitMargin.toFixed(1)}%
                             </span>
                           )}
                         </td>
@@ -999,6 +999,243 @@ export const Finances = () => {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards View (for Phones and Tablets) */}
+          <div className="finances-mobile-cards">
+            {filteredOrders.length === 0 ? (
+              <div className="glass-panel" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                Сделок по выбранным фильтрам не найдено
+              </div>
+            ) : (
+              filteredOrders.map(order => {
+                const statusObj = statuses.find(s => s.id === order.statusId);
+                const prep = order.prepayment || 0;
+                const rem = order.remainder != null ? order.remainder : Math.max(0, (order.totalPrice || 0) - prep);
+                const isFullyPaid = order.prepaymentPaid && order.remainderPaid;
+                const isPartiallyPaid = order.prepaymentPaid && !order.remainderPaid;
+
+                return (
+                  <div 
+                    key={order.id} 
+                    className="glass-panel" 
+                    style={{ 
+                      padding: '16px', 
+                      borderRadius: 'var(--radius-md)', 
+                      border: isFullyPaid 
+                        ? '1px solid rgba(34, 197, 94, 0.25)' 
+                        : isPartiallyPaid 
+                          ? '1px solid rgba(245, 158, 11, 0.25)' 
+                          : '1px solid rgba(239, 68, 68, 0.25)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px'
+                    }}
+                  >
+                    {/* Header: Number, Status & Total Sum */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                          {order.orderNumber ? `№ ${order.orderNumber}` : `Заявка #${order.id}`}
+                        </div>
+                        {statusObj && (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 8px',
+                            borderRadius: '10px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            marginTop: '4px',
+                            background: `${statusObj.color || '#3b82f6'}22`,
+                            color: statusObj.color || '#60a5fa',
+                            border: `1px solid ${statusObj.color || '#3b82f6'}44`
+                          }}>
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusObj.color || '#3b82f6' }} />
+                            {statusObj.name}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Сумма сделки:</div>
+                        <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {(order.totalPrice || 0).toLocaleString('ru-RU')} ₽
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Client & Address */}
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{order.clientName || 'Клиент'}</span>
+                        {order.clientPhone && (
+                          <a 
+                            href={`tel:${order.clientPhone}`} 
+                            style={{ 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '4px', 
+                              fontSize: '0.8rem', 
+                              color: 'var(--accent-primary)', 
+                              textDecoration: 'none',
+                              padding: '4px 8px',
+                              background: 'rgba(59, 130, 246, 0.12)',
+                              borderRadius: '6px'
+                            }}
+                          >
+                            <Phone size={13} /> {order.clientPhone}
+                          </a>
+                        )}
+                      </div>
+                      {order.address && (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                          📍 {order.address}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Payment Toggles (Prepayment & Remainder) */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      {/* Prepayment */}
+                      <div style={{ 
+                        padding: '10px', 
+                        borderRadius: 'var(--radius-sm)', 
+                        background: order.prepaymentPaid ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                        border: order.prepaymentPaid ? '1px solid rgba(34, 197, 94, 0.2)' : '1px solid var(--glass-border)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '6px'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Аванс:</div>
+                          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{prep.toLocaleString('ru-RU')} ₽</div>
+                        </div>
+                        {order.prepaymentPaid ? (
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePrepayment(order.id, true)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              padding: '6px',
+                              background: 'rgba(34, 197, 94, 0.2)',
+                              border: '1px solid rgba(34, 197, 94, 0.4)',
+                              color: '#4ade80',
+                              borderRadius: '6px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Check size={13} /> Оплачен
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePrepayment(order.id, false)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              padding: '6px',
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              border: '1px solid var(--glass-border)',
+                              color: 'var(--text-primary)',
+                              borderRadius: '6px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Plus size={13} /> Принять
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Remainder */}
+                      <div style={{ 
+                        padding: '10px', 
+                        borderRadius: 'var(--radius-sm)', 
+                        background: order.remainderPaid ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                        border: order.remainderPaid ? '1px solid rgba(34, 197, 94, 0.2)' : '1px solid var(--glass-border)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '6px'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Остаток:</div>
+                          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{rem.toLocaleString('ru-RU')} ₽</div>
+                        </div>
+                        {order.remainderPaid ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRemainder(order.id, true)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              padding: '6px',
+                              background: 'rgba(34, 197, 94, 0.2)',
+                              border: '1px solid rgba(34, 197, 94, 0.4)',
+                              color: '#4ade80',
+                              borderRadius: '6px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Check size={13} /> Оплачен
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRemainder(order.id, false)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              padding: '6px',
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              border: '1px solid var(--glass-border)',
+                              color: 'var(--text-primary)',
+                              borderRadius: '6px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Plus size={13} /> Принять
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bottom row: Costs breakdown and Link to Kanban */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Материалы: {(order.materialsCost || 0).toLocaleString('ru-RU')} ₽ • Монтаж: {(order.installationPrice || 0).toLocaleString('ru-RU')} ₽
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/kanban?orderId=${order.id}`)}
+                        className="btn btn-ghost"
+                        style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <ExternalLink size={13} /> В Канбан
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </>
       )}
