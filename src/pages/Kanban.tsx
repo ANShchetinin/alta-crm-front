@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Clock, Bell } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Clock, Bell } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -168,6 +168,9 @@ const Kanban = () => {
     clientId: '',
     statusId: '',
     assigneeId: '',
+    measurerId: '',
+    measurerName: '',
+    measurerAvatarUrl: '',
     installedById: '',
     installedByName: '',
     installedByAvatarUrl: '',
@@ -304,6 +307,9 @@ const Kanban = () => {
       clientId: order.clientId ? order.clientId.toString() : '',
       statusId: order.statusId ? order.statusId.toString() : (columns[0]?.id ? columns[0].id.toString() : ''),
       assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
+      measurerId: order.measurerId ? order.measurerId.toString() : '',
+      measurerName: order.measurerName || '',
+      measurerAvatarUrl: order.measurerAvatarUrl || '',
       installedById: order.installedById ? order.installedById.toString() : '',
       installedByName: order.installedByName || '',
       installedByAvatarUrl: order.installedByAvatarUrl || '',
@@ -465,6 +471,9 @@ const Kanban = () => {
       clientId: '',
       statusId: columns[0]?.id ? columns[0].id.toString() : '',
       assigneeId: '',
+      measurerId: '',
+      measurerName: '',
+      measurerAvatarUrl: '',
       installedById: '',
       installedByName: '',
       installedByAvatarUrl: '',
@@ -549,6 +558,7 @@ const Kanban = () => {
     const payload = {
       clientId: parseInt(formData.clientId),
       assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
+      measurerId: formData.measurerId ? parseInt(formData.measurerId) : undefined,
       installedById: formData.installedById ? parseInt(formData.installedById) : undefined,
       installedAt: formData.installedAt || undefined,
       statusId: formData.statusId ? parseInt(formData.statusId) : (editingOrderId ? cards.find(c => c.id === editingOrderId)?.statusId || columns[0].id : columns[0].id),
@@ -781,7 +791,7 @@ const Kanban = () => {
       ? formData.attachments 
       : (card?.attachments || []);
     const hasAct = currentAttachments.some(a => isActFile(a.fileName));
-    if (!hasAct) {
+    if (isWorker && !hasAct) {
       alert('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы».');
       return;
     }
@@ -791,6 +801,7 @@ const Kanban = () => {
       setCards(prevCards => prevCards.map(c => c.id === orderId ? {
         ...c,
         statusId: updatedOrder.statusId || c.statusId,
+        installedById: updatedOrder.installedById || c.installedById,
         installedByName: updatedOrder.installedByName || c.installedByName,
         installedAt: updatedOrder.installedAt || new Date().toISOString()
       } : c));
@@ -1967,30 +1978,69 @@ const Kanban = () => {
                         <span>Аванс: <strong style={{ color: 'var(--text-primary)' }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
                         <span>Остаток: <strong style={{ color: 'var(--text-primary)' }}>{((card.remainder != null ? card.remainder : card.totalPrice) || 0).toLocaleString('ru-RU')} ₽</strong></span>
                       </div>
-                      {card.installedByName && (
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          fontSize: '0.74rem',
-                          fontWeight: 600,
-                          color: '#4ade80',
-                          background: 'rgba(34, 197, 94, 0.08)',
-                          border: '1px solid rgba(34, 197, 94, 0.2)',
-                          padding: '3px 7px',
-                          borderRadius: '4px',
-                          gap: '4px'
-                        }} title={card.installedAt ? `Монтаж завершен: ${new Date(card.installedAt).toLocaleString('ru-RU')}` : 'Монтаж выполнен'}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <CheckCircle2 size={12} style={{ flexShrink: 0 }} /> Монтажник: {card.installedByName}
-                          </span>
-                          {card.installedAt && (
-                            <span style={{ fontSize: '0.68rem', opacity: 0.8, color: 'var(--text-secondary)', flexShrink: 0 }}>
-                              {new Date(card.installedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      {(() => {
+                        const col = columns.find(c => c.id === card.statusId);
+                        const isCardCompleted = col ? (
+                          col.name.toLowerCase().includes('заверш') ||
+                          col.name.toLowerCase().includes('готов') ||
+                          col.name.toLowerCase().includes('выполнен')
+                        ) : false;
+
+                        if (isCardCompleted) {
+                          if (!card.installedByName || !card.installedAt) return null;
+                          return (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              fontSize: '0.74rem',
+                              fontWeight: 600,
+                              color: '#4ade80',
+                              background: 'rgba(34, 197, 94, 0.08)',
+                              border: '1px solid rgba(34, 197, 94, 0.2)',
+                              padding: '3px 7px',
+                              borderRadius: '4px',
+                              gap: '4px'
+                            }} title={`Монтаж завершен: ${formatDateTimeInTimezone(card.installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <CheckCircle2 size={12} style={{ flexShrink: 0 }} /> Монтажник: {card.installedByName}
+                              </span>
+                              <span style={{ fontSize: '0.68rem', opacity: 0.8, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                                {formatDateTimeInTimezone(card.installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short' })}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        const hasInstaller = Boolean(card.installedById || card.installedByName);
+                        return (
+                          <button
+                            type="button"
+                            disabled={!hasInstaller}
+                            onClick={(e) => handleCompleteInstallation(e, card.id)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              padding: '5px 8px',
+                              background: hasInstaller ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(16, 185, 129, 0.06))' : 'rgba(255, 255, 255, 0.04)',
+                              border: hasInstaller ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid var(--glass-border)',
+                              borderRadius: 'var(--radius-sm)',
+                              color: hasInstaller ? '#4ade80' : 'var(--text-secondary)',
+                              fontSize: '0.76rem',
+                              fontWeight: 600,
+                              cursor: hasInstaller ? 'pointer' : 'not-allowed',
+                              opacity: hasInstaller ? 1 : 0.45,
+                              transition: 'all 0.15s ease',
+                              marginTop: '2px'
+                            }}
+                            title={!hasInstaller ? 'Для завершения монтажа необходимо назначить монтажника в деталях заявки' : 'Завершить монтаж и перевести заявку в завершенный статус'}
+                          >
+                            <CheckCircle2 size={13} /> Завершить монтаж
+                          </button>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -2362,40 +2412,130 @@ const Kanban = () => {
                       )}
                     </div>
 
-                    <div className="form-group">
-                      <label>{t('kanban.modal.assignee') || 'Ответственный'}</label>
-                      {isWorker ? (() => {
-                        const currentOrder = cards.find(c => c.id === editingOrderId);
-                        const assignedEmployee = employees.find(e => e.id.toString() === formData.assigneeId);
-                        const aName = currentOrder?.assigneeName || assignedEmployee?.name || 'Вы назначены ответственным';
-                        return (
-                          <input 
-                            type="text"
-                            disabled
-                            readOnly
-                            value={aName}
-                            className="search-input"
-                            style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
-                          />
-                        );
-                      })() : (
-                        <div className="custom-select-wrapper">
-                          <select 
-                            value={formData.assigneeId}
-                            onChange={(e) => setFormData({...formData, assigneeId: e.target.value})}
-                            className="custom-select"
-                          >
-                            <option value="">{t('kanban.modal.selectAssignee') || 'Без ответственного'}</option>
-                            {employees.map(e => (
-                              <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
-                            ))}
-                          </select>
-                          <ChevronDown className="custom-select-icon" size={16} />
-                        </div>
-                      )}
+                    {/* Назначение сотрудников: Ответственный, Замерщик, Монтажник */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                      gap: '12px',
+                      marginBottom: '16px',
+                      padding: '14px',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 'var(--radius-md)'
+                    }}>
+                      {/* 1. Ответственный */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                          <Users size={15} style={{ color: 'var(--accent-primary)' }} />
+                          {t('kanban.modal.assignee') || 'Ответственный'}
+                        </label>
+                        {isWorker ? (() => {
+                          const currentOrder = cards.find(c => c.id === editingOrderId);
+                          const assignedEmployee = employees.find(e => e.id.toString() === formData.assigneeId);
+                          const aName = currentOrder?.assigneeName || assignedEmployee?.name || 'Не назначен';
+                          return (
+                            <input 
+                              type="text"
+                              disabled
+                              readOnly
+                              value={aName}
+                              className="search-input"
+                              style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
+                            />
+                          );
+                        })() : (
+                          <div className="custom-select-wrapper">
+                            <select 
+                              value={formData.assigneeId}
+                              onChange={(e) => setFormData({...formData, assigneeId: e.target.value})}
+                              className="custom-select"
+                            >
+                              <option value="">{t('kanban.modal.selectAssignee') || 'Без ответственного'}</option>
+                              {employees.map(e => (
+                                <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="custom-select-icon" size={16} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2. Замерщик */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                          <Ruler size={15} style={{ color: '#a855f7' }} />
+                          Замерщик
+                        </label>
+                        {isWorker ? (() => {
+                          const currentOrder = cards.find(c => c.id === editingOrderId);
+                          const measurerEmployee = employees.find(e => e.id.toString() === formData.measurerId);
+                          const mName = currentOrder?.measurerName || measurerEmployee?.name || 'Не назначен';
+                          return (
+                            <input 
+                              type="text"
+                              disabled
+                              readOnly
+                              value={mName}
+                              className="search-input"
+                              style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
+                            />
+                          );
+                        })() : (
+                          <div className="custom-select-wrapper">
+                            <select 
+                              value={formData.measurerId}
+                              onChange={(e) => setFormData({...formData, measurerId: e.target.value})}
+                              className="custom-select"
+                            >
+                              <option value="">Не назначен</option>
+                              {employees.map(e => (
+                                <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="custom-select-icon" size={16} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3. Монтажник */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                          <Wrench size={15} style={{ color: '#22c55e' }} />
+                          Монтажник
+                        </label>
+                        {isWorker ? (() => {
+                          const currentOrder = cards.find(c => c.id === editingOrderId);
+                          const installerEmployee = employees.find(e => e.id.toString() === formData.installedById);
+                          const iName = currentOrder?.installedByName || installerEmployee?.name || 'Не назначен';
+                          return (
+                            <input 
+                              type="text"
+                              disabled
+                              readOnly
+                              value={iName}
+                              className="search-input"
+                              style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
+                            />
+                          );
+                        })() : (
+                          <div className="custom-select-wrapper">
+                            <select 
+                              value={formData.installedById}
+                              onChange={(e) => setFormData({ ...formData, installedById: e.target.value })}
+                              className="custom-select"
+                            >
+                              <option value="">Не назначен</option>
+                              {employees.map(e => (
+                                <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="custom-select-icon" size={16} />
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Исполнитель монтажа (если монтаж выполнен или заказ в завершенном статусе) */}
+                    {/* Дополнительная инфо о завершении монтажа */}
                     {(() => {
                       const currentOrder = cards.find(c => c.id === editingOrderId);
                       const statusObj = columns.find(c => c.id.toString() === formData.statusId);
@@ -2404,79 +2544,23 @@ const Kanban = () => {
                         statusObj.name.toLowerCase().includes('готов') ||
                         statusObj.name.toLowerCase().includes('выполнен')
                       ) : false;
-
-                      const hasInstaller = !!(formData.installedById || currentOrder?.installedByName || isCompleted);
-                      if (!hasInstaller && !isCompleted) return null;
-
-                      const installerEmployee = employees.find(e => e.id.toString() === formData.installedById);
-                      const installerName = installerEmployee?.name || currentOrder?.installedByName || (formData.assigneeId ? employees.find(e => e.id.toString() === formData.assigneeId)?.name : null);
-                      const installerAvatar = installerEmployee?.avatarUrl || currentOrder?.installedByAvatarUrl;
                       const installedAt = formData.installedAt || currentOrder?.installedAt;
-
+                      if (!isCompleted || !installedAt) return null;
                       return (
                         <div style={{
                           marginBottom: '16px',
-                          padding: '12px 14px',
-                          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(16, 185, 129, 0.03) 100%)',
-                          border: '1px solid rgba(34, 197, 94, 0.25)',
+                          padding: '8px 12px',
+                          background: 'rgba(34, 197, 94, 0.06)',
+                          border: '1px solid rgba(34, 197, 94, 0.2)',
                           borderRadius: 'var(--radius-sm)',
                           display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px'
+                          alignItems: 'center',
+                          gap: '8px',
+                          fontSize: '0.8rem',
+                          color: '#4ade80'
                         }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, color: '#4ade80' }}>
-                              <CheckCircle2 size={16} /> Исполнитель монтажа
-                            </div>
-                            {installedAt && (
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                Завершен: <strong style={{ color: 'var(--text-primary)' }}>{formatDateTimeInTimezone(installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
-                              </div>
-                            )}
-                          </div>
-
-                          {isWorker ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <div style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '50%',
-                                overflow: 'hidden',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                                color: '#fff',
-                                background: installerAvatar ? 'transparent' : getAvatarGradient(installerName || 'Монтажник'),
-                                border: '2px solid rgba(34, 197, 94, 0.4)'
-                              }}>
-                                {installerAvatar ? (
-                                  <img src={installerAvatar} alt={installerName || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                  getEmployeeInitials(installerName || 'М')
-                                )}
-                              </div>
-                              <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                {installerName || 'Не указан'}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="custom-select-wrapper">
-                              <select
-                                value={formData.installedById || (currentOrder?.installedById ? currentOrder.installedById.toString() : '')}
-                                onChange={(e) => setFormData({ ...formData, installedById: e.target.value })}
-                                className="custom-select"
-                                style={{ background: 'rgba(0, 0, 0, 0.2)' }}
-                              >
-                                <option value="">{installerName ? `Текущий: ${installerName}` : 'Выберите монтажника...'}</option>
-                                {employees.map(e => (
-                                  <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
-                                ))}
-                              </select>
-                              <ChevronDown className="custom-select-icon" size={16} />
-                            </div>
-                          )}
+                          <CheckCircle2 size={15} />
+                          <span>Монтаж завершен: <strong>{formatDateTimeInTimezone(installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong></span>
                         </div>
                       );
                     })()}
@@ -3821,7 +3905,8 @@ const Kanban = () => {
                     </button>
                   ) : <div />}
 
-                  {isWorker && editingOrderId && (() => {
+                  {editingOrderId && (() => {
+                    const currentOrder = cards.find(c => c.id === editingOrderId);
                     const currentStatus = columns.find(c => c.id.toString() === formData.statusId);
                     const isCompleted = currentStatus ? (
                       currentStatus.name.toLowerCase().includes('заверш') ||
@@ -3830,26 +3915,36 @@ const Kanban = () => {
                     ) : false;
 
                     if (!isCompleted) {
+                      const hasInstaller = Boolean(formData.installedById || currentOrder?.installedById || currentOrder?.installedByName);
                       const hasAct = formData.attachments.some(a => isActFile(a.fileName)) || pendingFiles.some(f => isActFile(f.name));
+                      const canComplete = hasInstaller && (!isWorker || hasAct);
+
+                      let disabledTitle = 'Завершить монтаж и перевести заявку в статус «Завершен»';
+                      if (!hasInstaller) {
+                        disabledTitle = 'Для завершения монтажа необходимо выбрать монтажника';
+                      } else if (isWorker && !hasAct) {
+                        disabledTitle = 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»';
+                      }
+
                       return (
                         <button
                           type="button"
-                          disabled={!hasAct}
+                          disabled={!canComplete}
                           onClick={(e) => handleCompleteInstallation(e, editingOrderId)}
                           className="btn"
                           style={{
-                            background: hasAct ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
-                            color: hasAct ? '#fff' : 'var(--text-secondary)',
-                            border: hasAct ? 'none' : '1px solid var(--glass-border)',
+                            background: canComplete ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
+                            color: canComplete ? '#fff' : 'var(--text-secondary)',
+                            border: canComplete ? 'none' : '1px solid var(--glass-border)',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '6px',
                             fontWeight: 600,
                             padding: '8px 14px',
-                            cursor: hasAct ? 'pointer' : 'not-allowed',
-                            opacity: hasAct ? 1 : 0.6
+                            cursor: canComplete ? 'pointer' : 'not-allowed',
+                            opacity: canComplete ? 1 : 0.45
                           }}
-                          title={hasAct ? 'Завершить монтаж' : 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»'}
+                          title={disabledTitle}
                         >
                           <CheckCircle2 size={16} /> Завершить монтаж
                         </button>
@@ -3884,7 +3979,7 @@ const Kanban = () => {
                       </button>
                       <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                         <Check size={16} />
-                        {editingOrderId ? t('kanban.modal.save') : (t('kanban.createOrder') || 'Создать заявку')}
+                        {editingOrderId ? (t('kanban.modal.save') || 'Сохранить') : (t('kanban.createOrder') || 'Создать заявку')}
                       </button>
                     </div>
                   )}

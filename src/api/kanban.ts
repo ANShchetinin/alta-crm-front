@@ -73,6 +73,9 @@ export interface Order {
   assigneeId?: number;
   assigneeName?: string;
   assigneeAvatarUrl?: string;
+  measurerId?: number;
+  measurerName?: string;
+  measurerAvatarUrl?: string;
   installedById?: number;
   installedByName?: string;
   installedByAvatarUrl?: string;
