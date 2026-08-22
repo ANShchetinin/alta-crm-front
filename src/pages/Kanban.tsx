@@ -821,7 +821,7 @@ const Kanban = () => {
       ? formData.attachments 
       : (card?.attachments || []);
     const hasAct = currentAttachments.some(a => isActFile(a.fileName, a.isAct));
-    if (isWorker && !hasAct) {
+    if (!hasAct) {
       alert('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы».');
       return;
     }
@@ -2063,12 +2063,12 @@ const Kanban = () => {
 
                         const hasInstaller = Boolean(card.installedById || card.installedByName);
                         const hasAct = card.attachments?.some(a => isActFile(a.fileName, a.isAct));
-                        const canComplete = hasInstaller && (!isWorker || hasAct);
+                        const canComplete = hasInstaller && hasAct;
 
                         let cardDisabledTitle = 'Завершить монтаж и перевести заявку в завершенный статус';
                         if (!hasInstaller) {
                           cardDisabledTitle = 'Для завершения монтажа необходимо назначить монтажника в деталях заявки';
-                        } else if (isWorker && !hasAct) {
+                        } else if (!hasAct) {
                           cardDisabledTitle = 'Для завершения монтажа необходимо прикрепить Акт выполненных работ в деталях заявки';
                         }
 
@@ -2624,8 +2624,8 @@ const Kanban = () => {
                       );
                     })()}
 
-                    {/* Баннер статуса Акта выполненных работ (для монтажников) */}
-                    {isWorker && (() => {
+                    {/* Баннер статуса Акта выполненных работ */}
+                    {(() => {
                       const hasAct = formData.attachments.some(a => isActFile(a.fileName, a.isAct)) || pendingFiles.some(f => isActFile(f.name));
                       return (
                         <div style={{
@@ -4080,12 +4080,12 @@ const Kanban = () => {
                     if (!isCompleted) {
                       const hasInstaller = Boolean(formData.installedById || currentOrder?.installedById || currentOrder?.installedByName);
                       const hasAct = formData.attachments.some(a => isActFile(a.fileName, a.isAct)) || pendingFiles.some(f => isActFile(f.name));
-                      const canComplete = hasInstaller && (!isWorker || hasAct);
+                      const canComplete = hasInstaller && hasAct;
 
                       let disabledTitle = 'Завершить монтаж и перевести заявку в статус «Завершен»';
                       if (!hasInstaller) {
                         disabledTitle = 'Для завершения монтажа необходимо выбрать монтажника';
-                      } else if (isWorker && !hasAct) {
+                      } else if (!hasAct) {
                         disabledTitle = 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»';
                       }
 
