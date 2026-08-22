@@ -5,7 +5,6 @@ import {
   CheckCircle2, 
   Trash2, 
   CalendarClock, 
-  RotateCcw, 
   ChevronDown, 
   ChevronUp, 
   Plus, 
@@ -20,7 +19,6 @@ import {
   createReminder, 
   updateReminder,
   completeReminder, 
-  snoozeReminder, 
   deleteReminder 
 } from '../api/reminders';
 import type { Employee } from '../api/employees';
@@ -192,16 +190,6 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
     }
   };
 
-  const handleSnooze = async (id: number, hours: number) => {
-    try {
-      await snoozeReminder(id, { hours });
-      await fetchReminders();
-      if (onReminderCountChanged) onReminderCountChanged();
-    } catch (err) {
-      console.error('Failed to snooze reminder', err);
-    }
-  };
-
   const handleDelete = async (id: number) => {
     if (window.confirm('Удалить это напоминание?')) {
       try {
@@ -360,24 +348,6 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
                     title="Редактировать напоминание"
                   >
                     <Edit2 size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSnooze(rem.id, 1)}
-                    className="btn btn-ghost"
-                    style={{ padding: '4px 6px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}
-                    title="Отложить на 1 час"
-                  >
-                    <RotateCcw size={12} style={{ marginRight: '2px' }} /> +1ч
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSnooze(rem.id, 24)}
-                    className="btn btn-ghost"
-                    style={{ padding: '4px 6px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}
-                    title="Отложить на завтра"
-                  >
-                    +1д
                   </button>
                   <button
                     type="button"
