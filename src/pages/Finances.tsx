@@ -494,8 +494,8 @@ export const Finances = () => {
       {/* 2. Top KPI Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '12px',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        gap: '10px',
         marginBottom: '20px'
       }}>
         {/* Card 1: Реальный приход */}
@@ -601,7 +601,9 @@ export const Finances = () => {
         borderBottom: '1px solid var(--glass-border)',
         marginBottom: '16px',
         gap: '4px',
-        overflowX: 'auto'
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: '2px'
       }}>
         <button
           type="button"
@@ -1038,7 +1040,7 @@ export const Finances = () => {
           </div>
 
           {/* Debtors List */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
             {debtorOrders.length === 0 ? (
               <div className="glass-panel" style={{ gridColumn: '1 / -1', padding: '32px', textAlign: 'center', color: '#4ade80' }}>
                 <CheckCircle2 size={32} style={{ margin: '0 auto 10px' }} />
