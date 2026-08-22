@@ -25,6 +25,7 @@ import {
 } from '../api/reminders';
 import type { Employee } from '../api/employees';
 import { localInputToUtcIso, utcToLocalInput, parseUtcDate } from '../utils/dateUtils';
+import { useAuthStore } from '../store/useAuthStore';
 
 interface OrderRemindersSectionProps {
   orderId: number;
@@ -47,6 +48,26 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
   currentUserId,
   onReminderCountChanged
 }) => {
+  const authUserId = useAuthStore(state => state.userId);
+  const authEmail = useAuthStore(state => state.email);
+
+  const effectiveUserId = currentUserId || (authUserId ? authUserId : undefined);
+
+  const getDefaultUserId = () => {
+    if (effectiveUserId) {
+      const byUser = employees.find(e => e.userId === effectiveUserId);
+      if (byUser) return byUser.userId || byUser.id;
+    }
+    if (authEmail) {
+      const byEmail = employees.find(e => e.email?.toLowerCase() === authEmail.toLowerCase());
+      if (byEmail) return byEmail.userId || byEmail.id;
+    }
+    if (employees.length > 0) {
+      return employees[0].userId || employees[0].id;
+    }
+    return effectiveUserId;
+  };
+
   const [reminders, setReminders] = useState<OrderReminderDto[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -55,7 +76,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
   const [editingReminder, setEditingReminder] = useState<OrderReminderDto | null>(null);
   const [customDateTime, setCustomDateTime] = useState('');
   const [comment, setComment] = useState('');
-  const [selectedUserId, setSelectedUserId] = useState<number | undefined>(currentUserId);
+  const [selectedUserId, setSelectedUserId] = useState<number | undefined>(() => getDefaultUserId());
   const [notifyBeforeMinutes, setNotifyBeforeMinutes] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
 
@@ -106,7 +127,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
     setEditingReminder(null);
     setPresetTime('1h');
     setComment('');
-    setSelectedUserId(currentUserId);
+    setSelectedUserId(getDefaultUserId());
     setNotifyBeforeMinutes(0);
     setIsModalOpen(true);
   };
@@ -115,7 +136,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
     setEditingReminder(rem);
     setCustomDateTime(utcToLocalInput(rem.remindAt));
     setComment(rem.comment || '');
-    setSelectedUserId(rem.userId || currentUserId);
+    setSelectedUserId(rem.userId || getDefaultUserId());
     setNotifyBeforeMinutes(rem.notifyBeforeMinutes || 0);
     setIsModalOpen(true);
   };
@@ -542,7 +563,6 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
                     className="search-input"
                     style={{ width: '100%', height: '38px', fontSize: '0.85rem' }}
                   >
-                    <option value="">Текущий пользователь (Я)</option>
                     {employees.map(emp => (
                       <option key={emp.id} value={emp.userId || emp.id}>
                         {emp.name} {emp.position ? `(${emp.position})` : ''}
