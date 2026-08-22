@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Clock, Bell } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Clock, Bell } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -168,6 +168,9 @@ const Kanban = () => {
     clientId: '',
     statusId: '',
     assigneeId: '',
+    measurerId: '',
+    measurerName: '',
+    measurerAvatarUrl: '',
     installedById: '',
     installedByName: '',
     installedByAvatarUrl: '',
@@ -304,6 +307,9 @@ const Kanban = () => {
       clientId: order.clientId ? order.clientId.toString() : '',
       statusId: order.statusId ? order.statusId.toString() : (columns[0]?.id ? columns[0].id.toString() : ''),
       assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
+      measurerId: order.measurerId ? order.measurerId.toString() : '',
+      measurerName: order.measurerName || '',
+      measurerAvatarUrl: order.measurerAvatarUrl || '',
       installedById: order.installedById ? order.installedById.toString() : '',
       installedByName: order.installedByName || '',
       installedByAvatarUrl: order.installedByAvatarUrl || '',
@@ -465,6 +471,9 @@ const Kanban = () => {
       clientId: '',
       statusId: columns[0]?.id ? columns[0].id.toString() : '',
       assigneeId: '',
+      measurerId: '',
+      measurerName: '',
+      measurerAvatarUrl: '',
       installedById: '',
       installedByName: '',
       installedByAvatarUrl: '',
@@ -549,6 +558,7 @@ const Kanban = () => {
     const payload = {
       clientId: parseInt(formData.clientId),
       assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
+      measurerId: formData.measurerId ? parseInt(formData.measurerId) : undefined,
       installedById: formData.installedById ? parseInt(formData.installedById) : undefined,
       installedAt: formData.installedAt || undefined,
       statusId: formData.statusId ? parseInt(formData.statusId) : (editingOrderId ? cards.find(c => c.id === editingOrderId)?.statusId || columns[0].id : columns[0].id),
@@ -1666,36 +1676,104 @@ const Kanban = () => {
                         const assignee = employees.find(e => e.id === card.assigneeId);
                         const aName = card.assigneeName || assignee?.name;
                         const aAvatar = card.assigneeAvatarUrl || assignee?.avatarUrl;
-                        if (!aName) return null;
+
+                        const measurer = employees.find(e => e.id === card.measurerId);
+                        const mName = card.measurerName || measurer?.name;
+                        const mAvatar = card.measurerAvatarUrl || measurer?.avatarUrl;
+
+                        const installer = employees.find(e => e.id === card.installedById);
+                        const iName = card.installedByName || installer?.name;
+                        const iAvatar = card.installedByAvatarUrl || installer?.avatarUrl;
+
+                        if (!aName && !mName && !iName) return null;
+
                         return (
-                          <div
-                            title={`Ответственный: ${aName}${assignee?.position ? ` (${assignee.position})` : ''}`}
-                            style={{
-                              width: '34px',
-                              height: '34px',
-                              borderRadius: '50%',
-                              overflow: 'hidden',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '0.78rem',
-                              fontWeight: 700,
-                              color: '#fff',
-                              background: aAvatar ? 'transparent' : getAvatarGradient(aName),
-                              border: '2px solid rgba(255, 255, 255, 0.18)',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                              flexShrink: 0,
-                              cursor: 'default'
-                            }}
-                          >
-                            {aAvatar ? (
-                              <img 
-                                src={aAvatar} 
-                                alt={aName} 
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                              />
-                            ) : (
-                              getEmployeeInitials(aName)
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {aName && (
+                              <div
+                                title={`Ответственный: ${aName}${assignee?.position ? ` (${assignee.position})` : ''}`}
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '50%',
+                                  overflow: 'hidden',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  color: '#fff',
+                                  background: aAvatar ? 'transparent' : getAvatarGradient(aName),
+                                  border: '2px solid rgba(255, 255, 255, 0.25)',
+                                  boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+                                  flexShrink: 0,
+                                  cursor: 'default'
+                                }}
+                              >
+                                {aAvatar ? (
+                                  <img src={aAvatar} alt={aName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  getEmployeeInitials(aName)
+                                )}
+                              </div>
+                            )}
+
+                            {mName && mName !== aName && (
+                              <div
+                                title={`Замерщик: ${mName}${measurer?.position ? ` (${measurer.position})` : ''}`}
+                                style={{
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '50%',
+                                  overflow: 'hidden',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  color: '#fff',
+                                  background: mAvatar ? 'transparent' : getAvatarGradient(mName),
+                                  border: '2px solid #a855f7',
+                                  boxShadow: '0 2px 6px rgba(168, 85, 247, 0.3)',
+                                  flexShrink: 0,
+                                  cursor: 'default'
+                                }}
+                              >
+                                {mAvatar ? (
+                                  <img src={mAvatar} alt={mName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  getEmployeeInitials(mName)
+                                )}
+                              </div>
+                            )}
+
+                            {iName && iName !== aName && iName !== mName && (
+                              <div
+                                title={`Монтажник: ${iName}${installer?.position ? ` (${installer.position})` : ''}`}
+                                style={{
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '50%',
+                                  overflow: 'hidden',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  color: '#fff',
+                                  background: iAvatar ? 'transparent' : getAvatarGradient(iName),
+                                  border: '2px solid #22c55e',
+                                  boxShadow: '0 2px 6px rgba(34, 197, 94, 0.3)',
+                                  flexShrink: 0,
+                                  cursor: 'default'
+                                }}
+                              >
+                                {iAvatar ? (
+                                  <img src={iAvatar} alt={iName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  getEmployeeInitials(iName)
+                                )}
+                              </div>
                             )}
                           </div>
                         );
@@ -2362,121 +2440,149 @@ const Kanban = () => {
                       )}
                     </div>
 
-                    <div className="form-group">
-                      <label>{t('kanban.modal.assignee') || 'Ответственный'}</label>
-                      {isWorker ? (() => {
-                        const currentOrder = cards.find(c => c.id === editingOrderId);
-                        const assignedEmployee = employees.find(e => e.id.toString() === formData.assigneeId);
-                        const aName = currentOrder?.assigneeName || assignedEmployee?.name || 'Вы назначены ответственным';
-                        return (
-                          <input 
-                            type="text"
-                            disabled
-                            readOnly
-                            value={aName}
-                            className="search-input"
-                            style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
-                          />
-                        );
-                      })() : (
-                        <div className="custom-select-wrapper">
-                          <select 
-                            value={formData.assigneeId}
-                            onChange={(e) => setFormData({...formData, assigneeId: e.target.value})}
-                            className="custom-select"
-                          >
-                            <option value="">{t('kanban.modal.selectAssignee') || 'Без ответственного'}</option>
-                            {employees.map(e => (
-                              <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
-                            ))}
-                          </select>
-                          <ChevronDown className="custom-select-icon" size={16} />
-                        </div>
-                      )}
+                    {/* Назначение сотрудников: Ответственный, Замерщик, Монтажник */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                      gap: '12px',
+                      marginBottom: '16px',
+                      padding: '14px',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 'var(--radius-md)'
+                    }}>
+                      {/* 1. Ответственный */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                          <Users size={15} style={{ color: 'var(--accent-primary)' }} />
+                          {t('kanban.modal.assignee') || 'Ответственный'}
+                        </label>
+                        {isWorker ? (() => {
+                          const currentOrder = cards.find(c => c.id === editingOrderId);
+                          const assignedEmployee = employees.find(e => e.id.toString() === formData.assigneeId);
+                          const aName = currentOrder?.assigneeName || assignedEmployee?.name || 'Не назначен';
+                          return (
+                            <input 
+                              type="text"
+                              disabled
+                              readOnly
+                              value={aName}
+                              className="search-input"
+                              style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
+                            />
+                          );
+                        })() : (
+                          <div className="custom-select-wrapper">
+                            <select 
+                              value={formData.assigneeId}
+                              onChange={(e) => setFormData({...formData, assigneeId: e.target.value})}
+                              className="custom-select"
+                            >
+                              <option value="">{t('kanban.modal.selectAssignee') || 'Без ответственного'}</option>
+                              {employees.map(e => (
+                                <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="custom-select-icon" size={16} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2. Замерщик */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                          <Ruler size={15} style={{ color: '#a855f7' }} />
+                          Замерщик
+                        </label>
+                        {isWorker ? (() => {
+                          const currentOrder = cards.find(c => c.id === editingOrderId);
+                          const measurerEmployee = employees.find(e => e.id.toString() === formData.measurerId);
+                          const mName = currentOrder?.measurerName || measurerEmployee?.name || 'Не назначен';
+                          return (
+                            <input 
+                              type="text"
+                              disabled
+                              readOnly
+                              value={mName}
+                              className="search-input"
+                              style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
+                            />
+                          );
+                        })() : (
+                          <div className="custom-select-wrapper">
+                            <select 
+                              value={formData.measurerId}
+                              onChange={(e) => setFormData({...formData, measurerId: e.target.value})}
+                              className="custom-select"
+                            >
+                              <option value="">Не назначен</option>
+                              {employees.map(e => (
+                                <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="custom-select-icon" size={16} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3. Монтажник */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                          <Wrench size={15} style={{ color: '#22c55e' }} />
+                          Монтажник
+                        </label>
+                        {isWorker ? (() => {
+                          const currentOrder = cards.find(c => c.id === editingOrderId);
+                          const installerEmployee = employees.find(e => e.id.toString() === formData.installedById);
+                          const iName = currentOrder?.installedByName || installerEmployee?.name || 'Не назначен';
+                          return (
+                            <input 
+                              type="text"
+                              disabled
+                              readOnly
+                              value={iName}
+                              className="search-input"
+                              style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
+                            />
+                          );
+                        })() : (
+                          <div className="custom-select-wrapper">
+                            <select 
+                              value={formData.installedById}
+                              onChange={(e) => setFormData({ ...formData, installedById: e.target.value })}
+                              className="custom-select"
+                            >
+                              <option value="">Не назначен</option>
+                              {employees.map(e => (
+                                <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="custom-select-icon" size={16} />
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Исполнитель монтажа (если монтаж выполнен или заказ в завершенном статусе) */}
+                    {/* Дополнительная инфо о завершении монтажа */}
                     {(() => {
                       const currentOrder = cards.find(c => c.id === editingOrderId);
-                      const statusObj = columns.find(c => c.id.toString() === formData.statusId);
-                      const isCompleted = statusObj ? (
-                        statusObj.name.toLowerCase().includes('заверш') ||
-                        statusObj.name.toLowerCase().includes('готов') ||
-                        statusObj.name.toLowerCase().includes('выполнен')
-                      ) : false;
-
-                      const hasInstaller = !!(formData.installedById || currentOrder?.installedByName || isCompleted);
-                      if (!hasInstaller && !isCompleted) return null;
-
-                      const installerEmployee = employees.find(e => e.id.toString() === formData.installedById);
-                      const installerName = installerEmployee?.name || currentOrder?.installedByName || (formData.assigneeId ? employees.find(e => e.id.toString() === formData.assigneeId)?.name : null);
-                      const installerAvatar = installerEmployee?.avatarUrl || currentOrder?.installedByAvatarUrl;
                       const installedAt = formData.installedAt || currentOrder?.installedAt;
-
+                      if (!installedAt) return null;
                       return (
                         <div style={{
                           marginBottom: '16px',
-                          padding: '12px 14px',
-                          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(16, 185, 129, 0.03) 100%)',
-                          border: '1px solid rgba(34, 197, 94, 0.25)',
+                          padding: '8px 12px',
+                          background: 'rgba(34, 197, 94, 0.06)',
+                          border: '1px solid rgba(34, 197, 94, 0.2)',
                           borderRadius: 'var(--radius-sm)',
                           display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px'
+                          alignItems: 'center',
+                          gap: '8px',
+                          fontSize: '0.8rem',
+                          color: '#4ade80'
                         }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, color: '#4ade80' }}>
-                              <CheckCircle2 size={16} /> Исполнитель монтажа
-                            </div>
-                            {installedAt && (
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                Завершен: <strong style={{ color: 'var(--text-primary)' }}>{formatDateTimeInTimezone(installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
-                              </div>
-                            )}
-                          </div>
-
-                          {isWorker ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <div style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '50%',
-                                overflow: 'hidden',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                                color: '#fff',
-                                background: installerAvatar ? 'transparent' : getAvatarGradient(installerName || 'Монтажник'),
-                                border: '2px solid rgba(34, 197, 94, 0.4)'
-                              }}>
-                                {installerAvatar ? (
-                                  <img src={installerAvatar} alt={installerName || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                  getEmployeeInitials(installerName || 'М')
-                                )}
-                              </div>
-                              <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                {installerName || 'Не указан'}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="custom-select-wrapper">
-                              <select
-                                value={formData.installedById || (currentOrder?.installedById ? currentOrder.installedById.toString() : '')}
-                                onChange={(e) => setFormData({ ...formData, installedById: e.target.value })}
-                                className="custom-select"
-                                style={{ background: 'rgba(0, 0, 0, 0.2)' }}
-                              >
-                                <option value="">{installerName ? `Текущий: ${installerName}` : 'Выберите монтажника...'}</option>
-                                {employees.map(e => (
-                                  <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
-                                ))}
-                              </select>
-                              <ChevronDown className="custom-select-icon" size={16} />
-                            </div>
-                          )}
+                          <CheckCircle2 size={15} />
+                          <span>Монтаж завершен: <strong>{formatDateTimeInTimezone(installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong></span>
                         </div>
                       );
                     })()}

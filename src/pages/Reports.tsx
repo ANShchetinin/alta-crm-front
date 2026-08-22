@@ -12,6 +12,7 @@ import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
 import { getEmployees } from '../api/employees';
 import type { Employee } from '../api/employees';
+import { getEmployeeInitials, getAvatarGradient } from './Employees';
 import { useNavigate } from 'react-router-dom';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend 
@@ -94,14 +95,27 @@ export const Reports = () => {
     }, 0);
   };
 
+  // Check if order status is completed
+  const isOrderCompleted = (order: Order) => {
+    const st = statuses.find(s => s.id === order.statusId);
+    if (!st || !st.name) return false;
+    const name = st.name.trim().toLowerCase();
+    return name.includes('заверш') || name.includes('готов') || name.includes('выполнен') || name.includes('complete');
+  };
+
   // Filter orders by selected period & employee
   const filteredOrders = useMemo(() => {
     const today = new Date();
     
     return orders.filter(order => {
-      // Employee filter
-      if (selectedEmployeeId !== 'ALL' && order.assigneeId?.toString() !== selectedEmployeeId) {
-        return false;
+      // Employee filter (match assignee, measurer, or installer)
+      if (selectedEmployeeId !== 'ALL') {
+        const matchAssignee = order.assigneeId?.toString() === selectedEmployeeId;
+        const matchMeasurer = order.measurerId?.toString() === selectedEmployeeId;
+        const matchInstaller = order.installedById?.toString() === selectedEmployeeId;
+        if (!matchAssignee && !matchMeasurer && !matchInstaller) {
+          return false;
+        }
       }
 
       // Search term filter
@@ -166,6 +180,11 @@ export const Reports = () => {
     return filteredOrders.filter(o => Boolean(o.orderNumber && o.orderNumber.trim() !== ''));
   }, [filteredOrders]);
 
+  // Completed contracts (for revenue and profit calculations)
+  const completedContracts = useMemo(() => {
+    return contracts.filter(isOrderCompleted);
+  }, [contracts, statuses]);
+
   // Measurements: orders with assigned measurement date
   const measurements = useMemo(() => {
     return filteredOrders.filter(o => o.measurementDate != null);
@@ -173,6 +192,7 @@ export const Reports = () => {
 
   // Key KPI Metrics Calculations
   const contractCount = contracts.length;
+  const completedContractCount = completedContracts.length;
   const measurementCount = measurements.length;
   
   // CTR Conversion Rate (%)
@@ -180,15 +200,15 @@ export const Reports = () => {
     ? Math.min(100, Math.round((contractCount / measurementCount) * 1000) / 10)
     : (contractCount > 0 ? 100 : 0);
 
-  // Financial Metrics
-  const totalRevenue = contracts.reduce((sum, o) => sum + (o.totalPrice || 0) + (o.installationPrice || 0), 0);
-  const totalExpenses = contracts.reduce((sum, o) => sum + calculateMaterialsCost(o), 0);
+  // Financial Metrics (Calculated ONLY from completed contracts)
+  const totalRevenue = completedContracts.reduce((sum, o) => sum + (o.totalPrice || 0) + (o.installationPrice || 0), 0);
+  const totalExpenses = completedContracts.reduce((sum, o) => sum + calculateMaterialsCost(o), 0);
   const totalProfit = totalRevenue - totalExpenses;
 
-  const contractPrices = contracts.map(o => (o.totalPrice || 0) + (o.installationPrice || 0)).filter(p => p > 0);
-  const avgCheck = contractCount > 0 && contractPrices.length > 0 ? Math.round(totalRevenue / contractPrices.length) : 0;
-  const minCheck = contractPrices.length > 0 ? Math.min(...contractPrices) : 0;
-  const maxCheck = contractPrices.length > 0 ? Math.max(...contractPrices) : 0;
+  const completedPrices = completedContracts.map(o => (o.totalPrice || 0) + (o.installationPrice || 0)).filter(p => p > 0);
+  const avgCheck = completedContractCount > 0 && completedPrices.length > 0 ? Math.round(totalRevenue / completedPrices.length) : 0;
+  const minCheck = completedPrices.length > 0 ? Math.min(...completedPrices) : 0;
+  const maxCheck = completedPrices.length > 0 ? Math.max(...completedPrices) : 0;
 
   // Conversion Badge Color Helper
   const getConversionClass = (ctr: number) => {
@@ -216,23 +236,25 @@ export const Reports = () => {
       }
       if (order.orderNumber && order.orderNumber.trim() !== '') {
         dataMap[dateStr].contracts += 1;
-        dataMap[dateStr].revenue += (order.totalPrice || 0) + (order.installationPrice || 0);
+        if (isOrderCompleted(order)) {
+          dataMap[dateStr].revenue += (order.totalPrice || 0) + (order.installationPrice || 0);
+        }
       }
     });
 
     return Object.values(dataMap).sort((a, b) => a.date.localeCompare(b.date));
-  }, [filteredOrders]);
+  }, [filteredOrders, statuses]);
 
   // Lead Sources Analytics
   const leadSourcesData = useMemo(() => {
-    const sourceMap: Record<string, { source: string; measurements: number; contracts: number; revenue: number; avgCheck: number; ctr: number }> = {};
+    const sourceMap: Record<string, { source: string; measurements: number; contracts: number; completedCount: number; revenue: number; avgCheck: number; ctr: number }> = {};
 
     filteredOrders.forEach(order => {
       const client = clients.find(c => c.id === order.clientId);
       const source = client?.leadSource || 'Не указан';
 
       if (!sourceMap[source]) {
-        sourceMap[source] = { source, measurements: 0, contracts: 0, revenue: 0, avgCheck: 0, ctr: 0 };
+        sourceMap[source] = { source, measurements: 0, contracts: 0, completedCount: 0, revenue: 0, avgCheck: 0, ctr: 0 };
       }
 
       if (order.measurementDate) {
@@ -240,46 +262,138 @@ export const Reports = () => {
       }
       if (order.orderNumber && order.orderNumber.trim() !== '') {
         sourceMap[source].contracts += 1;
-        sourceMap[source].revenue += (order.totalPrice || 0) + (order.installationPrice || 0);
+        if (isOrderCompleted(order)) {
+          sourceMap[source].revenue += (order.totalPrice || 0) + (order.installationPrice || 0);
+          sourceMap[source].completedCount += 1;
+        }
       }
     });
 
     return Object.values(sourceMap).map(s => {
       const ctr = s.measurements > 0 ? Math.min(100, Math.round((s.contracts / s.measurements) * 1000) / 10) : (s.contracts > 0 ? 100 : 0);
-      const avg = s.contracts > 0 ? Math.round(s.revenue / s.contracts) : 0;
+      const avg = s.completedCount > 0 ? Math.round(s.revenue / s.completedCount) : 0;
       return { ...s, ctr, avgCheck: avg };
     }).sort((a, b) => b.revenue - a.revenue);
-  }, [filteredOrders, clients]);
+  }, [filteredOrders, clients, statuses]);
 
   // Employee Performance Analytics
   const employeePerformanceData = useMemo(() => {
-    const empMap: Record<string, { id: number | string; name: string; position: string; measurements: number; contracts: number; revenue: number; ctr: number; avgCheck: number }> = {};
+    const empMap: Record<string, { 
+      id: number | string; 
+      name: string; 
+      position: string; 
+      avatarUrl?: string;
+      measurements: number; 
+      installations: number;
+      contracts: number; 
+      completedCount: number;
+      revenue: number; 
+      ctr: number; 
+      avgCheck: number 
+    }> = {};
+
+    // Initialize all existing employees
+    employees.forEach(emp => {
+      empMap[emp.id.toString()] = {
+        id: emp.id,
+        name: emp.name,
+        position: emp.position || '—',
+        avatarUrl: emp.avatarUrl,
+        measurements: 0,
+        installations: 0,
+        contracts: 0,
+        completedCount: 0,
+        revenue: 0,
+        ctr: 0,
+        avgCheck: 0
+      };
+    });
 
     filteredOrders.forEach(order => {
-      const emp = employees.find(e => e.id === order.assigneeId);
-      const empKey = emp ? emp.id.toString() : 'UNASSIGNED';
-      const name = emp ? emp.name : 'Не назначен';
-      const position = emp?.position || '—';
-
-      if (!empMap[empKey]) {
-        empMap[empKey] = { id: empKey, name, position, measurements: 0, contracts: 0, revenue: 0, ctr: 0, avgCheck: 0 };
-      }
-
+      // 1. Замеры: учитываем сотрудника, указанного как Замерщик (measurerId), если не указан - ответственного (assigneeId)
       if (order.measurementDate) {
-        empMap[empKey].measurements += 1;
+        const measurerId = order.measurerId || order.assigneeId;
+        const mKey = measurerId ? measurerId.toString() : 'UNASSIGNED';
+        if (!empMap[mKey]) {
+          const emp = employees.find(e => e.id.toString() === mKey);
+          empMap[mKey] = {
+            id: mKey,
+            name: emp ? emp.name : 'Не назначен',
+            position: emp?.position || '—',
+            avatarUrl: emp?.avatarUrl,
+            measurements: 0,
+            installations: 0,
+            contracts: 0,
+            completedCount: 0,
+            revenue: 0,
+            ctr: 0,
+            avgCheck: 0
+          };
+        }
+        empMap[mKey].measurements += 1;
       }
+
+      // 2. Монтажи: учитываем сотрудника, указанного как Монтажник (installedById), если не указан - ответственного (assigneeId)
+      if (order.installationDate || order.installedAt || isOrderCompleted(order)) {
+        const installerId = order.installedById || (isOrderCompleted(order) ? order.assigneeId : undefined);
+        if (installerId) {
+          const iKey = installerId.toString();
+          if (!empMap[iKey]) {
+            const emp = employees.find(e => e.id.toString() === iKey);
+            empMap[iKey] = {
+              id: iKey,
+              name: emp ? emp.name : 'Не назначен',
+              position: emp?.position || '—',
+              avatarUrl: emp?.avatarUrl,
+              measurements: 0,
+              installations: 0,
+              contracts: 0,
+              completedCount: 0,
+              revenue: 0,
+              ctr: 0,
+              avgCheck: 0
+            };
+          }
+          empMap[iKey].installations += 1;
+        }
+      }
+
+      // 3. Договоры и Выручка: учитываем Ответственного (assigneeId), выручка считается ТОЛЬКО по завершенным
       if (order.orderNumber && order.orderNumber.trim() !== '') {
-        empMap[empKey].contracts += 1;
-        empMap[empKey].revenue += (order.totalPrice || 0) + (order.installationPrice || 0);
+        const assigneeId = order.assigneeId;
+        const aKey = assigneeId ? assigneeId.toString() : 'UNASSIGNED';
+        if (!empMap[aKey]) {
+          const emp = employees.find(e => e.id.toString() === aKey);
+          empMap[aKey] = {
+            id: aKey,
+            name: emp ? emp.name : 'Не назначен',
+            position: emp?.position || '—',
+            avatarUrl: emp?.avatarUrl,
+            measurements: 0,
+            installations: 0,
+            contracts: 0,
+            completedCount: 0,
+            revenue: 0,
+            ctr: 0,
+            avgCheck: 0
+          };
+        }
+        empMap[aKey].contracts += 1;
+        if (isOrderCompleted(order)) {
+          empMap[aKey].revenue += (order.totalPrice || 0) + (order.installationPrice || 0);
+          empMap[aKey].completedCount += 1;
+        }
       }
     });
 
-    return Object.values(empMap).map(e => {
-      const ctr = e.measurements > 0 ? Math.min(100, Math.round((e.contracts / e.measurements) * 1000) / 10) : (e.contracts > 0 ? 100 : 0);
-      const avg = e.contracts > 0 ? Math.round(e.revenue / e.contracts) : 0;
-      return { ...e, ctr, avgCheck: avg };
-    }).sort((a, b) => b.revenue - a.revenue);
-  }, [filteredOrders, employees]);
+    return Object.values(empMap)
+      .filter(e => e.measurements > 0 || e.installations > 0 || e.contracts > 0 || e.revenue > 0 || e.id !== 'UNASSIGNED')
+      .map(e => {
+        const ctr = e.measurements > 0 ? Math.min(100, Math.round((e.contracts / e.measurements) * 1000) / 10) : (e.contracts > 0 ? 100 : 0);
+        const avg = e.completedCount > 0 ? Math.round(e.revenue / e.completedCount) : 0;
+        return { ...e, ctr, avgCheck: avg };
+      }).sort((a, b) => b.revenue - a.revenue || b.contracts - a.contracts || b.measurements - a.measurements || b.installations - a.installations);
+  }, [filteredOrders, employees, statuses]);
 
   if (loading) {
     return <div className="p-8" style={{ color: 'var(--text-secondary)' }}>Загрузка аналитики...</div>;
@@ -657,19 +771,20 @@ export const Reports = () => {
           <table className="clients-table">
             <thead>
               <tr>
-                <th>Сотрудник / Ответственный</th>
+                <th>Сотрудник</th>
                 <th>Должность</th>
                 <th style={{ textAlign: 'center' }}>Замеров</th>
+                <th style={{ textAlign: 'center' }}>Монтажей</th>
                 <th style={{ textAlign: 'center' }}>Договоров</th>
                 <th style={{ textAlign: 'center' }}>Конверсия (CTR)</th>
-                <th style={{ textAlign: 'right' }}>Выручка</th>
+                <th style={{ textAlign: 'right' }}>Выручка (завершенные)</th>
                 <th style={{ textAlign: 'right' }}>Средний чек</th>
               </tr>
             </thead>
             <tbody>
               {employeePerformanceData.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', opacity: 0.5, padding: '32px' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', opacity: 0.5, padding: '32px' }}>
                     Нет данных по сотрудникам за выбранный период.
                   </td>
                 </tr>
@@ -677,9 +792,27 @@ export const Reports = () => {
                 employeePerformanceData.map(emp => (
                   <tr key={emp.id}>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-primary)' }}>
-                          <Users size={14} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 600 }}>
+                        <div style={{ 
+                          width: '32px', 
+                          height: '32px', 
+                          borderRadius: '50%', 
+                          overflow: 'hidden',
+                          background: emp.avatarUrl ? 'transparent' : getAvatarGradient(emp.name), 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          color: '#fff',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          flexShrink: 0,
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                        }}>
+                          {emp.avatarUrl ? (
+                            <img src={emp.avatarUrl} alt={emp.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            getEmployeeInitials(emp.name)
+                          )}
                         </div>
                         <span>{emp.name}</span>
                       </div>
@@ -687,8 +820,15 @@ export const Reports = () => {
                     <td>
                       <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{emp.position}</span>
                     </td>
-                    <td style={{ textAlign: 'center', fontWeight: 500 }}>{emp.measurements}</td>
-                    <td style={{ textAlign: 'center', fontWeight: 600, color: 'var(--accent-primary)' }}>{emp.contracts}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 600, color: emp.measurements > 0 ? '#a855f7' : 'inherit' }}>
+                      {emp.measurements}
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 600, color: emp.installations > 0 ? '#22c55e' : 'inherit' }}>
+                      {emp.installations}
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 600, color: 'var(--accent-primary)' }}>
+                      {emp.contracts}
+                    </td>
                     <td style={{ textAlign: 'center' }}>
                       <span className={`reports-badge-conversion ${getConversionClass(emp.ctr)}`}>
                         {emp.ctr}%
