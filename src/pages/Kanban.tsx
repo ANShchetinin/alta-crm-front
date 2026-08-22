@@ -1978,30 +1978,41 @@ const Kanban = () => {
                         <span>Аванс: <strong style={{ color: 'var(--text-primary)' }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
                         <span>Остаток: <strong style={{ color: 'var(--text-primary)' }}>{((card.remainder != null ? card.remainder : card.totalPrice) || 0).toLocaleString('ru-RU')} ₽</strong></span>
                       </div>
-                      {card.installedByName && (
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          fontSize: '0.74rem',
-                          fontWeight: 600,
-                          color: '#4ade80',
-                          background: 'rgba(34, 197, 94, 0.08)',
-                          border: '1px solid rgba(34, 197, 94, 0.2)',
-                          padding: '3px 7px',
-                          borderRadius: '4px',
-                          gap: '4px'
-                        }} title={card.installedAt ? `Монтаж завершен: ${new Date(card.installedAt).toLocaleString('ru-RU')}` : 'Монтаж выполнен'}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <CheckCircle2 size={12} style={{ flexShrink: 0 }} /> Монтажник: {card.installedByName}
-                          </span>
-                          {card.installedAt && (
-                            <span style={{ fontSize: '0.68rem', opacity: 0.8, color: 'var(--text-secondary)', flexShrink: 0 }}>
-                              {new Date(card.installedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                      {(() => {
+                        const col = columns.find(c => c.id === card.statusId);
+                        const isCardCompleted = col ? (
+                          col.name.toLowerCase().includes('заверш') ||
+                          col.name.toLowerCase().includes('готов') ||
+                          col.name.toLowerCase().includes('выполнен')
+                        ) : false;
+
+                        if (!isCardCompleted || !card.installedByName || !card.installedAt) {
+                          return null;
+                        }
+
+                        return (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontSize: '0.74rem',
+                            fontWeight: 600,
+                            color: '#4ade80',
+                            background: 'rgba(34, 197, 94, 0.08)',
+                            border: '1px solid rgba(34, 197, 94, 0.2)',
+                            padding: '3px 7px',
+                            borderRadius: '4px',
+                            gap: '4px'
+                          }} title={`Монтаж завершен: ${formatDateTimeInTimezone(card.installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <CheckCircle2 size={12} style={{ flexShrink: 0 }} /> Монтажник: {card.installedByName}
                             </span>
-                          )}
-                        </div>
-                      )}
+                            <span style={{ fontSize: '0.68rem', opacity: 0.8, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                              {formatDateTimeInTimezone(card.installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short' })}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
