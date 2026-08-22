@@ -12,6 +12,7 @@ import {
 import { type CalendarEventDto, getCalendarEvents } from '../api/calendar';
 import { getEmployees, type Employee } from '../api/employees';
 import { useAuthStore } from '../store/useAuthStore';
+import { parseUtcDate } from '../utils/dateUtils';
 import '../styles/calendar.css';
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -168,7 +169,7 @@ export const Calendar: React.FC = () => {
     const today = new Date();
 
     while (curr <= rangeEnd) {
-      const dateKey = curr.toISOString().split('T')[0];
+      const dateKey = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}-${String(curr.getDate()).padStart(2, '0')}`;
       const isCurrentMonth = curr.getMonth() === currentDate.getMonth();
       const isToday = curr.getDate() === today.getDate() && 
                       curr.getMonth() === today.getMonth() && 
@@ -179,7 +180,7 @@ export const Calendar: React.FC = () => {
 
       // Events on this day
       const dayEvents = events.filter(e => {
-        const eDate = new Date(e.start);
+        const eDate = parseUtcDate(e.start) || new Date(e.start);
         return eDate.getFullYear() === curr.getFullYear() &&
                eDate.getMonth() === curr.getMonth() &&
                eDate.getDate() === curr.getDate();
@@ -203,11 +204,15 @@ export const Calendar: React.FC = () => {
   // Selected Day Events list
   const selectedDayEvents = useMemo(() => {
     return events.filter(e => {
-      const eDate = new Date(e.start);
+      const eDate = parseUtcDate(e.start) || new Date(e.start);
       return eDate.getFullYear() === selectedDate.getFullYear() &&
              eDate.getMonth() === selectedDate.getMonth() &&
              eDate.getDate() === selectedDate.getDate();
-    }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    }).sort((a, b) => {
+      const aTime = (parseUtcDate(a.start) || new Date(a.start)).getTime();
+      const bTime = (parseUtcDate(b.start) || new Date(b.start)).getTime();
+      return aTime - bTime;
+    });
   }, [events, selectedDate]);
 
   // Week days builder
@@ -218,7 +223,7 @@ export const Calendar: React.FC = () => {
     const today = new Date();
 
     while (curr <= rangeEnd) {
-      const dateKey = curr.toISOString().split('T')[0];
+      const dateKey = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}-${String(curr.getDate()).padStart(2, '0')}`;
       const isToday = curr.getDate() === today.getDate() && 
                       curr.getMonth() === today.getMonth() && 
                       curr.getFullYear() === today.getFullYear();
@@ -227,7 +232,7 @@ export const Calendar: React.FC = () => {
                          curr.getFullYear() === selectedDate.getFullYear();
 
       const dayEvents = events.filter(e => {
-        const eDate = new Date(e.start);
+        const eDate = parseUtcDate(e.start) || new Date(e.start);
         return eDate.getFullYear() === curr.getFullYear() &&
                eDate.getMonth() === curr.getMonth() &&
                eDate.getDate() === curr.getDate();
@@ -253,11 +258,11 @@ export const Calendar: React.FC = () => {
     if (viewMode !== 'agenda') return [];
     const groups: { [key: string]: { dateStr: string; isToday: boolean; events: CalendarEventDto[] } } = {};
     const today = new Date();
-    const todayKey = today.toISOString().split('T')[0];
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     events.forEach(e => {
-      const eDate = new Date(e.start);
-      const key = eDate.toISOString().split('T')[0];
+      const eDate = parseUtcDate(e.start) || new Date(e.start);
+      const key = `${eDate.getFullYear()}-${String(eDate.getMonth() + 1).padStart(2, '0')}-${String(eDate.getDate()).padStart(2, '0')}`;
       if (!groups[key]) {
         groups[key] = {
           dateStr: eDate.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }),
@@ -285,10 +290,11 @@ export const Calendar: React.FC = () => {
   };
 
   const renderEventCard = (ev: CalendarEventDto) => {
+    const startDate = parseUtcDate(ev.start) || new Date(ev.start);
     const timeStr = !ev.allDay
-      ? new Date(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+      ? startDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
       : 'В течение дня';
-    const isOverdue = ev.isOverdue;
+    const isOverdue = ev.isOverdue || (ev.status !== 'COMPLETED' && startDate.getTime() < Date.now());
     const typeClass = ev.type.toLowerCase();
 
     return (
