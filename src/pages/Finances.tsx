@@ -58,7 +58,7 @@ export const Finances = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
   // Filters
-  const [period, setPeriod] = useState<PeriodFilter>('ALL');
+  const [period, setPeriod] = useState<PeriodFilter>('THIS_MONTH');
   const [searchQuery, setSearchQuery] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatusFilter>('ALL');
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState<string>('ALL');
@@ -114,17 +114,20 @@ export const Finances = () => {
   const dateRange = useMemo(() => {
     const now = new Date();
     let from: Date | null = null;
-    let to: Date | null = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    let to: Date | null = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
     if (period === 'THIS_MONTH') {
       from = new Date(now.getFullYear(), now.getMonth(), 1);
+      to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     } else if (period === 'LAST_MONTH') {
       from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
     } else if (period === 'THREE_MONTHS') {
       from = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     } else if (period === 'THIS_YEAR') {
       from = new Date(now.getFullYear(), 0, 1);
+      to = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
     } else if (period === 'ALL') {
       from = null;
       to = null;
