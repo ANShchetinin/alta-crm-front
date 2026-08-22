@@ -4,7 +4,7 @@ import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Ey
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, completeOrder, createOrder, updateOrder, uploadAttachment, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, completeOrder, createOrder, updateOrder, uploadAttachment, toggleAttachmentIsAct, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary, ContractParams } from '../api/kanban';
 import { getClients, createClient, updateClient } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -794,10 +794,24 @@ const Kanban = () => {
     }
   };
 
-  const isActFile = (fileName?: string) => {
+  const isActFile = (fileName?: string, isActFlag?: boolean): boolean => {
+    if (isActFlag) return true;
     if (!fileName) return false;
-    const lower = fileName.trim().toLowerCase();
-    return lower.includes('акт') || lower.includes('act') || lower.includes('akt');
+    const name = fileName.trim().toLowerCase();
+
+    // Exclude common false positives containing 'act' or 'акт' inside other words
+    // e.g. контракт, contract, contact, контакт, фактура, factur, reaction, action, practice, abstract, etc.
+    if (/контракт|contract|contact|контакт|фактур|factur|react|action|abstract|fraction|impact|practice|практик/i.test(name)) {
+      // Unless explicitly named "акт выполненных работ" or starts with "акт" / "act"
+      if (!/^(акт|act)[\s_\-.]/i.test(name) && !/акт\s+выполнен/i.test(name) && !/акт\s+при[её]м/i.test(name)) {
+        return false;
+      }
+    }
+
+    return /(^|[\s_\-–—(])(акт|act)($|[\s_\-–—).])/i.test(name)
+      || /акт\s*выполнен/i.test(name)
+      || /акт\s*при[её]м/i.test(name)
+      || /completion\s*act/i.test(name);
   };
 
   const handleCompleteInstallation = async (e: React.MouseEvent, orderId: number) => {
@@ -806,8 +820,8 @@ const Kanban = () => {
     const currentAttachments = (editingOrderId === orderId && formData.attachments.length > 0)
       ? formData.attachments 
       : (card?.attachments || []);
-    const hasAct = currentAttachments.some(a => isActFile(a.fileName));
-    if (isWorker && !hasAct) {
+    const hasAct = currentAttachments.some(a => isActFile(a.fileName, a.isAct));
+    if (!hasAct) {
       alert('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы».');
       return;
     }
@@ -874,7 +888,8 @@ const Kanban = () => {
     if (editingOrderId) {
       setUploadingFile(true);
       try {
-        const newAttachment = await uploadAttachment(editingOrderId, file);
+        const isAct = isActFile(file.name);
+        const newAttachment = await uploadAttachment(editingOrderId, file, isAct);
         setFormData(prev => ({
           ...prev,
           attachments: [...prev.attachments, newAttachment]
@@ -914,7 +929,7 @@ const Kanban = () => {
     if (editingOrderId) {
       setUploadingFile(true);
       try {
-        const newAttachment = await uploadAttachment(editingOrderId, file);
+        const newAttachment = await uploadAttachment(editingOrderId, file, true);
         setFormData(prev => ({
           ...prev,
           attachments: [...prev.attachments, newAttachment]
@@ -934,6 +949,24 @@ const Kanban = () => {
     } else {
       setPendingFiles(prev => [...prev, file]);
       e.target.value = '';
+    }
+  };
+
+  const handleToggleAttachmentIsAct = async (att: OrderAttachment) => {
+    try {
+      const currentIsAct = isActFile(att.fileName, att.isAct);
+      const updated = await toggleAttachmentIsAct(att.id, !currentIsAct);
+      setFormData(prev => ({
+        ...prev,
+        attachments: prev.attachments.map(a => a.id === att.id ? { ...a, isAct: updated.isAct } : a)
+      }));
+      setCards(prev => prev.map(c => c.id === editingOrderId ? {
+        ...c,
+        attachments: (c.attachments || []).map(a => a.id === att.id ? { ...a, isAct: updated.isAct } : a)
+      } : c));
+    } catch (err: any) {
+      console.error("Failed to toggle attachment act flag", err);
+      alert(err.response?.data?.message || "Не удалось изменить статус Акта");
     }
   };
 
@@ -2029,10 +2062,20 @@ const Kanban = () => {
                         }
 
                         const hasInstaller = Boolean(card.installedById || card.installedByName);
+                        const hasAct = card.attachments?.some(a => isActFile(a.fileName, a.isAct));
+                        const canComplete = hasInstaller && hasAct;
+
+                        let cardDisabledTitle = 'Завершить монтаж и перевести заявку в завершенный статус';
+                        if (!hasInstaller) {
+                          cardDisabledTitle = 'Для завершения монтажа необходимо назначить монтажника в деталях заявки';
+                        } else if (!hasAct) {
+                          cardDisabledTitle = 'Для завершения монтажа необходимо прикрепить Акт выполненных работ в деталях заявки';
+                        }
+
                         return (
                           <button
                             type="button"
-                            disabled={!hasInstaller}
+                            disabled={!canComplete}
                             onClick={(e) => handleCompleteInstallation(e, card.id)}
                             style={{
                               display: 'flex',
@@ -2040,18 +2083,18 @@ const Kanban = () => {
                               justifyContent: 'center',
                               gap: '6px',
                               padding: '5px 8px',
-                              background: hasInstaller ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(16, 185, 129, 0.06))' : 'rgba(255, 255, 255, 0.04)',
-                              border: hasInstaller ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid var(--glass-border)',
+                              background: canComplete ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(16, 185, 129, 0.06))' : 'rgba(255, 255, 255, 0.04)',
+                              border: canComplete ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid var(--glass-border)',
                               borderRadius: 'var(--radius-sm)',
-                              color: hasInstaller ? '#4ade80' : 'var(--text-secondary)',
+                              color: canComplete ? '#4ade80' : 'var(--text-secondary)',
                               fontSize: '0.76rem',
                               fontWeight: 600,
-                              cursor: hasInstaller ? 'pointer' : 'not-allowed',
-                              opacity: hasInstaller ? 1 : 0.45,
+                              cursor: canComplete ? 'pointer' : 'not-allowed',
+                              opacity: canComplete ? 1 : 0.45,
                               transition: 'all 0.15s ease',
                               marginTop: '2px'
                             }}
-                            title={!hasInstaller ? 'Для завершения монтажа необходимо назначить монтажника в деталях заявки' : 'Завершить монтаж и перевести заявку в завершенный статус'}
+                            title={cardDisabledTitle}
                           >
                             <CheckCircle2 size={13} /> Завершить монтаж
                           </button>
@@ -2581,9 +2624,9 @@ const Kanban = () => {
                       );
                     })()}
 
-                    {/* Баннер статуса Акта выполненных работ (для монтажников) */}
-                    {isWorker && (() => {
-                      const hasAct = formData.attachments.some(a => isActFile(a.fileName)) || pendingFiles.some(f => isActFile(f.name));
+                    {/* Баннер статуса Акта выполненных работ */}
+                    {(() => {
+                      const hasAct = formData.attachments.some(a => isActFile(a.fileName, a.isAct)) || pendingFiles.some(f => isActFile(f.name));
                       return (
                         <div style={{
                           marginBottom: '16px',
@@ -3633,7 +3676,7 @@ const Kanban = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
                     {/* Выделенный блок для Акта выполненных работ */}
                     {(() => {
-                      const actAttachment = formData.attachments.find(a => isActFile(a.fileName));
+                      const actAttachment = formData.attachments.find(a => isActFile(a.fileName, a.isAct));
                       const pendingActFile = pendingFiles.find(f => isActFile(f.name));
                       const hasAct = !!(actAttachment || pendingActFile);
 
@@ -3745,14 +3788,15 @@ const Kanban = () => {
                       <div className="attachments-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {formData.attachments.map(att => {
                           const canPreview = isViewableInBrowser(att.fileName, att.contentType);
+                          const isAttAct = isActFile(att.fileName, att.isAct);
                           return (
                             <div key={att.id} className="attachment-item" style={{
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
                               padding: '10px 14px',
-                              background: 'rgba(255, 255, 255, 0.02)',
-                              border: '1px solid var(--glass-border)',
+                              background: isAttAct ? 'rgba(34, 197, 94, 0.04)' : 'rgba(255, 255, 255, 0.02)',
+                              border: isAttAct ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid var(--glass-border)',
                               borderRadius: 'var(--radius-sm)',
                               gap: '12px'
                             }}>
@@ -3812,13 +3856,49 @@ const Kanban = () => {
                                 </div>
                               ) : (
                                 <>
-                                  <span 
-                                    style={{fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '50%'}}
-                                    title={att.fileName}
-                                  >
-                                    {att.fileName}
-                                  </span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', maxWidth: '55%' }}>
+                                    {isAttAct && (
+                                      <span style={{
+                                        fontSize: '0.72rem',
+                                        background: 'rgba(34, 197, 94, 0.18)',
+                                        color: '#4ade80',
+                                        padding: '2px 7px',
+                                        borderRadius: '6px',
+                                        fontWeight: 600,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        flexShrink: 0
+                                      }}>
+                                        <FileCheck size={11} /> Акт
+                                      </span>
+                                    )}
+                                    <span 
+                                      style={{fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}
+                                      title={att.fileName}
+                                    >
+                                      {att.fileName}
+                                    </span>
+                                  </div>
                                   <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                    {!isWorker && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleAttachmentIsAct(att)}
+                                        className="btn btn-ghost"
+                                        style={{
+                                          padding: '4px 8px',
+                                          fontSize: '0.75rem',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          color: isAttAct ? '#4ade80' : 'var(--text-secondary)'
+                                        }}
+                                        title={isAttAct ? 'Снять отметку Акта выполненных работ' : 'Отметить как Акт выполненных работ'}
+                                      >
+                                        <FileCheck size={13} /> {isAttAct ? 'Акт' : 'Сделать Актом'}
+                                      </button>
+                                    )}
                                     {!isWorker && (
                                       <button 
                                         type="button" 
@@ -3866,22 +3946,44 @@ const Kanban = () => {
                             </div>
                           );
                         })}
-                        {pendingFiles.map((pf, index) => (
-                          <div key={`pending-${index}`} className="attachment-item" style={{
-                            borderStyle: 'dashed',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '10px 14px',
-                            background: 'rgba(255, 255, 255, 0.01)',
-                            borderRadius: 'var(--radius-sm)'
-                          }}>
-                            <span style={{fontSize: '0.9rem'}}>{pf.name} (ожидает сохранения)</span>
-                            <button type="button" onClick={() => removePendingFile(index)} style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center'}}>
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        ))}
+                        {pendingFiles.map((pf, index) => {
+                          const isPfAct = isActFile(pf.name);
+                          return (
+                            <div key={`pending-${index}`} className="attachment-item" style={{
+                              borderStyle: 'dashed',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '10px 14px',
+                              background: isPfAct ? 'rgba(34, 197, 94, 0.04)' : 'rgba(255, 255, 255, 0.01)',
+                              borderColor: isPfAct ? 'rgba(34, 197, 94, 0.35)' : 'var(--glass-border)',
+                              borderRadius: 'var(--radius-sm)'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                                {isPfAct && (
+                                  <span style={{
+                                    fontSize: '0.72rem',
+                                    background: 'rgba(34, 197, 94, 0.18)',
+                                    color: '#4ade80',
+                                    padding: '2px 7px',
+                                    borderRadius: '6px',
+                                    fontWeight: 600,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    flexShrink: 0
+                                  }}>
+                                    <FileCheck size={11} /> Акт
+                                  </span>
+                                )}
+                                <span style={{fontSize: '0.9rem'}}>{pf.name} (ожидает сохранения)</span>
+                              </div>
+                              <button type="button" onClick={() => removePendingFile(index)} style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center'}}>
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <div style={{
@@ -3977,13 +4079,13 @@ const Kanban = () => {
 
                     if (!isCompleted) {
                       const hasInstaller = Boolean(formData.installedById || currentOrder?.installedById || currentOrder?.installedByName);
-                      const hasAct = formData.attachments.some(a => isActFile(a.fileName)) || pendingFiles.some(f => isActFile(f.name));
-                      const canComplete = hasInstaller && (!isWorker || hasAct);
+                      const hasAct = formData.attachments.some(a => isActFile(a.fileName, a.isAct)) || pendingFiles.some(f => isActFile(f.name));
+                      const canComplete = hasInstaller && hasAct;
 
                       let disabledTitle = 'Завершить монтаж и перевести заявку в статус «Завершен»';
                       if (!hasInstaller) {
                         disabledTitle = 'Для завершения монтажа необходимо выбрать монтажника';
-                      } else if (isWorker && !hasAct) {
+                      } else if (!hasAct) {
                         disabledTitle = 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»';
                       }
 
