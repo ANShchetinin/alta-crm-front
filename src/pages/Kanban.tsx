@@ -2193,7 +2193,7 @@ const Kanban = () => {
                       flexShrink: 0
                     }}
                   >
-                    <Tag size={15} /> Материалы и услуги {formData.materials.length > 0 && `(${formData.materials.length})`}
+                    <Tag size={15} /> {t('kanban.modal.materials') || 'Каталог'} {formData.materials.length > 0 && `(${formData.materials.length})`}
                   </button>
                 )}
                 <button
