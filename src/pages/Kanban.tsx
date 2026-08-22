@@ -1238,13 +1238,17 @@ const Kanban = () => {
         const cardReminders = remindersMap[card.id] || [];
         const hasToday = cardReminders.some(r => {
           if (r.status !== 'PENDING') return false;
-          const d = new Date(r.remindAt);
+          const d = parseUtcDate(r.remindAt) || new Date(r.remindAt);
           return d.toDateString() === new Date().toDateString();
         });
         if (!hasToday) return false;
       } else if (reminderFilter === 'overdue') {
         const cardReminders = remindersMap[card.id] || [];
-        const hasOverdue = cardReminders.some(r => r.status === 'PENDING' && r.isOverdue);
+        const hasOverdue = cardReminders.some(r => {
+          if (r.status !== 'PENDING') return false;
+          const d = parseUtcDate(r.remindAt) || new Date(r.remindAt);
+          return r.isOverdue || (d.getTime() < Date.now());
+        });
         if (!hasOverdue) return false;
       }
 
