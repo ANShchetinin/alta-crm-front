@@ -8,7 +8,8 @@ export type FeatureKey =
   | 'CALENDAR'
   | 'REPORTS'
   | 'WEB_PUSH'
-  | 'WHITE_LABEL';
+  | 'WHITE_LABEL'
+  | 'DOCUMENT_SCANNER';
 
 export interface FeatureInfo {
   key: FeatureKey;
