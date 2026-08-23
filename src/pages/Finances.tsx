@@ -24,10 +24,11 @@ import {
   RefreshCw, 
   X, 
   Check,
-  Box 
+  Box,
+  SlidersHorizontal
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { getOrders, getOrderStatuses, togglePrepaymentPaid, toggleRemainderPaid, type Order, type OrderStatus } from '../api/kanban';
+import { getOrders, getOrderStatuses, updateFinanceStatuses, togglePrepaymentPaid, toggleRemainderPaid, type Order, type OrderStatus } from '../api/kanban';
 import { getEmployees, type Employee } from '../api/employees';
 import { 
   getExpenses, 
@@ -56,6 +57,11 @@ export const Finances = () => {
   const [statuses, setStatuses] = useState<OrderStatus[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  // Status Configuration Modal State
+  const [isStatusConfigModalOpen, setIsStatusConfigModalOpen] = useState(false);
+  const [tempStatusSettings, setTempStatusSettings] = useState<Record<number, boolean>>({});
+  const [savingStatusSettings, setSavingStatusSettings] = useState(false);
 
   // Filters
   const [period, setPeriod] = useState<PeriodFilter>('THIS_MONTH');
@@ -154,6 +160,14 @@ export const Finances = () => {
     return n.includes('заверш') || n.includes('готов') || n.includes('выполнен') || n.includes('complete');
   };
 
+  // Filter orders that belong to statuses included in finances
+  const financeOrders = useMemo(() => {
+    return orders.filter(order => {
+      const st = statuses.find(s => s.id === order.statusId);
+      return st ? st.includeInFinances !== false : true;
+    });
+  }, [orders, statuses]);
+
   // Metrics Calculation (Cash-Basis Method)
   const metrics = useMemo(() => {
     let receivedPrepayments = 0;
@@ -163,7 +177,7 @@ export const Finances = () => {
     let completedInstallationsCost = 0;
     let materialsCost = 0;
 
-    orders.forEach(order => {
+    financeOrders.forEach(order => {
       const prep = order.prepayment || 0;
       const rem = order.remainder != null ? order.remainder : Math.max(0, (order.totalPrice || 0) - prep);
       const isCompleted = isCompletedStatus(order.statusId);
@@ -216,7 +230,7 @@ export const Finances = () => {
       totalCashOutflow,
       netCashProfit
     };
-  }, [orders, expenses, statuses, dateRange]);
+  }, [financeOrders, expenses, statuses, dateRange]);
 
   // Payment Toggle Handlers
   const handleTogglePrepayment = async (orderId: number, currentStatus: boolean) => {
@@ -315,9 +329,33 @@ export const Finances = () => {
     }
   };
 
+  // Status Config Modal Handlers
+  const handleOpenStatusConfig = () => {
+    const initialMap: Record<number, boolean> = {};
+    statuses.forEach(s => {
+      initialMap[s.id] = s.includeInFinances !== false;
+    });
+    setTempStatusSettings(initialMap);
+    setIsStatusConfigModalOpen(true);
+  };
+
+  const handleSaveStatusSettings = async () => {
+    setSavingStatusSettings(true);
+    try {
+      const updated = await updateFinanceStatuses(tempStatusSettings);
+      setStatuses(updated.sort((a, b) => a.sortOrder - b.sortOrder));
+      setIsStatusConfigModalOpen(false);
+    } catch (err) {
+      console.error('Failed to update finance statuses', err);
+      alert('Не удалось сохранить настройки статусов');
+    } finally {
+      setSavingStatusSettings(false);
+    }
+  };
+
   // Filtered Orders for Transactions Tab
   const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
+    return financeOrders.filter(order => {
       // Search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -354,11 +392,11 @@ export const Finances = () => {
 
       return true;
     });
-  }, [orders, searchQuery, paymentFilter, period, dateRange]);
+  }, [financeOrders, searchQuery, paymentFilter, period, dateRange]);
 
   // Debtor Orders
   const debtorOrders = useMemo(() => {
-    return orders.filter(order => {
+    return financeOrders.filter(order => {
       const hasPrepaymentDebt = !order.prepaymentPaid && (order.prepayment || 0) > 0;
       const hasRemainderDebt = !order.remainderPaid && (order.remainder != null ? order.remainder : ((order.totalPrice || 0) - (order.prepayment || 0))) > 0;
       return hasPrepaymentDebt || hasRemainderDebt;
@@ -367,7 +405,7 @@ export const Finances = () => {
       const debtB = (!b.prepaymentPaid ? (b.prepayment || 0) : 0) + (!b.remainderPaid ? (b.remainder || 0) : 0);
       return debtB - debtA;
     });
-  }, [orders]);
+  }, [financeOrders]);
 
   // Installers Summary
   const installersSummary = useMemo(() => {
@@ -391,7 +429,7 @@ export const Finances = () => {
       });
     });
 
-    orders.forEach(order => {
+    financeOrders.forEach(order => {
       const installerId = order.installedById || order.assigneeId;
       if (!installerId || !map.has(installerId)) return;
 
@@ -415,7 +453,7 @@ export const Finances = () => {
     return Array.from(map.values())
       .filter(item => item.orders.length > 0 || item.employee.position?.toLowerCase().includes('монтаж'))
       .sort((a, b) => b.completedEarnings - a.completedEarnings);
-  }, [employees, orders, statuses, dateRange]);
+  }, [employees, financeOrders, statuses, dateRange]);
 
   // Filtered Expenses
   const filteredExpenses = useMemo(() => {
@@ -459,38 +497,73 @@ export const Finances = () => {
           </p>
         </div>
 
-        {/* Period Selector */}
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {(['THIS_MONTH', 'LAST_MONTH', 'THREE_MONTHS', 'THIS_YEAR', 'ALL'] as PeriodFilter[]).map(pKey => {
-            const labels: Record<PeriodFilter, string> = {
-              THIS_MONTH: 'Этот месяц',
-              LAST_MONTH: 'Прошлый месяц',
-              THREE_MONTHS: '3 месяца',
-              THIS_YEAR: 'Этот год',
-              ALL: 'Все время'
-            };
-            const active = period === pKey;
-            return (
-              <button
-                key={pKey}
-                type="button"
-                onClick={() => setPeriod(pKey)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.82rem',
-                  fontWeight: active ? 600 : 400,
-                  border: active ? '1px solid var(--accent-primary)' : '1px solid var(--glass-border)',
-                  background: active ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.03)',
-                  color: active ? '#fff' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                {labels[pKey]}
-              </button>
-            );
-          })}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Statuses Filter / Config button */}
+          <button
+            type="button"
+            onClick={handleOpenStatusConfig}
+            className="btn btn-ghost"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.82rem',
+              border: '1px solid var(--glass-border)',
+              background: 'rgba(255, 255, 255, 0.03)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer'
+            }}
+            title="Настроить статусы заявок, учитываемые в расчетах финансов"
+          >
+            <SlidersHorizontal size={14} style={{ color: 'var(--accent-primary)' }} />
+            <span>Статусы в финансах:</span>
+            <span style={{
+              fontSize: '0.75rem',
+              background: 'rgba(59, 130, 246, 0.15)',
+              color: 'var(--accent-primary)',
+              padding: '2px 7px',
+              borderRadius: '10px',
+              fontWeight: 600
+            }}>
+              {statuses.filter(s => s.includeInFinances !== false).length} из {statuses.length}
+            </span>
+          </button>
+
+          {/* Period Selector */}
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {(['THIS_MONTH', 'LAST_MONTH', 'THREE_MONTHS', 'THIS_YEAR', 'ALL'] as PeriodFilter[]).map(pKey => {
+              const labels: Record<PeriodFilter, string> = {
+                THIS_MONTH: 'Этот месяц',
+                LAST_MONTH: 'Прошлый месяц',
+                THREE_MONTHS: '3 месяца',
+                THIS_YEAR: 'Этот год',
+                ALL: 'Все время'
+              };
+              const active = period === pKey;
+              return (
+                <button
+                  key={pKey}
+                  type="button"
+                  onClick={() => setPeriod(pKey)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.82rem',
+                    fontWeight: active ? 600 : 400,
+                    border: active ? '1px solid var(--accent-primary)' : '1px solid var(--glass-border)',
+                    background: active ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.03)',
+                    color: active ? '#fff' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {labels[pKey]}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -1870,6 +1943,159 @@ export const Finances = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Status Configuration Modal */}
+      {isStatusConfigModalOpen && createPortal(
+        <div className="modal-overlay" onClick={() => !savingStatusSettings && setIsStatusConfigModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '95%' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <SlidersHorizontal size={20} style={{ color: 'var(--accent-primary)' }} />
+                <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Статусы, учитываемые в финансах</h2>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setIsStatusConfigModalOpen(false)}
+                className="btn-icon"
+                aria-label="Close"
+                disabled={savingStatusSettings}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '16px 20px' }}>
+              <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Отметьте этапы и статусы воронки, заявки из которых должны формировать кассу, выручку, дебиторку и финансовые отчеты (P&L):
+              </p>
+
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allTrue: Record<number, boolean> = {};
+                    statuses.forEach(s => { allTrue[s.id] = true; });
+                    setTempStatusSettings(allTrue);
+                  }}
+                  style={{
+                    fontSize: '0.78rem',
+                    padding: '5px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid var(--glass-border)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Выбрать все
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allFalse: Record<number, boolean> = {};
+                    statuses.forEach(s => { allFalse[s.id] = false; });
+                    setTempStatusSettings(allFalse);
+                  }}
+                  style={{
+                    fontSize: '0.78rem',
+                    padding: '5px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid var(--glass-border)',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Снять все
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '360px', overflowY: 'auto' }}>
+                {statuses.map(st => {
+                  const isChecked = tempStatusSettings[st.id] !== false;
+                  const count = orders.filter(o => o.statusId === st.id).length;
+
+                  return (
+                    <label
+                      key={st.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: isChecked ? 'rgba(59, 130, 246, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                        border: isChecked ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--glass-border)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span 
+                          style={{ 
+                            width: '12px', 
+                            height: '12px', 
+                            borderRadius: '50%', 
+                            backgroundColor: st.color || '#3b82f6',
+                            flexShrink: 0
+                          }} 
+                        />
+                        <span style={{ fontWeight: 600, fontSize: '0.9rem', color: isChecked ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                          {st.name}
+                        </span>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-secondary)',
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          padding: '2px 7px',
+                          borderRadius: '8px'
+                        }}>
+                          {count} заявок
+                        </span>
+                      </div>
+
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          setTempStatusSettings(prev => ({ ...prev, [st.id]: e.target.checked }));
+                        }}
+                        style={{
+                          width: '18px',
+                          height: '18px',
+                          accentColor: 'var(--accent-primary)',
+                          cursor: 'pointer'
+                        }}
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setIsStatusConfigModalOpen(false)}
+                className="btn btn-ghost"
+                disabled={savingStatusSettings}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveStatusSettings}
+                disabled={savingStatusSettings}
+                className="btn btn-primary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Check size={16} /> {savingStatusSettings ? 'Сохранение...' : 'Применить и сохранить'}
+              </button>
+            </div>
           </div>
         </div>,
         document.body
