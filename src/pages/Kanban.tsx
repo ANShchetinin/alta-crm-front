@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, ChevronsDown, ChevronsUp, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Bell, Camera, MessageSquare, Sparkles, Send, Copy, FileDown, Bot, Coins } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, ChevronsDown, ChevronsUp, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Bell, Camera, MessageSquare, Sparkles, Send, Copy, FileDown, Bot, Coins } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -255,7 +255,16 @@ const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({ value, clients,
                   </span>
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1px' }}>
-                  {selectedClient.phone && <span>📞 {selectedClient.phone}</span>}
+                  {selectedClient.phone && (
+                    <a
+                      href={`tel:${selectedClient.phone.replace(/[^\d+]/g, '')}`}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ color: '#22c55e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}
+                      title={`Позвонить клиенту: ${selectedClient.phone}`}
+                    >
+                      <Phone size={12} /> {selectedClient.phone}
+                    </a>
+                  )}
                   {selectedClient.inn && <span>ИНН: {selectedClient.inn}</span>}
                 </div>
               </div>
@@ -432,8 +441,17 @@ const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({ value, clients,
                             {isLegal ? 'Юр. лицо' : 'Физ. лицо'}
                           </span>
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', marginTop: '1px' }}>
-                          {c.phone && <span>{c.phone}</span>}
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1px' }}>
+                          {c.phone && (
+                            <a
+                              href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ color: '#22c55e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}
+                              title={`Позвонить клиенту: ${c.phone}`}
+                            >
+                              <Phone size={11} /> {c.phone}
+                            </a>
+                          )}
                           {c.inn && <span>ИНН: {c.inn}</span>}
                         </div>
                       </div>
@@ -564,11 +582,19 @@ const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
                 <span style={{ fontWeight: 600, fontSize: '0.86rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {selectedEmployee.name}
                 </span>
-                {selectedEmployee.position && (
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {selectedEmployee.position}
-                  </span>
-                )}
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {selectedEmployee.position && <span>{selectedEmployee.position}</span>}
+                  {selectedEmployee.phone && (
+                    <a
+                      href={`tel:${selectedEmployee.phone.replace(/[^\d+]/g, '')}`}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ color: '#22c55e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}
+                      title={`Позвонить: ${selectedEmployee.phone}`}
+                    >
+                      <Phone size={10} /> {selectedEmployee.phone}
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -748,9 +774,18 @@ const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
                         <span style={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.84rem', color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {e.name}
                         </span>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {e.position && <span>{e.position}</span>}
-                          {e.phone && <span>• {e.phone}</span>}
+                          {e.phone && (
+                            <a
+                              href={`tel:${e.phone.replace(/[^\d+]/g, '')}`}
+                              onClick={(ev) => ev.stopPropagation()}
+                              style={{ color: '#22c55e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}
+                              title={`Позвонить: ${e.phone}`}
+                            >
+                              <Phone size={10} /> {e.phone}
+                            </a>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2419,17 +2454,18 @@ const Kanban = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, marginTop: '1px' }}>
             {cPhone && (
               <a
-                href={`tel:${cPhone}`}
+                href={`tel:${cPhone.replace(/[^\d+]/g, '')}`}
                 onClick={(e) => e.stopPropagation()}
-                title={`Позвонить: ${cPhone}`}
+                title={`Позвонить клиенту: ${cPhone}`}
                 className="card-phone-btn"
                 style={{
                   borderRadius: '50%',
                   background: 'rgba(34, 197, 94, 0.15)',
+                  border: '1px solid rgba(34, 197, 94, 0.35)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#16a34a',
+                  color: '#22c55e',
                   textDecoration: 'none',
                   flexShrink: 0,
                   transition: 'background 0.15s ease'
@@ -2467,50 +2503,64 @@ const Kanban = () => {
 
         {/* 2. Address Row */}
         {card.address && (
-          <div style={{ marginBottom: '5px' }}>
+          <div style={{ marginBottom: '6px' }}>
             <div className="card-address-row">
-              <MapPin size={14} style={{ flexShrink: 0, opacity: 0.8 }} />
-              <span style={{ fontWeight: 400 }}>{card.address}</span>
+              <MapPin size={14} style={{ flexShrink: 0, opacity: 0.8, color: 'var(--accent-primary)' }} />
+              <span style={{ fontWeight: 500 }}>
+                {card.address}
+                {card.entrance ? `, п.${card.entrance}` : ''}
+                {card.floor ? `, эт.${card.floor}` : ''}
+              </span>
             </div>
 
             {/* 3. Map Buttons */}
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '3px' }}>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
               <a
-                href={getYandexMapsUrl(card.address)}
+                href={getYandexMapsUrl(card.address, card.entrance, card.floor)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                title="Открыть в Яндекс.Картах"
+                title="Маршрут в Яндекс.Картах / Навигаторе"
                 className="kanban-map-pill"
+                style={{
+                  color: '#fc3f1d',
+                  borderColor: 'rgba(252, 63, 29, 0.35)',
+                  background: 'rgba(252, 63, 29, 0.08)'
+                }}
               >
                 <span style={{
-                  width: '15px',
-                  height: '15px',
+                  width: '16px',
+                  height: '16px',
                   borderRadius: '50%',
-                  background: '#64748b',
+                  background: '#fc3f1d',
                   color: '#fff',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '9px',
-                  fontWeight: 700
+                  fontWeight: 800
                 }}>
                   Я
                 </span>
-                <span>Yandex.Maps</span>
+                <span style={{ fontWeight: 600 }}>Яндекс</span>
               </a>
 
               <a
-                href={get2GisUrl(card.address)}
+                href={get2GisUrl(card.address, card.entrance, card.floor)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                title="Открыть в 2ГИС"
+                title="Маршрут в 2ГИС"
                 className="kanban-map-pill"
+                style={{
+                  color: '#22c55e',
+                  borderColor: 'rgba(34, 197, 94, 0.35)',
+                  background: 'rgba(34, 197, 94, 0.08)'
+                }}
               >
                 <span style={{
-                  width: '15px',
-                  height: '15px',
+                  width: '16px',
+                  height: '16px',
                   borderRadius: '50%',
                   background: '#22c55e',
                   color: '#fff',
@@ -2518,11 +2568,11 @@ const Kanban = () => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '9px',
-                  fontWeight: 700
+                  fontWeight: 800
                 }}>
                   2Г
                 </span>
-                <span>2GIS</span>
+                <span style={{ fontWeight: 600 }}>2ГИС</span>
               </a>
             </div>
           </div>
@@ -3453,20 +3503,21 @@ const Kanban = () => {
                             </div>
                             {cPhone && (
                               <a
-                                href={`tel:${cPhone}`}
+                                href={`tel:${cPhone.replace(/[^\d+]/g, '')}`}
                                 style={{
-                                  color: 'var(--success)',
-                                  padding: '4px 10px',
+                                  color: '#22c55e',
+                                  padding: '5px 12px',
                                   background: 'rgba(34, 197, 94, 0.12)',
-                                  border: '1px solid rgba(34, 197, 94, 0.25)',
+                                  border: '1px solid rgba(34, 197, 94, 0.3)',
                                   borderRadius: 'var(--radius-sm)',
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '5px',
+                                  gap: '6px',
                                   textDecoration: 'none',
                                   fontSize: '0.85rem',
                                   fontWeight: 600
                                 }}
+                                title={`Позвонить клиенту: ${cPhone}`}
                               >
                                 <Phone size={14} /> {cPhone}
                               </a>
@@ -3495,22 +3546,23 @@ const Kanban = () => {
                                 }}>
                                   {selectedClient.phone && (
                                     <a
-                                      href={`tel:${selectedClient.phone}`}
+                                      href={`tel:${selectedClient.phone.replace(/[^\d+]/g, '')}`}
                                       style={{
-                                        fontSize: '0.82rem',
-                                        color: 'var(--accent-primary)',
+                                        fontSize: '0.84rem',
+                                        color: '#22c55e',
                                         textDecoration: 'none',
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: '5px',
-                                        padding: '4px 10px',
-                                        background: 'rgba(59, 130, 246, 0.08)',
-                                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                                        gap: '6px',
+                                        padding: '5px 12px',
+                                        background: 'rgba(34, 197, 94, 0.12)',
+                                        border: '1px solid rgba(34, 197, 94, 0.3)',
                                         borderRadius: 'var(--radius-sm)',
                                         fontWeight: 600
                                       }}
+                                      title={`Позвонить клиенту: ${selectedClient.phone}`}
                                     >
-                                      <Phone size={13} /> {selectedClient.phone}
+                                      <Phone size={14} /> {selectedClient.phone}
                                     </a>
                                   )}
                                   {selectedClient.leadSource && (
@@ -3691,46 +3743,78 @@ const Kanban = () => {
                       )}
                       {formData.address && (
                         <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('kanban.modal.route') || 'Маршрут'}:</span>
+                          <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                            {t('kanban.modal.route') || 'Навигатор'}:
+                          </span>
                           <a
-                            href={getYandexMapsUrl(formData.address, formData.entrance)}
+                            href={getYandexMapsUrl(formData.address, formData.entrance, formData.floor)}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{
                               padding: '5px 12px',
-                              fontSize: '0.8rem',
+                              fontSize: '0.82rem',
                               fontWeight: 600,
-                              color: '#ff3333',
-                              background: 'rgba(255, 51, 51, 0.1)',
-                              border: '1px solid rgba(255, 51, 51, 0.25)',
+                              color: '#fc3f1d',
+                              background: 'rgba(252, 63, 29, 0.1)',
+                              border: '1px solid rgba(252, 63, 29, 0.3)',
                               borderRadius: 'var(--radius-sm)',
                               textDecoration: 'none',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '5px'
+                              gap: '6px'
                             }}
+                            title="Построить маршрут в Яндекс.Картах / Навигаторе"
                           >
-                            <Navigation size={13} /> {t('kanban.modal.routeYandex') || 'Яндекс.Карты'}
+                            <span style={{
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              background: '#fc3f1d',
+                              color: '#fff',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '9px',
+                              fontWeight: 800
+                            }}>
+                              Я
+                            </span>
+                            Яндекс
                           </a>
                           <a
-                            href={get2GisUrl(formData.address, formData.entrance)}
+                            href={get2GisUrl(formData.address, formData.entrance, formData.floor)}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{
                               padding: '5px 12px',
-                              fontSize: '0.8rem',
+                              fontSize: '0.82rem',
                               fontWeight: 600,
                               color: '#22c55e',
                               background: 'rgba(34, 197, 94, 0.1)',
-                              border: '1px solid rgba(34, 197, 94, 0.25)',
+                              border: '1px solid rgba(34, 197, 94, 0.3)',
                               borderRadius: 'var(--radius-sm)',
                               textDecoration: 'none',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '5px'
+                              gap: '6px'
                             }}
+                            title="Построить маршрут в 2ГИС"
                           >
-                            <Navigation size={13} /> {t('kanban.modal.route2gis') || '2ГИС'}
+                            <span style={{
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              background: '#22c55e',
+                              color: '#fff',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '9px',
+                              fontWeight: 800
+                            }}>
+                              2Г
+                            </span>
+                            2ГИС
                           </a>
                         </div>
                       )}
