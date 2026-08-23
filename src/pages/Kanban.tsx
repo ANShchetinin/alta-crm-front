@@ -15,7 +15,7 @@ import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
 import { getEmployees } from '../api/employees';
 import type { Employee } from '../api/employees';
-import { getAvatarGradient } from './Employees';
+import { getAvatarGradient, getEmployeeInitials } from './Employees';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useFeature } from '../hooks/useFeatureToggle';
@@ -1465,468 +1465,387 @@ const Kanban = () => {
     return currentJson !== initialFormDataJson;
   }, [isModalOpen, editingOrderId, formData, pendingFiles.length, initialFormDataJson]);
 
-  const renderCard = (card: Order) => (
-    <div 
-      key={card.id} 
-      className={`kanban-card ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''}`}
-      draggable
-      onDragStart={(e) => {
-        e.stopPropagation();
-        handleDragStart(e, card.id);
-      }}
-      onTouchStart={(e) => handleTouchStart(e, card)}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchCancel}
-      onClick={() => {
-        if (isClickAllowed()) {
-          openEditModal(card);
-        }
-      }}
-    >
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
-        {(() => {
-          const client = clients.find(cl => cl.id === card.clientId);
-          const cName = card.clientName || client?.name || `Клиент #${card.clientId}`;
-          const cPhone = card.clientPhone || client?.phone;
-          const cType = card.clientType || client?.clientType;
-          const isLegal = cType === 'LEGAL_ENTITY';
+  const renderCard = (card: Order) => {
+    const client = clients.find(cl => cl.id === card.clientId);
+    const cName = card.clientName || client?.name || `Клиент #${card.clientId}`;
+    const cPhone = card.clientPhone || client?.phone;
+    const cType = card.clientType || client?.clientType;
+    const isLegal = cType === 'LEGAL_ENTITY';
 
-          return (
-            <div style={{display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap'}}>
-              <span 
-                style={{ 
-                  fontSize: '0.72rem', 
-                  fontWeight: 700, 
-                  color: 'var(--text-secondary)', 
-                  background: 'rgba(255, 255, 255, 0.06)', 
-                  padding: '1px 5px', 
-                  borderRadius: '4px' 
-                }}
-                title="Внутренний номер заявки"
-              >
-                #{card.id}
-              </span>
-              <div className="card-client" style={{marginBottom: 0, display: 'flex', alignItems: 'center', gap: '6px'}}>
-                <div style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.62rem',
-                  fontWeight: 700,
-                  color: '#fff',
-                  background: (card.clientAvatarUrl || client?.avatarUrl) ? 'transparent' : getAvatarGradient(cName || (isLegal ? 'Компания' : 'Клиент')),
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  flexShrink: 0
-                }}>
-                  {(card.clientAvatarUrl || client?.avatarUrl) ? (
-                    <img 
-                      src={card.clientAvatarUrl || client?.avatarUrl} 
-                      alt={cName} 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                    />
-                  ) : (
-                    isLegal ? <Building2 size={11} /> : getClientInitials(cName)
-                  )}
-                </div>
-                <span>{cName}</span>
-              </div>
-              {card.orderNumber && (
-                <span 
-                  style={{
-                    fontSize: '0.7rem',
-                    fontFamily: 'monospace',
-                    fontWeight: 700,
-                    background: 'rgba(34, 197, 94, 0.15)',
-                    color: '#4ade80',
-                    padding: '2px 6px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px'
-                  }}
-                  title="Номер заключенного договора"
-                >
-                  <FileText size={10} />
-                  № {card.orderNumber}
-                </span>
-              )}
-              {cPhone && (
-                <a
-                  href={`tel:${cPhone}`}
-                  onClick={(e) => e.stopPropagation()}
-                  title={`Позвонить: ${cPhone}`}
-                  style={{
-                    color: 'var(--success)',
-                    padding: '3px 6px',
-                    background: 'rgba(34, 197, 94, 0.12)',
-                    border: '1px solid rgba(34, 197, 94, 0.25)',
-                    borderRadius: 'var(--radius-sm)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    textDecoration: 'none',
-                    fontSize: '0.75rem',
-                    fontWeight: 500
-                  }}
-                >
-                  <Phone size={12} />
-                </a>
-              )}
-              {(() => {
-                const cardReminders = remindersMap[card.id] || [];
-                const pending = cardReminders.filter(r => r.status === 'PENDING');
-                if (pending.length === 0) return null;
-                const isOverdue = pending.some(r => r.isOverdue);
-                const isToday = pending.some(r => {
-                  const d = new Date(r.remindAt);
-                  return d.toDateString() === new Date().toDateString();
-                });
-                const nearest = pending[0];
-                const timeStr = new Date(nearest.remindAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const assignee = employees.find(e => e.id === card.assigneeId);
+    const installer = employees.find(e => e.id === card.installedById || e.name === card.installedByName);
+    const instName = card.installedByName || installer?.name;
 
-                return (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: isOverdue ? 'rgba(239, 68, 68, 0.18)' : (isToday ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.15)'),
-                      color: isOverdue ? '#ef4444' : (isToday ? '#f59e0b' : '#60a5fa'),
-                      border: isOverdue ? '1px solid rgba(239, 68, 68, 0.35)' : (isToday ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(59, 130, 246, 0.3)'),
-                      cursor: 'default'
-                    }}
-                    title={`Активных напоминаний: ${pending.length}\nБлижайшее: ${nearest.comment || 'Звонок'} (${timeStr})${isOverdue ? ' [ПРОСРОЧЕНО]' : ''}`}
-                  >
-                    <Bell size={11} />
-                    {pending.length > 1 ? pending.length : ''}
-                  </span>
-                );
-              })()}
-            </div>
-          );
-        })()}
-      </div>
+    const cardReminders = remindersMap[card.id] || [];
+    const pendingReminders = cardReminders.filter(r => r.status === 'PENDING');
+    const isOverdue = pendingReminders.some(r => r.isOverdue);
+    const isToday = pendingReminders.some(r => {
+      const d = new Date(r.remindAt);
+      return d.toDateString() === new Date().toDateString();
+    });
+    const nearestReminder = pendingReminders[0];
+    const reminderTimeStr = nearestReminder ? new Date(nearestReminder.remindAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
 
-      {card.address && (
-        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)'}}>
-            <MapPin size={14} style={{flexShrink: 0}} />
-            <span style={{fontWeight: 500}}>{card.address}</span>
-            {(card.entrance || card.floor) && (
-              <span style={{opacity: 0.7, fontSize: '0.75rem'}}>
-                ({[card.entrance ? `подъезд ${card.entrance}` : '', card.floor ? `этаж ${card.floor}` : ''].filter(Boolean).join(', ')})
-              </span>
-            )}
-          </div>
-          <div style={{display: 'flex', gap: '4px', flexShrink: 0}}>
-            <a
-              href={getYandexMapsUrl(card.address)}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              title="Открыть в Яндекс.Картах"
+    const col = columns.find(c => c.id === card.statusId);
+    const isCardCompleted = col ? (
+      col.name.toLowerCase().includes('заверш') ||
+      col.name.toLowerCase().includes('готов') ||
+      col.name.toLowerCase().includes('выполнен')
+    ) : false;
+
+    const hasAct = (card.attachments || []).some(a => isActFile(a.fileName, a.isAct));
+    const canComplete = Boolean(instName) && hasAct;
+
+    return (
+      <div 
+        key={card.id} 
+        className={`kanban-card ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''}`}
+        draggable
+        onDragStart={(e) => {
+          e.stopPropagation();
+          handleDragStart(e, card.id);
+        }}
+        onTouchStart={(e) => handleTouchStart(e, card)}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
+        onClick={() => {
+          if (isClickAllowed()) {
+            openEditModal(card);
+          }
+        }}
+      >
+        {/* 1. Header: Client Avatar + #ID + Client Name + (Phone + Assignee Avatar) */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', minWidth: 0, flex: 1 }}>
+            {/* Client Avatar */}
+            <div 
+              className="card-client-avatar"
               style={{
-                color: '#fc3f1d',
-                padding: '2px 5px',
-                background: 'rgba(252, 63, 29, 0.1)',
-                border: '1px solid rgba(252, 63, 29, 0.2)',
-                borderRadius: 'var(--radius-sm)',
+                overflow: 'hidden',
                 display: 'inline-flex',
                 alignItems: 'center',
-                textDecoration: 'none',
-                fontSize: '0.7rem',
-                fontWeight: 600
+                justifyContent: 'center',
+                color: '#fff',
+                background: (card.clientAvatarUrl || client?.avatarUrl) ? 'transparent' : '#0047ab',
+                flexShrink: 0,
+                marginTop: '1px'
               }}
             >
-              Я
-            </a>
-            <a
-              href={get2GisUrl(card.address)}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              title="Открыть в 2ГИС"
-              style={{
-                color: '#2ea83b',
-                padding: '2px 5px',
-                background: 'rgba(46, 168, 59, 0.1)',
-                border: '1px solid rgba(46, 168, 59, 0.2)',
-                borderRadius: 'var(--radius-sm)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                textDecoration: 'none',
-                fontSize: '0.7rem',
-                fontWeight: 600
-              }}
-            >
-              2Г
-            </a>
-          </div>
-        </div>
-      )}
-
-      {card.description && (
-        <div className="card-desc">
-          {card.description}
-        </div>
-      )}
-
-      {/* Measurement & Installation dates */}
-      {(card.measurementDate || card.installationDate) && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px', fontSize: '0.78rem' }}>
-          {card.measurementDate && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#a78bfa', background: 'rgba(167, 139, 250, 0.1)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(167, 139, 250, 0.2)' }}>
-              <Ruler size={12} />
-              <span>Замер: {formatDateTimeInTimezone(card.measurementDate)}</span>
-              {card.measurerName && (
-                <span style={{ opacity: 0.8, marginLeft: 'auto', fontSize: '0.74rem' }}>({card.measurerName})</span>
-              )}
-            </div>
-          )}
-          {card.installationDate && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4ade80', background: 'rgba(74, 222, 128, 0.1)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(74, 222, 128, 0.2)' }}>
-              <Wrench size={12} />
-              <span>Монтаж: {formatDateOnly(card.installationDate)}</span>
-              {card.installedByName && (
-                <span style={{ opacity: 0.8, marginLeft: 'auto', fontSize: '0.74rem' }}>({card.installedByName})</span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Assignee & Measurer tags */}
-      <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px'}}>
-        {card.assigneeId && (
-          <div style={{display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 'var(--radius-sm)'}}>
-            <User size={12} style={{color: 'var(--accent-primary)'}} />
-            <span>{employees.find(e => e.id === card.assigneeId)?.name || 'Менеджер'}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Card Status Select */}
-      <div className="card-status-container" onClick={e => e.stopPropagation()}>
-        <div className="card-status-badge">
-          <span 
-            className="card-status-dot" 
-            style={{ backgroundColor: columns.find(c => c.id === card.statusId)?.color || '#3b82f6' }}
-          />
-          <select
-            className="card-status-select"
-            value={card.statusId}
-            onChange={async (e) => {
-              const newStatusId = parseInt(e.target.value);
-              const updatedCards = cards.map(c => c.id === card.id ? { ...c, statusId: newStatusId } : c);
-              setCards(updatedCards);
-              const firstStatus = columns.find(s => s.sortOrder === 1);
-              if (firstStatus) {
-                setNewOrdersCount(updatedCards.filter(o => o.statusId === firstStatus.id).length);
-              }
-              try {
-                await moveOrder(card.id, newStatusId);
-              } catch (err) {
-                console.error("Failed to move order", err);
-              }
-            }}
-          >
-            {columns.map(col => (
-              <option key={col.id} value={col.id}>
-                {col.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={14} className="card-status-icon" />
-        </div>
-      </div>
-
-      {/* Card Footer (Worker vs Manager/Admin) */}
-      {isWorker ? (
-        (() => {
-          const isCardCompleted = card.statusId && columns.find(c => c.id === card.statusId)?.name.toLowerCase().includes('заверш');
-          const hasAct = (card.attachments || []).some(a => isActFile(a.fileName, a.isAct));
-
-          return (
-            <div className="card-footer" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'stretch' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                  Остаток к оплате: <strong style={{ color: 'var(--accent-primary)', fontSize: '0.9rem' }}>{(card.remainder != null ? card.remainder : (card.totalPrice || 0)).toLocaleString('ru-RU')} ₽</strong>
-                </div>
-                {card.attachments && card.attachments.length > 0 && (
-                  <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: hasAct ? '#4ade80' : 'var(--text-secondary)'}} title={hasAct ? 'Акт выполненных работ прикреплен' : undefined}>
-                    <Paperclip size={12} /> {card.attachments.length} {hasAct && <span style={{ fontWeight: 600 }}>✓ Акт</span>}
-                  </div>
-                )}
-              </div>
-
-              {isCardCompleted ? (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  padding: '6px 10px',
-                  background: 'rgba(34, 197, 94, 0.12)',
-                  border: '1px solid rgba(34, 197, 94, 0.25)',
-                  borderRadius: 'var(--radius-sm)',
-                  color: '#4ade80',
-                  fontSize: '0.8rem',
-                  fontWeight: 600
-                }}>
-                  <CheckCircle2 size={14} /> Монтаж завершен
-                </div>
+              {(card.clientAvatarUrl || client?.avatarUrl) ? (
+                <img 
+                  src={card.clientAvatarUrl || client?.avatarUrl} 
+                  alt={cName} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <button
-                    type="button"
-                    disabled={!hasAct}
-                    onClick={(e) => handleCompleteInstallation(e, card.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      padding: '7px 12px',
-                      background: hasAct ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
-                      border: hasAct ? 'none' : '1px solid var(--glass-border)',
-                      borderRadius: 'var(--radius-sm)',
-                      color: hasAct ? '#fff' : 'var(--text-secondary)',
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
-                      cursor: hasAct ? 'pointer' : 'not-allowed',
-                      opacity: hasAct ? 1 : 0.6,
-                      transition: 'all 0.15s ease'
-                    }}
-                    title={hasAct ? 'Завершить монтаж и отправить отчет' : 'Для завершения прикрепите Акт выполненных работ в деталях заявки'}
-                  >
-                    <CheckCircle2 size={15} /> Завершить монтаж
-                  </button>
-                  {!hasAct && (
-                    <span style={{ fontSize: '0.72rem', color: '#f59e0b', textAlign: 'center' }}>
-                      Требуется фото/файл Акта
+                isLegal ? <Building2 size={14} /> : getClientInitials(cName)
+              )}
+            </div>
+
+            {/* Client Info Column */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', flexWrap: 'wrap' }}>
+                {/* Order #ID */}
+                <span className="card-order-id" style={{ flexShrink: 0 }}>
+                  #{card.id}
+                </span>
+
+                {/* Client Name (wrapping by words) */}
+                <span className="card-client-name">
+                  {cName}
+                </span>
+              </div>
+
+              {/* Badges row under name: Contract number & Reminders */}
+              {(card.orderNumber || pendingReminders.length > 0) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                  {card.orderNumber && (
+                    <span 
+                      style={{
+                        fontSize: '0.68rem',
+                        fontFamily: 'monospace',
+                        fontWeight: 700,
+                        background: 'rgba(34, 197, 94, 0.15)',
+                        color: '#16a34a',
+                        padding: '1px 5px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid rgba(34, 197, 94, 0.3)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px'
+                      }}
+                      title="Номер договора"
+                    >
+                      <FileText size={9} />
+                      № {card.orderNumber}
+                    </span>
+                  )}
+
+                  {pendingReminders.length > 0 && (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '2px',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '1px 5px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: isOverdue ? 'rgba(239, 68, 68, 0.18)' : (isToday ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.15)'),
+                        color: isOverdue ? '#ef4444' : (isToday ? '#f59e0b' : '#60a5fa'),
+                        border: isOverdue ? '1px solid rgba(239, 68, 68, 0.35)' : (isToday ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(59, 130, 246, 0.3)'),
+                        cursor: 'default'
+                      }}
+                      title={`Напоминание: ${nearestReminder.comment || 'Звонок'} (${reminderTimeStr})`}
+                    >
+                      <Bell size={10} />
+                      {pendingReminders.length > 1 ? pendingReminders.length : ''}
                     </span>
                   )}
                 </div>
               )}
             </div>
-          );
-        })()
-      ) : (
-        <div className="card-footer" style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'stretch' }}>
+          </div>
+
+          {/* Right Header: Phone button + Assignee Avatar (anchored to top-right) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, marginTop: '1px' }}>
+            {cPhone && (
+              <a
+                href={`tel:${cPhone}`}
+                onClick={(e) => e.stopPropagation()}
+                title={`Позвонить: ${cPhone}`}
+                className="card-phone-btn"
+                style={{
+                  borderRadius: '50%',
+                  background: 'rgba(34, 197, 94, 0.15)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#16a34a',
+                  textDecoration: 'none',
+                  flexShrink: 0,
+                  transition: 'background 0.15s ease'
+                }}
+              >
+                <Phone size={14} />
+              </a>
+            )}
+
+            {assignee && (
+              <div 
+                className="card-assignee-avatar"
+                style={{
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  color: '#fff',
+                  background: assignee.avatarUrl ? 'transparent' : '#0891b2',
+                  flexShrink: 0
+                }}
+                title={`Ответственный: ${assignee.name}`}
+              >
+                {assignee.avatarUrl ? (
+                  <img src={assignee.avatarUrl} alt={assignee.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  getEmployeeInitials(assignee.name)
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 2. Address Row */}
+        {card.address && (
+          <div style={{ marginBottom: '5px' }}>
+            <div className="card-address-row">
+              <MapPin size={14} style={{ flexShrink: 0, opacity: 0.8 }} />
+              <span style={{ fontWeight: 400 }}>{card.address}</span>
+            </div>
+
+            {/* 3. Map Buttons */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '3px' }}>
+              <a
+                href={getYandexMapsUrl(card.address)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title="Открыть в Яндекс.Картах"
+                className="kanban-map-pill"
+              >
+                <span style={{
+                  width: '15px',
+                  height: '15px',
+                  borderRadius: '50%',
+                  background: '#64748b',
+                  color: '#fff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '9px',
+                  fontWeight: 700
+                }}>
+                  Я
+                </span>
+                <span>Yandex.Maps</span>
+              </a>
+
+              <a
+                href={get2GisUrl(card.address)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title="Открыть в 2ГИС"
+                className="kanban-map-pill"
+              >
+                <span style={{
+                  width: '15px',
+                  height: '15px',
+                  borderRadius: '50%',
+                  background: '#22c55e',
+                  color: '#fff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '9px',
+                  fontWeight: 700
+                }}>
+                  2Г
+                </span>
+                <span>2GIS</span>
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* 4. Description */}
+        {card.description && (
+          <div className="card-desc" title={card.description}>
+            {card.description}
+          </div>
+        )}
+
+        {/* Measurement Date (if scheduled) */}
+        {card.measurementDate && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#a78bfa', background: 'rgba(167, 139, 250, 0.1)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(167, 139, 250, 0.2)', marginBottom: '6px', fontSize: '0.75rem' }}>
+            <Ruler size={11} />
+            <span>Замер: {formatDateTimeInTimezone(card.measurementDate)}</span>
+          </div>
+        )}
+
+        {/* 5. Finance / Price Block */}
+        <div className="kanban-finance-box">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div className="card-price" style={{ fontSize: '1rem', fontWeight: 700 }}>
+            <div className="card-price-main">
               {(card.totalPrice != null && card.totalPrice > 0) ? `${card.totalPrice.toLocaleString('ru-RU')} ₽` : '0 ₽'}
             </div>
-            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               {card.attachments && card.attachments.length > 0 && (
-                <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   <Paperclip size={12} /> {card.attachments.length}
                 </div>
               )}
               {card.profitMargin != null && card.profitMargin > 0 && (
-                <span style={{fontSize: '0.75rem', color: 'var(--success)'}}>+{card.profitMargin.toFixed(1)}%</span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#16a34a' }}>
+                  +{card.profitMargin.toFixed(1)}%
+                </span>
               )}
             </div>
           </div>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            fontSize: '0.75rem', 
-            color: 'var(--text-secondary)',
-            background: 'rgba(255, 255, 255, 0.03)',
-            padding: '3px 6px',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid rgba(255, 255, 255, 0.04)'
-          }}>
-            <span>Аванс: <strong style={{ color: 'var(--text-primary)' }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
-            <span>Остаток: <strong style={{ color: 'var(--text-primary)' }}>{((card.remainder != null ? card.remainder : card.totalPrice) || 0).toLocaleString('ru-RU')} ₽</strong></span>
+
+          <div className="card-finance-sub">
+            <span>Аванс: <strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
+            <span style={{ margin: '0 8px', opacity: 0.35 }}>|</span>
+            <span>Остаток: <strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{((card.remainder != null ? card.remainder : card.totalPrice) || 0).toLocaleString('ru-RU')} ₽</strong></span>
           </div>
-          {(() => {
-            const col = columns.find(c => c.id === card.statusId);
-            const isCardCompleted = col ? (
-              col.name.toLowerCase().includes('заверш') ||
-              col.name.toLowerCase().includes('готов') ||
-              col.name.toLowerCase().includes('выполнен')
-            ) : false;
-
-            if (isCardCompleted) {
-              if (!card.installedByName || !card.installedAt) return null;
-              return (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: '0.74rem',
-                  color: '#4ade80',
-                  background: 'rgba(34, 197, 94, 0.08)',
-                  border: '1px solid rgba(34, 197, 94, 0.2)',
-                  padding: '3px 6px',
-                  borderRadius: 'var(--radius-sm)',
-                  marginTop: '2px'
-                }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <Check size={12} /> Монтажник: <strong>{card.installedByName}</strong>
-                  </span>
-                  <span style={{ opacity: 0.85 }}>
-                    {formatDateOnly(card.installedAt)}
-                  </span>
-                </div>
-              );
-            }
-
-            const hasInstaller = Boolean(card.installedById || card.installedByName);
-            const hasAct = card.attachments?.some(a => isActFile(a.fileName, a.isAct));
-            const canComplete = hasInstaller && hasAct;
-
-            let cardDisabledTitle = 'Завершить монтаж и перевести заявку в завершенный статус';
-            if (!hasInstaller) {
-              cardDisabledTitle = 'Для завершения монтажа необходимо назначить монтажника в деталях заявки';
-            } else if (!hasAct) {
-              cardDisabledTitle = 'Для завершения монтажа необходимо прикрепить Акт выполненных работ в деталях заявки';
-            }
-
-            return (
-              <button
-                type="button"
-                disabled={!canComplete}
-                onClick={(e) => handleCompleteInstallation(e, card.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  padding: '5px 8px',
-                  background: canComplete ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(16, 185, 129, 0.06))' : 'rgba(255, 255, 255, 0.04)',
-                  border: canComplete ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-sm)',
-                  color: canComplete ? '#4ade80' : 'var(--text-secondary)',
-                  fontSize: '0.76rem',
-                  fontWeight: 600,
-                  cursor: canComplete ? 'pointer' : 'not-allowed',
-                  opacity: canComplete ? 1 : 0.45,
-                  transition: 'all 0.15s ease',
-                  marginTop: '2px'
-                }}
-                title={cardDisabledTitle}
-              >
-                <CheckCircle2 size={13} /> Завершить монтаж
-              </button>
-            );
-          })()}
         </div>
-      )}
-    </div>
-  );
+
+        {/* 6. Installer Row */}
+        {instName && (
+          <div className="card-installer-row">
+            {/* Installer Avatar */}
+            <div style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              color: '#fff',
+              background: installer?.avatarUrl ? 'transparent' : '#065f46',
+              flexShrink: 0
+            }}>
+              {installer?.avatarUrl ? (
+                <img src={installer.avatarUrl} alt={instName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                getEmployeeInitials(instName)
+              )}
+            </div>
+
+            {/* Wrench icon + Installer name */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Wrench size={14} style={{ color: '#16a34a' }} />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                {instName}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* 7. Complete Installation Button / Status */}
+        {isCardCompleted ? (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            background: 'rgba(34, 197, 94, 0.12)',
+            border: '1px solid rgba(34, 197, 94, 0.3)',
+            borderRadius: '8px',
+            color: '#16a34a',
+            fontSize: '0.82rem',
+            fontWeight: 600,
+            width: '100%',
+            boxSizing: 'border-box'
+          }}>
+            <CheckCircle2 size={14} /> Монтаж завершен {card.installedAt ? `(${formatDateOnly(card.installedAt)})` : ''}
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={!canComplete}
+            onClick={(e) => handleCompleteInstallation(e, card.id)}
+            className="card-complete-btn"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              background: canComplete ? '#16a34a' : 'rgba(255, 255, 255, 0.08)',
+              border: canComplete ? 'none' : '1px solid var(--glass-border)',
+              color: canComplete ? '#ffffff' : 'var(--text-secondary)',
+              fontWeight: 600,
+              width: '100%',
+              cursor: canComplete ? 'pointer' : 'not-allowed',
+              opacity: canComplete ? 1 : 0.55,
+              transition: 'all 0.15s ease',
+              boxSizing: 'border-box'
+            }}
+            title={!Boolean(instName) ? 'Назначьте монтажника в карточке' : (!hasAct ? 'Прикрепите Акт выполненных работ' : 'Завершить монтаж')}
+          >
+            <CheckCircle2 size={15} /> Завершить монтаж
+          </button>
+        )}
+      </div>
+    );
+  };
 
   if (loading) {
     return <div style={{padding: 24}}>Loading board...</div>;
