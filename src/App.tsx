@@ -12,6 +12,10 @@ import { ContractTemplates } from './pages/ContractTemplates';
 import { Earnings } from './pages/Earnings';
 import { Calendar } from './pages/Calendar';
 import { Finances } from './pages/Finances';
+import { FeatureFlags } from './pages/FeatureFlags';
+import { useFeature } from './hooks/useFeatureToggle';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import type { FeatureKey } from './api/features';
 import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
@@ -30,9 +34,17 @@ const RoleRoute = ({ children, allowedRoles }: { children: React.ReactNode; allo
   return <>{children}</>;
 };
 
+const FeatureRoute = ({ children, feature }: { children: React.ReactNode; feature: FeatureKey }) => {
+  const isEnabled = useFeature(feature);
+  if (!isEnabled) {
+    return <Navigate to="/kanban" replace />;
+  }
+  return <ErrorBoundary featureName={feature}>{children}</ErrorBoundary>;
+};
+
 const IndexRedirect = () => {
   const role = useAuthStore(state => state.role);
-  return <Navigate to={role === 'SUPERADMIN' ? "/tenants" : "/kanban"} replace />;
+  return <Navigate to={role === 'SUPERADMIN' ? "/feature-flags" : "/kanban"} replace />;
 };
 
 function App() {
@@ -139,15 +151,16 @@ function App() {
         <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
           <Route index element={<IndexRedirect />} />
           <Route path="kanban" element={<Kanban />} />
-          <Route path="calendar" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER', 'SUPERADMIN']}><Calendar /></RoleRoute>} />
+          <Route path="calendar" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER', 'SUPERADMIN']}><FeatureRoute feature="CALENDAR"><Calendar /></FeatureRoute></RoleRoute>} />
           <Route path="earnings" element={<RoleRoute allowedRoles={['WORKER', 'OWNER', 'MANAGER', 'SUPERADMIN']}><Earnings /></RoleRoute>} />
           <Route path="clients" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Clients /></RoleRoute>} />
           <Route path="employees" element={<RoleRoute allowedRoles={['OWNER', 'SUPERADMIN']}><Employees /></RoleRoute>} />
-          <Route path="storage" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Storage /></RoleRoute>} />
-          <Route path="finances" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Finances /></RoleRoute>} />
-          <Route path="reports" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Reports /></RoleRoute>} />
-          <Route path="contract-templates" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><ContractTemplates /></RoleRoute>} />
+          <Route path="storage" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="STORAGE"><Storage /></FeatureRoute></RoleRoute>} />
+          <Route path="finances" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="FINANCES"><Finances /></FeatureRoute></RoleRoute>} />
+          <Route path="reports" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="REPORTS"><Reports /></FeatureRoute></RoleRoute>} />
+          <Route path="contract-templates" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="CONTRACT_TEMPLATES"><ContractTemplates /></FeatureRoute></RoleRoute>} />
           <Route path="settings" element={<RoleRoute allowedRoles={['OWNER', 'SUPERADMIN']}><Settings /></RoleRoute>} />
+          <Route path="feature-flags" element={<RoleRoute allowedRoles={['SUPERADMIN']}><FeatureFlags /></RoleRoute>} />
           <Route path="tenants" element={<RoleRoute allowedRoles={['SUPERADMIN']}><Tenants /></RoleRoute>} />
         </Route>
       </Routes>
