@@ -58,6 +58,9 @@ export const Finances = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
+  // Mobile KPI collapse state
+  const [isKpiCollapsedMobile, setIsKpiCollapsedMobile] = useState(true);
+
   // Status Configuration Modal State
   const [isStatusConfigModalOpen, setIsStatusConfigModalOpen] = useState(false);
   const [tempStatusSettings, setTempStatusSettings] = useState<Record<number, boolean>>({});
@@ -567,13 +570,45 @@ export const Finances = () => {
         </div>
       </div>
 
+      {/* 2. Mobile Quick KPI Banner (Collapsible) */}
+      <div className="finances-kpi-mobile-banner">
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
+          <div style={{ fontSize: '0.82rem' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>Приход: </span>
+            <strong style={{ color: '#4ade80' }}>+{metrics.totalCashInflow.toLocaleString('ru-RU')} ₽</strong>
+          </div>
+          <div style={{ fontSize: '0.82rem' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>Касса: </span>
+            <strong style={{ color: metrics.netCashProfit >= 0 ? '#4ade80' : '#ef4444' }}>{metrics.netCashProfit.toLocaleString('ru-RU')} ₽</strong>
+          </div>
+          <div style={{ fontSize: '0.82rem' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>Долги: </span>
+            <strong style={{ color: '#f59e0b' }}>{metrics.pendingReceivables.toLocaleString('ru-RU')} ₽</strong>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsKpiCollapsedMobile(!isKpiCollapsedMobile)}
+          style={{
+            background: 'rgba(255, 255, 255, 0.06)',
+            border: '1px solid var(--glass-border)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '4px 8px',
+            fontSize: '0.75rem',
+            color: 'var(--text-primary)',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          {isKpiCollapsedMobile ? 'Все показатели ▾' : 'Свернуть ▴'}
+        </button>
+      </div>
+
       {/* 2. Top KPI Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: '10px',
-        marginBottom: '20px'
-      }}>
+      <div className={`finances-kpi-grid ${isKpiCollapsedMobile ? 'collapsed-mobile' : ''}`}>
         {/* Card 1: Реальный приход */}
         <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(34, 197, 94, 0.25)', background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(255, 255, 255, 0.02))' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -671,124 +706,67 @@ export const Finances = () => {
         </div>
       </div>
 
-      {/* 3. Navigation Tabs */}
+      {/* 3. Navigation Tabs (Desktop & Mobile Pills) */}
       <div style={{
         display: 'flex',
-        borderBottom: '1px solid var(--glass-border)',
-        marginBottom: '16px',
-        gap: '4px',
+        gap: '6px',
         overflowX: 'auto',
         WebkitOverflowScrolling: 'touch',
-        paddingBottom: '2px'
+        scrollbarWidth: 'none',
+        padding: '4px 2px 10px 2px',
+        marginBottom: '16px',
+        borderBottom: '1px solid var(--glass-border)'
       }}>
-        <button
-          type="button"
-          onClick={() => setActiveTab('TRANSACTIONS')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'TRANSACTIONS' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-            color: activeTab === 'TRANSACTIONS' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-            fontWeight: activeTab === 'TRANSACTIONS' ? 600 : 400,
-            padding: '10px 16px',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <Receipt size={16} /> Взаиморасчёты и приём оплат ({filteredOrders.length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('RECEIVABLES')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'RECEIVABLES' ? '2px solid #f59e0b' : '2px solid transparent',
-            color: activeTab === 'RECEIVABLES' ? '#f59e0b' : 'var(--text-secondary)',
-            fontWeight: activeTab === 'RECEIVABLES' ? 600 : 400,
-            padding: '10px 16px',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <Clock size={16} /> Дебиторка / Должники {debtorOrders.length > 0 && (
-            <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', fontSize: '0.72rem', padding: '1px 6px', borderRadius: '10px', fontWeight: 700 }}>
-              {debtorOrders.length}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('EXPENSES')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'EXPENSES' ? '2px solid #ef4444' : '2px solid transparent',
-            color: activeTab === 'EXPENSES' ? '#ef4444' : 'var(--text-secondary)',
-            fontWeight: activeTab === 'EXPENSES' ? 600 : 400,
-            padding: '10px 16px',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <TrendingDown size={16} /> Расходы компании ({filteredExpenses.length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('INSTALLERS')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'INSTALLERS' ? '2px solid #60a5fa' : '2px solid transparent',
-            color: activeTab === 'INSTALLERS' ? '#60a5fa' : 'var(--text-secondary)',
-            fontWeight: activeTab === 'INSTALLERS' ? 600 : 400,
-            padding: '10px 16px',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <User size={16} /> Расчёты с монтажниками ({installersSummary.length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('PL_STRUCTURE')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'PL_STRUCTURE' ? '2px solid #c084fc' : '2px solid transparent',
-            color: activeTab === 'PL_STRUCTURE' ? '#c084fc' : 'var(--text-secondary)',
-            fontWeight: activeTab === 'PL_STRUCTURE' ? 600 : 400,
-            padding: '10px 16px',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <PieChart size={16} /> Движение средств (Cash Flow)
-        </button>
+        {[
+          { id: 'TRANSACTIONS', label: 'Взаиморасчёты и приём оплат', shortLabel: 'Оплаты', icon: Receipt, count: filteredOrders.length, color: 'var(--accent-primary)' },
+          { id: 'RECEIVABLES', label: 'Дебиторка / Должники', shortLabel: 'Дебиторка', icon: Clock, count: debtorOrders.length, color: '#f59e0b' },
+          { id: 'EXPENSES', label: 'Расходы компании', shortLabel: 'Расходы', icon: TrendingDown, count: filteredExpenses.length, color: '#ef4444' },
+          { id: 'INSTALLERS', label: 'Расчёты с монтажниками', shortLabel: 'Монтажники', icon: User, count: installersSummary.length, color: '#60a5fa' },
+          { id: 'PL_STRUCTURE', label: 'Движение средств (Cash Flow)', shortLabel: 'ДДС и P&L', icon: PieChart, color: '#c084fc' }
+        ].map(tab => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id as TabType)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.85rem',
+                fontWeight: active ? 600 : 500,
+                border: active ? `1px solid ${tab.color}` : '1px solid var(--glass-border)',
+                background: active ? (tab.color.startsWith('var') ? 'rgba(59, 130, 246, 0.18)' : `${tab.color}22`) : 'rgba(255, 255, 255, 0.02)',
+                color: active ? (tab.color.startsWith('var') ? 'var(--accent-primary)' : tab.color) : 'var(--text-secondary)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Icon size={16} style={{ color: active ? (tab.color.startsWith('var') ? 'var(--accent-primary)' : tab.color) : 'var(--text-secondary)', flexShrink: 0 }} />
+              <span className="desktop-tab-label">{tab.label}</span>
+              <span className="mobile-tab-label">{tab.shortLabel}</span>
+              {tab.count !== undefined && tab.count > 0 && (
+                <span style={{
+                  fontSize: '0.72rem',
+                  background: active ? (tab.color.startsWith('var') ? 'rgba(59, 130, 246, 0.25)' : `${tab.color}33`) : 'rgba(255, 255, 255, 0.06)',
+                  color: active ? (tab.color.startsWith('var') ? 'var(--accent-primary)' : tab.color) : 'var(--text-secondary)',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  fontWeight: 700,
+                  marginLeft: '2px'
+                }}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* 4. TAB CONTENT */}
@@ -1525,8 +1503,8 @@ export const Finances = () => {
             </button>
           </div>
 
-          {/* Expenses Table */}
-          <div className="glass-panel" style={{ overflowX: 'auto', borderRadius: 'var(--radius-md)' }}>
+          {/* Expenses Desktop Table */}
+          <div className="finances-expenses-desktop glass-panel" style={{ overflowX: 'auto', borderRadius: 'var(--radius-md)' }}>
             <table className="clients-table" style={{ width: '100%', fontSize: '0.85rem' }}>
               <thead>
                 <tr>
@@ -1621,6 +1599,95 @@ export const Finances = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Expenses Mobile Cards */}
+          <div className="finances-expenses-mobile">
+            {filteredExpenses.length === 0 ? (
+              <div className="glass-panel" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                Расходов за выбранный период не зафиксировано
+              </div>
+            ) : (
+              filteredExpenses.map(exp => {
+                const catObj = EXPENSE_CATEGORIES.find(c => c.value === exp.category);
+                return (
+                  <div key={exp.id} className="glass-panel" style={{ padding: '14px', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <span style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          background: 'rgba(239, 68, 68, 0.12)',
+                          color: '#f87171',
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          display: 'inline-block',
+                          marginBottom: '4px',
+                          border: '1px solid rgba(239, 68, 68, 0.25)'
+                        }}>
+                          {catObj?.label || exp.category}
+                        </span>
+                        <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                          {exp.title}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ef4444' }}>
+                        −{exp.amount.toLocaleString('ru-RU')} ₽
+                      </div>
+                    </div>
+
+                    {exp.comment && (
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', background: 'rgba(255, 255, 255, 0.02)', padding: '6px 10px', borderRadius: '4px' }}>
+                        {exp.comment}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.76rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255, 255, 255, 0.04)', paddingTop: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span>📅 {formatDateOnly(exp.expenseDate)}</span>
+                        {exp.orderId && (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/kanban?orderId=${exp.orderId}`)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--accent-primary)',
+                              fontSize: '0.76rem',
+                              cursor: 'pointer',
+                              padding: 0,
+                              textDecoration: 'underline'
+                            }}
+                          >
+                            Заказ #{exp.orderId}
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => openEditExpenseModal(exp)}
+                          className="btn-icon"
+                          style={{ width: '28px', height: '28px' }}
+                          title="Редактировать расход"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteExpense(exp.id, exp.title)}
+                          className="btn-icon delete"
+                          style={{ width: '28px', height: '28px', color: 'var(--danger)' }}
+                          title="Удалить расход"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
 
@@ -1685,41 +1752,67 @@ export const Finances = () => {
                     <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
                       Объекты и сделки монтажника ({item.orders.length}):
                     </div>
-                    <table style={{ width: '100%', fontSize: '0.8rem' }}>
-                      <thead>
-                        <tr style={{ color: 'var(--text-secondary)', textAlign: 'left' }}>
-                          <th style={{ padding: '6px 0' }}>Договор / Объект</th>
-                          <th>Клиент</th>
-                          <th>Дата завершения</th>
-                          <th>Сумма за монтаж</th>
-                          <th>Статус</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {item.orders.map(ord => {
-                          const isComp = isCompletedStatus(ord.statusId);
-                          const st = statuses.find(s => s.id === ord.statusId);
-                          return (
-                            <tr key={ord.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)' }}>
-                              <td style={{ padding: '6px 0' }}>
-                                <span style={{ fontWeight: 600 }}>{ord.orderNumber ? `№ ${ord.orderNumber}` : `#${ord.id}`}</span>
-                                {ord.address && <span style={{ color: 'var(--text-secondary)', marginLeft: '6px' }}>({ord.address})</span>}
-                              </td>
-                              <td>{ord.clientName || '—'}</td>
-                              <td>{ord.installedAt ? formatDateOnly(ord.installedAt) : (ord.installationDate ? formatDateOnly(ord.installationDate) : '—')}</td>
-                              <td style={{ fontWeight: 700, color: '#60a5fa' }}>
-                                {(ord.installationPrice || 0).toLocaleString('ru-RU')} ₽
-                              </td>
-                              <td>
-                                <span style={{ fontSize: '0.72rem', color: isComp ? '#4ade80' : '#f59e0b', fontWeight: 600 }}>
-                                  {st?.name || (isComp ? 'Завершен' : 'В работе')}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    <div className="finances-installers-desktop">
+                      <table style={{ width: '100%', fontSize: '0.8rem' }}>
+                        <thead>
+                          <tr style={{ color: 'var(--text-secondary)', textAlign: 'left' }}>
+                            <th style={{ padding: '6px 0' }}>Договор / Объект</th>
+                            <th>Клиент</th>
+                            <th>Дата завершения</th>
+                            <th>Сумма за монтаж</th>
+                            <th>Статус</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {item.orders.map(ord => {
+                            const isComp = isCompletedStatus(ord.statusId);
+                            const st = statuses.find(s => s.id === ord.statusId);
+                            return (
+                              <tr key={ord.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)' }}>
+                                <td style={{ padding: '6px 0' }}>
+                                  <span style={{ fontWeight: 600 }}>{ord.orderNumber ? `№ ${ord.orderNumber}` : `#${ord.id}`}</span>
+                                  {ord.address && <span style={{ color: 'var(--text-secondary)', marginLeft: '6px' }}>({ord.address})</span>}
+                                </td>
+                                <td>{ord.clientName || '—'}</td>
+                                <td>{ord.installedAt ? formatDateOnly(ord.installedAt) : (ord.installationDate ? formatDateOnly(ord.installationDate) : '—')}</td>
+                                <td style={{ fontWeight: 700, color: '#60a5fa' }}>
+                                  {(ord.installationPrice || 0).toLocaleString('ru-RU')} ₽
+                                </td>
+                                <td>
+                                  <span style={{ fontSize: '0.72rem', color: isComp ? '#4ade80' : '#f59e0b', fontWeight: 600 }}>
+                                    {st?.name || (isComp ? 'Завершен' : 'В работе')}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Card List for Installer Orders */}
+                    <div className="finances-installers-mobile">
+                      {item.orders.map(ord => {
+                        const isComp = isCompletedStatus(ord.statusId);
+                        const st = statuses.find(s => s.id === ord.statusId);
+                        return (
+                          <div key={ord.id} style={{ padding: '8px 10px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                                {ord.orderNumber ? `№ ${ord.orderNumber}` : `#${ord.id}`} • {ord.clientName || 'Клиент'}
+                              </div>
+                              {ord.address && <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>📍 {ord.address}</div>}
+                              <div style={{ fontSize: '0.7rem', color: isComp ? '#4ade80' : '#f59e0b', marginTop: '2px', fontWeight: 600 }}>
+                                {st?.name || (isComp ? 'Завершен' : 'В работе')} {ord.installedAt ? `• ${formatDateOnly(ord.installedAt)}` : ''}
+                              </div>
+                            </div>
+                            <div style={{ fontWeight: 700, color: '#60a5fa', fontSize: '0.95rem', textAlign: 'right', flexShrink: 0 }}>
+                              {(ord.installationPrice || 0).toLocaleString('ru-RU')} ₽
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
