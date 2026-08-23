@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Bell } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Bell, Camera } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +26,8 @@ import { OrderRemindersSection } from '../components/OrderRemindersSection';
 import { getMyReminders, type OrderReminderDto } from '../api/reminders';
 import { useTouchKanbanDrag } from '../hooks/useTouchKanbanDrag';
 import { useTouchColumnReorder } from '../hooks/useTouchColumnReorder';
+import { DocumentScannerModal } from '../components/DocumentScannerModal';
+import { ActUploadActionSheet } from '../components/ActUploadActionSheet';
 import '../styles/kanban.css';
 interface MaterialSearchSelectProps {
   value: number;
@@ -246,6 +248,13 @@ const Kanban = () => {
   const [editingAttachmentName, setEditingAttachmentName] = useState('');
   const [renamingAttachment, setRenamingAttachment] = useState(false);
   
+  const [isActActionSheetOpen, setIsActActionSheetOpen] = useState(false);
+  const [actionSheetMode, setActionSheetMode] = useState<'ACT' | 'GENERAL'>('ACT');
+  const [isDocScannerOpen, setIsDocScannerOpen] = useState(false);
+  const [docScannerIsAct, setDocScannerIsAct] = useState(true);
+  const actFileInputRef = useRef<HTMLInputElement | null>(null);
+  const generalFileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [aiSummary, setAiSummary] = useState<OrderAiSummary | null>(null);
   const [uploadingAudio, setUploadingAudio] = useState(false);
   
@@ -1018,10 +1027,7 @@ const Kanban = () => {
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleActUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const originalFile = e.target.files?.[0];
-    if (!originalFile) return;
-
+  const handleUploadDirectActFile = async (originalFile: File) => {
     let newFileName = originalFile.name;
     if (!isActFile(newFileName)) {
       newFileName = `Акт выполненных работ - ${originalFile.name}`;
@@ -1046,12 +1052,43 @@ const Kanban = () => {
         alert(err.response?.data?.message || "Не удалось загрузить Акт");
       } finally {
         setUploadingFile(false);
-        e.target.value = '';
       }
     } else {
       setPendingFiles(prev => [...prev, file]);
-      e.target.value = '';
     }
+  };
+
+  const handleUploadDirectGeneralFile = async (file: File) => {
+    if (editingOrderId) {
+      setUploadingFile(true);
+      try {
+        const isAct = isActFile(file.name);
+        const newAttachment = await uploadAttachment(editingOrderId, file, isAct);
+        setFormData(prev => ({
+          ...prev,
+          attachments: [...prev.attachments, newAttachment]
+        }));
+        setCards(prev => prev.map(c => c.id === editingOrderId ? {
+          ...c,
+          attachments: [...(c.attachments || []), newAttachment]
+        } : c));
+        fetchData();
+      } catch (err: any) {
+        console.error("Failed to upload file", err);
+        alert(err.response?.data?.message || "Не удалось загрузить файл");
+      } finally {
+        setUploadingFile(false);
+      }
+    } else {
+      setPendingFiles(prev => [...prev, file]);
+    }
+  };
+
+  const handleActUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const originalFile = e.target.files?.[0];
+    if (!originalFile) return;
+    await handleUploadDirectActFile(originalFile);
+    e.target.value = '';
   };
 
   const handleToggleAttachmentIsAct = async (att: OrderAttachment) => {
@@ -4020,7 +4057,12 @@ const Kanban = () => {
                               </div>
                             </div>
 
-                            <label 
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setActionSheetMode('ACT');
+                                setIsActActionSheetOpen(true);
+                              }}
                               className="file-upload-btn" 
                               style={{ 
                                 cursor: 'pointer', 
@@ -4036,10 +4078,17 @@ const Kanban = () => {
                                 borderRadius: 'var(--radius-sm)'
                               }}
                             >
-                              <Paperclip size={14} />
-                              {hasAct ? 'Заменить Акт' : 'Загрузить Акт выполненных работ'}
-                              <input type="file" onChange={handleActUpload} disabled={uploadingFile} />
-                            </label>
+                              <Camera size={14} />
+                              {hasAct ? 'Заменить Акт' : 'Загрузить / Отсканировать Акт'}
+                            </button>
+                            <input 
+                              ref={actFileInputRef}
+                              type="file" 
+                              style={{ display: 'none' }}
+                              onChange={handleActUpload} 
+                              disabled={uploadingFile} 
+                              accept="image/*,application/pdf"
+                            />
                           </div>
 
                           {hasAct && (actAttachment || pendingActFile) && (
@@ -4092,11 +4141,31 @@ const Kanban = () => {
                           Прикрепленные файлы, чертежи, фото и сканы документов
                         </p>
                       </div>
-                      <label className="file-upload-btn" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionSheetMode('GENERAL');
+                          setIsActActionSheetOpen(true);
+                        }}
+                        className="file-upload-btn"
+                        style={{
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                        disabled={uploadingFile}
+                      >
                         <Paperclip size={14} />
                         {uploadingFile ? t('kanban.modal.uploading') : t('kanban.modal.attachFile')}
-                        <input type="file" onChange={handleFileUpload} disabled={uploadingFile} />
-                      </label>
+                      </button>
+                      <input
+                        ref={generalFileInputRef}
+                        type="file"
+                        style={{ display: 'none' }}
+                        onChange={handleFileUpload}
+                        disabled={uploadingFile}
+                      />
                     </div>
                     
                     {formData.attachments.length > 0 || pendingFiles.length > 0 ? (
@@ -5026,6 +5095,44 @@ const Kanban = () => {
         </div>,
         document.body
       )}
+
+      {/* Act & General Upload Mobile Action Sheet */}
+      <ActUploadActionSheet
+        isOpen={isActActionSheetOpen}
+        onClose={() => setIsActActionSheetOpen(false)}
+        mode={actionSheetMode}
+        hasAct={Boolean(formData.attachments.find(a => isActFile(a.fileName, a.isAct)) || pendingFiles.find(f => isActFile(f.name)))}
+        onSelectScan={() => {
+          setDocScannerIsAct(actionSheetMode === 'ACT');
+          setIsDocScannerOpen(true);
+        }}
+        onSelectFile={() => {
+          if (actionSheetMode === 'ACT') {
+            if (actFileInputRef.current) {
+              actFileInputRef.current.click();
+            }
+          } else {
+            if (generalFileInputRef.current) {
+              generalFileInputRef.current.click();
+            }
+          }
+        }}
+      />
+
+      {/* Document Scanner Modal with Real-Time Edge Detection */}
+      <DocumentScannerModal
+        isOpen={isDocScannerOpen}
+        onClose={() => setIsDocScannerOpen(false)}
+        orderId={editingOrderId || undefined}
+        isAct={docScannerIsAct}
+        onScanComplete={(scannedFile) => {
+          if (docScannerIsAct) {
+            handleUploadDirectActFile(scannedFile);
+          } else {
+            handleUploadDirectGeneralFile(scannedFile);
+          }
+        }}
+      />
     </div>
   );
 };
