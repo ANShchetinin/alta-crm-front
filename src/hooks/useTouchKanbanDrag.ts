@@ -22,7 +22,7 @@ export const useTouchKanbanDrag = ({
   boardRef,
   onDropCard,
   onCardClick,
-  longPressDelay = 220
+  longPressDelay = 250
 }: UseTouchKanbanDragProps) => {
   const [draggingCard, setDraggingCard] = useState<Order | null>(null);
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
@@ -37,6 +37,9 @@ export const useTouchKanbanDrag = ({
     card: Order | null;
     timer: ReturnType<typeof setTimeout> | null;
     isDragging: boolean;
+    hasMoved: boolean;
+    startTime: number;
+    suppressClickUntil: number;
     cardElement: HTMLElement | null;
     autoScrollTimer: number | null;
   }>({
@@ -47,6 +50,9 @@ export const useTouchKanbanDrag = ({
     card: null,
     timer: null,
     isDragging: false,
+    hasMoved: false,
+    startTime: 0,
+    suppressClickUntil: 0,
     cardElement: null,
     autoScrollTimer: null
   });
@@ -84,7 +90,7 @@ export const useTouchKanbanDrag = ({
   }, [boardRef, stopAutoScroll]);
 
   const updateTargetColumn = useCallback((x: number, y: number) => {
-    if (typeof document === 'undefined') return;
+    if (typeof document === 'undefined' || typeof document.elementFromPoint !== 'function') return;
     const element = document.elementFromPoint(x, y);
     if (!element) {
       setTargetStatusId(null);
@@ -120,6 +126,9 @@ export const useTouchKanbanDrag = ({
       card,
       timer: null,
       isDragging: false,
+      hasMoved: false,
+      startTime: Date.now(),
+      suppressClickUntil: 0,
       cardElement: cardEl,
       autoScrollTimer: null
     };
@@ -127,6 +136,9 @@ export const useTouchKanbanDrag = ({
     const timer = setTimeout(() => {
       // Long press activated!
       touchStateRef.current.isDragging = true;
+      touchStateRef.current.hasMoved = true;
+      touchStateRef.current.suppressClickUntil = Date.now() + 400;
+
       setDraggingCard(card);
       setDragPosition({ x: startX, y: startY });
       setGhostData({
@@ -143,7 +155,7 @@ export const useTouchKanbanDrag = ({
       // Haptic feedback
       try {
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
-          navigator.vibrate(40);
+          navigator.vibrate(50);
         }
       } catch (_) {}
     }, longPressDelay);
@@ -158,16 +170,20 @@ export const useTouchKanbanDrag = ({
     touchStateRef.current.currentY = touch.clientY;
 
     if (!isDragging) {
-      // If moved significantly before timer fired, cancel long-press -> normal scroll
+      // If moved beyond natural finger tremor (16px), user is SCROLLING -> cancel drag timer
       const dist = Math.hypot(touch.clientX - startX, touch.clientY - startY);
-      if (dist > 8 && timer) {
-        clearTimeout(timer);
-        touchStateRef.current.timer = null;
+      if (dist > 16) {
+        touchStateRef.current.hasMoved = true;
+        touchStateRef.current.suppressClickUntil = Date.now() + 400;
+        if (timer) {
+          clearTimeout(timer);
+          touchStateRef.current.timer = null;
+        }
       }
       return;
     }
 
-    // Is dragging
+    // Currently dragging card
     if (e.cancelable) {
       e.preventDefault();
     }
@@ -177,7 +193,7 @@ export const useTouchKanbanDrag = ({
   }, [handleAutoScroll, updateTargetColumn]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    const { timer, isDragging, card } = touchStateRef.current;
+    const { timer, isDragging, card, hasMoved, startTime } = touchStateRef.current;
     if (timer) {
       clearTimeout(timer);
       touchStateRef.current.timer = null;
@@ -185,13 +201,12 @@ export const useTouchKanbanDrag = ({
     stopAutoScroll();
 
     if (isDragging && card) {
-      // Prevent click
       if (e.cancelable) {
         e.preventDefault();
       }
 
       let finalTargetId: number | null = null;
-      if (typeof document !== 'undefined') {
+      if (typeof document !== 'undefined' && typeof document.elementFromPoint === 'function') {
         const element = document.elementFromPoint(
           touchStateRef.current.currentX,
           touchStateRef.current.currentY
@@ -210,11 +225,12 @@ export const useTouchKanbanDrag = ({
         onDropCard(card.id, finalTargetId);
         try {
           if (typeof navigator !== 'undefined' && navigator.vibrate) {
-            navigator.vibrate([20, 30]);
+            navigator.vibrate([30, 40]);
           }
         } catch (_) {}
       }
 
+      touchStateRef.current.suppressClickUntil = Date.now() + 400;
       setDraggingCard(null);
       setDragPosition(null);
       setTargetStatusId(null);
@@ -222,8 +238,12 @@ export const useTouchKanbanDrag = ({
       touchStateRef.current.isDragging = false;
       touchStateRef.current.card = null;
     } else if (card) {
-      // Quick tap -> open card
-      onCardClick(card);
+      const duration = Date.now() - startTime;
+      // Only trigger click if it was an intentional stationary TAP (not a scroll gesture)
+      if (!hasMoved && duration < 350) {
+        onCardClick(card);
+      }
+      touchStateRef.current.suppressClickUntil = Date.now() + 400;
       touchStateRef.current.card = null;
     }
   }, [onDropCard, onCardClick, stopAutoScroll, targetStatusId]);
@@ -234,6 +254,7 @@ export const useTouchKanbanDrag = ({
       touchStateRef.current.timer = null;
     }
     stopAutoScroll();
+    touchStateRef.current.suppressClickUntil = Date.now() + 400;
     setDraggingCard(null);
     setDragPosition(null);
     setTargetStatusId(null);
@@ -241,6 +262,11 @@ export const useTouchKanbanDrag = ({
     touchStateRef.current.isDragging = false;
     touchStateRef.current.card = null;
   }, [stopAutoScroll]);
+
+  // Check if standard mouse click is allowed (or should be suppressed due to touch scroll/drag)
+  const isClickAllowed = useCallback(() => {
+    return Date.now() > touchStateRef.current.suppressClickUntil && !touchStateRef.current.hasMoved && !touchStateRef.current.isDragging;
+  }, []);
 
   // Clean up on unmount
   useEffect(() => {
@@ -260,6 +286,7 @@ export const useTouchKanbanDrag = ({
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
-    handleTouchCancel
+    handleTouchCancel,
+    isClickAllowed
   };
 };

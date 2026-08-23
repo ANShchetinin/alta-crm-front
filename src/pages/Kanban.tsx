@@ -25,6 +25,7 @@ import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import { OrderRemindersSection } from '../components/OrderRemindersSection';
 import { getMyReminders, type OrderReminderDto } from '../api/reminders';
 import { useTouchKanbanDrag } from '../hooks/useTouchKanbanDrag';
+import { useTouchColumnReorder } from '../hooks/useTouchColumnReorder';
 import '../styles/kanban.css';
 interface MaterialSearchSelectProps {
   value: number;
@@ -528,7 +529,8 @@ const Kanban = () => {
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
-    handleTouchCancel
+    handleTouchCancel,
+    isClickAllowed
   } = useTouchKanbanDrag({
     boardRef,
     onDropCard: async (cardId, targetId) => {
@@ -547,7 +549,30 @@ const Kanban = () => {
     onCardClick: (card) => {
       openEditModal(card);
     },
-    longPressDelay: 220
+    longPressDelay: 250
+  });
+
+  const {
+    draggingColId,
+    targetColId: touchTargetColId,
+    handleHandleTouchStart,
+    handleHandleTouchMove,
+    handleHandleTouchEnd,
+    handleHandleTouchCancel
+  } = useTouchColumnReorder({
+    columns,
+    onReorder: async (newColumns) => {
+      setColumns(newColumns);
+      const firstStatus = newColumns.find(s => s.sortOrder === 1);
+      if (firstStatus) {
+        setNewOrdersCount(cards.filter(o => o.statusId === firstStatus.id).length);
+      }
+      try {
+        await reorderOrderStatuses(newColumns.map(c => c.id));
+      } catch (err) {
+        console.error("Failed to reorder columns via touch drag", err);
+      }
+    }
   });
 
   const openCreateModal = () => {
@@ -1452,7 +1477,11 @@ const Kanban = () => {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchCancel}
-      onClick={() => openEditModal(card)}
+      onClick={() => {
+        if (isClickAllowed()) {
+          openEditModal(card);
+        }
+      }}
     >
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
         {(() => {
@@ -2100,7 +2129,7 @@ const Kanban = () => {
               <div
                 key={col.id}
                 data-column-id={col.id}
-                className={`kanban-mobile-status-group glass-panel ${touchTargetStatusId === col.id ? 'is-touch-drop-target' : ''}`}
+                className={`kanban-mobile-status-group glass-panel ${touchTargetStatusId === col.id ? 'is-touch-drop-target' : ''} ${draggingColId === col.id ? 'is-column-dragging' : ''} ${touchTargetColId === col.id && draggingColId !== col.id ? 'is-column-reorder-target' : ''}`}
               >
                 <div
                   className="kanban-mobile-status-header"
@@ -2133,8 +2162,12 @@ const Kanban = () => {
                     {!isWorker && (
                       <div
                         className="kanban-status-drag-handle"
-                        title="Порядок этапов воронки"
+                        title="Порядок этапов воронки (зажмите и тяните)"
                         onClick={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => handleHandleTouchStart(e, col.id)}
+                        onTouchMove={handleHandleTouchMove}
+                        onTouchEnd={handleHandleTouchEnd}
+                        onTouchCancel={handleHandleTouchCancel}
                       >
                         <span className="kanban-drag-line" />
                         <span className="kanban-drag-line" />

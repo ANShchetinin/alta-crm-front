@@ -1198,5 +1198,21 @@ body.light-theme .custom-number-input {
   box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
 }
 
+.kanban-mobile-status-group.is-column-dragging {
+  opacity: 0.4 !important;
+  border: 2px dashed var(--accent-primary) !important;
+  transform: scale(0.98);
+}
+
+.kanban-mobile-status-group.is-column-reorder-target {
+  border-color: var(--accent-primary) !important;
+  background: rgba(59, 130, 246, 0.12) !important;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3) !important;
+}
+
+.light-theme .kanban-mobile-status-group.is-column-reorder-target {
+  background: #eff6ff !important;
+}
+
 
 
