@@ -251,3 +251,30 @@ export const toggleRemainderPaid = async (orderId: number, paid: boolean, paidAt
   const response = await api.patch(`/orders/${orderId}/remainder-paid`, null, { params });
   return response.data;
 };
+
+export const analyzeAudioWithPrompt = async (orderId: number, systemPrompt?: string): Promise<OrderAiSummary> => {
+  const response = await api.post(`/orders/${orderId}/ai-analyze`, { systemPrompt });
+  return response.data;
+};
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  text: string;
+  timestamp?: string;
+  tokensUsed?: number;
+  costRubles?: number;
+}
+
+export const chatWithOrderAi = async (
+  orderId: number,
+  systemPrompt: string,
+  messages: ChatMessage[],
+  userMessage: string
+): Promise<{ reply: string; messages: ChatMessage[]; tokensUsed?: number; costRubles?: number }> => {
+  const response = await api.post(`/orders/${orderId}/ai-chat`, {
+    systemPrompt,
+    messages,
+    userMessage
+  });
+  return response.data;
+};

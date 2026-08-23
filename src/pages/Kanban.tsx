@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Bell, Camera } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, ChevronsDown, ChevronsUp, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Bell, Camera, MessageSquare, Sparkles, Send, Copy, FileDown, Bot, Coins } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, completeOrder, createOrder, updateOrder, uploadAttachment, toggleAttachmentIsAct, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx } from '../api/kanban';
-import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary, ContractParams } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, completeOrder, createOrder, updateOrder, uploadAttachment, toggleAttachmentIsAct, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx, analyzeAudioWithPrompt, chatWithOrderAi } from '../api/kanban';
+import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary, ContractParams, ChatMessage } from '../api/kanban';
+import { SYSTEM_PROMPT_SUMMARY, SYSTEM_PROMPT_SALES_ADVICE, SYSTEM_PROMPT_CHAT_ASSISTANT } from '../constants/aiPrompts';
 import { getClients, createClient, updateClient } from '../api/clients';
 import type { Client } from '../api/clients';
 import { getContractTemplateStatus } from '../api/settings';
@@ -132,6 +133,641 @@ const MaterialSearchSelect: React.FC<MaterialSearchSelectProps> = ({ value, mate
   );
 };
 
+interface ClientSearchSelectProps {
+  value: string;
+  clients: Client[];
+  onChange: (clientId: string) => void;
+  onAddNewClient: () => void;
+  isWorker?: boolean;
+}
+
+const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({ value, clients, onChange, onAddNewClient, isWorker }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedClient = clients.find(c => c.id.toString() === value);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const filteredClients = useMemo(() => {
+    if (!search.trim()) return clients;
+    const q = search.toLowerCase().trim();
+    return clients.filter(c => 
+      c.name.toLowerCase().includes(q) ||
+      (c.phone && c.phone.toLowerCase().includes(q)) ||
+      (c.inn && c.inn.toLowerCase().includes(q)) ||
+      (c.contactPerson && c.contactPerson.toLowerCase().includes(q))
+    );
+  }, [clients, search]);
+
+  const handleOpen = () => {
+    if (isWorker) return;
+    setIsOpen(!isOpen);
+    if (!isOpen) {
+      setSearch('');
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 60);
+    }
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      {/* Selected Card / Trigger Button */}
+      <div
+        onClick={handleOpen}
+        style={{
+          width: '100%',
+          padding: '10px 14px',
+          background: selectedClient ? 'rgba(255, 255, 255, 0.04)' : 'var(--input-bg)',
+          border: isOpen ? '1px solid var(--accent-primary)' : '1px solid var(--glass-border)',
+          borderRadius: 'var(--radius-md)',
+          cursor: isWorker ? 'default' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '10px',
+          transition: 'all var(--transition-fast)',
+          boxShadow: isOpen ? '0 0 0 2px var(--accent-glow)' : 'none'
+        }}
+      >
+        {selectedClient ? (() => {
+          const isLegal = selectedClient.clientType === 'LEGAL_ENTITY';
+          const cAvatar = selectedClient.avatarUrl;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: '#fff',
+                background: cAvatar ? 'transparent' : getAvatarGradient(selectedClient.name || (isLegal ? 'Компания' : 'Клиент')),
+                border: '1.5px solid rgba(255, 255, 255, 0.18)',
+                flexShrink: 0
+              }}>
+                {cAvatar ? (
+                  <img src={cAvatar} alt={selectedClient.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  isLegal ? <Building2 size={18} /> : getClientInitials(selectedClient.name)
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {selectedClient.name}
+                  </span>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                    color: isLegal ? '#60a5fa' : '#4ade80',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1px' }}>
+                  {selectedClient.phone && <span>📞 {selectedClient.phone}</span>}
+                  {selectedClient.inn && <span>ИНН: {selectedClient.inn}</span>}
+                </div>
+              </div>
+            </div>
+          );
+        })() : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
+            <User size={18} style={{ opacity: 0.6 }} />
+            <span>Выберите клиента из базы...</span>
+          </div>
+        )}
+        {!isWorker && (
+          <ChevronDown 
+            size={18} 
+            style={{ 
+              color: 'var(--text-secondary)', 
+              transform: isOpen ? 'rotate(180deg)' : 'none', 
+              transition: 'transform 0.2s ease', 
+              flexShrink: 0 
+            }} 
+          />
+        )}
+      </div>
+
+      {/* Hidden input to fulfill HTML form validation if required */}
+      <input type="text" value={value} required style={{ opacity: 0, height: 0, width: 0, position: 'absolute', pointerEvents: 'none' }} onChange={() => {}} />
+
+      {/* Dropdown Menu / Bottom Sheet */}
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 6px)',
+          left: 0,
+          right: 0,
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--glass-border)',
+          borderRadius: 'var(--radius-md)',
+          boxShadow: '0 12px 36px rgba(0, 0, 0, 0.5)',
+          zIndex: 1000,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '320px'
+        }}>
+          {/* Search Input Bar */}
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--glass-border)', background: 'rgba(0, 0, 0, 0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Search size={16} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Поиск по имени, телефону, ИНН..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                fontSize: '0.88rem'
+              }}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px', display: 'flex' }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* "+ Создать клиента" Button inside dropdown */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(false);
+              onAddNewClient();
+            }}
+            style={{
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              border: 'none',
+              borderBottom: '1px solid var(--glass-border)',
+              background: 'rgba(59, 130, 246, 0.08)',
+              color: 'var(--accent-primary)',
+              fontWeight: 600,
+              fontSize: '0.86rem',
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'background 0.15s ease'
+            }}
+          >
+            <Plus size={16} /> Создать нового клиента
+          </button>
+
+          {/* Clients List */}
+          <div style={{ overflowY: 'auto', flex: 1, maxHeight: '220px' }}>
+            {filteredClients.length === 0 ? (
+              <div style={{ padding: '20px 14px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
+                Клиент не найден
+              </div>
+            ) : (
+              filteredClients.map(c => {
+                const isSelected = c.id.toString() === value;
+                const isLegal = c.clientType === 'LEGAL_ENTITY';
+                const cAvatar = c.avatarUrl;
+
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => {
+                      onChange(c.id.toString());
+                      setIsOpen(false);
+                    }}
+                    style={{
+                      padding: '10px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        color: '#fff',
+                        background: cAvatar ? 'transparent' : getAvatarGradient(c.name || (isLegal ? 'Компания' : 'Клиент')),
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        flexShrink: 0
+                      }}>
+                        {cAvatar ? (
+                          <img src={cAvatar} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          isLegal ? <Building2 size={15} /> : getClientInitials(c.name)
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.88rem', color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {c.name}
+                          </span>
+                          <span style={{
+                            fontSize: '0.68rem',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                            color: isLegal ? '#60a5fa' : '#4ade80',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0
+                          }}>
+                            {isLegal ? 'Юр. лицо' : 'Физ. лицо'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', marginTop: '1px' }}>
+                          {c.phone && <span>{c.phone}</span>}
+                          {c.inn && <span>ИНН: {c.inn}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <Check size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+interface EmployeeSearchSelectProps {
+  value: string;
+  employees: Employee[];
+  onChange: (employeeId: string) => void;
+  placeholder?: string;
+  icon?: React.ReactNode;
+  accentColor?: string;
+  isWorker?: boolean;
+}
+
+const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
+  value,
+  employees,
+  onChange,
+  placeholder = 'Не назначен',
+  icon,
+  accentColor = 'var(--accent-primary)',
+  isWorker
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedEmployee = employees.find(e => e.id.toString() === value);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const filteredEmployees = useMemo(() => {
+    if (!search.trim()) return employees;
+    const q = search.toLowerCase().trim();
+    return employees.filter(e => 
+      e.name.toLowerCase().includes(q) ||
+      (e.position && e.position.toLowerCase().includes(q)) ||
+      (e.phone && e.phone.toLowerCase().includes(q))
+    );
+  }, [employees, search]);
+
+  const handleOpen = () => {
+    if (isWorker) return;
+    setIsOpen(!isOpen);
+    if (!isOpen) {
+      setSearch('');
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 60);
+    }
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      {/* Selected Card / Trigger */}
+      <div
+        onClick={handleOpen}
+        style={{
+          width: '100%',
+          padding: '8px 12px',
+          background: selectedEmployee ? 'rgba(255, 255, 255, 0.04)' : 'var(--input-bg)',
+          border: isOpen ? `1px solid ${accentColor}` : '1px solid var(--glass-border)',
+          borderRadius: 'var(--radius-md)',
+          cursor: isWorker ? 'default' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          transition: 'all var(--transition-fast)',
+          minHeight: '44px'
+        }}
+      >
+        {selectedEmployee ? (() => {
+          const eAvatar = selectedEmployee.avatarUrl;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+              <div style={{
+                width: '30px',
+                height: '30px',
+                borderRadius: '50%',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                color: '#fff',
+                background: eAvatar ? 'transparent' : getAvatarGradient(selectedEmployee.name),
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                flexShrink: 0
+              }}>
+                {eAvatar ? (
+                  <img src={eAvatar} alt={selectedEmployee.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  getEmployeeInitials(selectedEmployee.name)
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                <span style={{ fontWeight: 600, fontSize: '0.86rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {selectedEmployee.name}
+                </span>
+                {selectedEmployee.position && (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {selectedEmployee.position}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })() : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+            {icon || <User size={15} style={{ opacity: 0.6 }} />}
+            <span>{placeholder}</span>
+          </div>
+        )}
+
+        {!isWorker && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {selectedEmployee && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange('');
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'flex',
+                  borderRadius: '50%',
+                  opacity: 0.7
+                }}
+                title="Снять выбор"
+              >
+                <X size={13} />
+              </button>
+            )}
+            <ChevronDown 
+              size={16} 
+              style={{ 
+                color: 'var(--text-secondary)', 
+                transform: isOpen ? 'rotate(180deg)' : 'none', 
+                transition: 'transform 0.2s ease', 
+                flexShrink: 0 
+              }} 
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 6px)',
+          left: 0,
+          right: 0,
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--glass-border)',
+          borderRadius: 'var(--radius-md)',
+          boxShadow: '0 12px 36px rgba(0, 0, 0, 0.5)',
+          zIndex: 1000,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '280px'
+        }}>
+          {/* Search Bar */}
+          <div style={{ padding: '6px 10px', borderBottom: '1px solid var(--glass-border)', background: 'rgba(0, 0, 0, 0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Search size={14} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Поиск сотрудника..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                fontSize: '0.84rem'
+              }}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px', display: 'flex' }}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* Option: Не назначен / Снять выбор */}
+          <div
+            onClick={() => {
+              onChange('');
+              setIsOpen(false);
+            }}
+            style={{
+              padding: '8px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              cursor: 'pointer',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+              background: !value ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+              color: !value ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              fontSize: '0.82rem',
+              fontWeight: !value ? 600 : 400
+            }}
+          >
+            <span>— {placeholder}</span>
+            {!value && <Check size={14} style={{ color: 'var(--accent-primary)' }} />}
+          </div>
+
+          {/* List of employees */}
+          <div style={{ overflowY: 'auto', flex: 1, maxHeight: '200px' }}>
+            {filteredEmployees.length === 0 ? (
+              <div style={{ padding: '16px 12px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                Сотрудник не найден
+              </div>
+            ) : (
+              filteredEmployees.map(e => {
+                const isSelected = e.id.toString() === value;
+                const eAvatar = e.avatarUrl;
+
+                return (
+                  <div
+                    key={e.id}
+                    onClick={() => {
+                      onChange(e.id.toString());
+                      setIsOpen(false);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseEnter={(ev) => {
+                      if (!isSelected) ev.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                    }}
+                    onMouseLeave={(ev) => {
+                      if (!isSelected) ev.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        color: '#fff',
+                        background: eAvatar ? 'transparent' : getAvatarGradient(e.name),
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        flexShrink: 0
+                      }}>
+                        {eAvatar ? (
+                          <img src={eAvatar} alt={e.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          getEmployeeInitials(e.name)
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                        <span style={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.84rem', color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {e.name}
+                        </span>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
+                          {e.position && <span>{e.position}</span>}
+                          {e.phone && <span>• {e.phone}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <Check size={14} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Kanban = () => {
   const { t } = useTranslation();
   const role = useAuthStore(state => state.role);
@@ -139,6 +775,7 @@ const Kanban = () => {
   const hasAiSummary = useFeature('AI_SUMMARY');
   const hasContractTemplates = useFeature('CONTRACT_TEMPLATES');
   const hasStorage = useFeature('STORAGE');
+  const hasDocumentScanner = useFeature('DOCUMENT_SCANNER');
   const { setNewOrdersCount, fetchLowStockMaterials, tenantSettings } = useAppStore();
   const [columns, setColumns] = useState<OrderStatus[]>([]);
   const [cards, setCards] = useState<Order[]>([]);
@@ -257,6 +894,17 @@ const Kanban = () => {
 
   const [aiSummary, setAiSummary] = useState<OrderAiSummary | null>(null);
   const [uploadingAudio, setUploadingAudio] = useState(false);
+  const audioFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [aiSubTab, setAiSubTab] = useState<'ANALYSIS' | 'CHAT'>('ANALYSIS');
+  const [aiPromptPreset, setAiPromptPreset] = useState<'SUMMARY' | 'SALES_ADVICE' | 'CUSTOM'>('SUMMARY');
+  const [customSystemPrompt, setCustomSystemPrompt] = useState('');
+  const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInputText, setChatInputText] = useState('');
+  const [isChatReplying, setIsChatReplying] = useState(false);
+  const [copyFeedbackText, setCopyFeedbackText] = useState<string | null>(null);
+  const chatBottomRef = useRef<HTMLDivElement | null>(null);
+  const orderChatCacheRef = useRef<Record<number, ChatMessage[]>>({});
   
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [editingColumnId, setEditingColumnId] = useState<number | null>(null);
@@ -400,6 +1048,11 @@ const Kanban = () => {
     setInitialFormDataJson(JSON.stringify({ formData: initialData, pendingFilesCount: 0 }));
     setPendingFiles([]);
     setAiSummary(null);
+    setAiSubTab('ANALYSIS');
+    setAiPromptPreset('SUMMARY');
+    const cachedChat = orderChatCacheRef.current[order.id] || [];
+    setChatMessages(cachedChat);
+    setChatInputText('');
     setIsModalOpen(true);
     getAiSummary(order.id).then(setAiSummary).catch(() => setAiSummary(null));
   };
@@ -729,6 +1382,9 @@ const Kanban = () => {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (orderModalTab === 'AI') {
+      return; // Do not submit order form from AI analysis & chat tab
+    }
     await submitOrderForm();
   };
 
@@ -1224,6 +1880,120 @@ const Kanban = () => {
         console.error(err);
       }
     }
+  };
+
+  const handleRunAiAnalysis = async (preset: 'SUMMARY' | 'SALES_ADVICE' | 'CUSTOM', promptOverride?: string) => {
+    if (!editingOrderId) return;
+    setIsAnalyzingAudio(true);
+    try {
+      let promptToSend = SYSTEM_PROMPT_SUMMARY;
+      if (preset === 'SALES_ADVICE') {
+        promptToSend = SYSTEM_PROMPT_SALES_ADVICE;
+      } else if (preset === 'CUSTOM') {
+        promptToSend = promptOverride !== undefined ? promptOverride : (customSystemPrompt.trim() || SYSTEM_PROMPT_SUMMARY);
+      }
+      setAiPromptPreset(preset);
+      const updated = await analyzeAudioWithPrompt(editingOrderId, promptToSend);
+      setAiSummary(updated);
+    } catch (err: any) {
+      console.error("Failed to run AI analysis", err);
+      alert(err.response?.data?.message || "Ошибка при анализе стенограммы");
+    } finally {
+      setIsAnalyzingAudio(false);
+    }
+  };
+
+  const handleSendChatMessage = async (textToSend?: string) => {
+    const text = (textToSend || chatInputText).trim();
+    if (!text || !editingOrderId || isChatReplying) return;
+
+    setChatInputText('');
+    const userMsg: ChatMessage = {
+      role: 'user',
+      text,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    const newHistory = [...chatMessages, userMsg];
+    setChatMessages(newHistory);
+    orderChatCacheRef.current[editingOrderId] = newHistory;
+    setIsChatReplying(true);
+
+    try {
+      const res = await chatWithOrderAi(editingOrderId, SYSTEM_PROMPT_CHAT_ASSISTANT, chatMessages, text);
+      const assistantMsg: ChatMessage = {
+        role: 'assistant',
+        text: res.reply,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        tokensUsed: res.tokensUsed,
+        costRubles: res.costRubles
+      };
+      const finalHistory = [...newHistory, assistantMsg];
+      setChatMessages(finalHistory);
+      orderChatCacheRef.current[editingOrderId] = finalHistory;
+      setTimeout(() => {
+        chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (err: any) {
+      console.error("Failed to chat with AI", err);
+      const errorMsg: ChatMessage = {
+        role: 'assistant',
+        text: "⚠️ " + (err.response?.data?.message || "Не удалось получить ответ от AI. Попробуйте еще раз."),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      const finalHistory = [...newHistory, errorMsg];
+      setChatMessages(finalHistory);
+      orderChatCacheRef.current[editingOrderId] = finalHistory;
+    } finally {
+      setIsChatReplying(false);
+    }
+  };
+
+  const handleExportChatTxt = () => {
+    if (!editingOrderId) return;
+    const orderNum = formData.orderNumber || editingOrderId;
+    const nowStr = new Date().toLocaleString();
+    const totalTokens = chatMessages.reduce((sum, m) => sum + (m.tokensUsed || 0), 0);
+    const totalCost = chatMessages.reduce((sum, m) => sum + (m.costRubles || 0), 0);
+
+    let content = `=== ДИАЛОГ С AI-АССИСТЕНТОМ ПО ЗАКАЗУ №${orderNum} ===\n`;
+    content += `Дата выгрузки: ${nowStr}\n`;
+    content += `Адрес: ${formData.address || '—'}\n`;
+    if (totalTokens > 0) {
+      content += `Расход токенов (YandexGPT): ${totalTokens} ток. (~${totalCost.toFixed(2)} ₽)\n`;
+    }
+    content += `\n`;
+
+    if (aiSummary?.rawTranscript) {
+      content += `--- СТЕНОГРАММА ЗВОНКА С КЛИЕНТОМ ---\n${aiSummary.rawTranscript}\n\n`;
+    }
+
+    content += `--- ИСТОРИЯ ПЕРЕПИСКИ В ЧАТЕ (СЕССИЯ) ---\n`;
+    if (chatMessages.length === 0) {
+      content += `(Чат пуст)\n`;
+    } else {
+      chatMessages.forEach(m => {
+        const roleLabel = m.role === 'user' ? 'МЕНЕДЖЕР' : 'AI-АССИСТЕНТ';
+        const costStr = (m.tokensUsed && m.tokensUsed > 0) ? ` [${m.tokensUsed} ток. • ~${(m.costRubles || 0).toFixed(2)} ₽]` : '';
+        content += `[${m.timestamp || ''}] ${roleLabel}${costStr}:\n${m.text}\n\n`;
+      });
+    }
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `AI_Диалог_Заказ_${orderNum}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopyTextWithToast = (text: string, label = "Скопировано в буфер") => {
+    navigator.clipboard.writeText(text);
+    setCopyFeedbackText(label);
+    setTimeout(() => setCopyFeedbackText(null), 2500);
   };
 
   const handleSaveColumn = async (e: React.FormEvent) => {
@@ -2054,30 +2824,46 @@ const Kanban = () => {
       {/* Main Board Content: Mobile Accordion List vs Desktop/Mobile Horizontal Board */}
       {isMobile && mobileViewMode === 'list' ? (
         <div className="kanban-mobile-list-view" ref={boardRef}>
-          {/* Quick Collapse/Expand Controls */}
-          <div className="kanban-mobile-list-toolbar">
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-              Этапы воронки ({displayedColumns.length})
-            </span>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => toggleAllColumns(true)}
-                style={{ fontSize: '0.74rem', padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)' }}
-              >
-                Развернуть все
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => toggleAllColumns(false)}
-                style={{ fontSize: '0.74rem', padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)' }}
-              >
-                Свернуть все
-              </button>
-            </div>
-          </div>
+          {/* Quick Collapse/Expand Single Control */}
+          {(() => {
+            const allExpanded = displayedColumns.length > 0 && displayedColumns.every(col => collapsedColumns[col.id] === false);
+            return (
+              <div className="kanban-mobile-list-toolbar">
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  Этапы воронки ({displayedColumns.length})
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => toggleAllColumns(!allExpanded)}
+                  style={{
+                    fontSize: '0.76rem',
+                    padding: '4px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--glass-border)',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    color: 'var(--text-primary)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontWeight: 500
+                  }}
+                >
+                  {allExpanded ? (
+                    <>
+                      <ChevronsUp size={14} style={{ color: 'var(--accent-primary)' }} />
+                      <span>Свернуть все</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronsDown size={14} style={{ color: 'var(--accent-primary)' }} />
+                      <span>Развернуть все</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            );
+          })()}
 
           {displayedColumns.map(col => {
             const colCards = filteredCards.filter(c => c.statusId === col.id);
@@ -2649,10 +3435,16 @@ const Kanban = () => {
                                   <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{cName}</span>
                                   <span style={{
                                     fontSize: '0.72rem',
-                                    padding: '2px 6px',
+                                    padding: '2px 8px',
                                     borderRadius: '4px',
                                     background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                                    color: isLegal ? '#60a5fa' : '#4ade80'
+                                    color: isLegal ? '#60a5fa' : '#4ade80',
+                                    fontWeight: 600,
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px'
                                   }}>
                                     {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
                                   </span>
@@ -2683,137 +3475,60 @@ const Kanban = () => {
                         );
                       })() : (
                         <>
-                          <div className="custom-select-wrapper">
-                            <select 
-                              required
-                              value={formData.clientId}
-                              onChange={(e) => {
-                                if (e.target.value === '__NEW_CLIENT__') {
-                                  setIsNewClientModalOpen(true);
-                                } else {
-                                  setFormData({...formData, clientId: e.target.value});
-                                }
-                              }}
-                              className="custom-select"
-                            >
-                              <option value="" disabled>{t('kanban.modal.selectClient')}</option>
-                              <option value="__NEW_CLIENT__" style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>
-                                + {t('clients.addClient') || 'Создать клиента...'}
-                              </option>
-                              {clients.map(c => {
-                                const isLegal = c.clientType === 'LEGAL_ENTITY';
-                                return (
-                                  <option key={c.id} value={c.id}>
-                                    {isLegal ? `🏢 ${c.name} ${c.inn ? `(ИНН: ${c.inn})` : ''}` : `👤 ${c.name} ${c.phone ? `(${c.phone})` : ''}`}
-                                  </option>
-                                );
-                              })}
-                            </select>
-                            <ChevronDown className="custom-select-icon" size={16} />
-                          </div>
+                          <ClientSearchSelect
+                            value={formData.clientId}
+                            clients={clients}
+                            onChange={(val) => setFormData({ ...formData, clientId: val })}
+                            onAddNewClient={() => setIsNewClientModalOpen(true)}
+                            isWorker={isWorker}
+                          />
                           {(() => {
                             const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
-                            if (selectedClient) {
-                              const isLegal = selectedClient.clientType === 'LEGAL_ENTITY';
-                              const cAvatar = selectedClient.avatarUrl;
+                            if (selectedClient && (selectedClient.phone || selectedClient.leadSource)) {
                               return (
                                 <div style={{
-                                  marginTop: '10px',
-                                  padding: '10px 14px',
-                                  background: 'rgba(255, 255, 255, 0.03)',
-                                  border: '1px solid var(--glass-border)',
-                                  borderRadius: 'var(--radius-sm)',
+                                  marginTop: '8px',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  flexWrap: 'wrap',
-                                  gap: '12px'
+                                  gap: '8px',
+                                  flexWrap: 'wrap'
                                 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <div style={{
-                                      width: '40px',
-                                      height: '40px',
-                                      borderRadius: '50%',
-                                      overflow: 'hidden',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      fontSize: '0.85rem',
-                                      fontWeight: 700,
-                                      color: '#fff',
-                                      background: cAvatar ? 'transparent' : getAvatarGradient(selectedClient.name || (isLegal ? 'Компания' : 'Клиент')),
-                                      border: '1.5px solid rgba(255, 255, 255, 0.18)',
-                                      boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                                      flexShrink: 0
-                                    }}>
-                                      {cAvatar ? (
-                                        <img 
-                                          src={cAvatar} 
-                                          alt={selectedClient.name} 
-                                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                                        />
-                                      ) : (
-                                        isLegal ? <Building2 size={18} /> : getClientInitials(selectedClient.name)
-                                      )}
-                                    </div>
-                                    <div>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{selectedClient.name}</span>
-                                        <span style={{
-                                          padding: '2px 6px',
-                                          fontSize: '0.72rem',
-                                          fontWeight: 600,
-                                          borderRadius: 'var(--radius-sm)',
-                                          background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                                          color: isLegal ? '#60a5fa' : '#4ade80',
-                                          border: isLegal ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)'
-                                        }}>
-                                          {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
-                                        </span>
-                                      </div>
-                                      {isLegal && selectedClient.inn && (
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                          ИНН: {selectedClient.inn} {selectedClient.kpp ? `• КПП: ${selectedClient.kpp}` : ''}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                    {selectedClient.phone && (
-                                      <a
-                                        href={`tel:${selectedClient.phone}`}
-                                        style={{
-                                          fontSize: '0.85rem',
-                                          color: 'var(--accent-primary)',
-                                          textDecoration: 'none',
-                                          display: 'inline-flex',
-                                          alignItems: 'center',
-                                          gap: '5px',
-                                          padding: '4px 8px',
-                                          background: 'rgba(59, 130, 246, 0.08)',
-                                          borderRadius: 'var(--radius-sm)'
-                                        }}
-                                      >
-                                        <Phone size={13} /> {selectedClient.phone}
-                                      </a>
-                                    )}
-                                    {selectedClient.leadSource && (
-                                      <span style={{
-                                        padding: '4px 8px',
-                                        fontSize: '0.8rem',
-                                        color: '#60a5fa',
-                                        background: 'rgba(59, 130, 246, 0.1)',
-                                        border: '1px solid rgba(59, 130, 246, 0.25)',
-                                        borderRadius: 'var(--radius-sm)',
+                                  {selectedClient.phone && (
+                                    <a
+                                      href={`tel:${selectedClient.phone}`}
+                                      style={{
+                                        fontSize: '0.82rem',
+                                        color: 'var(--accent-primary)',
+                                        textDecoration: 'none',
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: '4px'
-                                      }}>
-                                        <Tag size={12} style={{ opacity: 0.8 }} />
-                                        Источник: {selectedClient.leadSource}
-                                      </span>
-                                    )}
-                                  </div>
+                                        gap: '5px',
+                                        padding: '4px 10px',
+                                        background: 'rgba(59, 130, 246, 0.08)',
+                                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        fontWeight: 600
+                                      }}
+                                    >
+                                      <Phone size={13} /> {selectedClient.phone}
+                                    </a>
+                                  )}
+                                  {selectedClient.leadSource && (
+                                    <span style={{
+                                      padding: '4px 10px',
+                                      fontSize: '0.78rem',
+                                      color: '#60a5fa',
+                                      background: 'rgba(59, 130, 246, 0.1)',
+                                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                                      borderRadius: 'var(--radius-sm)',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}>
+                                      <Tag size={12} style={{ opacity: 0.8 }} />
+                                      Источник: {selectedClient.leadSource}
+                                    </span>
+                                  )}
                                 </div>
                               );
                             }
@@ -2836,113 +3551,53 @@ const Kanban = () => {
                     }}>
                       {/* 1. Ответственный */}
                       <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
                           <Users size={15} style={{ color: 'var(--accent-primary)' }} />
                           {t('kanban.modal.assignee') || 'Ответственный'}
                         </label>
-                        {isWorker ? (() => {
-                          const currentOrder = cards.find(c => c.id === editingOrderId);
-                          const assignedEmployee = employees.find(e => e.id.toString() === formData.assigneeId);
-                          const aName = currentOrder?.assigneeName || assignedEmployee?.name || 'Не назначен';
-                          return (
-                            <input 
-                              type="text"
-                              disabled
-                              readOnly
-                              value={aName}
-                              className="search-input"
-                              style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
-                            />
-                          );
-                        })() : (
-                          <div className="custom-select-wrapper">
-                            <select 
-                              value={formData.assigneeId}
-                              onChange={(e) => setFormData({...formData, assigneeId: e.target.value})}
-                              className="custom-select"
-                            >
-                              <option value="">{t('kanban.modal.selectAssignee') || 'Без ответственного'}</option>
-                              {employees.map(e => (
-                                <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className="custom-select-icon" size={16} />
-                          </div>
-                        )}
+                        <EmployeeSearchSelect
+                          value={formData.assigneeId}
+                          employees={employees}
+                          onChange={(val) => setFormData({ ...formData, assigneeId: val })}
+                          placeholder={t('kanban.modal.selectAssignee') || 'Без ответственного'}
+                          icon={<Users size={15} style={{ color: 'var(--accent-primary)' }} />}
+                          accentColor="var(--accent-primary)"
+                          isWorker={isWorker}
+                        />
                       </div>
 
                       {/* 2. Замерщик */}
                       <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
                           <Ruler size={15} style={{ color: '#a855f7' }} />
                           Замерщик
                         </label>
-                        {isWorker ? (() => {
-                          const currentOrder = cards.find(c => c.id === editingOrderId);
-                          const measurerEmployee = employees.find(e => e.id.toString() === formData.measurerId);
-                          const mName = currentOrder?.measurerName || measurerEmployee?.name || 'Не назначен';
-                          return (
-                            <input 
-                              type="text"
-                              disabled
-                              readOnly
-                              value={mName}
-                              className="search-input"
-                              style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
-                            />
-                          );
-                        })() : (
-                          <div className="custom-select-wrapper">
-                            <select 
-                              value={formData.measurerId}
-                              onChange={(e) => setFormData({...formData, measurerId: e.target.value})}
-                              className="custom-select"
-                            >
-                              <option value="">Не назначен</option>
-                              {employees.map(e => (
-                                <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className="custom-select-icon" size={16} />
-                          </div>
-                        )}
+                        <EmployeeSearchSelect
+                          value={formData.measurerId}
+                          employees={employees}
+                          onChange={(val) => setFormData({ ...formData, measurerId: val })}
+                          placeholder="Не назначен"
+                          icon={<Ruler size={15} style={{ color: '#a855f7' }} />}
+                          accentColor="#a855f7"
+                          isWorker={isWorker}
+                        />
                       </div>
 
                       {/* 3. Монтажник */}
                       <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
                           <Wrench size={15} style={{ color: '#22c55e' }} />
                           Монтажник
                         </label>
-                        {isWorker ? (() => {
-                          const currentOrder = cards.find(c => c.id === editingOrderId);
-                          const installerEmployee = employees.find(e => e.id.toString() === formData.installedById);
-                          const iName = currentOrder?.installedByName || installerEmployee?.name || 'Не назначен';
-                          return (
-                            <input 
-                              type="text"
-                              disabled
-                              readOnly
-                              value={iName}
-                              className="search-input"
-                              style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
-                            />
-                          );
-                        })() : (
-                          <div className="custom-select-wrapper">
-                            <select 
-                              value={formData.installedById}
-                              onChange={(e) => setFormData({ ...formData, installedById: e.target.value })}
-                              className="custom-select"
-                            >
-                              <option value="">Не назначен</option>
-                              {employees.map(e => (
-                                <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className="custom-select-icon" size={16} />
-                          </div>
-                        )}
+                        <EmployeeSearchSelect
+                          value={formData.installedById}
+                          employees={employees}
+                          onChange={(val) => setFormData({ ...formData, installedById: val })}
+                          placeholder="Не назначен"
+                          icon={<Wrench size={15} style={{ color: '#22c55e' }} />}
+                          accentColor="#22c55e"
+                          isWorker={isWorker}
+                        />
                       </div>
                     </div>
 
@@ -4060,8 +4715,12 @@ const Kanban = () => {
                             <button 
                               type="button"
                               onClick={() => {
-                                setActionSheetMode('ACT');
-                                setIsActActionSheetOpen(true);
+                                if (hasDocumentScanner) {
+                                  setActionSheetMode('ACT');
+                                  setIsActActionSheetOpen(true);
+                                } else {
+                                  actFileInputRef.current?.click();
+                                }
                               }}
                               className="file-upload-btn" 
                               style={{ 
@@ -4078,8 +4737,10 @@ const Kanban = () => {
                                 borderRadius: 'var(--radius-sm)'
                               }}
                             >
-                              <Camera size={14} />
-                              {hasAct ? 'Заменить Акт' : 'Загрузить / Отсканировать Акт'}
+                              {hasDocumentScanner ? <Camera size={14} /> : <FileCheck size={14} />}
+                              {hasAct 
+                                ? 'Заменить Акт' 
+                                : (hasDocumentScanner ? 'Загрузить / Отсканировать Акт' : 'Загрузить Акт')}
                             </button>
                             <input 
                               ref={actFileInputRef}
@@ -4144,8 +4805,12 @@ const Kanban = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          setActionSheetMode('GENERAL');
-                          setIsActActionSheetOpen(true);
+                          if (hasDocumentScanner && (isMobile || Boolean((window.navigator as any).standalone))) {
+                            setActionSheetMode('GENERAL');
+                            setIsActActionSheetOpen(true);
+                          } else {
+                            generalFileInputRef.current?.click();
+                          }
                         }}
                         className="file-upload-btn"
                         style={{
@@ -4385,57 +5050,711 @@ const Kanban = () => {
                   </div>
                 )}
 
-                {/* 5. AI АНАЛИЗ */}
+                {/* 5. AI АНАЛИЗ И ИНТЕРАКТИВНЫЙ ЧАТ */}
                 {orderModalTab === 'AI' && editingOrderId && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+                    {/* Header with audio upload */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                       <div>
-                        <h3 style={{margin: 0, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '6px'}}>
-                          <Mic size={16} /> AI Анализ звонков
+                        <h3 style={{ margin: 0, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Mic size={16} /> AI Анализ звонков и ассистент
                         </h3>
-                        <p style={{margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>
-                          Автоматическая расшифровка аудиозаписей звонков и саммари договорённостей
+                        <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          Расшифровка аудиозаписей, анализ переговоров и умный диалог с AI
                         </p>
                       </div>
-                      <label className="file-upload-btn" style={{backgroundColor: 'var(--primary)', color: 'white', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'}}>
-                        <Mic size={14} />
-                        {uploadingAudio ? 'Загрузка...' : 'Загрузить звонок'}
-                        <input type="file" accept="audio/*" onChange={handleAudioUpload} disabled={uploadingAudio} />
-                      </label>
+                      <div>
+                        <button 
+                          type="button"
+                          onClick={() => audioFileInputRef.current?.click()}
+                          disabled={uploadingAudio}
+                          className="btn btn-primary" 
+                          style={{ 
+                            backgroundColor: '#3b82f6', 
+                            color: '#ffffff', 
+                            cursor: 'pointer', 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '6px',
+                            padding: '8px 14px',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.85rem',
+                            fontWeight: 600,
+                            border: 'none',
+                            boxShadow: '0 2px 8px rgba(59, 130, 246, 0.4)'
+                          }}
+                        >
+                          <Mic size={14} color="#ffffff" />
+                          {uploadingAudio ? 'Загрузка аудио...' : (aiSummary ? 'Загрузить другой звонок' : 'Загрузить звонок')}
+                        </button>
+                        <input 
+                          ref={audioFileInputRef}
+                          type="file" 
+                          accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac,.webm" 
+                          onChange={handleAudioUpload} 
+                          disabled={uploadingAudio} 
+                          style={{ display: 'none' }} 
+                        />
+                      </div>
                     </div>
-                    {aiSummary ? (
-                      <div style={{background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--glass-border)'}}>
-                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px'}}>
-                          <span style={{fontSize: '0.85rem', color: 'var(--text-secondary)'}}>
-                            Статус: <strong style={{color: aiSummary.status === 'COMPLETED' ? 'var(--success)' : (aiSummary.status === 'ERROR' ? 'var(--danger)' : 'var(--warning)')}}>{aiSummary.status}</strong>
+
+                    {/* Sub-tabs: Анализ vs Чат */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      background: 'rgba(0, 0, 0, 0.25)',
+                      padding: '4px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--glass-border)'
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => setAiSubTab('ANALYSIS')}
+                        style={{
+                          flex: 1,
+                          padding: '8px 14px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          fontSize: '0.88rem',
+                          fontWeight: aiSubTab === 'ANALYSIS' ? 600 : 500,
+                          background: aiSubTab === 'ANALYSIS' ? 'var(--primary)' : 'transparent',
+                          color: aiSubTab === 'ANALYSIS' ? '#fff' : 'var(--text-secondary)',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <Sparkles size={15} /> Анализ звонка
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAiSubTab('CHAT')}
+                        style={{
+                          flex: 1,
+                          padding: '8px 14px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          fontSize: '0.88rem',
+                          fontWeight: aiSubTab === 'CHAT' ? 600 : 500,
+                          background: aiSubTab === 'CHAT' ? 'var(--primary)' : 'transparent',
+                          color: aiSubTab === 'CHAT' ? '#fff' : 'var(--text-secondary)',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <MessageSquare size={15} /> Чат с AI по звонку
+                        {chatMessages.length > 0 && (
+                          <span style={{
+                            background: 'rgba(255,255,255,0.25)',
+                            padding: '1px 6px',
+                            borderRadius: '10px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700
+                          }}>
+                            {chatMessages.length}
                           </span>
-                          {aiSummary.status !== 'COMPLETED' && aiSummary.status !== 'ERROR' && (
-                            <button type="button" onClick={refreshAiSummary} className="btn btn-ghost" style={{padding: '2px 8px', fontSize: '0.75rem'}}>
-                              Обновить
-                            </button>
-                          )}
-                        </div>
-                        {aiSummary.aiSummary ? (
-                          <div style={{fontSize: '0.95rem', lineHeight: '1.5', whiteSpace: 'pre-wrap'}}>
-                            {aiSummary.aiSummary}
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Feedback Toast */}
+                    {copyFeedbackText && (
+                      <div style={{
+                        background: 'rgba(34, 197, 94, 0.2)',
+                        border: '1px solid rgba(34, 197, 94, 0.4)',
+                        color: '#4ade80',
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.82rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <Check size={14} /> {copyFeedbackText}
+                      </div>
+                    )}
+
+                    {/* Sub-tab 1: АНАЛИЗ ЗВОНКА */}
+                    {aiSubTab === 'ANALYSIS' && (
+                      <>
+                        {aiSummary ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            {/* Status and Refresh */}
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '8px 12px',
+                              background: 'rgba(255, 255, 255, 0.02)',
+                              border: '1px solid var(--glass-border)',
+                              borderRadius: 'var(--radius-sm)'
+                            }}>
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                Статус обработки:{' '}
+                                <strong style={{
+                                  color: aiSummary.status === 'COMPLETED' ? 'var(--success)' : (aiSummary.status === 'ERROR' ? 'var(--danger)' : 'var(--warning)')
+                                }}>
+                                  {aiSummary.status === 'COMPLETED' ? 'Готово к анализу' : (aiSummary.status === 'ERROR' ? 'Ошибка' : 'Расшифровка аудио...')}
+                                </strong>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={refreshAiSummary}
+                                className="btn btn-ghost"
+                                style={{ padding: '4px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <RefreshCw size={13} /> Обновить статус
+                              </button>
+                            </div>
+
+                            {/* Prompt Presets Selector */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                Вариант системного анализа:
+                              </label>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  disabled={isAnalyzingAudio || !aiSummary.rawTranscript}
+                                  onClick={() => handleRunAiAnalysis('SUMMARY')}
+                                  style={{
+                                    padding: '10px 14px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: aiPromptPreset === 'SUMMARY' ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
+                                    background: aiPromptPreset === 'SUMMARY' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                                    color: aiPromptPreset === 'SUMMARY' ? '#fff' : 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <span style={{ fontWeight: 600, fontSize: '0.88rem', color: aiPromptPreset === 'SUMMARY' ? '#60a5fa' : 'var(--text-primary)' }}>
+                                    📋 Саммари звонка
+                                  </span>
+                                  <span style={{ fontSize: '0.74rem', opacity: 0.8 }}>
+                                    Суть, параметры объекта, даты замера и цены
+                                  </span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={isAnalyzingAudio || !aiSummary.rawTranscript}
+                                  onClick={() => handleRunAiAnalysis('SALES_ADVICE')}
+                                  style={{
+                                    padding: '10px 14px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: aiPromptPreset === 'SALES_ADVICE' ? '1px solid #10b981' : '1px solid var(--glass-border)',
+                                    background: aiPromptPreset === 'SALES_ADVICE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                                    color: aiPromptPreset === 'SALES_ADVICE' ? '#fff' : 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <span style={{ fontWeight: 600, fontSize: '0.88rem', color: aiPromptPreset === 'SALES_ADVICE' ? '#34d399' : 'var(--text-primary)' }}>
+                                    🎯 Скрипт и дожим
+                                  </span>
+                                  <span style={{ fontSize: '0.74rem', opacity: 0.8 }}>
+                                    Анализ сомнений, готовый скрипт и аргументы
+                                  </span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={isAnalyzingAudio || !aiSummary.rawTranscript}
+                                  onClick={() => setAiPromptPreset('CUSTOM')}
+                                  style={{
+                                    padding: '10px 14px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: aiPromptPreset === 'CUSTOM' ? '1px solid #f59e0b' : '1px solid var(--glass-border)',
+                                    background: aiPromptPreset === 'CUSTOM' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                                    color: aiPromptPreset === 'CUSTOM' ? '#fff' : 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <span style={{ fontWeight: 600, fontSize: '0.88rem', color: aiPromptPreset === 'CUSTOM' ? '#fbbf24' : 'var(--text-primary)' }}>
+                                    ✏️ Свой промпт
+                                  </span>
+                                  <span style={{ fontSize: '0.74rem', opacity: 0.8 }}>
+                                    Произвольный запрос к стенограмме
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Custom Prompt Box */}
+                            {aiPromptPreset === 'CUSTOM' && (
+                              <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px',
+                                background: 'rgba(0, 0, 0, 0.2)',
+                                padding: '12px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1px solid rgba(245, 158, 11, 0.3)'
+                              }}>
+                                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fbbf24' }}>
+                                  Введите ваш промпт / инструкцию для анализа стенограммы:
+                                </label>
+                                <textarea
+                                  rows={3}
+                                  value={customSystemPrompt}
+                                  onChange={(e) => setCustomSystemPrompt(e.target.value)}
+                                  placeholder="Например: Выдели только перечень освещения и карнизов, либо составь текст коммерческого предложения для клиента..."
+                                  style={{
+                                    width: '100%',
+                                    background: 'var(--bg-primary)',
+                                    border: '1px solid var(--glass-border)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    color: 'var(--text-primary)',
+                                    padding: '8px 12px',
+                                    fontSize: '0.88rem',
+                                    resize: 'vertical'
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  disabled={isAnalyzingAudio || !customSystemPrompt.trim()}
+                                  onClick={() => handleRunAiAnalysis('CUSTOM')}
+                                  className="btn btn-primary"
+                                  style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+                                >
+                                  <Sparkles size={14} />
+                                  {isAnalyzingAudio ? 'Генерация анализа...' : '⚡ Запустить анализ'}
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Analysis Result Box */}
+                            <div style={{
+                              background: 'rgba(255, 255, 255, 0.03)',
+                              padding: '16px',
+                              borderRadius: 'var(--radius-lg)',
+                              border: '1px solid var(--glass-border)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '12px'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>
+                                <span style={{ fontSize: '0.88rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)' }}>
+                                  <Bot size={15} color="var(--accent-primary)" /> Результат анализа:
+                                </span>
+                                {aiSummary.aiSummary && (
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyTextWithToast(aiSummary.aiSummary!, "Результат анализа скопирован")}
+                                      className="btn btn-ghost"
+                                      style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                      title="Скопировать в буфер"
+                                    >
+                                      <Copy size={13} /> Копировать
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setAiSubTab('CHAT')}
+                                      className="btn btn-primary"
+                                      style={{ padding: '4px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                      <MessageSquare size={13} /> Обсудить в чате
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {isAnalyzingAudio ? (
+                                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                                  <RefreshCw size={20} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                                  <span style={{ fontSize: '0.88rem' }}>AI анализирует стенограмму звонка...</span>
+                                </div>
+                              ) : aiSummary.aiSummary ? (
+                                <div style={{ fontSize: '0.92rem', lineHeight: '1.6', whiteSpace: 'pre-wrap', color: 'var(--text-primary)' }}>
+                                  {aiSummary.aiSummary}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic', padding: '12px 0' }}>
+                                  {aiSummary.status === 'ERROR' ? 'Ошибка при обработке записи.' : 'Расшифровка завершена. Выберите вариант анализа выше.'}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Raw Transcript Collapsible */}
+                            {aiSummary.rawTranscript && (
+                              <details style={{
+                                background: 'rgba(0, 0, 0, 0.15)',
+                                padding: '10px 14px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1px solid var(--glass-border)'
+                              }}>
+                                <summary style={{ cursor: 'pointer', fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                  📝 Стенограмма звонка (полный текст)
+                                </summary>
+                                <div style={{ marginTop: '10px', fontSize: '0.84rem', color: 'var(--text-primary)', lineHeight: '1.5', maxHeight: '180px', overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+                                  {aiSummary.rawTranscript}
+                                </div>
+                              </details>
+                            )}
                           </div>
                         ) : (
-                          <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic'}}>
-                            {aiSummary.status === 'ERROR' ? 'Ошибка при обработке.' : 'Анализ в процессе...'}
+                          <div style={{
+                            background: 'rgba(255, 255, 255, 0.02)',
+                            border: '1px dashed var(--glass-border)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '40px 16px',
+                            textAlign: 'center',
+                            color: 'var(--text-secondary)',
+                            fontSize: '0.88rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '12px'
+                          }}>
+                            <div style={{
+                              width: '56px',
+                              height: '56px',
+                              borderRadius: '50%',
+                              background: 'rgba(59, 130, 246, 0.12)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'var(--accent-primary)'
+                            }}>
+                              <Mic size={26} color="var(--accent-primary)" />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <span style={{ fontSize: '0.98rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                Нет загруженных записей звонков
+                              </span>
+                              <span style={{ fontSize: '0.8rem', opacity: 0.8, maxWidth: '420px' }}>
+                                Загрузите аудиозапись разговора с клиентом (.mp3, .ogg, .wav, .m4a, .aac), чтобы AI расшифровал разговор, выделил ключевые параметры и подсказал скрипт продажи.
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => audioFileInputRef.current?.click()}
+                              disabled={uploadingAudio}
+                              className="btn btn-primary"
+                              style={{
+                                marginTop: '4px',
+                                padding: '10px 22px',
+                                fontSize: '0.92rem',
+                                fontWeight: 600,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                backgroundColor: '#3b82f6',
+                                color: '#ffffff',
+                                border: 'none',
+                                boxShadow: '0 2px 8px rgba(59, 130, 246, 0.4)'
+                              }}
+                            >
+                              <Mic size={16} color="#ffffff" />
+                              {uploadingAudio ? 'Загрузка аудиозаписи...' : 'Выбрать аудиофайл звонка'}
+                            </button>
                           </div>
                         )}
-                      </div>
-                    ) : (
-                      <div style={{
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        border: '1px dashed var(--glass-border)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: '32px 16px',
-                        textAlign: 'center',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.88rem'
-                      }}>
-                        Нет загруженных записей звонков по данной сделке.
+                      </>
+                    )}
+
+                    {/* Sub-tab 2: ИНТЕРАКТИВНЫЙ ЧАТ С AI */}
+                    {aiSubTab === 'CHAT' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {/* Notice & Session Export Bar */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '8px',
+                          background: 'rgba(59, 130, 246, 0.08)',
+                          border: '1px solid rgba(59, 130, 246, 0.25)',
+                          padding: '8px 12px',
+                          borderRadius: 'var(--radius-sm)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              <AlertCircle size={15} style={{ color: '#60a5fa', flexShrink: 0 }} />
+                              <span>Сессионный чат (не сохраняется в БД).</span>
+                            </div>
+                            {(() => {
+                              const totalTokens = chatMessages.reduce((sum, m) => sum + (m.tokensUsed || 0), 0);
+                              const totalCost = chatMessages.reduce((sum, m) => sum + (m.costRubles || 0), 0);
+                              if (totalTokens === 0) return null;
+                              return (
+                                <div style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 600,
+                                  background: 'rgba(234, 179, 8, 0.15)',
+                                  border: '1px solid rgba(234, 179, 8, 0.35)',
+                                  color: '#facc15',
+                                  padding: '2px 8px',
+                                  borderRadius: '10px'
+                                }}>
+                                  <Coins size={12} />
+                                  Расход: {totalTokens} ток. (~{totalCost < 0.01 && totalTokens > 0 ? '<0.01' : totalCost.toFixed(2)} ₽)
+                                </div>
+                              );
+                            })()}
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              onClick={handleExportChatTxt}
+                              className="btn btn-ghost"
+                              style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.05)' }}
+                              title="Скачать весь диалог в .txt файл"
+                            >
+                              <FileDown size={13} /> Скачать .txt
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const fullChat = chatMessages.map(m => `[${m.role === 'user' ? 'Менеджер' : 'AI'}]: ${m.text}`).join('\n\n');
+                                handleCopyTextWithToast(fullChat || "Чат пуст", "История чата скопирована");
+                              }}
+                              className="btn btn-ghost"
+                              style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.05)' }}
+                              title="Скопировать переписку"
+                            >
+                              <Copy size={13} /> Копировать
+                            </button>
+                            {chatMessages.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setChatMessages([])}
+                                className="btn btn-ghost"
+                                style={{ padding: '4px 8px', fontSize: '0.78rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                title="Очистить переписку"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Quick Prompts Suggestions */}
+                        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+                          {[
+                            '💬 Напиши сообщение для WhatsApp с итогом звонка',
+                            '🎯 Какие сомнения или возражения остались у клиента?',
+                            '🔥 Какой сильный аргумент использовать для закрытия на замер?',
+                            '📐 Составь список параметров для замерщика'
+                          ].map((suggest, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              disabled={isChatReplying}
+                              onClick={() => handleSendChatMessage(suggest)}
+                              style={{
+                                whiteSpace: 'nowrap',
+                                fontSize: '0.76rem',
+                                padding: '5px 10px',
+                                borderRadius: '12px',
+                                background: 'rgba(255, 255, 255, 0.04)',
+                                border: '1px solid var(--glass-border)',
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              {suggest}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Chat Messages Stream */}
+                        <div style={{
+                          background: 'rgba(0, 0, 0, 0.25)',
+                          border: '1px solid var(--glass-border)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '14px',
+                          minHeight: '260px',
+                          maxHeight: '380px',
+                          overflowY: 'auto',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '12px'
+                        }}>
+                          {chatMessages.length === 0 ? (
+                            <div style={{
+                              margin: 'auto',
+                              textAlign: 'center',
+                              color: 'var(--text-secondary)',
+                              fontSize: '0.86rem',
+                              padding: '24px 12px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
+                              <Bot size={32} style={{ opacity: 0.7, color: 'var(--accent-primary)' }} />
+                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Чат с AI-ассистентом по звонку</span>
+                              <span style={{ fontSize: '0.78rem', maxWidth: '360px', opacity: 0.8 }}>
+                                Задайте любой вопрос по содержанию разговора, попросите сформулировать сообщение клиенту или выделить договоренности.
+                              </span>
+                            </div>
+                          ) : (
+                            chatMessages.map((msg, index) => (
+                              <div
+                                key={index}
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                  maxWidth: '85%'
+                                }}
+                              >
+                                <div style={{
+                                  fontSize: '0.72rem',
+                                  color: 'var(--text-secondary)',
+                                  marginBottom: '3px',
+                                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}>
+                                  {msg.role === 'user' ? (
+                                    <><span>Вы (Менеджер)</span> • <span>{msg.timestamp}</span></>
+                                  ) : (
+                                    <><Bot size={12} color="var(--accent-primary)" /> <span>AI-Ассистент</span> • <span>{msg.timestamp}</span></>
+                                  )}
+                                </div>
+                                <div style={{
+                                  background: msg.role === 'user' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.05)',
+                                  color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
+                                  padding: '10px 14px',
+                                  borderRadius: msg.role === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                                  border: msg.role === 'user' ? 'none' : '1px solid var(--glass-border)',
+                                  fontSize: '0.9rem',
+                                  lineHeight: '1.5',
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                  position: 'relative'
+                                }}>
+                                  {msg.text}
+                                  {msg.role === 'assistant' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyTextWithToast(msg.text, "Ответ AI скопирован")}
+                                      style={{
+                                        position: 'absolute',
+                                        top: '6px',
+                                        right: '6px',
+                                        background: 'rgba(0,0,0,0.3)',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '3px 6px',
+                                        cursor: 'pointer',
+                                        color: 'var(--text-secondary)',
+                                        display: 'flex',
+                                        alignItems: 'center'
+                                      }}
+                                      title="Скопировать сообщение"
+                                    >
+                                      <Copy size={11} />
+                                    </button>
+                                  )}
+                                </div>
+                                {msg.role === 'assistant' && msg.tokensUsed !== undefined && msg.tokensUsed > 0 && (
+                                  <div style={{
+                                    fontSize: '0.72rem',
+                                    color: 'rgba(250, 204, 21, 0.85)',
+                                    marginTop: '3px',
+                                    alignSelf: 'flex-start',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    paddingLeft: '4px'
+                                  }}>
+                                    <Coins size={11} /> {msg.tokensUsed} токенов • ~{msg.costRubles !== undefined ? msg.costRubles.toFixed(2) : (msg.tokensUsed * 0.0012).toFixed(2)} ₽
+                                  </div>
+                                )}
+                              </div>
+                            ))
+                          )}
+                          {isChatReplying && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.82rem', padding: '6px 0' }}>
+                              <RefreshCw size={14} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--accent-primary)' }} />
+                              <span>AI формулирует ответ...</span>
+                            </div>
+                          )}
+                          <div ref={chatBottomRef} />
+                        </div>
+
+                        {/* Chat Input Bar */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: '8px',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <input
+                            type="text"
+                            value={chatInputText}
+                            onChange={(e) => setChatInputText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleSendChatMessage();
+                              }
+                            }}
+                            placeholder="Спросите AI о звонке (напр. «О чем спорили в конце?», «Напиши текст для WhatsApp»)..."
+                            disabled={isChatReplying}
+                            className="search-input"
+                            style={{
+                              flex: 1,
+                              padding: '10px 14px',
+                              fontSize: '0.88rem',
+                              height: '42px',
+                              background: 'var(--bg-primary)'
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleSendChatMessage();
+                            }}
+                            disabled={isChatReplying || !chatInputText.trim()}
+                            className="btn btn-primary"
+                            style={{
+                              height: '42px',
+                              padding: '0 16px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              fontWeight: 600
+                            }}
+                          >
+                            <Send size={15} /> Отправить
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -5097,42 +6416,46 @@ const Kanban = () => {
       )}
 
       {/* Act & General Upload Mobile Action Sheet */}
-      <ActUploadActionSheet
-        isOpen={isActActionSheetOpen}
-        onClose={() => setIsActActionSheetOpen(false)}
-        mode={actionSheetMode}
-        hasAct={Boolean(formData.attachments.find(a => isActFile(a.fileName, a.isAct)) || pendingFiles.find(f => isActFile(f.name)))}
-        onSelectScan={() => {
-          setDocScannerIsAct(actionSheetMode === 'ACT');
-          setIsDocScannerOpen(true);
-        }}
-        onSelectFile={() => {
-          if (actionSheetMode === 'ACT') {
-            if (actFileInputRef.current) {
-              actFileInputRef.current.click();
-            }
-          } else {
-            if (generalFileInputRef.current) {
-              generalFileInputRef.current.click();
-            }
-          }
-        }}
-      />
+      {hasDocumentScanner && (
+        <>
+          <ActUploadActionSheet
+            isOpen={isActActionSheetOpen}
+            onClose={() => setIsActActionSheetOpen(false)}
+            mode={actionSheetMode}
+            hasAct={Boolean(formData.attachments.find(a => isActFile(a.fileName, a.isAct)) || pendingFiles.find(f => isActFile(f.name)))}
+            onSelectScan={() => {
+              setDocScannerIsAct(actionSheetMode === 'ACT');
+              setIsDocScannerOpen(true);
+            }}
+            onSelectFile={() => {
+              if (actionSheetMode === 'ACT') {
+                if (actFileInputRef.current) {
+                  actFileInputRef.current.click();
+                }
+              } else {
+                if (generalFileInputRef.current) {
+                  generalFileInputRef.current.click();
+                }
+              }
+            }}
+          />
 
-      {/* Document Scanner Modal with Real-Time Edge Detection */}
-      <DocumentScannerModal
-        isOpen={isDocScannerOpen}
-        onClose={() => setIsDocScannerOpen(false)}
-        orderId={editingOrderId || undefined}
-        isAct={docScannerIsAct}
-        onScanComplete={(scannedFile) => {
-          if (docScannerIsAct) {
-            handleUploadDirectActFile(scannedFile);
-          } else {
-            handleUploadDirectGeneralFile(scannedFile);
-          }
-        }}
-      />
+          {/* Document Scanner Modal with Real-Time Edge Detection */}
+          <DocumentScannerModal
+            isOpen={isDocScannerOpen}
+            onClose={() => setIsDocScannerOpen(false)}
+            orderId={editingOrderId || undefined}
+            isAct={docScannerIsAct}
+            onScanComplete={(scannedFile) => {
+              if (docScannerIsAct) {
+                handleUploadDirectActFile(scannedFile);
+              } else {
+                handleUploadDirectGeneralFile(scannedFile);
+              }
+            }}
+          />
+        </>
+      )}
     </div>
   );
 };
