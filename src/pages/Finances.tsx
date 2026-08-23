@@ -483,7 +483,7 @@ export const Finances = () => {
   }
 
   return (
-    <div className="clients-wrapper">
+    <div className="clients-wrapper" style={{ minHeight: '100%', height: 'auto', overflowY: 'visible' }}>
       {/* 1. Header with Period Filters */}
       <div className="clients-header" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -707,16 +707,7 @@ export const Finances = () => {
       </div>
 
       {/* 3. Navigation Tabs (Desktop & Mobile Pills) */}
-      <div style={{
-        display: 'flex',
-        gap: '6px',
-        overflowX: 'auto',
-        WebkitOverflowScrolling: 'touch',
-        scrollbarWidth: 'none',
-        padding: '4px 2px 10px 2px',
-        marginBottom: '16px',
-        borderBottom: '1px solid var(--glass-border)'
-      }}>
+      <div className="finances-tabs-bar">
         {[
           { id: 'TRANSACTIONS', label: 'Взаиморасчёты и приём оплат', shortLabel: 'Оплаты', icon: Receipt, count: filteredOrders.length, color: 'var(--accent-primary)' },
           { id: 'RECEIVABLES', label: 'Дебиторка / Должники', shortLabel: 'Дебиторка', icon: Clock, count: debtorOrders.length, color: '#f59e0b' },
@@ -775,9 +766,9 @@ export const Finances = () => {
       {activeTab === 'TRANSACTIONS' && (
         <>
           {/* Controls Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '240px' }}>
-              <div className="search-input-wrapper" style={{ flex: 1 }}>
+          <div className="finances-controls-bar">
+            <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '240px', width: '100%' }}>
+              <div className="search-input-wrapper" style={{ flex: 1, width: '100%' }}>
                 <Search className="search-icon" size={16} />
                 <input
                   type="text"
@@ -785,12 +776,13 @@ export const Finances = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="search-input"
+                  style={{ width: '100%' }}
                 />
               </div>
             </div>
 
             {/* Payment Filter Badges */}
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            <div className="finances-payment-filters">
               {[
                 { id: 'ALL', label: 'Все оплаты' },
                 { id: 'PAID', label: '🟢 Оплачены 100%' },
@@ -810,7 +802,8 @@ export const Finances = () => {
                     border: paymentFilter === f.id ? '1px solid var(--accent-primary)' : '1px solid var(--glass-border)',
                     background: paymentFilter === f.id ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.02)',
                     color: paymentFilter === f.id ? '#60a5fa' : 'var(--text-secondary)',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   {f.label}
@@ -1452,9 +1445,9 @@ export const Finances = () => {
       {activeTab === 'EXPENSES' && (
         <div>
           {/* Controls Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
+          <div className="finances-controls-bar">
             {/* Category Filter */}
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="finances-payment-filters">
               <button
                 type="button"
                 onClick={() => setExpenseCategoryFilter('ALL')}
