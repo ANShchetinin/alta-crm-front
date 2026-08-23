@@ -109,6 +109,12 @@ export const useTouchKanbanDrag = ({
   }, []);
 
   const handleTouchStart = useCallback((e: React.TouchEvent, card: Order) => {
+    const target = e.target as HTMLElement | null;
+    if (target && target.closest('a, button, input, select, textarea, [data-no-card-click], .kanban-map-pill, .card-phone-btn, .card-complete-btn')) {
+      // Touch is on an interactive link/button inside card - do not initiate touch drag or card click
+      return;
+    }
+
     const touch = e.touches[0];
     const cardEl = e.currentTarget as HTMLElement;
     const rect = cardEl.getBoundingClientRect();
@@ -238,12 +244,14 @@ export const useTouchKanbanDrag = ({
       touchStateRef.current.isDragging = false;
       touchStateRef.current.card = null;
     } else if (card) {
+      const target = e.target as HTMLElement | null;
+      const isInteractive = target && !!target.closest('a, button, input, select, textarea, [data-no-card-click], .kanban-map-pill, .card-phone-btn, .card-complete-btn');
       const duration = Date.now() - startTime;
-      // Only trigger click if it was an intentional stationary TAP (not a scroll gesture)
-      if (!hasMoved && duration < 350) {
+      // Only trigger click if it was an intentional stationary TAP (not a scroll gesture) and NOT on an interactive button/link
+      if (!hasMoved && !isInteractive && duration < 350) {
         onCardClick(card);
       }
-      touchStateRef.current.suppressClickUntil = Date.now() + 400;
+      touchStateRef.current.suppressClickUntil = isInteractive ? 0 : Date.now() + 400;
       touchStateRef.current.card = null;
     }
   }, [onDropCard, onCardClick, stopAutoScroll, targetStatusId]);

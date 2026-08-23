@@ -2455,6 +2455,8 @@ const Kanban = () => {
             {cPhone && (
               <a
                 href={`tel:${cPhone.replace(/[^\d+]/g, '')}`}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 title={`Позвонить клиенту: ${cPhone}`}
                 className="card-phone-btn"
@@ -2519,6 +2521,8 @@ const Kanban = () => {
                 href={getYandexMapsUrl(card.address, card.entrance, card.floor)}
                 target="_blank"
                 rel="noopener noreferrer"
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 title="Маршрут в Яндекс.Картах / Навигаторе"
                 className="kanban-map-pill"
@@ -2549,6 +2553,8 @@ const Kanban = () => {
                 href={get2GisUrl(card.address, card.entrance, card.floor)}
                 target="_blank"
                 rel="noopener noreferrer"
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 title="Маршрут в 2ГИС"
                 className="kanban-map-pill"
@@ -2678,6 +2684,8 @@ const Kanban = () => {
           <button
             type="button"
             disabled={!canComplete}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
             onClick={(e) => handleCompleteInstallation(e, card.id)}
             className="card-complete-btn"
             style={{
