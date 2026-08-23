@@ -153,6 +153,10 @@
   letter-spacing: 0.5px;
 }
 
+.calendar-weekday-cell.weekend {
+  color: #f472b6;
+}
+
 .calendar-month-body {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -182,13 +186,43 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
+.calendar-day-cell.weekend {
+  background: linear-gradient(135deg, rgba(244, 114, 182, 0.08) 0%, rgba(251, 113, 133, 0.04) 100%);
+}
+
+.calendar-day-cell.weekend:hover {
+  background: linear-gradient(135deg, rgba(244, 114, 182, 0.14) 0%, rgba(251, 113, 133, 0.08) 100%);
+}
+
+.calendar-day-cell.weekend .calendar-day-number {
+  color: #f472b6;
+}
+
 .calendar-day-cell.other-month {
   opacity: 0.35;
   background: rgba(0, 0, 0, 0.1);
 }
 
+.calendar-day-cell.weekend.other-month {
+  opacity: 0.35;
+  background: linear-gradient(135deg, rgba(244, 114, 182, 0.03) 0%, rgba(0, 0, 0, 0.08) 100%);
+}
+
 .calendar-day-cell.today {
   background: rgba(59, 130, 246, 0.04);
+}
+
+.calendar-day-cell.weekend.today {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(244, 114, 182, 0.12) 100%);
+}
+
+.calendar-day-cell.weekend.today .calendar-day-number {
+  background: var(--accent-primary);
+  color: #ffffff;
+}
+
+.calendar-day-cell.weekend.selected-day {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(244, 114, 182, 0.14) 100%) !important;
 }
 
 .calendar-day-header {
@@ -390,6 +424,10 @@
   font-weight: 700;
 }
 
+.light-theme .calendar-weekday-cell.weekend {
+  color: #db2777;
+}
+
 .light-theme .calendar-day-cell {
   background: #ffffff;
   border-right: 1px solid #e2e8f0;
@@ -400,17 +438,51 @@
   background: #f8fafc;
 }
 
+.light-theme .calendar-day-cell.weekend {
+  background: linear-gradient(135deg, rgba(253, 242, 248, 0.85) 0%, rgba(255, 228, 230, 0.5) 100%);
+}
+
+.light-theme .calendar-day-cell.weekend:hover {
+  background: linear-gradient(135deg, #fdf2f8 0%, #ffe4e6 100%);
+}
+
+.light-theme .calendar-day-cell.weekend .calendar-day-number {
+  color: #db2777;
+}
+
 .light-theme .calendar-day-cell.other-month {
   background: #f8fafc;
   opacity: 0.65;
+}
+
+.light-theme .calendar-day-cell.weekend.other-month {
+  background: rgba(253, 242, 248, 0.35);
+  opacity: 0.6;
 }
 
 .light-theme .calendar-day-cell.other-month .calendar-day-number {
   color: #94a3b8;
 }
 
+.light-theme .calendar-day-cell.weekend.other-month .calendar-day-number {
+  color: #f472b6;
+}
+
 .light-theme .calendar-day-cell.today {
   background: #eff6ff;
+}
+
+.light-theme .calendar-day-cell.weekend.today {
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.9) 0%, rgba(253, 242, 248, 0.9) 100%);
+}
+
+.light-theme .calendar-day-cell.weekend.today .calendar-day-number {
+  background: var(--accent-primary);
+  color: #ffffff;
+}
+
+.light-theme .calendar-day-cell.weekend.selected-day {
+  background: linear-gradient(135deg, #eff6ff 0%, #fdf2f8 100%) !important;
 }
 
 .light-theme .calendar-day-number {

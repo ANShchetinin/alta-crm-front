@@ -186,6 +186,8 @@ export const Calendar: React.FC = () => {
                eDate.getDate() === curr.getDate();
       });
 
+      const isWeekend = curr.getDay() === 0 || curr.getDay() === 6;
+
       days.push({
         date: new Date(curr),
         dateKey,
@@ -193,6 +195,7 @@ export const Calendar: React.FC = () => {
         isCurrentMonth,
         isToday,
         isSelected,
+        isWeekend,
         events: dayEvents
       });
 
@@ -238,6 +241,8 @@ export const Calendar: React.FC = () => {
                eDate.getDate() === curr.getDate();
       });
 
+      const isWeekend = curr.getDay() === 0 || curr.getDay() === 6;
+
       days.push({
         date: new Date(curr),
         dateKey,
@@ -245,6 +250,7 @@ export const Calendar: React.FC = () => {
         dayName: WEEKDAYS[(curr.getDay() + 6) % 7],
         isToday,
         isSelected,
+        isWeekend,
         events: dayEvents
       });
 
@@ -538,8 +544,8 @@ export const Calendar: React.FC = () => {
         <div className="calendar-month-and-events-layout">
           <div className="calendar-month-grid">
             <div className="calendar-weekdays-header">
-              {WEEKDAYS.map(day => (
-                <div key={day} className="calendar-weekday-cell">
+              {WEEKDAYS.map((day, idx) => (
+                <div key={day} className={`calendar-weekday-cell ${idx >= 5 ? 'weekend' : ''}`}>
                   {day}
                 </div>
               ))}
@@ -554,7 +560,7 @@ export const Calendar: React.FC = () => {
                   <div
                     key={d.dateKey}
                     onClick={() => handleDaySelect(d.date)}
-                    className={`calendar-day-cell ${!d.isCurrentMonth ? 'other-month' : ''} ${d.isToday ? 'today' : ''} ${isSelected ? 'selected-day' : ''}`}
+                    className={`calendar-day-cell ${d.isWeekend ? 'weekend' : ''} ${!d.isCurrentMonth ? 'other-month' : ''} ${d.isToday ? 'today' : ''} ${isSelected ? 'selected-day' : ''}`}
                   >
                     <div className="calendar-day-header">
                       <span className="calendar-day-number">{d.dayNumber}</span>
@@ -645,15 +651,15 @@ export const Calendar: React.FC = () => {
             {weekDays.map(d => (
               <div 
                 key={d.dateKey} 
-                className="calendar-weekday-cell" 
+                className={`calendar-weekday-cell ${d.isWeekend ? 'weekend' : ''}`} 
                 onClick={() => handleDaySelect(d.date)}
                 style={{ 
-                  background: d.isSelected ? 'rgba(59, 130, 246, 0.15)' : (d.isToday ? 'rgba(59, 130, 246, 0.05)' : 'transparent'),
+                  background: d.isSelected ? 'rgba(59, 130, 246, 0.15)' : (d.isToday ? 'rgba(59, 130, 246, 0.05)' : (d.isWeekend ? 'rgba(244, 114, 182, 0.06)' : 'transparent')),
                   cursor: 'pointer'
                 }}
               >
                 <div>{d.dayName}</div>
-                <div style={{ fontSize: '1rem', fontWeight: 700, color: d.isToday ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: d.isToday ? 'var(--accent-primary)' : (d.isWeekend ? '#f472b6' : 'var(--text-primary)') }}>
                   {d.dayNumber}
                 </div>
               </div>
