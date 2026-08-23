@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Clock, Bell } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, Navigation, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Bell } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +15,7 @@ import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
 import { getEmployees } from '../api/employees';
 import type { Employee } from '../api/employees';
-import { getEmployeeInitials, getAvatarGradient } from './Employees';
+import { getAvatarGradient } from './Employees';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useFeature } from '../hooks/useFeatureToggle';
@@ -24,6 +24,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import { OrderRemindersSection } from '../components/OrderRemindersSection';
 import { getMyReminders, type OrderReminderDto } from '../api/reminders';
+import { useTouchKanbanDrag } from '../hooks/useTouchKanbanDrag';
 import '../styles/kanban.css';
 interface MaterialSearchSelectProps {
   value: number;
@@ -147,6 +148,46 @@ const Kanban = () => {
   
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  
+  const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth <= 768);
+  const [mobileViewMode, setMobileViewMode] = useState<'list' | 'board'>(() => {
+    if (typeof window === 'undefined') return 'list';
+    return (localStorage.getItem('kanban_mobile_view_mode') as 'list' | 'board') || 'list';
+  });
+  const [collapsedColumns, setCollapsedColumns] = useState<Record<number, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('kanban_collapsed_columns');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const toggleColumnCollapse = (columnId: number) => {
+    setCollapsedColumns(prev => {
+      const isCurrentlyCollapsed = prev[columnId] !== undefined ? prev[columnId] : true;
+      const updated = { ...prev, [columnId]: !isCurrentlyCollapsed };
+      localStorage.setItem('kanban_collapsed_columns', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const toggleAllColumns = (expand: boolean) => {
+    const updated: Record<number, boolean> = {};
+    columns.forEach(c => {
+      updated[c.id] = !expand;
+    });
+    setCollapsedColumns(updated);
+    localStorage.setItem('kanban_collapsed_columns', JSON.stringify(updated));
+  };
   
   const [remindersMap, setRemindersMap] = useState<Record<number, OrderReminderDto[]>>({});
   const [reminderFilter, setReminderFilter] = useState<'all' | 'today' | 'overdue'>('all');
@@ -478,6 +519,36 @@ const Kanban = () => {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
+
+  const {
+    draggingCard: touchDraggingCard,
+    dragPosition: touchDragPosition,
+    targetStatusId: touchTargetStatusId,
+    ghostData: touchGhostData,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    handleTouchCancel
+  } = useTouchKanbanDrag({
+    boardRef,
+    onDropCard: async (cardId, targetId) => {
+      const updatedCards = cards.map(c => c.id === cardId ? { ...c, statusId: targetId } : c);
+      setCards(updatedCards);
+      const firstStatus = columns.find(s => s.sortOrder === 1);
+      if (firstStatus) {
+        setNewOrdersCount(updatedCards.filter(o => o.statusId === firstStatus.id).length);
+      }
+      try {
+        await moveOrder(cardId, targetId);
+      } catch (err) {
+        console.error("Failed to move order via touch drag", err);
+      }
+    },
+    onCardClick: (card) => {
+      openEditModal(card);
+    },
+    longPressDelay: 220
+  });
 
   const openCreateModal = () => {
     const initialData = {
@@ -1368,6 +1439,465 @@ const Kanban = () => {
     return currentJson !== initialFormDataJson;
   }, [isModalOpen, editingOrderId, formData, pendingFiles.length, initialFormDataJson]);
 
+  const renderCard = (card: Order) => (
+    <div 
+      key={card.id} 
+      className={`kanban-card ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''}`}
+      draggable
+      onDragStart={(e) => {
+        e.stopPropagation();
+        handleDragStart(e, card.id);
+      }}
+      onTouchStart={(e) => handleTouchStart(e, card)}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
+      onClick={() => openEditModal(card)}
+    >
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+        {(() => {
+          const client = clients.find(cl => cl.id === card.clientId);
+          const cName = card.clientName || client?.name || `Клиент #${card.clientId}`;
+          const cPhone = card.clientPhone || client?.phone;
+          const cType = card.clientType || client?.clientType;
+          const isLegal = cType === 'LEGAL_ENTITY';
+
+          return (
+            <div style={{display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap'}}>
+              <span 
+                style={{ 
+                  fontSize: '0.72rem', 
+                  fontWeight: 700, 
+                  color: 'var(--text-secondary)', 
+                  background: 'rgba(255, 255, 255, 0.06)', 
+                  padding: '1px 5px', 
+                  borderRadius: '4px' 
+                }}
+                title="Внутренний номер заявки"
+              >
+                #{card.id}
+              </span>
+              <div className="card-client" style={{marginBottom: 0, display: 'flex', alignItems: 'center', gap: '6px'}}>
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.62rem',
+                  fontWeight: 700,
+                  color: '#fff',
+                  background: (card.clientAvatarUrl || client?.avatarUrl) ? 'transparent' : getAvatarGradient(cName || (isLegal ? 'Компания' : 'Клиент')),
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  flexShrink: 0
+                }}>
+                  {(card.clientAvatarUrl || client?.avatarUrl) ? (
+                    <img 
+                      src={card.clientAvatarUrl || client?.avatarUrl} 
+                      alt={cName} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    />
+                  ) : (
+                    isLegal ? <Building2 size={11} /> : getClientInitials(cName)
+                  )}
+                </div>
+                <span>{cName}</span>
+              </div>
+              {card.orderNumber && (
+                <span 
+                  style={{
+                    fontSize: '0.7rem',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    background: 'rgba(34, 197, 94, 0.15)',
+                    color: '#4ade80',
+                    padding: '2px 6px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px'
+                  }}
+                  title="Номер заключенного договора"
+                >
+                  <FileText size={10} />
+                  № {card.orderNumber}
+                </span>
+              )}
+              {cPhone && (
+                <a
+                  href={`tel:${cPhone}`}
+                  onClick={(e) => e.stopPropagation()}
+                  title={`Позвонить: ${cPhone}`}
+                  style={{
+                    color: 'var(--success)',
+                    padding: '3px 6px',
+                    background: 'rgba(34, 197, 94, 0.12)',
+                    border: '1px solid rgba(34, 197, 94, 0.25)',
+                    borderRadius: 'var(--radius-sm)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    textDecoration: 'none',
+                    fontSize: '0.75rem',
+                    fontWeight: 500
+                  }}
+                >
+                  <Phone size={12} />
+                </a>
+              )}
+              {(() => {
+                const cardReminders = remindersMap[card.id] || [];
+                const pending = cardReminders.filter(r => r.status === 'PENDING');
+                if (pending.length === 0) return null;
+                const isOverdue = pending.some(r => r.isOverdue);
+                const isToday = pending.some(r => {
+                  const d = new Date(r.remindAt);
+                  return d.toDateString() === new Date().toDateString();
+                });
+                const nearest = pending[0];
+                const timeStr = new Date(nearest.remindAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+                return (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: isOverdue ? 'rgba(239, 68, 68, 0.18)' : (isToday ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.15)'),
+                      color: isOverdue ? '#ef4444' : (isToday ? '#f59e0b' : '#60a5fa'),
+                      border: isOverdue ? '1px solid rgba(239, 68, 68, 0.35)' : (isToday ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(59, 130, 246, 0.3)'),
+                      cursor: 'default'
+                    }}
+                    title={`Активных напоминаний: ${pending.length}\nБлижайшее: ${nearest.comment || 'Звонок'} (${timeStr})${isOverdue ? ' [ПРОСРОЧЕНО]' : ''}`}
+                  >
+                    <Bell size={11} />
+                    {pending.length > 1 ? pending.length : ''}
+                  </span>
+                );
+              })()}
+            </div>
+          );
+        })()}
+      </div>
+
+      {card.address && (
+        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)'}}>
+            <MapPin size={14} style={{flexShrink: 0}} />
+            <span style={{fontWeight: 500}}>{card.address}</span>
+            {(card.entrance || card.floor) && (
+              <span style={{opacity: 0.7, fontSize: '0.75rem'}}>
+                ({[card.entrance ? `подъезд ${card.entrance}` : '', card.floor ? `этаж ${card.floor}` : ''].filter(Boolean).join(', ')})
+              </span>
+            )}
+          </div>
+          <div style={{display: 'flex', gap: '4px', flexShrink: 0}}>
+            <a
+              href={getYandexMapsUrl(card.address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              title="Открыть в Яндекс.Картах"
+              style={{
+                color: '#fc3f1d',
+                padding: '2px 5px',
+                background: 'rgba(252, 63, 29, 0.1)',
+                border: '1px solid rgba(252, 63, 29, 0.2)',
+                borderRadius: 'var(--radius-sm)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                textDecoration: 'none',
+                fontSize: '0.7rem',
+                fontWeight: 600
+              }}
+            >
+              Я
+            </a>
+            <a
+              href={get2GisUrl(card.address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              title="Открыть в 2ГИС"
+              style={{
+                color: '#2ea83b',
+                padding: '2px 5px',
+                background: 'rgba(46, 168, 59, 0.1)',
+                border: '1px solid rgba(46, 168, 59, 0.2)',
+                borderRadius: 'var(--radius-sm)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                textDecoration: 'none',
+                fontSize: '0.7rem',
+                fontWeight: 600
+              }}
+            >
+              2Г
+            </a>
+          </div>
+        </div>
+      )}
+
+      {card.description && (
+        <div className="card-desc">
+          {card.description}
+        </div>
+      )}
+
+      {/* Measurement & Installation dates */}
+      {(card.measurementDate || card.installationDate) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px', fontSize: '0.78rem' }}>
+          {card.measurementDate && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#a78bfa', background: 'rgba(167, 139, 250, 0.1)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(167, 139, 250, 0.2)' }}>
+              <Ruler size={12} />
+              <span>Замер: {formatDateTimeInTimezone(card.measurementDate)}</span>
+              {card.measurerName && (
+                <span style={{ opacity: 0.8, marginLeft: 'auto', fontSize: '0.74rem' }}>({card.measurerName})</span>
+              )}
+            </div>
+          )}
+          {card.installationDate && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4ade80', background: 'rgba(74, 222, 128, 0.1)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(74, 222, 128, 0.2)' }}>
+              <Wrench size={12} />
+              <span>Монтаж: {formatDateOnly(card.installationDate)}</span>
+              {card.installedByName && (
+                <span style={{ opacity: 0.8, marginLeft: 'auto', fontSize: '0.74rem' }}>({card.installedByName})</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Assignee & Measurer tags */}
+      <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px'}}>
+        {card.assigneeId && (
+          <div style={{display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 'var(--radius-sm)'}}>
+            <User size={12} style={{color: 'var(--accent-primary)'}} />
+            <span>{employees.find(e => e.id === card.assigneeId)?.name || 'Менеджер'}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Card Status Select */}
+      <div className="card-status-container" onClick={e => e.stopPropagation()}>
+        <div className="card-status-badge">
+          <span 
+            className="card-status-dot" 
+            style={{ backgroundColor: columns.find(c => c.id === card.statusId)?.color || '#3b82f6' }}
+          />
+          <select
+            className="card-status-select"
+            value={card.statusId}
+            onChange={async (e) => {
+              const newStatusId = parseInt(e.target.value);
+              const updatedCards = cards.map(c => c.id === card.id ? { ...c, statusId: newStatusId } : c);
+              setCards(updatedCards);
+              const firstStatus = columns.find(s => s.sortOrder === 1);
+              if (firstStatus) {
+                setNewOrdersCount(updatedCards.filter(o => o.statusId === firstStatus.id).length);
+              }
+              try {
+                await moveOrder(card.id, newStatusId);
+              } catch (err) {
+                console.error("Failed to move order", err);
+              }
+            }}
+          >
+            {columns.map(col => (
+              <option key={col.id} value={col.id}>
+                {col.name}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={14} className="card-status-icon" />
+        </div>
+      </div>
+
+      {/* Card Footer (Worker vs Manager/Admin) */}
+      {isWorker ? (
+        (() => {
+          const isCardCompleted = card.statusId && columns.find(c => c.id === card.statusId)?.name.toLowerCase().includes('заверш');
+          const hasAct = (card.attachments || []).some(a => isActFile(a.fileName, a.isAct));
+
+          return (
+            <div className="card-footer" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                  Остаток к оплате: <strong style={{ color: 'var(--accent-primary)', fontSize: '0.9rem' }}>{(card.remainder != null ? card.remainder : (card.totalPrice || 0)).toLocaleString('ru-RU')} ₽</strong>
+                </div>
+                {card.attachments && card.attachments.length > 0 && (
+                  <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: hasAct ? '#4ade80' : 'var(--text-secondary)'}} title={hasAct ? 'Акт выполненных работ прикреплен' : undefined}>
+                    <Paperclip size={12} /> {card.attachments.length} {hasAct && <span style={{ fontWeight: 600 }}>✓ Акт</span>}
+                  </div>
+                )}
+              </div>
+
+              {isCardCompleted ? (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '6px 10px',
+                  background: 'rgba(34, 197, 94, 0.12)',
+                  border: '1px solid rgba(34, 197, 94, 0.25)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: '#4ade80',
+                  fontSize: '0.8rem',
+                  fontWeight: 600
+                }}>
+                  <CheckCircle2 size={14} /> Монтаж завершен
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <button
+                    type="button"
+                    disabled={!hasAct}
+                    onClick={(e) => handleCompleteInstallation(e, card.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '7px 12px',
+                      background: hasAct ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
+                      border: hasAct ? 'none' : '1px solid var(--glass-border)',
+                      borderRadius: 'var(--radius-sm)',
+                      color: hasAct ? '#fff' : 'var(--text-secondary)',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      cursor: hasAct ? 'pointer' : 'not-allowed',
+                      opacity: hasAct ? 1 : 0.6,
+                      transition: 'all 0.15s ease'
+                    }}
+                    title={hasAct ? 'Завершить монтаж и отправить отчет' : 'Для завершения прикрепите Акт выполненных работ в деталях заявки'}
+                  >
+                    <CheckCircle2 size={15} /> Завершить монтаж
+                  </button>
+                  {!hasAct && (
+                    <span style={{ fontSize: '0.72rem', color: '#f59e0b', textAlign: 'center' }}>
+                      Требуется фото/файл Акта
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()
+      ) : (
+        <div className="card-footer" style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'stretch' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="card-price" style={{ fontSize: '1rem', fontWeight: 700 }}>
+              {(card.totalPrice != null && card.totalPrice > 0) ? `${card.totalPrice.toLocaleString('ru-RU')} ₽` : '0 ₽'}
+            </div>
+            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+              {card.attachments && card.attachments.length > 0 && (
+                <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
+                  <Paperclip size={12} /> {card.attachments.length}
+                </div>
+              )}
+              {card.profitMargin != null && card.profitMargin > 0 && (
+                <span style={{fontSize: '0.75rem', color: 'var(--success)'}}>+{card.profitMargin.toFixed(1)}%</span>
+              )}
+            </div>
+          </div>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            fontSize: '0.75rem', 
+            color: 'var(--text-secondary)',
+            background: 'rgba(255, 255, 255, 0.03)',
+            padding: '3px 6px',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid rgba(255, 255, 255, 0.04)'
+          }}>
+            <span>Аванс: <strong style={{ color: 'var(--text-primary)' }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
+            <span>Остаток: <strong style={{ color: 'var(--text-primary)' }}>{((card.remainder != null ? card.remainder : card.totalPrice) || 0).toLocaleString('ru-RU')} ₽</strong></span>
+          </div>
+          {(() => {
+            const col = columns.find(c => c.id === card.statusId);
+            const isCardCompleted = col ? (
+              col.name.toLowerCase().includes('заверш') ||
+              col.name.toLowerCase().includes('готов') ||
+              col.name.toLowerCase().includes('выполнен')
+            ) : false;
+
+            if (isCardCompleted) {
+              if (!card.installedByName || !card.installedAt) return null;
+              return (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '0.74rem',
+                  color: '#4ade80',
+                  background: 'rgba(34, 197, 94, 0.08)',
+                  border: '1px solid rgba(34, 197, 94, 0.2)',
+                  padding: '3px 6px',
+                  borderRadius: 'var(--radius-sm)',
+                  marginTop: '2px'
+                }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Check size={12} /> Монтажник: <strong>{card.installedByName}</strong>
+                  </span>
+                  <span style={{ opacity: 0.85 }}>
+                    {formatDateOnly(card.installedAt)}
+                  </span>
+                </div>
+              );
+            }
+
+            const hasInstaller = Boolean(card.installedById || card.installedByName);
+            const hasAct = card.attachments?.some(a => isActFile(a.fileName, a.isAct));
+            const canComplete = hasInstaller && hasAct;
+
+            let cardDisabledTitle = 'Завершить монтаж и перевести заявку в завершенный статус';
+            if (!hasInstaller) {
+              cardDisabledTitle = 'Для завершения монтажа необходимо назначить монтажника в деталях заявки';
+            } else if (!hasAct) {
+              cardDisabledTitle = 'Для завершения монтажа необходимо прикрепить Акт выполненных работ в деталях заявки';
+            }
+
+            return (
+              <button
+                type="button"
+                disabled={!canComplete}
+                onClick={(e) => handleCompleteInstallation(e, card.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '5px 8px',
+                  background: canComplete ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(16, 185, 129, 0.06))' : 'rgba(255, 255, 255, 0.04)',
+                  border: canComplete ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: canComplete ? '#4ade80' : 'var(--text-secondary)',
+                  fontSize: '0.76rem',
+                  fontWeight: 600,
+                  cursor: canComplete ? 'pointer' : 'not-allowed',
+                  opacity: canComplete ? 1 : 0.45,
+                  transition: 'all 0.15s ease',
+                  marginTop: '2px'
+                }}
+                title={cardDisabledTitle}
+              >
+                <CheckCircle2 size={13} /> Завершить монтаж
+              </button>
+            );
+          })()}
+        </div>
+      )}
+    </div>
+  );
+
   if (loading) {
     return <div style={{padding: 24}}>Loading board...</div>;
   }
@@ -1424,6 +1954,30 @@ const Kanban = () => {
             {hideEmptyColumns ? <Eye size={16} /> : <EyeOff size={16} />}
             <span>{hideEmptyColumns ? 'Показать все' : 'Скрыть пустые'}</span>
           </button>
+
+          {/* Mobile View Toggle: Список | Доска */}
+          <div className="kanban-mobile-view-toggle">
+            <button
+              type="button"
+              className={`kanban-view-mode-btn ${mobileViewMode === 'list' ? 'active' : ''}`}
+              onClick={() => {
+                setMobileViewMode('list');
+                localStorage.setItem('kanban_mobile_view_mode', 'list');
+              }}
+            >
+              Список
+            </button>
+            <button
+              type="button"
+              className={`kanban-view-mode-btn ${mobileViewMode === 'board' ? 'active' : ''}`}
+              onClick={() => {
+                setMobileViewMode('board');
+                localStorage.setItem('kanban_mobile_view_mode', 'board');
+              }}
+            >
+              Доска
+            </button>
+          </div>
 
           <div className="search-input-wrapper" style={{ minWidth: '260px', maxWidth: '360px', position: 'relative' }}>
             <Search className="search-icon" size={18} />
@@ -1509,656 +2063,294 @@ const Kanban = () => {
         )}
       </div>
 
-      <div 
-        className="kanban-board"
-        ref={boardRef}
-        onWheel={(e) => {
-          if (e.deltaY !== 0 && !e.shiftKey) {
-            const target = e.target as HTMLElement;
-            const columnContent = target.closest('.column-content');
-            if (columnContent) {
-              const canScrollUp = e.deltaY < 0 && columnContent.scrollTop > 0;
-              const canScrollDown = e.deltaY > 0 && columnContent.scrollTop + columnContent.clientHeight < columnContent.scrollHeight - 1;
-              if (canScrollUp || canScrollDown) {
-                return;
-              }
-            }
-            if (boardRef.current) {
-              boardRef.current.scrollLeft += e.deltaY;
-            }
-          }
-        }}
-      >
-        {displayedColumns.map(col => {
-          const colCards = filteredCards.filter(c => c.statusId === col.id);
-          const totalInCol = cards.filter(c => c.statusId === col.id).length;
+      {/* Main Board Content: Mobile Accordion List vs Desktop/Mobile Horizontal Board */}
+      {isMobile && mobileViewMode === 'list' ? (
+        <div className="kanban-mobile-list-view" ref={boardRef}>
+          {/* Quick Collapse/Expand Controls */}
+          <div className="kanban-mobile-list-toolbar">
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              Этапы воронки ({displayedColumns.length})
+            </span>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => toggleAllColumns(true)}
+                style={{ fontSize: '0.74rem', padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)' }}
+              >
+                Развернуть все
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => toggleAllColumns(false)}
+                style={{ fontSize: '0.74rem', padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)' }}
+              >
+                Свернуть все
+              </button>
+            </div>
+          </div>
 
-          return (
-          <div 
-            key={col.id} 
-            className="kanban-column glass-panel"
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData('columnId', col.id.toString());
-            }}
-            onDrop={async (e) => {
-              e.preventDefault();
-              const cardId = e.dataTransfer.getData('cardId');
-              if (cardId) {
-                handleDrop(e, col.id);
-                return;
+          {displayedColumns.map(col => {
+            const colCards = filteredCards.filter(c => c.statusId === col.id);
+            const totalInCol = cards.filter(c => c.statusId === col.id).length;
+            const isCollapsed = collapsedColumns[col.id] !== undefined ? collapsedColumns[col.id] : true;
+
+            return (
+              <div
+                key={col.id}
+                data-column-id={col.id}
+                className={`kanban-mobile-status-group glass-panel ${touchTargetStatusId === col.id ? 'is-touch-drop-target' : ''}`}
+              >
+                <div
+                  className="kanban-mobile-status-header"
+                  onClick={() => toggleColumnCollapse(col.id)}
+                >
+                  <div className="kanban-mobile-status-info">
+                    <span className="dot" style={{ backgroundColor: col.color || '#3b82f6' }} />
+                    <h3 className="kanban-mobile-status-title">{col.name}</h3>
+                    <span className="count">
+                      {searchQuery.trim() && colCards.length !== totalInCol
+                        ? `${colCards.length}/${totalInCol}`
+                        : totalInCol}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {!isWorker && (
+                      <button
+                        type="button"
+                        className="btn-icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openColumnEditModal(col);
+                        }}
+                        title={t('kanban.editColumn')}
+                      >
+                        <Edit2 size={15} />
+                      </button>
+                    )}
+                    <ChevronDown
+                      size={18}
+                      className="kanban-mobile-status-chevron"
+                      style={{
+                        transform: isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)',
+                        transition: 'transform 0.2s ease',
+                        color: 'var(--text-secondary)'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {!isCollapsed && (
+                  <div className="kanban-mobile-status-cards">
+                    {colCards.length > 0 ? (
+                      colCards.map(renderCard)
+                    ) : (
+                      <div className="kanban-mobile-status-empty">
+                        {searchQuery.trim() ? 'Нет совпадений' : 'В этом статусе нет заявок'}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {!isWorker && (
+            <button
+              className="add-column-btn glass-panel"
+              onClick={openColumnAddModal}
+              style={{
+                width: '100%',
+                minWidth: 'unset',
+                height: '46px',
+                marginTop: '4px',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <Plus size={18} />
+              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{t('kanban.addColumn')}</span>
+            </button>
+          )}
+        </div>
+      ) : (
+        <div 
+          className="kanban-board"
+          ref={boardRef}
+          onWheel={(e) => {
+            if (e.deltaY !== 0 && !e.shiftKey) {
+              const target = e.target as HTMLElement;
+              const columnContent = target.closest('.column-content');
+              if (columnContent) {
+                const canScrollUp = e.deltaY < 0 && columnContent.scrollTop > 0;
+                const canScrollDown = e.deltaY > 0 && columnContent.scrollTop + columnContent.clientHeight < columnContent.scrollHeight - 1;
+                if (canScrollUp || canScrollDown) {
+                  return;
+                }
               }
-              const sourceColumnIdStr = e.dataTransfer.getData('columnId');
-              if (sourceColumnIdStr) {
-                const sourceId = parseInt(sourceColumnIdStr);
-                const targetId = col.id;
-                if (sourceId !== targetId) {
-                  const sourceIndex = columns.findIndex(c => c.id === sourceId);
-                  const targetIndex = columns.findIndex(c => c.id === targetId);
-                  if (sourceIndex > -1 && targetIndex > -1) {
-                    const newColumns = [...columns];
-                    const [removed] = newColumns.splice(sourceIndex, 1);
-                    newColumns.splice(targetIndex, 0, removed);
-                    
-                    newColumns.forEach((c, index) => {
-                      c.sortOrder = index + 1;
-                    });
-                    setColumns(newColumns);
-                    
-                    const firstStatus = newColumns.find(s => s.sortOrder === 1);
-                    if (firstStatus) {
-                      setNewOrdersCount(cards.filter(o => o.statusId === firstStatus.id).length);
-                    }
-                    
-                    try {
-                      await reorderOrderStatuses(newColumns.map(c => c.id));
-                    } catch (err) {
-                      console.error("Failed to reorder columns", err);
+              if (boardRef.current) {
+                boardRef.current.scrollLeft += e.deltaY;
+              }
+            }
+          }}
+        >
+          {displayedColumns.map(col => {
+            const colCards = filteredCards.filter(c => c.statusId === col.id);
+            const totalInCol = cards.filter(c => c.statusId === col.id).length;
+
+            return (
+            <div 
+              key={col.id} 
+              data-column-id={col.id}
+              className={`kanban-column glass-panel ${touchTargetStatusId === col.id ? 'is-touch-drop-target' : ''}`}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('columnId', col.id.toString());
+              }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                const cardId = e.dataTransfer.getData('cardId');
+                if (cardId) {
+                  handleDrop(e, col.id);
+                  return;
+                }
+                const sourceColumnIdStr = e.dataTransfer.getData('columnId');
+                if (sourceColumnIdStr) {
+                  const sourceId = parseInt(sourceColumnIdStr);
+                  const targetId = col.id;
+                  if (sourceId !== targetId) {
+                    const sourceIndex = columns.findIndex(c => c.id === sourceId);
+                    const targetIndex = columns.findIndex(c => c.id === targetId);
+                    if (sourceIndex > -1 && targetIndex > -1) {
+                      const newColumns = [...columns];
+                      const [removed] = newColumns.splice(sourceIndex, 1);
+                      newColumns.splice(targetIndex, 0, removed);
+                      
+                      newColumns.forEach((c, index) => {
+                        c.sortOrder = index + 1;
+                      });
+                      setColumns(newColumns);
+                      
+                      const firstStatus = newColumns.find(s => s.sortOrder === 1);
+                      if (firstStatus) {
+                        setNewOrdersCount(cards.filter(o => o.statusId === firstStatus.id).length);
+                      }
+                      
+                      try {
+                        await reorderOrderStatuses(newColumns.map(c => c.id));
+                      } catch (err) {
+                        console.error("Failed to reorder columns", err);
+                      }
                     }
                   }
                 }
-              }
-            }}
-            onDragOver={handleDragOver}
-          >
-            <div className="column-header">
-              <div className="column-title">
-                <span className="dot" style={{ backgroundColor: col.color || '#3b82f6' }}></span>
-                <h3>{col.name}</h3>
-                <span className="count">
-                  {searchQuery.trim() && colCards.length !== totalInCol
-                    ? `${colCards.length}/${totalInCol}`
-                    : totalInCol}
-                </span>
-              </div>
-              {!isWorker && (
-                <div style={{display: 'flex', gap: '4px'}}>
-                  <button className="btn-icon" onClick={() => openColumnEditModal(col)} title={t('kanban.editColumn')}>
-                    <Edit2 size={16} />
-                  </button>
-                  {totalInCol === 0 ? (
-                    <button className="btn-icon" onClick={() => handleDeleteColumn(col.id)} title={t('kanban.modal.delete')}>
-                      <Trash2 size={16} />
+              }}
+              onDragOver={handleDragOver}
+            >
+              <div className="column-header">
+                <div className="column-title">
+                  <span className="dot" style={{ backgroundColor: col.color || '#3b82f6' }}></span>
+                  <h3>{col.name}</h3>
+                  <span className="count">
+                    {searchQuery.trim() && colCards.length !== totalInCol
+                      ? `${colCards.length}/${totalInCol}`
+                      : totalInCol}
+                  </span>
+                </div>
+                {!isWorker && (
+                  <div style={{display: 'flex', gap: '4px'}}>
+                    <button className="btn-icon" onClick={() => openColumnEditModal(col)} title={t('kanban.editColumn')}>
+                      <Edit2 size={16} />
                     </button>
-                  ) : (
-                    <button className="btn-icon"><MoreVertical size={16} /></button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="column-content">
-              {colCards.map(card => (
-                <div 
-                  key={card.id} 
-                  className="kanban-card"
-                  draggable
-                  onDragStart={(e) => {
-                    e.stopPropagation();
-                    handleDragStart(e, card.id);
-                  }}
-                  onClick={() => openEditModal(card)}
-                >
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
-                    {(() => {
-                      const client = clients.find(cl => cl.id === card.clientId);
-                      const cName = card.clientName || client?.name || `Клиент #${card.clientId}`;
-                      const cPhone = card.clientPhone || client?.phone;
-                      const cType = card.clientType || client?.clientType;
-                      const isLegal = cType === 'LEGAL_ENTITY';
-
-                      return (
-                        <div style={{display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap'}}>
-                          <span 
-                            style={{ 
-                              fontSize: '0.72rem', 
-                              fontWeight: 700, 
-                              color: 'var(--text-secondary)', 
-                              background: 'rgba(255, 255, 255, 0.06)', 
-                              padding: '1px 5px', 
-                              borderRadius: '4px' 
-                            }}
-                            title="Внутренний номер заявки"
-                          >
-                            #{card.id}
-                          </span>
-                          <div className="card-client" style={{marginBottom: 0, display: 'flex', alignItems: 'center', gap: '6px'}}>
-                            <div style={{
-                              width: '20px',
-                              height: '20px',
-                              borderRadius: '50%',
-                              overflow: 'hidden',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '0.62rem',
-                              fontWeight: 700,
-                              color: '#fff',
-                              background: (card.clientAvatarUrl || client?.avatarUrl) ? 'transparent' : getAvatarGradient(cName || (isLegal ? 'Компания' : 'Клиент')),
-                              border: '1px solid rgba(255, 255, 255, 0.15)',
-                              flexShrink: 0
-                            }}>
-                              {(card.clientAvatarUrl || client?.avatarUrl) ? (
-                                <img 
-                                  src={card.clientAvatarUrl || client?.avatarUrl} 
-                                  alt={cName} 
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                                />
-                              ) : (
-                                isLegal ? <Building2 size={11} /> : getClientInitials(cName)
-                              )}
-                            </div>
-                            <span>{cName}</span>
-                          </div>
-                          {card.orderNumber && (
-                            <span 
-                              style={{
-                                fontSize: '0.7rem',
-                                fontFamily: 'monospace',
-                                fontWeight: 700,
-                                background: 'rgba(34, 197, 94, 0.15)',
-                                color: '#4ade80',
-                                padding: '2px 6px',
-                                borderRadius: 'var(--radius-sm)',
-                                border: '1px solid rgba(34, 197, 94, 0.3)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px'
-                              }}
-                              title="Номер заключенного договора"
-                            >
-                              <FileText size={10} />
-                              № {card.orderNumber}
-                            </span>
-                          )}
-                          {cPhone && (
-                            <a
-                              href={`tel:${cPhone}`}
-                              onClick={(e) => e.stopPropagation()}
-                              title={`Позвонить: ${cPhone}`}
-                              style={{
-                                color: 'var(--success)',
-                                padding: '3px 6px',
-                                background: 'rgba(34, 197, 94, 0.12)',
-                                border: '1px solid rgba(34, 197, 94, 0.25)',
-                                borderRadius: 'var(--radius-sm)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                                textDecoration: 'none',
-                                fontSize: '0.75rem',
-                                fontWeight: 500
-                              }}
-                            >
-                              <Phone size={12} />
-                            </a>
-                          )}
-                          {(() => {
-                            const cardReminders = remindersMap[card.id] || [];
-                            const pending = cardReminders.filter(r => r.status === 'PENDING');
-                            if (pending.length === 0) return null;
-                            const isOverdue = pending.some(r => r.isOverdue);
-                            const isToday = pending.some(r => {
-                              const d = new Date(r.remindAt);
-                              return d.toDateString() === new Date().toDateString();
-                            });
-                            const nearest = pending[0];
-                            const timeStr = new Date(nearest.remindAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-
-                            return (
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                  fontSize: '0.7rem',
-                                  fontWeight: 700,
-                                  padding: '2px 6px',
-                                  borderRadius: 'var(--radius-sm)',
-                                  background: isOverdue ? 'rgba(239, 68, 68, 0.18)' : (isToday ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.15)'),
-                                  color: isOverdue ? '#ef4444' : (isToday ? '#f59e0b' : '#60a5fa'),
-                                  border: isOverdue ? '1px solid rgba(239, 68, 68, 0.35)' : (isToday ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(59, 130, 246, 0.3)'),
-                                  cursor: 'default'
-                                }}
-                                title={`Активных напоминаний: ${pending.length}\nБлижайшее: ${nearest.comment || 'Звонок'} (${timeStr})${isOverdue ? ' [ПРОСРОЧЕНО]' : ''}`}
-                              >
-                                <Bell size={11} />
-                                {pending.length > 1 ? pending.length : ''}
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      );
-                    })()}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                      {card.createdAt && (
-                        <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
-                          {new Date(card.createdAt).toLocaleDateString('ru-RU')}
-                        </div>
-                      )}
-                      {(() => {
-                        const assignee = employees.find(e => e.id === card.assigneeId);
-                        const aName = card.assigneeName || assignee?.name;
-                        const aAvatar = card.assigneeAvatarUrl || assignee?.avatarUrl;
-                        if (!aName) return null;
-                        return (
-                          <div
-                            title={`Ответственный: ${aName}${assignee?.position ? ` (${assignee.position})` : ''}`}
-                            style={{
-                              width: '34px',
-                              height: '34px',
-                              borderRadius: '50%',
-                              overflow: 'hidden',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '0.78rem',
-                              fontWeight: 700,
-                              color: '#fff',
-                              background: aAvatar ? 'transparent' : getAvatarGradient(aName),
-                              border: '2px solid rgba(255, 255, 255, 0.18)',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                              flexShrink: 0,
-                              cursor: 'default'
-                            }}
-                          >
-                            {aAvatar ? (
-                              <img 
-                                src={aAvatar} 
-                                alt={aName} 
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                              />
-                            ) : (
-                              getEmployeeInitials(aName)
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                  <div 
-                    className="card-desc" 
-                    style={{ 
-                      whiteSpace: 'pre-wrap', 
-                      wordBreak: 'break-word',
-                      maxHeight: '140px',
-                      overflowY: 'auto'
-                    }}
-                  >
-                    {card.description}
-                  </div>
-                  
-                  {card.address && (
-                    <div 
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center',
-                        fontSize: '0.8rem', 
-                        color: 'var(--text-secondary)',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        padding: '4px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
-                        marginBottom: '8px',
-                        gap: '6px'
-                      }}
-                    >
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '4px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        flex: 1
-                      }}>
-                        <MapPin size={13} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {card.address}
-                          {(card.entrance || card.floor) && (
-                            <span style={{ opacity: 0.85, marginLeft: '4px', fontSize: '0.75rem' }}>
-                              ({[card.entrance ? `под. ${card.entrance}` : '', card.floor ? `эт. ${card.floor}` : ''].filter(Boolean).join(', ')})
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                        <a
-                          href={getYandexMapsUrl(card.address, card.entrance)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Маршрут в Яндекс.Картах"
-                          style={{
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            color: '#ff3333',
-                            background: 'rgba(255, 51, 51, 0.1)',
-                            border: '1px solid rgba(255, 51, 51, 0.2)',
-                            borderRadius: '4px',
-                            padding: '2px 5px',
-                            textDecoration: 'none'
-                          }}
-                        >
-                          Яндекс
-                        </a>
-                        <a
-                          href={get2GisUrl(card.address, card.entrance)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Маршрут в 2ГИС"
-                          style={{
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            color: '#22c55e',
-                            background: 'rgba(34, 197, 94, 0.1)',
-                            border: '1px solid rgba(34, 197, 94, 0.2)',
-                            borderRadius: '4px',
-                            padding: '2px 5px',
-                            textDecoration: 'none'
-                          }}
-                        >
-                          2ГИС
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px'}}>
-                    {card.installationDate && (
-                      <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 500}}>
-                        <span>{t('kanban.modal.installationDate')}:</span>
-                        <span>{formatDateOnly(card.installationDate)}</span>
-                      </div>
+                    {totalInCol === 0 ? (
+                      <button className="btn-icon" onClick={() => handleDeleteColumn(col.id)} title={t('kanban.modal.delete')}>
+                        <Trash2 size={16} />
+                      </button>
+                    ) : (
+                      <button className="btn-icon"><MoreVertical size={16} /></button>
                     )}
-                    {card.measurementDate && (
-                      <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500}}>
-                        <span>Замер:</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {formatDateTimeInTimezone(card.measurementDate, tenantSettings?.timezone, {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      </div>
-                    )}
-                    {(() => {
-                      const cardReminders = remindersMap[card.id] || [];
-                      const pending = cardReminders.filter(r => r.status === 'PENDING');
-                      if (pending.length === 0) return null;
-                      const nearest = pending[0];
-                      const dateObj = parseUtcDate(nearest.remindAt) || new Date(nearest.remindAt);
-                      const isOverdue = nearest.isOverdue || (dateObj.getTime() < Date.now());
-                      const isToday = dateObj.toDateString() === new Date().toDateString();
-                      const timeStr = formatDateTimeInTimezone(nearest.remindAt, tenantSettings?.timezone, { hour: '2-digit', minute: '2-digit' });
-                      const dateStr = isToday ? `Сегодня, ${timeStr}` : formatDateTimeInTimezone(nearest.remindAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-
-                      return (
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '4px',
-                            fontSize: '0.73rem',
-                            fontWeight: 600,
-                            color: isOverdue ? '#ef4444' : (isToday ? '#f59e0b' : '#60a5fa'),
-                            background: isOverdue ? 'rgba(239, 68, 68, 0.12)' : (isToday ? 'rgba(245, 158, 11, 0.12)' : 'rgba(59, 130, 246, 0.1)'),
-                            border: isOverdue ? '1px solid rgba(239, 68, 68, 0.25)' : (isToday ? '1px solid rgba(245, 158, 11, 0.25)' : '1px solid rgba(59, 130, 246, 0.2)'),
-                            padding: '3px 6px',
-                            borderRadius: 'var(--radius-sm)',
-                            marginTop: '2px'
-                          }}
-                          title={`Напоминание: ${nearest.comment || 'Связаться с клиентом'}${isOverdue ? ' (просрочено)' : ''}${nearest.notifyBeforeMinutes ? ` • Уведомление за ${nearest.notifyBeforeMinutes} мин` : ''}`}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
-                            <Clock size={12} style={{ flexShrink: 0 }} />
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              ⏰ {dateStr}: {nearest.comment || 'Звонок'}
-                            </span>
-                          </div>
-                          {nearest.notifyBeforeMinutes && nearest.notifyBeforeMinutes > 0 ? (
-                            <span
-                              style={{
-                                fontSize: '0.68rem',
-                                color: '#93c5fd',
-                                background: 'rgba(59, 130, 246, 0.2)',
-                                padding: '1px 4px',
-                                borderRadius: '3px',
-                                flexShrink: 0
-                              }}
-                              title={`Предварительное уведомление за ${nearest.notifyBeforeMinutes} мин`}
-                            >
-                              🔔-{nearest.notifyBeforeMinutes >= 1440 ? `${nearest.notifyBeforeMinutes / 1440}д` : (nearest.notifyBeforeMinutes >= 60 ? `${nearest.notifyBeforeMinutes / 60}ч` : `${nearest.notifyBeforeMinutes}м`)}
-                            </span>
-                          ) : null}
-                        </div>
-                      );
-                    })()}
                   </div>
-                  {isWorker ? (() => {
-                    const col = columns.find(c => c.id === card.statusId);
-                    const isCardCompleted = col ? (
-                      col.name.toLowerCase().includes('заверш') ||
-                      col.name.toLowerCase().includes('готов') ||
-                      col.name.toLowerCase().includes('выполнен')
-                    ) : false;
-                    const hasAct = (card.attachments || []).some(a => isActFile(a.fileName));
+                )}
+              </div>
 
-                    return (
-                      <div className="card-footer" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'stretch' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                            Остаток к оплате: <strong style={{ color: 'var(--accent-primary)', fontSize: '0.9rem' }}>{(card.remainder != null ? card.remainder : (card.totalPrice || 0)).toLocaleString('ru-RU')} ₽</strong>
-                          </div>
-                          {card.attachments && card.attachments.length > 0 && (
-                            <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: hasAct ? '#4ade80' : 'var(--text-secondary)'}} title={hasAct ? 'Акт выполненных работ прикреплен' : undefined}>
-                              <Paperclip size={12} /> {card.attachments.length} {hasAct && <span style={{ fontWeight: 600 }}>✓ Акт</span>}
-                            </div>
-                          )}
-                        </div>
-
-                        {isCardCompleted ? (
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            padding: '6px 10px',
-                            background: 'rgba(34, 197, 94, 0.12)',
-                            border: '1px solid rgba(34, 197, 94, 0.25)',
-                            borderRadius: 'var(--radius-sm)',
-                            color: '#4ade80',
-                            fontSize: '0.8rem',
-                            fontWeight: 600
-                          }}>
-                            <CheckCircle2 size={14} /> Монтаж завершен
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <button
-                              type="button"
-                              disabled={!hasAct}
-                              onClick={(e) => handleCompleteInstallation(e, card.id)}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px',
-                                padding: '7px 12px',
-                                background: hasAct ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
-                                border: hasAct ? 'none' : '1px solid var(--glass-border)',
-                                borderRadius: 'var(--radius-sm)',
-                                color: hasAct ? '#fff' : 'var(--text-secondary)',
-                                fontSize: '0.82rem',
-                                fontWeight: 600,
-                                cursor: hasAct ? 'pointer' : 'not-allowed',
-                                opacity: hasAct ? 1 : 0.6,
-                                boxShadow: hasAct ? '0 2px 8px rgba(34, 197, 94, 0.25)' : 'none',
-                                transition: 'all 0.15s ease'
-                              }}
-                              title={hasAct ? 'Перевести заявку в статус «Завершено»' : 'Для завершения монтажа необходимо прикрепить Акт выполненных работ в карточке заказа'}
-                            >
-                              <CheckCircle2 size={15} /> Завершить монтаж
-                            </button>
-                            {!hasAct && (
-                              <div style={{ fontSize: '0.72rem', color: '#f59e0b', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                                <AlertTriangle size={11} /> Требуется Акт выполненных работ
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })() : (
-                    <div className="card-footer" style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'stretch' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="card-price">{(card.totalPrice || 0).toLocaleString('ru-RU')} ₽</span>
-                        <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
-                          {card.attachments && card.attachments.length > 0 && (
-                            <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
-                              <Paperclip size={12} /> {card.attachments.length}
-                            </div>
-                          )}
-                          {card.profitMargin != null && card.profitMargin > 0 && (
-                            <span style={{fontSize: '0.75rem', color: 'var(--success)'}}>+{card.profitMargin.toFixed(1)}%</span>
-                          )}
-                        </div>
-                      </div>
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        fontSize: '0.75rem', 
-                        color: 'var(--text-secondary)',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        padding: '3px 6px',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid rgba(255, 255, 255, 0.04)'
-                      }}>
-                        <span>Аванс: <strong style={{ color: 'var(--text-primary)' }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
-                        <span>Остаток: <strong style={{ color: 'var(--text-primary)' }}>{((card.remainder != null ? card.remainder : card.totalPrice) || 0).toLocaleString('ru-RU')} ₽</strong></span>
-                      </div>
-                      {(() => {
-                        const col = columns.find(c => c.id === card.statusId);
-                        const isCardCompleted = col ? (
-                          col.name.toLowerCase().includes('заверш') ||
-                          col.name.toLowerCase().includes('готов') ||
-                          col.name.toLowerCase().includes('выполнен')
-                        ) : false;
-
-                        if (isCardCompleted) {
-                          if (!card.installedByName || !card.installedAt) return null;
-                          return (
-                            <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              fontSize: '0.74rem',
-                              fontWeight: 600,
-                              color: '#4ade80',
-                              background: 'rgba(34, 197, 94, 0.08)',
-                              border: '1px solid rgba(34, 197, 94, 0.2)',
-                              padding: '3px 7px',
-                              borderRadius: '4px',
-                              gap: '4px'
-                            }} title={`Монтаж завершен: ${formatDateTimeInTimezone(card.installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                <CheckCircle2 size={12} style={{ flexShrink: 0 }} /> Монтажник: {card.installedByName}
-                              </span>
-                              <span style={{ fontSize: '0.68rem', opacity: 0.8, color: 'var(--text-secondary)', flexShrink: 0 }}>
-                                {formatDateTimeInTimezone(card.installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short' })}
-                              </span>
-                            </div>
-                          );
-                        }
-
-                        const hasInstaller = Boolean(card.installedById || card.installedByName);
-                        const hasAct = card.attachments?.some(a => isActFile(a.fileName, a.isAct));
-                        const canComplete = hasInstaller && hasAct;
-
-                        let cardDisabledTitle = 'Завершить монтаж и перевести заявку в завершенный статус';
-                        if (!hasInstaller) {
-                          cardDisabledTitle = 'Для завершения монтажа необходимо назначить монтажника в деталях заявки';
-                        } else if (!hasAct) {
-                          cardDisabledTitle = 'Для завершения монтажа необходимо прикрепить Акт выполненных работ в деталях заявки';
-                        }
-
-                        return (
-                          <button
-                            type="button"
-                            disabled={!canComplete}
-                            onClick={(e) => handleCompleteInstallation(e, card.id)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '6px',
-                              padding: '5px 8px',
-                              background: canComplete ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(16, 185, 129, 0.06))' : 'rgba(255, 255, 255, 0.04)',
-                              border: canComplete ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid var(--glass-border)',
-                              borderRadius: 'var(--radius-sm)',
-                              color: canComplete ? '#4ade80' : 'var(--text-secondary)',
-                              fontSize: '0.76rem',
-                              fontWeight: 600,
-                              cursor: canComplete ? 'pointer' : 'not-allowed',
-                              opacity: canComplete ? 1 : 0.45,
-                              transition: 'all 0.15s ease',
-                              marginTop: '2px'
-                            }}
-                            title={cardDisabledTitle}
-                          >
-                            <CheckCircle2 size={13} /> Завершить монтаж
-                          </button>
-                        );
-                      })()}
-                    </div>
-                  )}
-                </div>
-              ))}
-              {searchQuery.trim() && colCards.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '24px 12px', fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                  Нет совпадений
-                </div>
-              )}
+              <div className="column-content">
+                {colCards.map(renderCard)}
+                {searchQuery.trim() && colCards.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '24px 12px', fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                    Нет совпадений
+                  </div>
+                )}
+              </div>
             </div>
+            );
+          })}
+          
+          {!isWorker && (
+            <button 
+              className="kanban-column add-column-btn glass-panel" 
+              onClick={openColumnAddModal}
+              style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', minWidth: '320px', cursor: 'pointer', opacity: 0.7, border: '2px dashed var(--glass-border)' }}
+            >
+              <Plus size={24} style={{ marginRight: '8px' }} />
+              <span style={{ fontSize: '1.1rem', fontWeight: 500 }}>{t('kanban.addColumn')}</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Mobile / Touch Drag Ghost Portal */}
+      {touchDraggingCard && touchDragPosition && touchGhostData && createPortal(
+        <div
+          className="kanban-touch-drag-ghost"
+          style={{
+            left: `${touchDragPosition.x - touchGhostData.offsetX}px`,
+            top: `${touchDragPosition.y - touchGhostData.offsetY}px`,
+            width: `${touchGhostData.width}px`
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            {(() => {
+              const client = clients.find(cl => cl.id === touchDraggingCard.clientId);
+              const cName = touchDraggingCard.clientName || client?.name || `Клиент #${touchDraggingCard.clientId}`;
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', background: 'rgba(255, 255, 255, 0.06)', padding: '1px 5px', borderRadius: '4px' }}>
+                    #{touchDraggingCard.id}
+                  </span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                    {cName}
+                  </span>
+                </div>
+              );
+            })()}
           </div>
-          );
-        })}
-        
-        {!isWorker && (
-          <button 
-            className="kanban-column add-column-btn glass-panel" 
-            onClick={openColumnAddModal}
-            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', minWidth: '320px', cursor: 'pointer', opacity: 0.7, border: '2px dashed var(--glass-border)' }}
-          >
-            <Plus size={24} style={{ marginRight: '8px' }} />
-            <span style={{ fontSize: '1.1rem', fontWeight: 500 }}>{t('kanban.addColumn')}</span>
-          </button>
-        )}
-      </div>
+          {touchDraggingCard.address && (
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <MapPin size={12} style={{ flexShrink: 0, opacity: 0.7 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{touchDraggingCard.address}</span>
+            </div>
+          )}
+          <div className="card-footer" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="card-price" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#4ade80' }}>
+              {touchDraggingCard.totalPrice != null && touchDraggingCard.totalPrice > 0 ? `${touchDraggingCard.totalPrice.toLocaleString('ru-RU')} ₽` : '—'}
+            </div>
+            {(() => {
+              const targetCol = columns.find(c => c.id === touchTargetStatusId);
+              return targetCol ? (
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: targetCol.color || 'var(--accent-primary)', background: 'rgba(255, 255, 255, 0.08)', padding: '2px 8px', borderRadius: '12px' }}>
+                  → {targetCol.name}
+                </span>
+              ) : null;
+            })()}
+          </div>
+        </div>,
+        document.body
+      )}
 
       {isModalOpen && createPortal(
         <div className="modal-overlay" onClick={handleRequestCloseModal}>
