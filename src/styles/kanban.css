@@ -461,7 +461,11 @@
     padding: 0;
     width: 100%;
     max-width: 100%;
-    overflow: hidden;
+    overflow: visible;
+    height: auto;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 
   .kanban-header {
@@ -970,6 +974,295 @@ body.light-theme .custom-number-input {
   background: #ffffff;
   border-color: #cbd5e1;
   color: #0f172a;
+}
+
+/* ==========================================================================
+   TOUCH DRAG & DROP FOR MOBILE & PWA
+   ========================================================================== */
+.kanban-card.is-touch-dragging-placeholder {
+  opacity: 0.3 !important;
+  border: 2px dashed var(--accent-primary) !important;
+  background: rgba(59, 130, 246, 0.05) !important;
+  transform: scale(0.97) !important;
+  pointer-events: none;
+}
+
+.kanban-column.is-touch-drop-target {
+  border-color: var(--accent-primary) !important;
+  background: rgba(59, 130, 246, 0.08) !important;
+  box-shadow: 0 0 25px rgba(59, 130, 246, 0.25) !important;
+}
+
+.kanban-touch-drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 999999;
+  transform: scale(1.04) rotate(1.5deg);
+  box-shadow: 0 25px 40px rgba(0, 0, 0, 0.55), 0 0 20px rgba(59, 130, 246, 0.5);
+  border: 2px solid var(--accent-primary) !important;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  box-sizing: border-box;
+  padding: 16px;
+  user-select: none;
+  -webkit-user-select: none;
+  opacity: 0.95;
+  transition: transform 0.08s ease;
+}
+
+.light-theme .kanban-touch-drag-ghost {
+  background: #ffffff;
+  box-shadow: 0 25px 40px rgba(0, 0, 0, 0.15), 0 0 20px rgba(59, 130, 246, 0.35);
+  border: 2px solid var(--accent-primary) !important;
+}
+
+.light-theme .kanban-column.is-touch-drop-target {
+  border-color: var(--accent-primary) !important;
+  background: #eff6ff !important;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* ==========================================================================
+   MOBILE ACCORDION / LIST VIEW (Telegram style)
+   ========================================================================== */
+.kanban-mobile-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  overflow: visible;
+  height: auto;
+  padding-bottom: 40px;
+  box-sizing: border-box;
+}
+
+.kanban-mobile-list-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 2px 8px 2px;
+}
+
+.kanban-mobile-status-group {
+  border-radius: var(--radius-md);
+  background: var(--table-bg);
+  border: 1px solid var(--glass-border);
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.kanban-mobile-status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.15s ease;
+  border-radius: var(--radius-md);
+}
+
+.kanban-mobile-status-header:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.light-theme .kanban-mobile-status-header {
+  background: #f8fafc;
+}
+
+.light-theme .kanban-mobile-status-header:active {
+  background: #f1f5f9;
+}
+
+.kanban-mobile-status-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.kanban-mobile-status-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kanban-status-drag-handle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 6px;
+  opacity: 0.55;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none !important;
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.kanban-status-drag-handle:hover,
+.kanban-status-drag-handle:active {
+  opacity: 0.95;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.light-theme .kanban-status-drag-handle:hover,
+.light-theme .kanban-status-drag-handle:active {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.kanban-drag-line {
+  display: block;
+  width: 14px;
+  height: 2px;
+  background-color: var(--text-secondary);
+  border-radius: 2px;
+}
+
+.kanban-mobile-status-cards {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.1);
+  width: 100%;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.light-theme .kanban-mobile-status-cards {
+  background: #f8fafc;
+}
+
+.kanban-mobile-status-cards .kanban-card {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  height: auto;
+  min-height: auto;
+  overflow: visible;
+  touch-action: pan-y;
+}
+
+.kanban-mobile-status-empty {
+  text-align: center;
+  padding: 18px 10px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.kanban-mobile-view-toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 2px;
+}
+
+@media (min-width: 769px) {
+  .kanban-mobile-view-toggle {
+    display: none !important;
+  }
+}
+
+.light-theme .kanban-mobile-view-toggle {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.kanban-view-mode-btn {
+  background: none;
+  border: none;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.kanban-view-mode-btn.active {
+  background: var(--accent-primary);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+.kanban-mobile-status-group.is-column-dragging {
+  opacity: 0.25 !important;
+  border: 2px dashed var(--accent-primary) !important;
+  transform: scale(0.98);
+}
+
+.kanban-mobile-status-group.is-column-reorder-target {
+  border: 2px solid var(--accent-primary) !important;
+  background: rgba(59, 130, 246, 0.16) !important;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.35) !important;
+  transform: scale(1.01);
+  position: relative;
+}
+
+.kanban-mobile-status-group.is-column-reorder-target::before {
+  content: '⬇ Переместить сюда';
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.2);
+  padding: 4px 10px;
+  text-align: center;
+  border-bottom: 1px solid var(--accent-primary);
+  letter-spacing: 0.5px;
+}
+
+.light-theme .kanban-mobile-status-group.is-column-reorder-target {
+  background: #eff6ff !important;
+}
+
+.light-theme .kanban-mobile-status-group.is-column-reorder-target::before {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+/* Floating ghost for column drag */
+.kanban-column-drag-ghost {
+  position: fixed;
+  z-index: 1000000;
+  pointer-events: none;
+  background: var(--bg-secondary);
+  border: 2px solid var(--accent-primary);
+  box-shadow: 0 20px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(59, 130, 246, 0.5);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transform: translateY(-50%);
+}
+
+.light-theme .kanban-column-drag-ghost {
+  background: #ffffff;
+  box-shadow: 0 20px 35px rgba(0, 0, 0, 0.15), 0 0 20px rgba(59, 130, 246, 0.35);
 }
 
 
