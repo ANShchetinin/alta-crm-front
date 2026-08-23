@@ -18,6 +18,7 @@ import type { Employee } from '../api/employees';
 import { getEmployeeInitials, getAvatarGradient } from './Employees';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useFeature } from '../hooks/useFeatureToggle';
 import { formatDateTimeInTimezone, localInputToUtcIso, utcToLocalInput, parseUtcDate, formatDateOnly } from '../utils/dateUtils';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
@@ -131,6 +132,9 @@ const Kanban = () => {
   const { t } = useTranslation();
   const role = useAuthStore(state => state.role);
   const isWorker = role === 'WORKER';
+  const hasAiSummary = useFeature('AI_SUMMARY');
+  const hasContractTemplates = useFeature('CONTRACT_TEMPLATES');
+  const hasStorage = useFeature('STORAGE');
   const { setNewOrdersCount, fetchLowStockMaterials, tenantSettings } = useAppStore();
   const [columns, setColumns] = useState<OrderStatus[]>([]);
   const [cards, setCards] = useState<Order[]>([]);
@@ -2204,7 +2208,7 @@ const Kanban = () => {
                 >
                   <User size={15} /> Основное
                 </button>
-                {!isWorker && (
+                {!isWorker && hasContractTemplates && (
                   <button
                     type="button"
                     onClick={() => setOrderModalTab('CONTRACT')}
@@ -2232,7 +2236,7 @@ const Kanban = () => {
                     ) : null}
                   </button>
                 )}
-                {!isWorker && (
+                {!isWorker && hasStorage && (
                   <button
                     type="button"
                     onClick={() => setOrderModalTab('MATERIALS')}
@@ -2276,7 +2280,7 @@ const Kanban = () => {
                 >
                   <Paperclip size={15} /> Файлы {(formData.attachments.length + pendingFiles.length) > 0 && `(${formData.attachments.length + pendingFiles.length})`}
                 </button>
-                {!isWorker && editingOrderId && (
+                {!isWorker && editingOrderId && hasAiSummary && (
                   <button
                     type="button"
                     onClick={() => setOrderModalTab('AI')}

@@ -60,6 +60,7 @@ export interface TenantDto {
   requisites?: TenantRequisites;
   orderNumberFormat?: string;
   timezone?: string;
+  activeFeatures?: string[];
   createdAt: string;
 }
 
