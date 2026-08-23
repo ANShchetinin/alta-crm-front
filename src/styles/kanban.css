@@ -119,34 +119,188 @@
 
 .kanban-card {
   background: var(--bg-secondary);
-  padding: 16px;
-  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  border-radius: 14px;
   border: 1px solid var(--glass-border);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   cursor: grab;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.kanban-card:active {
-  cursor: grabbing;
+.card-client-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
-.kanban-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.card-client {
-  font-weight: 600;
+.card-order-id {
+  font-size: 0.88rem;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 4px;
+}
+
+.card-client-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  word-break: break-word;
+  line-height: 1.25;
+}
+
+.card-phone-btn,
+.card-assignee-avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 0.72rem;
+}
+
+.card-address-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
 }
 
 .card-desc {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   color: var(--text-secondary);
-  margin-bottom: 12px;
+  margin-bottom: 6px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+.kanban-finance-box {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 6px 0;
+}
+
+.card-price-main {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #16a34a;
+}
+
+.card-finance-sub {
+  display: flex;
+  align-items: center;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.card-installer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 8px 0;
+  font-size: 0.84rem;
+}
+
+.card-complete-btn {
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.light-theme .kanban-finance-box {
+  background: #f1f3f5 !important;
+  border-color: #e2e8f0 !important;
+}
+
+.kanban-map-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 9999px;
+  padding: 2px 8px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: all 0.15s ease;
+}
+
+.kanban-map-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.light-theme .kanban-map-pill {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+.light-theme .kanban-map-pill:hover {
+  background: #edf2f7 !important;
+}
+
+@media (max-width: 768px) {
+  .kanban-card {
+    padding: 14px 16px;
+    border-radius: 16px;
+  }
+  .card-client-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.78rem;
+  }
+  .card-order-id {
+    font-size: 0.98rem;
+  }
+  .card-client-name {
+    font-size: 1.02rem;
+  }
+  .card-phone-btn,
+  .card-assignee-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.78rem;
+  }
+  .card-address-row {
+    font-size: 0.9rem;
+  }
+  .kanban-map-pill {
+    padding: 3px 10px;
+    font-size: 0.8rem;
+    gap: 6px;
+  }
+  .card-desc {
+    font-size: 0.88rem;
+  }
+  .kanban-finance-box {
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin: 8px 0;
+  }
+  .card-price-main {
+    font-size: 1.35rem;
+  }
+  .card-finance-sub {
+    font-size: 0.88rem;
+  }
+  .card-installer-row {
+    font-size: 0.95rem;
+    gap: 8px;
+    margin: 8px 0 10px 0;
+  }
+  .card-complete-btn {
+    font-size: 0.95rem;
+    padding: 10px 16px;
+    border-radius: 10px;
+  }
 }
 
 .card-status-container {
