@@ -70,6 +70,7 @@ export interface Order {
   clientName?: string;
   clientPhone?: string;
   clientType?: string;
+  clientAvatarUrl?: string;
   statusId: number;
   assigneeId?: number;
   assigneeName?: string;

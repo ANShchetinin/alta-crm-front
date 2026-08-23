@@ -11,6 +11,7 @@ export interface ClientContact {
 export interface Client {
   id: number;
   clientType?: 'INDIVIDUAL' | 'LEGAL_ENTITY';
+  avatarUrl?: string;
   name: string;
   legalName?: string;
   phone: string;
@@ -39,6 +40,7 @@ export interface Client {
 
 export interface ClientCreateRequest {
   clientType?: 'INDIVIDUAL' | 'LEGAL_ENTITY';
+  avatarUrl?: string;
   name: string;
   legalName?: string;
   phone: string;
@@ -81,4 +83,15 @@ export const updateClient = async (id: number, client: ClientCreateRequest): Pro
 
 export const deleteClient = async (id: number): Promise<void> => {
   await api.delete(`/clients/${id}`);
+};
+
+export const uploadClientAvatar = async (id: number, file: File): Promise<Client> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post(`/clients/${id}/avatar`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
 };
