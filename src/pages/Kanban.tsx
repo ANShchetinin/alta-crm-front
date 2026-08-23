@@ -555,6 +555,7 @@ const Kanban = () => {
   const {
     draggingColId,
     targetColId: touchTargetColId,
+    dragPosition: touchColDragPosition,
     handleHandleTouchStart,
     handleHandleTouchMove,
     handleHandleTouchEnd,
@@ -2391,6 +2392,43 @@ const Kanban = () => {
               ) : null;
             })()}
           </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Mobile Column Drag Ghost Portal */}
+      {draggingColId && touchColDragPosition && createPortal(
+        <div
+          className="kanban-column-drag-ghost"
+          style={{
+            left: '16px',
+            right: '16px',
+            top: `${touchColDragPosition.y}px`
+          }}
+        >
+          {(() => {
+            const dragCol = columns.find(c => c.id === draggingColId);
+            const targetCol = columns.find(c => c.id === touchTargetColId);
+            return (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="dot" style={{ backgroundColor: dragCol?.color || '#3b82f6' }} />
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                    {dragCol?.name}
+                  </span>
+                </div>
+                {targetCol && targetCol.id !== draggingColId ? (
+                  <span style={{ fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 700, background: 'rgba(59, 130, 246, 0.15)', padding: '3px 10px', borderRadius: '12px' }}>
+                    → {targetCol.name}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                    Тяните вверх или вниз
+                  </span>
+                )}
+              </>
+            );
+          })()}
         </div>,
         document.body
       )}

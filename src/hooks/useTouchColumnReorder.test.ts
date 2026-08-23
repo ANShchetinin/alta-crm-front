@@ -35,7 +35,7 @@ describe('useTouchColumnReorder Hook', () => {
     });
 
     expect(result.current.draggingColId).toBe(1);
-    expect(result.current.dragY).toBe(150);
+    expect(result.current.dragPosition).toEqual({ x: 300, y: 150 });
   });
 
   it('reorders columns when dragged to another target column on touch end', () => {

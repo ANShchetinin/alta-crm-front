@@ -1106,6 +1106,7 @@ body.light-theme .custom-number-input {
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: none !important;
   flex-shrink: 0;
   border-radius: 4px;
   transition: opacity 0.15s ease, background 0.15s ease;
@@ -1199,19 +1200,63 @@ body.light-theme .custom-number-input {
 }
 
 .kanban-mobile-status-group.is-column-dragging {
-  opacity: 0.4 !important;
+  opacity: 0.25 !important;
   border: 2px dashed var(--accent-primary) !important;
   transform: scale(0.98);
 }
 
 .kanban-mobile-status-group.is-column-reorder-target {
-  border-color: var(--accent-primary) !important;
-  background: rgba(59, 130, 246, 0.12) !important;
-  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3) !important;
+  border: 2px solid var(--accent-primary) !important;
+  background: rgba(59, 130, 246, 0.16) !important;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.35) !important;
+  transform: scale(1.01);
+  position: relative;
+}
+
+.kanban-mobile-status-group.is-column-reorder-target::before {
+  content: '⬇ Переместить сюда';
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.2);
+  padding: 4px 10px;
+  text-align: center;
+  border-bottom: 1px solid var(--accent-primary);
+  letter-spacing: 0.5px;
 }
 
 .light-theme .kanban-mobile-status-group.is-column-reorder-target {
   background: #eff6ff !important;
+}
+
+.light-theme .kanban-mobile-status-group.is-column-reorder-target::before {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+/* Floating ghost for column drag */
+.kanban-column-drag-ghost {
+  position: fixed;
+  z-index: 1000000;
+  pointer-events: none;
+  background: var(--bg-secondary);
+  border: 2px solid var(--accent-primary);
+  box-shadow: 0 20px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(59, 130, 246, 0.5);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transform: translateY(-50%);
+}
+
+.light-theme .kanban-column-drag-ghost {
+  background: #ffffff;
+  box-shadow: 0 20px 35px rgba(0, 0, 0, 0.15), 0 0 20px rgba(59, 130, 246, 0.35);
 }
 
 
