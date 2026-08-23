@@ -3429,7 +3429,7 @@ const Kanban = () => {
                     <div className="form-group">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                         <label style={{ margin: 0 }}>{t('kanban.modal.client')}</label>
-                        {!isWorker && (
+                        {!editingOrderId && !isWorker && (
                           <button 
                             type="button" 
                             onClick={() => setIsNewClientModalOpen(true)}
@@ -3440,7 +3440,7 @@ const Kanban = () => {
                           </button>
                         )}
                       </div>
-                      {isWorker ? (() => {
+                      {editingOrderId ? (() => {
                         const currentOrder = cards.find(c => c.id === editingOrderId);
                         const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
                         const cName = currentOrder?.clientName || selectedClient?.name || 'Клиент';
@@ -3448,6 +3448,7 @@ const Kanban = () => {
                         const cType = currentOrder?.clientType || selectedClient?.clientType;
                         const cAvatar = currentOrder?.clientAvatarUrl || selectedClient?.avatarUrl;
                         const isLegal = cType === 'LEGAL_ENTITY';
+                        const leadSource = selectedClient?.leadSource;
 
                         return (
                           <div style={{
@@ -3489,7 +3490,7 @@ const Kanban = () => {
                                 )}
                               </div>
                               <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                   <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{cName}</span>
                                   <span style={{
                                     fontSize: '0.72rem',
@@ -3506,6 +3507,24 @@ const Kanban = () => {
                                   }}>
                                     {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
                                   </span>
+                                  {leadSource && (
+                                    <span style={{
+                                      padding: '2px 8px',
+                                      fontSize: '0.72rem',
+                                      color: '#60a5fa',
+                                      background: 'rgba(59, 130, 246, 0.1)',
+                                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                                      borderRadius: '4px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      whiteSpace: 'nowrap',
+                                      flexShrink: 0
+                                    }}>
+                                      <Tag size={11} style={{ opacity: 0.8 }} />
+                                      {leadSource}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
