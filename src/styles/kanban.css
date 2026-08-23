@@ -461,7 +461,11 @@
     padding: 0;
     width: 100%;
     max-width: 100%;
-    overflow: hidden;
+    overflow: visible;
+    height: auto;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 
   .kanban-header {
@@ -1024,10 +1028,11 @@ body.light-theme .custom-number-input {
 .kanban-mobile-list-view {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  overflow-y: auto;
-  padding-bottom: 24px;
+  overflow: visible;
+  height: auto;
+  padding-bottom: 40px;
   box-sizing: border-box;
 }
 
@@ -1035,14 +1040,16 @@ body.light-theme .custom-number-input {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 2px 6px 2px;
+  padding: 4px 2px 8px 2px;
 }
 
 .kanban-mobile-status-group {
   border-radius: var(--radius-md);
   background: var(--table-bg);
   border: 1px solid var(--glass-border);
-  overflow: hidden;
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
@@ -1055,6 +1062,7 @@ body.light-theme .custom-number-input {
   user-select: none;
   background: rgba(255, 255, 255, 0.02);
   transition: background 0.15s ease;
+  border-radius: var(--radius-md);
 }
 
 .kanban-mobile-status-header:active {
@@ -1087,23 +1095,72 @@ body.light-theme .custom-number-input {
   text-overflow: ellipsis;
 }
 
-.kanban-mobile-status-cards {
-  padding: 10px 12px 14px 12px;
+.kanban-status-drag-handle {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 6px;
+  opacity: 0.55;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.kanban-status-drag-handle:hover,
+.kanban-status-drag-handle:active {
+  opacity: 0.95;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.light-theme .kanban-status-drag-handle:hover,
+.light-theme .kanban-status-drag-handle:active {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.kanban-drag-line {
+  display: block;
+  width: 14px;
+  height: 2px;
+  background-color: var(--text-secondary);
+  border-radius: 2px;
+}
+
+.kanban-mobile-status-cards {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   border-top: 1px solid var(--glass-border);
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.1);
+  width: 100%;
+  box-sizing: border-box;
+  overflow: visible;
 }
 
 .light-theme .kanban-mobile-status-cards {
-  background: #ffffff;
+  background: #f8fafc;
+}
+
+.kanban-mobile-status-cards .kanban-card {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  height: auto;
+  min-height: auto;
+  overflow: visible;
+  touch-action: pan-y;
 }
 
 .kanban-mobile-status-empty {
   text-align: center;
-  padding: 16px 10px;
-  font-size: 0.82rem;
+  padding: 18px 10px;
+  font-size: 0.85rem;
   color: var(--text-secondary);
   font-style: italic;
 }

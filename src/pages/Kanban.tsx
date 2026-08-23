@@ -2116,7 +2116,7 @@ const Kanban = () => {
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {!isWorker && (
                       <button
                         type="button"
@@ -2129,6 +2129,16 @@ const Kanban = () => {
                       >
                         <Edit2 size={15} />
                       </button>
+                    )}
+                    {!isWorker && (
+                      <div
+                        className="kanban-status-drag-handle"
+                        title="Порядок этапов воронки"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="kanban-drag-line" />
+                        <span className="kanban-drag-line" />
+                      </div>
                     )}
                     <ChevronDown
                       size={18}
