@@ -1985,29 +1985,31 @@ const Kanban = () => {
             <span>{hideEmptyColumns ? 'Показать все' : 'Скрыть пустые'}</span>
           </button>
 
-          {/* Mobile View Toggle: Список | Доска */}
-          <div className="kanban-mobile-view-toggle">
-            <button
-              type="button"
-              className={`kanban-view-mode-btn ${mobileViewMode === 'list' ? 'active' : ''}`}
-              onClick={() => {
-                setMobileViewMode('list');
-                localStorage.setItem('kanban_mobile_view_mode', 'list');
-              }}
-            >
-              Список
-            </button>
-            <button
-              type="button"
-              className={`kanban-view-mode-btn ${mobileViewMode === 'board' ? 'active' : ''}`}
-              onClick={() => {
-                setMobileViewMode('board');
-                localStorage.setItem('kanban_mobile_view_mode', 'board');
-              }}
-            >
-              Доска
-            </button>
-          </div>
+          {/* Mobile View Toggle: Список | Доска (только на мобильных экранах) */}
+          {isMobile && (
+            <div className="kanban-mobile-view-toggle">
+              <button
+                type="button"
+                className={`kanban-view-mode-btn ${mobileViewMode === 'list' ? 'active' : ''}`}
+                onClick={() => {
+                  setMobileViewMode('list');
+                  localStorage.setItem('kanban_mobile_view_mode', 'list');
+                }}
+              >
+                Список
+              </button>
+              <button
+                type="button"
+                className={`kanban-view-mode-btn ${mobileViewMode === 'board' ? 'active' : ''}`}
+                onClick={() => {
+                  setMobileViewMode('board');
+                  localStorage.setItem('kanban_mobile_view_mode', 'board');
+                }}
+              >
+                Доска
+              </button>
+            </div>
+          )}
 
           <div className="search-input-wrapper" style={{ minWidth: '260px', maxWidth: '360px', position: 'relative' }}>
             <Search className="search-icon" size={18} />
@@ -2125,6 +2127,10 @@ const Kanban = () => {
             const colCards = filteredCards.filter(c => c.statusId === col.id);
             const totalInCol = cards.filter(c => c.statusId === col.id).length;
             const isCollapsed = collapsedColumns[col.id] !== undefined ? collapsedColumns[col.id] : true;
+            const isFilterActive = Boolean(searchQuery.trim()) || reminderFilter !== 'all';
+            const countBadgeText = isFilterActive && (colCards.length !== totalInCol || colCards.length === 0)
+              ? `${colCards.length}/${totalInCol}`
+              : totalInCol;
 
             return (
               <div
@@ -2139,10 +2145,17 @@ const Kanban = () => {
                   <div className="kanban-mobile-status-info">
                     <span className="dot" style={{ backgroundColor: col.color || '#3b82f6' }} />
                     <h3 className="kanban-mobile-status-title">{col.name}</h3>
-                    <span className="count">
-                      {searchQuery.trim() && colCards.length !== totalInCol
-                        ? `${colCards.length}/${totalInCol}`
-                        : totalInCol}
+                    <span 
+                      className="count"
+                      style={
+                        reminderFilter === 'today' && colCards.length > 0
+                          ? { background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', fontWeight: 700 }
+                          : reminderFilter === 'overdue' && colCards.length > 0
+                          ? { background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', fontWeight: 700 }
+                          : undefined
+                      }
+                    >
+                      {countBadgeText}
                     </span>
                   </div>
 
@@ -2192,7 +2205,7 @@ const Kanban = () => {
                       colCards.map(renderCard)
                     ) : (
                       <div className="kanban-mobile-status-empty">
-                        {searchQuery.trim() ? 'Нет совпадений' : 'В этом статусе нет заявок'}
+                        {isFilterActive ? 'Нет заявок по фильтру' : 'В этом статусе нет заявок'}
                       </div>
                     )}
                   </div>
@@ -2202,20 +2215,10 @@ const Kanban = () => {
           })}
 
           {!isWorker && (
-            <button
-              className="add-column-btn glass-panel"
+            <button 
+              className="kanban-column add-column-btn glass-panel" 
               onClick={openColumnAddModal}
-              style={{
-                width: '100%',
-                minWidth: 'unset',
-                height: '46px',
-                marginTop: '4px',
-                borderRadius: 'var(--radius-md)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}
+              style={{ width: '100%', minHeight: '48px', height: '48px', cursor: 'pointer', opacity: 0.8, border: '1px dashed var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: 'var(--radius-md)', background: 'rgba(255, 255, 255, 0.02)' }}
             >
               <Plus size={18} />
               <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{t('kanban.addColumn')}</span>
@@ -2246,6 +2249,10 @@ const Kanban = () => {
           {displayedColumns.map(col => {
             const colCards = filteredCards.filter(c => c.statusId === col.id);
             const totalInCol = cards.filter(c => c.statusId === col.id).length;
+            const isFilterActive = Boolean(searchQuery.trim()) || reminderFilter !== 'all';
+            const countBadgeText = isFilterActive && (colCards.length !== totalInCol || colCards.length === 0)
+              ? `${colCards.length}/${totalInCol}`
+              : totalInCol;
 
             return (
             <div 
@@ -2300,10 +2307,17 @@ const Kanban = () => {
                 <div className="column-title">
                   <span className="dot" style={{ backgroundColor: col.color || '#3b82f6' }}></span>
                   <h3>{col.name}</h3>
-                  <span className="count">
-                    {searchQuery.trim() && colCards.length !== totalInCol
-                      ? `${colCards.length}/${totalInCol}`
-                      : totalInCol}
+                  <span 
+                    className="count"
+                    style={
+                      reminderFilter === 'today' && colCards.length > 0
+                        ? { background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', fontWeight: 700 }
+                        : reminderFilter === 'overdue' && colCards.length > 0
+                        ? { background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', fontWeight: 700 }
+                        : undefined
+                    }
+                  >
+                    {countBadgeText}
                   </span>
                 </div>
                 {!isWorker && (

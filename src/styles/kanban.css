@@ -1175,6 +1175,12 @@ body.light-theme .custom-number-input {
   gap: 2px;
 }
 
+@media (min-width: 769px) {
+  .kanban-mobile-view-toggle {
+    display: none !important;
+  }
+}
+
 .light-theme .kanban-mobile-view-toggle {
   background: #f1f5f9;
   border-color: #cbd5e1;
