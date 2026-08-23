@@ -5,6 +5,7 @@ export interface OrderStatus {
   name: string;
   color: string;
   sortOrder: number;
+  includeInFinances?: boolean;
 }
 
 export interface OrderMaterial {
@@ -127,6 +128,11 @@ export const deleteOrderStatus = async (id: number): Promise<void> => {
 
 export const reorderOrderStatuses = async (statusIds: number[]): Promise<void> => {
   await api.put('/order-statuses/reorder', statusIds);
+};
+
+export const updateFinanceStatuses = async (statusInclusionMap: Record<number, boolean>): Promise<OrderStatus[]> => {
+  const response = await api.put('/order-statuses/finance-settings', statusInclusionMap);
+  return response.data;
 };
 
 export const getOrders = async (): Promise<Order[]> => {

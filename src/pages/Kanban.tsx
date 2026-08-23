@@ -211,6 +211,7 @@ const Kanban = () => {
   const [editingColumnId, setEditingColumnId] = useState<number | null>(null);
   const [newColumnName, setNewColumnName] = useState('');
   const [newColumnColor, setNewColumnColor] = useState('#3b82f6');
+  const [newColumnIncludeInFinances, setNewColumnIncludeInFinances] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Order Modal Tab State
@@ -1097,19 +1098,22 @@ const Kanban = () => {
       if (editingColumnId) {
         await updateOrderStatus(editingColumnId, {
           name: newColumnName,
-          color: newColumnColor
+          color: newColumnColor,
+          includeInFinances: newColumnIncludeInFinances
         });
       } else {
         await createOrderStatus({
           name: newColumnName,
           color: newColumnColor,
-          sortOrder: columns.length + 1
+          sortOrder: columns.length + 1,
+          includeInFinances: newColumnIncludeInFinances
         });
       }
       setIsColumnModalOpen(false);
       setEditingColumnId(null);
       setNewColumnName('');
       setNewColumnColor('#3b82f6');
+      setNewColumnIncludeInFinances(true);
       fetchData();
     } catch (err) {
       console.error("Failed to save column", err);
@@ -1120,6 +1124,7 @@ const Kanban = () => {
     setEditingColumnId(col.id);
     setNewColumnName(col.name);
     setNewColumnColor(col.color || '#3b82f6');
+    setNewColumnIncludeInFinances(col.includeInFinances !== false);
     setIsColumnModalOpen(true);
   };
 
@@ -1127,6 +1132,7 @@ const Kanban = () => {
     setEditingColumnId(null);
     setNewColumnName('');
     setNewColumnColor('#3b82f6');
+    setNewColumnIncludeInFinances(true);
     setIsColumnModalOpen(true);
   };
 
@@ -4420,6 +4426,18 @@ const Kanban = () => {
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{newColumnName || 'Статус'}</span>
                     </div>
                   </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '16px', marginBottom: 0 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.88rem' }}>
+                    <input 
+                      type="checkbox"
+                      checked={newColumnIncludeInFinances}
+                      onChange={(e) => setNewColumnIncludeInFinances(e.target.checked)}
+                      style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
+                    />
+                    <span>Учитывать заявки этого статуса в блоке финансов</span>
+                  </label>
                 </div>
               </div>
               <div className="modal-actions">
