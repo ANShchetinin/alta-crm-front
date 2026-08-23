@@ -239,12 +239,17 @@ const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({ value, clients,
                     {selectedClient.name}
                   </span>
                   <span style={{
-                    fontSize: '0.7rem',
-                    padding: '1px 6px',
+                    fontSize: '0.72rem',
+                    padding: '2px 8px',
                     borderRadius: '4px',
                     background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
                     color: isLegal ? '#60a5fa' : '#4ade80',
-                    fontWeight: 600
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
                   }}>
                     {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
                   </span>
@@ -420,6 +425,8 @@ const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({ value, clients,
                             borderRadius: '4px',
                             background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
                             color: isLegal ? '#60a5fa' : '#4ade80',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
                             flexShrink: 0
                           }}>
                             {isLegal ? 'Юр. лицо' : 'Физ. лицо'}
@@ -433,6 +440,322 @@ const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({ value, clients,
                     </div>
                     {isSelected && (
                       <Check size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+interface EmployeeSearchSelectProps {
+  value: string;
+  employees: Employee[];
+  onChange: (employeeId: string) => void;
+  placeholder?: string;
+  icon?: React.ReactNode;
+  accentColor?: string;
+  isWorker?: boolean;
+}
+
+const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
+  value,
+  employees,
+  onChange,
+  placeholder = 'Не назначен',
+  icon,
+  accentColor = 'var(--accent-primary)',
+  isWorker
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedEmployee = employees.find(e => e.id.toString() === value);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const filteredEmployees = useMemo(() => {
+    if (!search.trim()) return employees;
+    const q = search.toLowerCase().trim();
+    return employees.filter(e => 
+      e.name.toLowerCase().includes(q) ||
+      (e.position && e.position.toLowerCase().includes(q)) ||
+      (e.phone && e.phone.toLowerCase().includes(q))
+    );
+  }, [employees, search]);
+
+  const handleOpen = () => {
+    if (isWorker) return;
+    setIsOpen(!isOpen);
+    if (!isOpen) {
+      setSearch('');
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 60);
+    }
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      {/* Selected Card / Trigger */}
+      <div
+        onClick={handleOpen}
+        style={{
+          width: '100%',
+          padding: '8px 12px',
+          background: selectedEmployee ? 'rgba(255, 255, 255, 0.04)' : 'var(--input-bg)',
+          border: isOpen ? `1px solid ${accentColor}` : '1px solid var(--glass-border)',
+          borderRadius: 'var(--radius-md)',
+          cursor: isWorker ? 'default' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          transition: 'all var(--transition-fast)',
+          minHeight: '44px'
+        }}
+      >
+        {selectedEmployee ? (() => {
+          const eAvatar = selectedEmployee.avatarUrl;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+              <div style={{
+                width: '30px',
+                height: '30px',
+                borderRadius: '50%',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                color: '#fff',
+                background: eAvatar ? 'transparent' : getAvatarGradient(selectedEmployee.name),
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                flexShrink: 0
+              }}>
+                {eAvatar ? (
+                  <img src={eAvatar} alt={selectedEmployee.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  getEmployeeInitials(selectedEmployee.name)
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                <span style={{ fontWeight: 600, fontSize: '0.86rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {selectedEmployee.name}
+                </span>
+                {selectedEmployee.position && (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {selectedEmployee.position}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })() : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+            {icon || <User size={15} style={{ opacity: 0.6 }} />}
+            <span>{placeholder}</span>
+          </div>
+        )}
+
+        {!isWorker && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {selectedEmployee && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange('');
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'flex',
+                  borderRadius: '50%',
+                  opacity: 0.7
+                }}
+                title="Снять выбор"
+              >
+                <X size={13} />
+              </button>
+            )}
+            <ChevronDown 
+              size={16} 
+              style={{ 
+                color: 'var(--text-secondary)', 
+                transform: isOpen ? 'rotate(180deg)' : 'none', 
+                transition: 'transform 0.2s ease', 
+                flexShrink: 0 
+              }} 
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 6px)',
+          left: 0,
+          right: 0,
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--glass-border)',
+          borderRadius: 'var(--radius-md)',
+          boxShadow: '0 12px 36px rgba(0, 0, 0, 0.5)',
+          zIndex: 1000,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '280px'
+        }}>
+          {/* Search Bar */}
+          <div style={{ padding: '6px 10px', borderBottom: '1px solid var(--glass-border)', background: 'rgba(0, 0, 0, 0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Search size={14} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Поиск сотрудника..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                fontSize: '0.84rem'
+              }}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px', display: 'flex' }}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* Option: Не назначен / Снять выбор */}
+          <div
+            onClick={() => {
+              onChange('');
+              setIsOpen(false);
+            }}
+            style={{
+              padding: '8px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              cursor: 'pointer',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+              background: !value ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+              color: !value ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              fontSize: '0.82rem',
+              fontWeight: !value ? 600 : 400
+            }}
+          >
+            <span>— {placeholder}</span>
+            {!value && <Check size={14} style={{ color: 'var(--accent-primary)' }} />}
+          </div>
+
+          {/* List of employees */}
+          <div style={{ overflowY: 'auto', flex: 1, maxHeight: '200px' }}>
+            {filteredEmployees.length === 0 ? (
+              <div style={{ padding: '16px 12px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                Сотрудник не найден
+              </div>
+            ) : (
+              filteredEmployees.map(e => {
+                const isSelected = e.id.toString() === value;
+                const eAvatar = e.avatarUrl;
+
+                return (
+                  <div
+                    key={e.id}
+                    onClick={() => {
+                      onChange(e.id.toString());
+                      setIsOpen(false);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseEnter={(ev) => {
+                      if (!isSelected) ev.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                    }}
+                    onMouseLeave={(ev) => {
+                      if (!isSelected) ev.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        color: '#fff',
+                        background: eAvatar ? 'transparent' : getAvatarGradient(e.name),
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        flexShrink: 0
+                      }}>
+                        {eAvatar ? (
+                          <img src={eAvatar} alt={e.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          getEmployeeInitials(e.name)
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                        <span style={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.84rem', color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {e.name}
+                        </span>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
+                          {e.position && <span>{e.position}</span>}
+                          {e.phone && <span>• {e.phone}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <Check size={14} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
                     )}
                   </div>
                 );
@@ -3112,10 +3435,16 @@ const Kanban = () => {
                                   <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{cName}</span>
                                   <span style={{
                                     fontSize: '0.72rem',
-                                    padding: '2px 6px',
+                                    padding: '2px 8px',
                                     borderRadius: '4px',
                                     background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                                    color: isLegal ? '#60a5fa' : '#4ade80'
+                                    color: isLegal ? '#60a5fa' : '#4ade80',
+                                    fontWeight: 600,
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px'
                                   }}>
                                     {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
                                   </span>
@@ -3155,107 +3484,51 @@ const Kanban = () => {
                           />
                           {(() => {
                             const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
-                            if (selectedClient) {
-                              const isLegal = selectedClient.clientType === 'LEGAL_ENTITY';
-                              const cAvatar = selectedClient.avatarUrl;
+                            if (selectedClient && (selectedClient.phone || selectedClient.leadSource)) {
                               return (
                                 <div style={{
-                                  marginTop: '10px',
-                                  padding: '10px 14px',
-                                  background: 'rgba(255, 255, 255, 0.03)',
-                                  border: '1px solid var(--glass-border)',
-                                  borderRadius: 'var(--radius-sm)',
+                                  marginTop: '8px',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  flexWrap: 'wrap',
-                                  gap: '12px'
+                                  gap: '8px',
+                                  flexWrap: 'wrap'
                                 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <div style={{
-                                      width: '40px',
-                                      height: '40px',
-                                      borderRadius: '50%',
-                                      overflow: 'hidden',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      fontSize: '0.85rem',
-                                      fontWeight: 700,
-                                      color: '#fff',
-                                      background: cAvatar ? 'transparent' : getAvatarGradient(selectedClient.name || (isLegal ? 'Компания' : 'Клиент')),
-                                      border: '1.5px solid rgba(255, 255, 255, 0.18)',
-                                      boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                                      flexShrink: 0
-                                    }}>
-                                      {cAvatar ? (
-                                        <img 
-                                          src={cAvatar} 
-                                          alt={selectedClient.name} 
-                                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                                        />
-                                      ) : (
-                                        isLegal ? <Building2 size={18} /> : getClientInitials(selectedClient.name)
-                                      )}
-                                    </div>
-                                    <div>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{selectedClient.name}</span>
-                                        <span style={{
-                                          padding: '2px 6px',
-                                          fontSize: '0.72rem',
-                                          fontWeight: 600,
-                                          borderRadius: 'var(--radius-sm)',
-                                          background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                                          color: isLegal ? '#60a5fa' : '#4ade80',
-                                          border: isLegal ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)'
-                                        }}>
-                                          {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
-                                        </span>
-                                      </div>
-                                      {isLegal && selectedClient.inn && (
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                          ИНН: {selectedClient.inn} {selectedClient.kpp ? `• КПП: ${selectedClient.kpp}` : ''}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                    {selectedClient.phone && (
-                                      <a
-                                        href={`tel:${selectedClient.phone}`}
-                                        style={{
-                                          fontSize: '0.85rem',
-                                          color: 'var(--accent-primary)',
-                                          textDecoration: 'none',
-                                          display: 'inline-flex',
-                                          alignItems: 'center',
-                                          gap: '5px',
-                                          padding: '4px 8px',
-                                          background: 'rgba(59, 130, 246, 0.08)',
-                                          borderRadius: 'var(--radius-sm)'
-                                        }}
-                                      >
-                                        <Phone size={13} /> {selectedClient.phone}
-                                      </a>
-                                    )}
-                                    {selectedClient.leadSource && (
-                                      <span style={{
-                                        padding: '4px 8px',
-                                        fontSize: '0.8rem',
-                                        color: '#60a5fa',
-                                        background: 'rgba(59, 130, 246, 0.1)',
-                                        border: '1px solid rgba(59, 130, 246, 0.25)',
-                                        borderRadius: 'var(--radius-sm)',
+                                  {selectedClient.phone && (
+                                    <a
+                                      href={`tel:${selectedClient.phone}`}
+                                      style={{
+                                        fontSize: '0.82rem',
+                                        color: 'var(--accent-primary)',
+                                        textDecoration: 'none',
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: '4px'
-                                      }}>
-                                        <Tag size={12} style={{ opacity: 0.8 }} />
-                                        Источник: {selectedClient.leadSource}
-                                      </span>
-                                    )}
-                                  </div>
+                                        gap: '5px',
+                                        padding: '4px 10px',
+                                        background: 'rgba(59, 130, 246, 0.08)',
+                                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        fontWeight: 600
+                                      }}
+                                    >
+                                      <Phone size={13} /> {selectedClient.phone}
+                                    </a>
+                                  )}
+                                  {selectedClient.leadSource && (
+                                    <span style={{
+                                      padding: '4px 10px',
+                                      fontSize: '0.78rem',
+                                      color: '#60a5fa',
+                                      background: 'rgba(59, 130, 246, 0.1)',
+                                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                                      borderRadius: 'var(--radius-sm)',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}>
+                                      <Tag size={12} style={{ opacity: 0.8 }} />
+                                      Источник: {selectedClient.leadSource}
+                                    </span>
+                                  )}
                                 </div>
                               );
                             }
@@ -3278,113 +3551,53 @@ const Kanban = () => {
                     }}>
                       {/* 1. Ответственный */}
                       <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
                           <Users size={15} style={{ color: 'var(--accent-primary)' }} />
                           {t('kanban.modal.assignee') || 'Ответственный'}
                         </label>
-                        {isWorker ? (() => {
-                          const currentOrder = cards.find(c => c.id === editingOrderId);
-                          const assignedEmployee = employees.find(e => e.id.toString() === formData.assigneeId);
-                          const aName = currentOrder?.assigneeName || assignedEmployee?.name || 'Не назначен';
-                          return (
-                            <input 
-                              type="text"
-                              disabled
-                              readOnly
-                              value={aName}
-                              className="search-input"
-                              style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
-                            />
-                          );
-                        })() : (
-                          <div className="custom-select-wrapper">
-                            <select 
-                              value={formData.assigneeId}
-                              onChange={(e) => setFormData({...formData, assigneeId: e.target.value})}
-                              className="custom-select"
-                            >
-                              <option value="">{t('kanban.modal.selectAssignee') || 'Без ответственного'}</option>
-                              {employees.map(e => (
-                                <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className="custom-select-icon" size={16} />
-                          </div>
-                        )}
+                        <EmployeeSearchSelect
+                          value={formData.assigneeId}
+                          employees={employees}
+                          onChange={(val) => setFormData({ ...formData, assigneeId: val })}
+                          placeholder={t('kanban.modal.selectAssignee') || 'Без ответственного'}
+                          icon={<Users size={15} style={{ color: 'var(--accent-primary)' }} />}
+                          accentColor="var(--accent-primary)"
+                          isWorker={isWorker}
+                        />
                       </div>
 
                       {/* 2. Замерщик */}
                       <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
                           <Ruler size={15} style={{ color: '#a855f7' }} />
                           Замерщик
                         </label>
-                        {isWorker ? (() => {
-                          const currentOrder = cards.find(c => c.id === editingOrderId);
-                          const measurerEmployee = employees.find(e => e.id.toString() === formData.measurerId);
-                          const mName = currentOrder?.measurerName || measurerEmployee?.name || 'Не назначен';
-                          return (
-                            <input 
-                              type="text"
-                              disabled
-                              readOnly
-                              value={mName}
-                              className="search-input"
-                              style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
-                            />
-                          );
-                        })() : (
-                          <div className="custom-select-wrapper">
-                            <select 
-                              value={formData.measurerId}
-                              onChange={(e) => setFormData({...formData, measurerId: e.target.value})}
-                              className="custom-select"
-                            >
-                              <option value="">Не назначен</option>
-                              {employees.map(e => (
-                                <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className="custom-select-icon" size={16} />
-                          </div>
-                        )}
+                        <EmployeeSearchSelect
+                          value={formData.measurerId}
+                          employees={employees}
+                          onChange={(val) => setFormData({ ...formData, measurerId: val })}
+                          placeholder="Не назначен"
+                          icon={<Ruler size={15} style={{ color: '#a855f7' }} />}
+                          accentColor="#a855f7"
+                          isWorker={isWorker}
+                        />
                       </div>
 
                       {/* 3. Монтажник */}
                       <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
                           <Wrench size={15} style={{ color: '#22c55e' }} />
                           Монтажник
                         </label>
-                        {isWorker ? (() => {
-                          const currentOrder = cards.find(c => c.id === editingOrderId);
-                          const installerEmployee = employees.find(e => e.id.toString() === formData.installedById);
-                          const iName = currentOrder?.installedByName || installerEmployee?.name || 'Не назначен';
-                          return (
-                            <input 
-                              type="text"
-                              disabled
-                              readOnly
-                              value={iName}
-                              className="search-input"
-                              style={{ width: '100%', paddingLeft: '12px', opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' }}
-                            />
-                          );
-                        })() : (
-                          <div className="custom-select-wrapper">
-                            <select 
-                              value={formData.installedById}
-                              onChange={(e) => setFormData({ ...formData, installedById: e.target.value })}
-                              className="custom-select"
-                            >
-                              <option value="">Не назначен</option>
-                              {employees.map(e => (
-                                <option key={e.id} value={e.id}>{e.name} {e.position ? `(${e.position})` : ''}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className="custom-select-icon" size={16} />
-                          </div>
-                        )}
+                        <EmployeeSearchSelect
+                          value={formData.installedById}
+                          employees={employees}
+                          onChange={(val) => setFormData({ ...formData, installedById: val })}
+                          placeholder="Не назначен"
+                          icon={<Wrench size={15} style={{ color: '#22c55e' }} />}
+                          accentColor="#22c55e"
+                          isWorker={isWorker}
+                        />
                       </div>
                     </div>
 
