@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { 
   Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone, X, 
-  ChevronDown, Tag, Building2, User, MapPin, CreditCard, Users, PlusCircle
+  ChevronDown, Tag, Building2, User, MapPin, CreditCard, Users, PlusCircle,
+  Camera, Crop
 } from 'lucide-react';
 import type { Client, ClientContact } from '../api/clients';
 import { getClients, createClient, updateClient, deleteClient } from '../api/clients';
@@ -12,7 +13,33 @@ import { getOrdersByClient, getOrderStatuses, moveOrder } from '../api/kanban';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { formatDateInTimezone } from '../utils/dateUtils';
+import { ImageCropModal } from '../components/ImageCropModal';
 import '../styles/clients.css';
+
+export const getClientInitials = (name: string): string => {
+  if (!name) return '??';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return parts[0].slice(0, 2).toUpperCase();
+};
+
+export const getAvatarGradient = (str: string): string => {
+  if (!str) return 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  const colors = [
+    'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+    'linear-gradient(135deg, #10b981, #047857)',
+    'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+    'linear-gradient(135deg, #f59e0b, #b45309)',
+    'linear-gradient(135deg, #ec4899, #be185d)',
+    'linear-gradient(135deg, #06b6d4, #0e7490)',
+    'linear-gradient(135deg, #6366f1, #4338ca)',
+  ];
+  return colors[Math.abs(hash) % colors.length];
+};
 
 export const PRESET_LEAD_SOURCES = [
   'Авито',
@@ -57,6 +84,7 @@ export const Clients = () => {
   // Form state
   const [formData, setFormData] = useState({
     clientType: 'INDIVIDUAL' as 'INDIVIDUAL' | 'LEGAL_ENTITY',
+    avatarUrl: '',
     name: '',
     legalName: '',
     phone: '',
@@ -82,6 +110,9 @@ export const Clients = () => {
     leadSource: '',
     customLeadSource: ''
   });
+
+  const [rawImageToCrop, setRawImageToCrop] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchClients();
@@ -129,6 +160,7 @@ export const Clients = () => {
     setEditingClient(null);
     setFormData({
       clientType: type,
+      avatarUrl: '',
       name: '',
       legalName: '',
       phone: '+7',
@@ -154,6 +186,7 @@ export const Clients = () => {
       leadSource: '',
       customLeadSource: ''
     });
+    setRawImageToCrop(null);
     setIsModalOpen(true);
   };
 
@@ -163,6 +196,7 @@ export const Clients = () => {
     const isPreset = PRESET_LEAD_SOURCES.includes(source);
     setFormData({
       clientType: client.clientType || 'INDIVIDUAL',
+      avatarUrl: client.avatarUrl || '',
       name: client.name || '',
       legalName: client.legalName || '',
       phone: client.phone || '',
@@ -188,7 +222,32 @@ export const Clients = () => {
       leadSource: isPreset || !source ? source : 'custom',
       customLeadSource: !isPreset && source ? source : ''
     });
+    setRawImageToCrop(null);
     setIsModalOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setRawImageToCrop(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  };
+
+  const handleCropComplete = (croppedDataUrl: string) => {
+    setFormData(prev => ({ ...prev, avatarUrl: croppedDataUrl }));
+    setRawImageToCrop(null);
+  };
+
+  const handleRemoveAvatar = () => {
+    setRawImageToCrop(null);
+    setFormData(prev => ({ ...prev, avatarUrl: '' }));
   };
 
   const openHistoryModal = async (client: Client) => {
@@ -249,6 +308,7 @@ export const Clients = () => {
 
       const payload = {
         clientType: formData.clientType,
+        avatarUrl: formData.avatarUrl || undefined,
         name: formData.name.trim(),
         legalName: formData.legalName.trim() || undefined,
         phone: formData.phone.trim(),
@@ -381,16 +441,32 @@ export const Clients = () => {
                     className="client-row-hover"
                   >
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{
-                          padding: '6px',
-                          borderRadius: '8px',
-                          background: isLegal ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                          color: isLegal ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                          marginTop: '2px',
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '50%',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          color: '#fff',
+                          background: client.avatarUrl ? 'transparent' : getAvatarGradient(client.name || (isLegal ? 'Компания' : 'Клиент')),
+                          border: '1.5px solid rgba(255, 255, 255, 0.15)',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
                           flexShrink: 0
                         }}>
-                          {isLegal ? <Building2 size={16} /> : <User size={16} />}
+                          {client.avatarUrl ? (
+                            <img 
+                              src={client.avatarUrl} 
+                              alt={client.name} 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            />
+                          ) : (
+                            isLegal ? <Building2 size={18} /> : getClientInitials(client.name)
+                          )}
                         </div>
                         <div>
                           <div className="client-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -621,6 +697,101 @@ export const Clients = () => {
                     <Building2 size={16} />
                     <span>Юрлицо / Компания</span>
                   </button>
+                </div>
+
+                {/* Avatar / Photo / Logo Upload */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '18px',
+                  padding: '14px 16px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-md)',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{
+                    width: '72px',
+                    height: '72px',
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.3rem',
+                    fontWeight: 700,
+                    color: '#fff',
+                    background: formData.avatarUrl ? 'transparent' : getAvatarGradient(formData.name || (formData.clientType === 'LEGAL_ENTITY' ? 'Компания' : 'Клиент')),
+                    border: '2.5px solid rgba(255, 255, 255, 0.18)',
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+                    flexShrink: 0
+                  }}>
+                    {formData.avatarUrl ? (
+                      <img 
+                        src={formData.avatarUrl} 
+                        alt="Avatar preview" 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      />
+                    ) : (
+                      formData.name ? (
+                        formData.clientType === 'LEGAL_ENTITY' ? <Building2 size={30} /> : getClientInitials(formData.name)
+                      ) : (
+                        formData.clientType === 'LEGAL_ENTITY' ? <Building2 size={30} /> : <User size={30} />
+                      )
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                      {formData.clientType === 'LEGAL_ENTITY' ? 'Логотип / Фото компании' : 'Фотография клиента'}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        accept="image/*" 
+                        style={{ display: 'none' }} 
+                        onChange={handleFileChange} 
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="btn btn-sm btn-ghost"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 12px' }}
+                      >
+                        <Camera size={14} /> {formData.avatarUrl ? 'Заменить' : 'Выбрать фото'}
+                      </button>
+                      {formData.avatarUrl && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setRawImageToCrop(formData.avatarUrl)}
+                            className="btn btn-sm btn-ghost"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', padding: '6px 10px' }}
+                            title="Кадрировать"
+                          >
+                            <Crop size={14} /> Кадрировать
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleRemoveAvatar}
+                            className="btn btn-sm"
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              color: 'var(--danger)',
+                              border: '1px solid rgba(239, 68, 68, 0.25)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.8rem',
+                              padding: '6px 10px'
+                            }}
+                          >
+                            <Trash2 size={13} /> Удалить
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {formData.clientType === 'INDIVIDUAL' ? (
@@ -1090,7 +1261,35 @@ export const Clients = () => {
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '800px', width: '90%' }}>
             <div className="modal-header">
-              <h2>История заявок: {historyClient.name}</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  color: '#fff',
+                  background: historyClient.avatarUrl ? 'transparent' : getAvatarGradient(historyClient.name),
+                  border: '1.5px solid rgba(255, 255, 255, 0.18)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                  flexShrink: 0
+                }}>
+                  {historyClient.avatarUrl ? (
+                    <img 
+                      src={historyClient.avatarUrl} 
+                      alt={historyClient.name} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    />
+                  ) : (
+                    historyClient.clientType === 'LEGAL_ENTITY' ? <Building2 size={18} /> : getClientInitials(historyClient.name)
+                  )}
+                </div>
+                <h2>История заявок: {historyClient.name}</h2>
+              </div>
               <button 
                 type="button" 
                 onClick={() => setIsHistoryModalOpen(false)}
@@ -1212,6 +1411,14 @@ export const Clients = () => {
           </div>
         </div>,
         document.body
+      )}
+
+      {rawImageToCrop && (
+        <ImageCropModal 
+          imageSrc={rawImageToCrop} 
+          onCrop={handleCropComplete} 
+          onClose={() => setRawImageToCrop(null)} 
+        />
       )}
     </div>
   );

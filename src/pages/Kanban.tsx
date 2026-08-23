@@ -10,7 +10,7 @@ import { getClients, createClient, updateClient } from '../api/clients';
 import type { Client } from '../api/clients';
 import { getContractTemplateStatus } from '../api/settings';
 import type { ContractTemplateStatus } from '../api/settings';
-import { PRESET_LEAD_SOURCES } from './Clients';
+import { PRESET_LEAD_SOURCES, getClientInitials } from './Clients';
 import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
 import { getEmployees } from '../api/employees';
@@ -1636,9 +1636,33 @@ const Kanban = () => {
                           >
                             #{card.id}
                           </span>
-                          <div className="card-client" style={{marginBottom: 0, display: 'flex', alignItems: 'center', gap: '4px'}}>
-                            {isLegal && <Building2 size={13} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />}
-                            {cName}
+                          <div className="card-client" style={{marginBottom: 0, display: 'flex', alignItems: 'center', gap: '6px'}}>
+                            <div style={{
+                              width: '20px',
+                              height: '20px',
+                              borderRadius: '50%',
+                              overflow: 'hidden',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.62rem',
+                              fontWeight: 700,
+                              color: '#fff',
+                              background: (card.clientAvatarUrl || client?.avatarUrl) ? 'transparent' : getAvatarGradient(cName || (isLegal ? 'Компания' : 'Клиент')),
+                              border: '1px solid rgba(255, 255, 255, 0.15)',
+                              flexShrink: 0
+                            }}>
+                              {(card.clientAvatarUrl || client?.avatarUrl) ? (
+                                <img 
+                                  src={card.clientAvatarUrl || client?.avatarUrl} 
+                                  alt={cName} 
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                />
+                              ) : (
+                                isLegal ? <Building2 size={11} /> : getClientInitials(cName)
+                              )}
+                            </div>
+                            <span>{cName}</span>
                           </div>
                           {card.orderNumber && (
                             <span 
@@ -2329,6 +2353,7 @@ const Kanban = () => {
                         const cName = currentOrder?.clientName || selectedClient?.name || 'Клиент';
                         const cPhone = currentOrder?.clientPhone || selectedClient?.phone;
                         const cType = currentOrder?.clientType || selectedClient?.clientType;
+                        const cAvatar = currentOrder?.clientAvatarUrl || selectedClient?.avatarUrl;
                         const isLegal = cType === 'LEGAL_ENTITY';
 
                         return (
@@ -2343,18 +2368,47 @@ const Kanban = () => {
                             flexWrap: 'wrap',
                             gap: '8px'
                           }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              {isLegal ? <Building2 size={16} style={{ color: 'var(--accent-primary)' }} /> : <User size={16} style={{ color: 'var(--accent-primary)' }} />}
-                              <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{cName}</span>
-                              <span style={{
-                                fontSize: '0.72rem',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                                color: isLegal ? '#60a5fa' : '#4ade80'
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '50%',
+                                overflow: 'hidden',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                color: '#fff',
+                                background: cAvatar ? 'transparent' : getAvatarGradient(cName || (isLegal ? 'Компания' : 'Клиент')),
+                                border: '1.5px solid rgba(255, 255, 255, 0.15)',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                                flexShrink: 0
                               }}>
-                                {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
-                              </span>
+                                {cAvatar ? (
+                                  <img 
+                                    src={cAvatar} 
+                                    alt={cName} 
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                  />
+                                ) : (
+                                  isLegal ? <Building2 size={18} /> : getClientInitials(cName)
+                                )}
+                              </div>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{cName}</span>
+                                  <span style={{
+                                    fontSize: '0.72rem',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                                    color: isLegal ? '#60a5fa' : '#4ade80'
+                                  }}>
+                                    {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                             {cPhone && (
                               <a
@@ -2412,60 +2466,105 @@ const Kanban = () => {
                             const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
                             if (selectedClient) {
                               const isLegal = selectedClient.clientType === 'LEGAL_ENTITY';
+                              const cAvatar = selectedClient.avatarUrl;
                               return (
                                 <div style={{
-                                  marginTop: '8px',
-                                  padding: '8px 12px',
+                                  marginTop: '10px',
+                                  padding: '10px 14px',
                                   background: 'rgba(255, 255, 255, 0.03)',
                                   border: '1px solid var(--glass-border)',
                                   borderRadius: 'var(--radius-sm)',
                                   display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
                                   flexWrap: 'wrap',
-                                  gap: '12px',
-                                  alignItems: 'center'
+                                  gap: '12px'
                                 }}>
-                                  <span style={{
-                                    padding: '3px 8px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 600,
-                                    borderRadius: 'var(--radius-sm)',
-                                    background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                                    color: isLegal ? '#60a5fa' : '#4ade80',
-                                    border: isLegal ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)'
-                                  }}>
-                                    {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
-                                  </span>
-                                  {selectedClient.phone && (
-                                    <a
-                                      href={`tel:${selectedClient.phone}`}
-                                      style={{
-                                        fontSize: '0.85rem',
-                                        color: 'var(--accent-primary)',
-                                        textDecoration: 'none',
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{
+                                      width: '40px',
+                                      height: '40px',
+                                      borderRadius: '50%',
+                                      overflow: 'hidden',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '0.85rem',
+                                      fontWeight: 700,
+                                      color: '#fff',
+                                      background: cAvatar ? 'transparent' : getAvatarGradient(selectedClient.name || (isLegal ? 'Компания' : 'Клиент')),
+                                      border: '1.5px solid rgba(255, 255, 255, 0.18)',
+                                      boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                                      flexShrink: 0
+                                    }}>
+                                      {cAvatar ? (
+                                        <img 
+                                          src={cAvatar} 
+                                          alt={selectedClient.name} 
+                                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                        />
+                                      ) : (
+                                        isLegal ? <Building2 size={18} /> : getClientInitials(selectedClient.name)
+                                      )}
+                                    </div>
+                                    <div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{selectedClient.name}</span>
+                                        <span style={{
+                                          padding: '2px 6px',
+                                          fontSize: '0.72rem',
+                                          fontWeight: 600,
+                                          borderRadius: 'var(--radius-sm)',
+                                          background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                                          color: isLegal ? '#60a5fa' : '#4ade80',
+                                          border: isLegal ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)'
+                                        }}>
+                                          {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
+                                        </span>
+                                      </div>
+                                      {isLegal && selectedClient.inn && (
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                          ИНН: {selectedClient.inn} {selectedClient.kpp ? `• КПП: ${selectedClient.kpp}` : ''}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    {selectedClient.phone && (
+                                      <a
+                                        href={`tel:${selectedClient.phone}`}
+                                        style={{
+                                          fontSize: '0.85rem',
+                                          color: 'var(--accent-primary)',
+                                          textDecoration: 'none',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '5px',
+                                          padding: '4px 8px',
+                                          background: 'rgba(59, 130, 246, 0.08)',
+                                          borderRadius: 'var(--radius-sm)'
+                                        }}
+                                      >
+                                        <Phone size={13} /> {selectedClient.phone}
+                                      </a>
+                                    )}
+                                    {selectedClient.leadSource && (
+                                      <span style={{
+                                        padding: '4px 8px',
+                                        fontSize: '0.8rem',
+                                        color: '#60a5fa',
+                                        background: 'rgba(59, 130, 246, 0.1)',
+                                        border: '1px solid rgba(59, 130, 246, 0.25)',
+                                        borderRadius: 'var(--radius-sm)',
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: '5px'
-                                      }}
-                                    >
-                                      <Phone size={13} /> {selectedClient.phone}
-                                    </a>
-                                  )}
-                                  {selectedClient.leadSource && (
-                                    <span style={{
-                                      padding: '3px 8px',
-                                      fontSize: '0.8rem',
-                                      color: '#60a5fa',
-                                      background: 'rgba(59, 130, 246, 0.1)',
-                                      border: '1px solid rgba(59, 130, 246, 0.25)',
-                                      borderRadius: 'var(--radius-sm)',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px'
-                                    }}>
-                                      <Tag size={12} style={{ opacity: 0.8 }} />
-                                      Источник: {selectedClient.leadSource}
-                                    </span>
-                                  )}
+                                        gap: '4px'
+                                      }}>
+                                        <Tag size={12} style={{ opacity: 0.8 }} />
+                                        Источник: {selectedClient.leadSource}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               );
                             }
