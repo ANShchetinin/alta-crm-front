@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, ChevronsDown, ChevronsUp, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Bell, Camera, MessageSquare, Sparkles, Send, Copy, FileDown, Bot, Coins } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, ChevronsDown, ChevronsUp, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, RotateCcw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Bell, Camera, MessageSquare, Sparkles, Send, Copy, FileDown, Bot, Coins } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, completeOrder, createOrder, updateOrder, uploadAttachment, toggleAttachmentIsAct, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx, analyzeAudioWithPrompt, chatWithOrderAi } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, completeOrder, createOrder, updateOrder, uploadAttachment, toggleAttachmentIsAct, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx, analyzeAudioWithPrompt, chatWithOrderAi, clearOrderAiChat } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary, ContractParams, ChatMessage } from '../api/kanban';
+import { getOrderAiUsage, type OrderAiCostDto } from '../api/aiUsage';
 import { SYSTEM_PROMPT_SUMMARY, SYSTEM_PROMPT_SALES_ADVICE, SYSTEM_PROMPT_CHAT_ASSISTANT } from '../constants/aiPrompts';
 import { getClients, createClient, updateClient } from '../api/clients';
 import type { Client } from '../api/clients';
@@ -938,6 +939,7 @@ const Kanban = () => {
   const [chatInputText, setChatInputText] = useState('');
   const [isChatReplying, setIsChatReplying] = useState(false);
   const [copyFeedbackText, setCopyFeedbackText] = useState<string | null>(null);
+  const [orderAiCost, setOrderAiCost] = useState<OrderAiCostDto | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const orderChatCacheRef = useRef<Record<number, ChatMessage[]>>({});
   
@@ -1089,7 +1091,22 @@ const Kanban = () => {
     setChatMessages(cachedChat);
     setChatInputText('');
     setIsModalOpen(true);
-    getAiSummary(order.id).then(setAiSummary).catch(() => setAiSummary(null));
+    getAiSummary(order.id).then((summary) => {
+      setAiSummary(summary);
+      if (summary?.chatHistory) {
+        try {
+          const parsed = typeof summary.chatHistory === 'string' ? JSON.parse(summary.chatHistory) : summary.chatHistory;
+          if (Array.isArray(parsed)) {
+            setChatMessages(parsed);
+            orderChatCacheRef.current[order.id] = parsed;
+          }
+        } catch (e) {
+          console.error("Failed to parse chatHistory from DB", e);
+        }
+      }
+    }).catch(() => setAiSummary(null));
+    setOrderAiCost(null);
+    getOrderAiUsage(order.id).then(setOrderAiCost).catch(() => setOrderAiCost(null));
   };
 
   useEffect(() => {
@@ -1898,6 +1915,7 @@ const Kanban = () => {
       await uploadAudio(editingOrderId, file);
       const summary = await getAiSummary(editingOrderId);
       setAiSummary(summary);
+      getOrderAiUsage(editingOrderId).then(setOrderAiCost).catch(() => {});
     } catch (err) {
       console.error("Failed to upload audio", err);
     } finally {
@@ -1906,35 +1924,101 @@ const Kanban = () => {
     }
   };
 
+  const getAnalysisResultsMap = (summary: OrderAiSummary | null): Record<string, string> => {
+    if (!summary || !summary.analysisResults) return {};
+    try {
+      if (typeof summary.analysisResults === 'object') return summary.analysisResults as any;
+      return JSON.parse(summary.analysisResults);
+    } catch {
+      return {};
+    }
+  };
+
   const refreshAiSummary = async () => {
     if (editingOrderId) {
       try {
         const summary = await getAiSummary(editingOrderId);
         setAiSummary(summary);
+        getOrderAiUsage(editingOrderId).then(setOrderAiCost).catch(() => {});
+        if (summary?.chatHistory) {
+          try {
+            const parsed = typeof summary.chatHistory === 'string' ? JSON.parse(summary.chatHistory) : summary.chatHistory;
+            if (Array.isArray(parsed)) {
+              setChatMessages(parsed);
+              orderChatCacheRef.current[editingOrderId] = parsed;
+            }
+          } catch (e) {
+            console.error("Failed to parse chatHistory on refresh", e);
+          }
+        }
       } catch (err) {
         console.error(err);
       }
     }
   };
 
-  const handleRunAiAnalysis = async (preset: 'SUMMARY' | 'SALES_ADVICE' | 'CUSTOM', promptOverride?: string) => {
+  const handleSelectAiPreset = (preset: 'SUMMARY' | 'SALES_ADVICE' | 'CUSTOM') => {
+    setAiPromptPreset(preset);
+    if (preset === 'CUSTOM') return;
+
+    const map = getAnalysisResultsMap(aiSummary);
+    if (map[preset]) {
+      // Мгновенное переключение на уже сохраненный в БД ответ без запроса в сеть
+      if (aiSummary) {
+        setAiSummary({ ...aiSummary, aiSummary: map[preset] });
+      }
+    } else {
+      // Первый запрос данного пресета для клиента: отправляем в AI и сохраняем
+      handleRunAiAnalysis(preset, undefined, false);
+    }
+  };
+
+  const handleRunAiAnalysis = async (preset: 'SUMMARY' | 'SALES_ADVICE' | 'CUSTOM', promptOverride?: string, force = false) => {
     if (!editingOrderId) return;
+
+    let promptToSend = SYSTEM_PROMPT_SUMMARY;
+    if (preset === 'SALES_ADVICE') {
+      promptToSend = SYSTEM_PROMPT_SALES_ADVICE;
+    } else if (preset === 'CUSTOM') {
+      promptToSend = promptOverride !== undefined ? promptOverride : (customSystemPrompt.trim() || SYSTEM_PROMPT_SUMMARY);
+    }
+
+    setAiPromptPreset(preset);
+
+    const map = getAnalysisResultsMap(aiSummary);
+    if (!force && preset !== 'CUSTOM' && map[preset]) {
+      if (aiSummary) {
+        setAiSummary({ ...aiSummary, aiSummary: map[preset] });
+      }
+      return;
+    }
+
     setIsAnalyzingAudio(true);
     try {
-      let promptToSend = SYSTEM_PROMPT_SUMMARY;
-      if (preset === 'SALES_ADVICE') {
-        promptToSend = SYSTEM_PROMPT_SALES_ADVICE;
-      } else if (preset === 'CUSTOM') {
-        promptToSend = promptOverride !== undefined ? promptOverride : (customSystemPrompt.trim() || SYSTEM_PROMPT_SUMMARY);
-      }
-      setAiPromptPreset(preset);
-      const updated = await analyzeAudioWithPrompt(editingOrderId, promptToSend);
+      const updated = await analyzeAudioWithPrompt(editingOrderId, promptToSend, preset, force);
       setAiSummary(updated);
+      getOrderAiUsage(editingOrderId).then(setOrderAiCost).catch(() => {});
     } catch (err: any) {
       console.error("Failed to run AI analysis", err);
       alert(err.response?.data?.message || "Ошибка при анализе стенограммы");
     } finally {
       setIsAnalyzingAudio(false);
+    }
+  };
+
+  const handleClearChat = async () => {
+    if (!editingOrderId || chatMessages.length === 0) return;
+    if (!window.confirm('Очистить историю диалога с AI по этой заявке?')) return;
+    setChatMessages([]);
+    orderChatCacheRef.current[editingOrderId] = [];
+    try {
+      await clearOrderAiChat(editingOrderId);
+      if (aiSummary) {
+        setAiSummary({ ...aiSummary, chatHistory: undefined });
+      }
+      getOrderAiUsage(editingOrderId).then(setOrderAiCost).catch(() => {});
+    } catch (err) {
+      console.error("Failed to clear AI chat in DB", err);
     }
   };
 
@@ -1963,9 +2047,10 @@ const Kanban = () => {
         tokensUsed: res.tokensUsed,
         costRubles: res.costRubles
       };
-      const finalHistory = [...newHistory, assistantMsg];
+      const finalHistory = res.messages && res.messages.length > 0 ? res.messages : [...newHistory, assistantMsg];
       setChatMessages(finalHistory);
       orderChatCacheRef.current[editingOrderId] = finalHistory;
+      getOrderAiUsage(editingOrderId).then(setOrderAiCost).catch(() => {});
       setTimeout(() => {
         chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
@@ -5326,90 +5411,145 @@ const Kanban = () => {
                               </button>
                             </div>
 
+                            {/* AI Cost Breakdown for this Order */}
+                            {orderAiCost && orderAiCost.totalCostRubles > 0 && (
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                flexWrap: 'wrap',
+                                gap: '8px',
+                                background: 'rgba(234, 179, 8, 0.08)',
+                                border: '1px solid rgba(234, 179, 8, 0.25)',
+                                padding: '8px 12px',
+                                borderRadius: 'var(--radius-sm)'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#facc15', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                    <Coins size={15} /> Затраты на ИИ по сделке: {Number(orderAiCost.totalCostRubles).toFixed(2)} ₽
+                                  </span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                    {orderAiCost.speechkitCostRubles > 0 && (
+                                      <span>• Аудио: {Number(orderAiCost.speechkitCostRubles).toFixed(2)} ₽ ({Math.floor(orderAiCost.audioDurationSeconds / 60)}:{String(orderAiCost.audioDurationSeconds % 60).padStart(2, '0')} мин)</span>
+                                    )}
+                                    {orderAiCost.gptCostRubles > 0 && (
+                                      <span>• GPT: {Number(orderAiCost.gptCostRubles).toFixed(2)} ₽ ({orderAiCost.totalTokens} ток.)</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
                             {/* Prompt Presets Selector */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                                 Вариант системного анализа:
                               </label>
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
-                                <button
-                                  type="button"
-                                  disabled={isAnalyzingAudio || !aiSummary.rawTranscript}
-                                  onClick={() => handleRunAiAnalysis('SUMMARY')}
-                                  style={{
-                                    padding: '10px 14px',
-                                    borderRadius: 'var(--radius-sm)',
-                                    border: aiPromptPreset === 'SUMMARY' ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
-                                    background: aiPromptPreset === 'SUMMARY' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.02)',
-                                    color: aiPromptPreset === 'SUMMARY' ? '#fff' : 'var(--text-secondary)',
-                                    cursor: 'pointer',
-                                    textAlign: 'left',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '2px',
-                                    transition: 'all 0.15s ease'
-                                  }}
-                                >
-                                  <span style={{ fontWeight: 600, fontSize: '0.88rem', color: aiPromptPreset === 'SUMMARY' ? '#60a5fa' : 'var(--text-primary)' }}>
-                                    📋 Саммари звонка
-                                  </span>
-                                  <span style={{ fontSize: '0.74rem', opacity: 0.8 }}>
-                                    Суть, параметры объекта, даты замера и цены
-                                  </span>
-                                </button>
+                              {(() => {
+                                const map = getAnalysisResultsMap(aiSummary);
+                                return (
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+                                    <button
+                                      type="button"
+                                      disabled={isAnalyzingAudio || !aiSummary.rawTranscript}
+                                      onClick={() => handleSelectAiPreset('SUMMARY')}
+                                      style={{
+                                        padding: '10px 14px',
+                                        borderRadius: 'var(--radius-sm)',
+                                        border: aiPromptPreset === 'SUMMARY' ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
+                                        background: aiPromptPreset === 'SUMMARY' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                                        color: aiPromptPreset === 'SUMMARY' ? '#fff' : 'var(--text-secondary)',
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '2px',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                        <span style={{ fontWeight: 600, fontSize: '0.88rem', color: aiPromptPreset === 'SUMMARY' ? '#60a5fa' : 'var(--text-primary)' }}>
+                                          📋 Саммари звонка
+                                        </span>
+                                        {map['SUMMARY'] && (
+                                          <span style={{ fontSize: '0.7rem', color: '#4ade80', display: 'inline-flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}>
+                                            <Check size={11} /> Сохранен
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span style={{ fontSize: '0.74rem', opacity: 0.8 }}>
+                                        Суть, параметры объекта, даты замера и цены
+                                      </span>
+                                    </button>
 
-                                <button
-                                  type="button"
-                                  disabled={isAnalyzingAudio || !aiSummary.rawTranscript}
-                                  onClick={() => handleRunAiAnalysis('SALES_ADVICE')}
-                                  style={{
-                                    padding: '10px 14px',
-                                    borderRadius: 'var(--radius-sm)',
-                                    border: aiPromptPreset === 'SALES_ADVICE' ? '1px solid #10b981' : '1px solid var(--glass-border)',
-                                    background: aiPromptPreset === 'SALES_ADVICE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.02)',
-                                    color: aiPromptPreset === 'SALES_ADVICE' ? '#fff' : 'var(--text-secondary)',
-                                    cursor: 'pointer',
-                                    textAlign: 'left',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '2px',
-                                    transition: 'all 0.15s ease'
-                                  }}
-                                >
-                                  <span style={{ fontWeight: 600, fontSize: '0.88rem', color: aiPromptPreset === 'SALES_ADVICE' ? '#34d399' : 'var(--text-primary)' }}>
-                                    🎯 Скрипт и дожим
-                                  </span>
-                                  <span style={{ fontSize: '0.74rem', opacity: 0.8 }}>
-                                    Анализ сомнений, готовый скрипт и аргументы
-                                  </span>
-                                </button>
+                                    <button
+                                      type="button"
+                                      disabled={isAnalyzingAudio || !aiSummary.rawTranscript}
+                                      onClick={() => handleSelectAiPreset('SALES_ADVICE')}
+                                      style={{
+                                        padding: '10px 14px',
+                                        borderRadius: 'var(--radius-sm)',
+                                        border: aiPromptPreset === 'SALES_ADVICE' ? '1px solid #10b981' : '1px solid var(--glass-border)',
+                                        background: aiPromptPreset === 'SALES_ADVICE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                                        color: aiPromptPreset === 'SALES_ADVICE' ? '#fff' : 'var(--text-secondary)',
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '2px',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                        <span style={{ fontWeight: 600, fontSize: '0.88rem', color: aiPromptPreset === 'SALES_ADVICE' ? '#34d399' : 'var(--text-primary)' }}>
+                                          🎯 Скрипт и дожим
+                                        </span>
+                                        {map['SALES_ADVICE'] && (
+                                          <span style={{ fontSize: '0.7rem', color: '#4ade80', display: 'inline-flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}>
+                                            <Check size={11} /> Сохранен
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span style={{ fontSize: '0.74rem', opacity: 0.8 }}>
+                                        Анализ сомнений, готовый скрипт и аргументы
+                                      </span>
+                                    </button>
 
-                                <button
-                                  type="button"
-                                  disabled={isAnalyzingAudio || !aiSummary.rawTranscript}
-                                  onClick={() => setAiPromptPreset('CUSTOM')}
-                                  style={{
-                                    padding: '10px 14px',
-                                    borderRadius: 'var(--radius-sm)',
-                                    border: aiPromptPreset === 'CUSTOM' ? '1px solid #f59e0b' : '1px solid var(--glass-border)',
-                                    background: aiPromptPreset === 'CUSTOM' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.02)',
-                                    color: aiPromptPreset === 'CUSTOM' ? '#fff' : 'var(--text-secondary)',
-                                    cursor: 'pointer',
-                                    textAlign: 'left',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '2px',
-                                    transition: 'all 0.15s ease'
-                                  }}
-                                >
-                                  <span style={{ fontWeight: 600, fontSize: '0.88rem', color: aiPromptPreset === 'CUSTOM' ? '#fbbf24' : 'var(--text-primary)' }}>
-                                    ✏️ Свой промпт
-                                  </span>
-                                  <span style={{ fontSize: '0.74rem', opacity: 0.8 }}>
-                                    Произвольный запрос к стенограмме
-                                  </span>
-                                </button>
-                              </div>
+                                    <button
+                                      type="button"
+                                      disabled={isAnalyzingAudio || !aiSummary.rawTranscript}
+                                      onClick={() => handleSelectAiPreset('CUSTOM')}
+                                      style={{
+                                        padding: '10px 14px',
+                                        borderRadius: 'var(--radius-sm)',
+                                        border: aiPromptPreset === 'CUSTOM' ? '1px solid #f59e0b' : '1px solid var(--glass-border)',
+                                        background: aiPromptPreset === 'CUSTOM' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                                        color: aiPromptPreset === 'CUSTOM' ? '#fff' : 'var(--text-secondary)',
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '2px',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                        <span style={{ fontWeight: 600, fontSize: '0.88rem', color: aiPromptPreset === 'CUSTOM' ? '#fbbf24' : 'var(--text-primary)' }}>
+                                          ✏️ Свой промпт
+                                        </span>
+                                        {map['CUSTOM'] && (
+                                          <span style={{ fontSize: '0.7rem', color: '#4ade80', display: 'inline-flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}>
+                                            <Check size={11} /> Сохранен
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span style={{ fontSize: '0.74rem', opacity: 0.8 }}>
+                                        Произвольный запрос к стенограмме
+                                      </span>
+                                    </button>
+                                  </div>
+                                );
+                              })()}
                             </div>
 
                             {/* Custom Prompt Box */}
@@ -5445,7 +5585,7 @@ const Kanban = () => {
                                 <button
                                   type="button"
                                   disabled={isAnalyzingAudio || !customSystemPrompt.trim()}
-                                  onClick={() => handleRunAiAnalysis('CUSTOM')}
+                                  onClick={() => handleRunAiAnalysis('CUSTOM', customSystemPrompt, true)}
                                   className="btn btn-primary"
                                   style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
                                 >
@@ -5465,12 +5605,37 @@ const Kanban = () => {
                               flexDirection: 'column',
                               gap: '12px'
                             }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>
                                 <span style={{ fontSize: '0.88rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)' }}>
                                   <Bot size={15} color="var(--accent-primary)" /> Результат анализа:
+                                  {aiPromptPreset && (
+                                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 400 }}>
+                                      ({aiPromptPreset === 'SUMMARY' ? 'Саммари звонка' : (aiPromptPreset === 'SALES_ADVICE' ? 'Скрипт и дожим' : 'Свой промпт')})
+                                    </span>
+                                  )}
                                 </span>
                                 {aiSummary.aiSummary && (
-                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                    <button
+                                      type="button"
+                                      disabled={isAnalyzingAudio}
+                                      onClick={() => handleRunAiAnalysis(aiPromptPreset, customSystemPrompt, true)}
+                                      className="btn btn-ghost"
+                                      style={{
+                                        padding: '4px 10px',
+                                        fontSize: '0.78rem',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        color: '#38bdf8',
+                                        background: 'rgba(56, 189, 248, 0.1)',
+                                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                                        borderRadius: 'var(--radius-sm)'
+                                      }}
+                                      title="Принудительно отправить повторный запрос в AI"
+                                    >
+                                      <RotateCcw size={13} className={isAnalyzingAudio ? 'spinner' : ''} /> Сгенерировать повторно
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => handleCopyTextWithToast(aiSummary.aiSummary!, "Результат анализа скопирован")}
@@ -5603,8 +5768,8 @@ const Kanban = () => {
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                              <AlertCircle size={15} style={{ color: '#60a5fa', flexShrink: 0 }} />
-                              <span>Сессионный чат (не сохраняется в БД).</span>
+                              <Sparkles size={15} style={{ color: '#60a5fa', flexShrink: 0 }} />
+                              <span>История диалога сохраняется в заявке.</span>
                             </div>
                             {(() => {
                               const totalTokens = chatMessages.reduce((sum, m) => sum + (m.tokensUsed || 0), 0);
@@ -5654,10 +5819,10 @@ const Kanban = () => {
                             {chatMessages.length > 0 && (
                               <button
                                 type="button"
-                                onClick={() => setChatMessages([])}
+                                onClick={handleClearChat}
                                 className="btn btn-ghost"
                                 style={{ padding: '4px 8px', fontSize: '0.78rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                title="Очистить переписку"
+                                title="Очистить историю переписки"
                               >
                                 <Trash2 size={13} />
                               </button>
