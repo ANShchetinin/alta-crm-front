@@ -329,9 +329,11 @@ export const Settings = () => {
                   Логотип компании
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  {tenantSettings?.logoUrl && (
-                    <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 48, height: 48, objectFit: 'contain', background: 'var(--glass-bg)', borderRadius: 'var(--radius-md)', padding: 4 }} />
-                  )}
+                  <img 
+                    src={tenantSettings?.logoUrl || '/logo.png'} 
+                    alt="Logo" 
+                    style={{ width: 48, height: 48, objectFit: 'contain', background: 'transparent' }} 
+                  />
                   <input type="file" accept="image/*" ref={fileInputRef} onChange={handleLogoUpload} style={{ display: 'none' }} />
                   <button type="button" className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>
                     Загрузить логотип

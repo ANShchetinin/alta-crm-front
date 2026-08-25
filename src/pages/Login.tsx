@@ -45,8 +45,8 @@ const Login = () => {
       </div>
       <div className="glass-panel login-card">
         <div className="login-header">
-          <div className="logo-wrapper">
-            <span className="logo-icon">▲</span>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+            <img src="/logo.png" alt="Alta CRM" style={{ width: 64, height: 64, objectFit: 'contain', background: 'transparent' }} />
           </div>
           <h1>{t('app.name')}</h1>
           <p>{t('login.title')}</p>

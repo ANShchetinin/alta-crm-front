@@ -224,9 +224,9 @@ const DashboardLayout = () => {
         <div className="sidebar-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
             {tenantSettings?.logoUrl ? (
-              <img src={tenantSettings.logoUrl} alt="Logo" className="logo-small" style={{width: 32, height: 32, objectFit: 'contain', background: 'transparent'}} />
+              <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 34, height: 34, objectFit: 'contain', background: 'transparent' }} />
             ) : (
-              <div className="logo-small">▲</div>
+              <img src="/logo.png" alt="Alta CRM" style={{ width: 34, height: 34, objectFit: 'contain', background: 'transparent' }} />
             )}
             <h2>{tenantSettings?.name || t('app.name')}</h2>
           </div>
