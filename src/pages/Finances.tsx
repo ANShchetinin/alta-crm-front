@@ -25,7 +25,10 @@ import {
   X, 
   Check,
   Box,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Bot,
+  Cpu,
+  Coins
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { getOrders, getOrderStatuses, updateFinanceStatuses, togglePrepaymentPaid, toggleRemainderPaid, type Order, type OrderStatus } from '../api/kanban';
@@ -39,11 +42,12 @@ import {
   type Expense, 
   type ExpenseCategory 
 } from '../api/finances';
+import { getCompanyAiUsageSummary, type AiUsageSummaryDto, type AiUsageLogDto } from '../api/aiUsage';
 import { useAppStore } from '../store/useAppStore';
 import { formatDateTimeInTimezone, formatDateOnly } from '../utils/dateUtils';
 import '../styles/clients.css';
 
-type TabType = 'TRANSACTIONS' | 'RECEIVABLES' | 'EXPENSES' | 'INSTALLERS' | 'PL_STRUCTURE';
+type TabType = 'TRANSACTIONS' | 'RECEIVABLES' | 'EXPENSES' | 'INSTALLERS' | 'PL_STRUCTURE' | 'AI_COSTS';
 type PeriodFilter = 'THIS_MONTH' | 'LAST_MONTH' | 'THREE_MONTHS' | 'THIS_YEAR' | 'ALL';
 type PaymentStatusFilter = 'ALL' | 'PAID' | 'PREPAYMENT' | 'UNPAID' | 'DEBT';
 
@@ -93,6 +97,10 @@ export const Finances = () => {
 
   // Expanded installers state
   const [expandedInstallerId, setExpandedInstallerId] = useState<number | null>(null);
+
+  // AI Usage State
+  const [aiUsageSummary, setAiUsageSummary] = useState<AiUsageSummaryDto | null>(null);
+  const [loadingAiUsage, setLoadingAiUsage] = useState(false);
 
   // Initial Data Fetch
   useEffect(() => {
@@ -144,6 +152,24 @@ export const Finances = () => {
 
     return { from, to };
   }, [period]);
+
+  const loadAiUsage = async () => {
+    try {
+      setLoadingAiUsage(true);
+      const fromStr = dateRange.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
+      const toStr = dateRange.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
+      const data = await getCompanyAiUsageSummary(fromStr, toStr);
+      setAiUsageSummary(data);
+    } catch (err) {
+      console.error('Failed to load AI usage summary', err);
+    } finally {
+      setLoadingAiUsage(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAiUsage();
+  }, [dateRange]);
 
   // Filter helper: check if date is within selected range
   const isDateInRange = (dateStr?: string | null) => {
@@ -713,7 +739,8 @@ export const Finances = () => {
           { id: 'RECEIVABLES', label: 'Дебиторка / Должники', shortLabel: 'Дебиторка', icon: Clock, count: debtorOrders.length, color: '#f59e0b' },
           { id: 'EXPENSES', label: 'Расходы компании', shortLabel: 'Расходы', icon: TrendingDown, count: filteredExpenses.length, color: '#ef4444' },
           { id: 'INSTALLERS', label: 'Расчёты с монтажниками', shortLabel: 'Монтажники', icon: User, count: installersSummary.length, color: '#60a5fa' },
-          { id: 'PL_STRUCTURE', label: 'Движение средств (Cash Flow)', shortLabel: 'ДДС и P&L', icon: PieChart, color: '#c084fc' }
+          { id: 'PL_STRUCTURE', label: 'Движение средств (Cash Flow)', shortLabel: 'ДДС и P&L', icon: PieChart, color: '#c084fc' },
+          { id: 'AI_COSTS', label: 'Затраты на ИИ', shortLabel: 'ИИ Расходы', icon: Bot, count: aiUsageSummary?.totalRequestsCount, color: '#38bdf8' }
         ].map(tab => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
@@ -1915,6 +1942,202 @@ export const Finances = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4.6 TAB: AI_COSTS (Затраты компании на ИИ) */}
+      {activeTab === 'AI_COSTS' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* AI KPI Grid */}
+          <div className="finances-kpi-grid" style={{ marginBottom: 0 }}>
+            {/* KPI 1: Всего на ИИ */}
+            <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(255, 255, 255, 0.02))' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Всего расходов на ИИ</span>
+                <div style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '5px', borderRadius: '8px' }}>
+                  <Coins size={18} />
+                </div>
+              </div>
+              <div style={{ fontSize: '1.45rem', fontWeight: 700, color: '#38bdf8' }}>
+                {Number(aiUsageSummary?.totalCostRubles || 0).toFixed(2)} ₽
+              </div>
+              <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                За выбранный период ({aiUsageSummary?.totalRequestsCount || 0} обращений)
+              </div>
+            </div>
+
+            {/* KPI 2: SpeechKit аудио */}
+            <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(168, 85, 247, 0.25)', background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.08), rgba(255, 255, 255, 0.02))' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>SpeechKit (Распознавание)</span>
+                <div style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', padding: '5px', borderRadius: '8px' }}>
+                  <Phone size={18} />
+                </div>
+              </div>
+              <div style={{ fontSize: '1.45rem', fontWeight: 700, color: '#c084fc' }}>
+                {Number(aiUsageSummary?.speechkitCostRubles || 0).toFixed(2)} ₽
+              </div>
+              <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Длительность звонков: {Math.floor((aiUsageSummary?.totalAudioDurationSeconds || 0) / 60)} мин {String((aiUsageSummary?.totalAudioDurationSeconds || 0) % 60).padStart(2, '0')} сек
+              </div>
+            </div>
+
+            {/* KPI 3: YandexGPT генерация */}
+            <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(234, 179, 8, 0.25)', background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.08), rgba(255, 255, 255, 0.02))' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>YandexGPT Pro 5</span>
+                <div style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#facc15', padding: '5px', borderRadius: '8px' }}>
+                  <Sparkles size={18} />
+                </div>
+              </div>
+              <div style={{ fontSize: '1.45rem', fontWeight: 700, color: '#facc15' }}>
+                {Number(aiUsageSummary?.gptCostRubles || 0).toFixed(2)} ₽
+              </div>
+              <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                Токены: {(aiUsageSummary?.totalTokens || 0).toLocaleString('ru-RU')} (вход: {(aiUsageSummary?.inputTokens || 0).toLocaleString('ru-RU')}, ответ: {(aiUsageSummary?.outputTokens || 0).toLocaleString('ru-RU')})
+              </div>
+            </div>
+
+            {/* KPI 4: Тарифы Yandex Cloud */}
+            <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255, 255, 255, 0.08)', background: 'rgba(255, 255, 255, 0.02)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Тарифы Yandex Cloud</span>
+                <div style={{ background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-primary)', padding: '5px', borderRadius: '8px' }}>
+                  <Cpu size={18} />
+                </div>
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }}>
+                <div>• <strong>SpeechKit:</strong> 0.36 ₽ / мин (0.006 ₽ / сек)</div>
+                <div>• <strong>GPT Вход:</strong> 0.40 ₽ / 1 000 токенов</div>
+                <div>• <strong>GPT Ответ:</strong> 1.20 ₽ / 1 000 токенов</div>
+              </div>
+            </div>
+          </div>
+
+          {/* AI Usage Logs Table */}
+          <div className="glass-panel" style={{ borderRadius: 'var(--radius-md)', padding: '16px', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Bot size={18} style={{ color: '#38bdf8' }} />
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>История обращений и списаний</h3>
+                <span style={{ fontSize: '0.75rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
+                  {aiUsageSummary?.recentLogs?.length || 0} записей
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={loadAiUsage}
+                disabled={loadingAiUsage}
+                className="btn btn-ghost"
+                style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <RefreshCw size={14} className={loadingAiUsage ? 'spin' : ''} /> {loadingAiUsage ? 'Обновление...' : 'Обновить'}
+              </button>
+            </div>
+
+            {loadingAiUsage ? (
+              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                Загрузка данных по расходам на ИИ...
+              </div>
+            ) : !aiUsageSummary?.recentLogs || aiUsageSummary.recentLogs.length === 0 ? (
+              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                За выбранный период обращений к ИИ не зафиксировано
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="custom-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-secondary)', fontSize: '0.8rem', textAlign: 'left' }}>
+                      <th style={{ padding: '10px 12px' }}>Дата и время</th>
+                      <th style={{ padding: '10px 12px' }}>Заявка</th>
+                      <th style={{ padding: '10px 12px' }}>Сервис / Операция</th>
+                      <th style={{ padding: '10px 12px' }}>Объем (Токены / Время)</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Сумма (₽)</th>
+                      <th style={{ padding: '10px 12px' }}>Сотрудник / Детали</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {aiUsageSummary.recentLogs.map((logItem: AiUsageLogDto) => {
+                      const isSpeech = logItem.serviceType === 'SPEECHKIT';
+                      const badgeLabel = isSpeech
+                        ? '🎙️ SpeechKit'
+                        : (logItem.serviceType === 'GPT_CHAT' ? '💬 AI Чат' : (logItem.serviceType === 'GPT_SALES_ADVICE' ? '🎯 Дожим' : (logItem.serviceType === 'GPT_CUSTOM' ? '⚙️ Свой промпт' : '📋 Саммари')));
+                      const badgeBg = isSpeech ? 'rgba(168, 85, 247, 0.15)' : (logItem.serviceType === 'GPT_CHAT' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(234, 179, 8, 0.15)');
+                      const badgeColor = isSpeech ? '#c084fc' : (logItem.serviceType === 'GPT_CHAT' ? '#38bdf8' : '#facc15');
+
+                      return (
+                        <tr key={logItem.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)', fontSize: '0.85rem' }}>
+                          <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
+                            {formatDateTimeInTimezone(logItem.createdAt, tenantSettings?.timezone)}
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            {logItem.orderId ? (
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/kanban?orderId=${logItem.orderId}`)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: 0,
+                                  color: 'var(--accent-primary)',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontWeight: 600,
+                                  textAlign: 'left'
+                                }}
+                              >
+                                {logItem.orderNumber ? `№ ${logItem.orderNumber}` : `#${logItem.orderId}`}
+                                {logItem.orderAddress && (
+                                  <span style={{ fontWeight: 400, color: 'var(--text-secondary)', marginLeft: '4px', fontSize: '0.78rem' }}>
+                                    • {logItem.orderAddress}
+                                  </span>
+                                )}
+                                <ExternalLink size={12} />
+                              </button>
+                            ) : (
+                              <span style={{ color: 'var(--text-secondary)' }}>Общий запрос</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              background: badgeBg,
+                              color: badgeColor
+                            }}>
+                              {badgeLabel}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>
+                            {isSpeech ? (
+                              <span>{Math.floor(logItem.audioDurationSeconds / 60)} мин {String(logItem.audioDurationSeconds % 60).padStart(2, '0')} сек</span>
+                            ) : (
+                              <span>{logItem.totalTokens} токенов <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>(вх: {logItem.inputTokens} / вых: {logItem.outputTokens})</span></span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#facc15', whiteSpace: 'nowrap' }}>
+                            {Number(logItem.costRubles).toFixed(4)} ₽
+                          </td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                            {logItem.employeeName && (
+                              <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{logItem.employeeName} </span>
+                            )}
+                            {logItem.details && <span>({logItem.details})</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}

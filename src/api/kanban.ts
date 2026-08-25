@@ -30,6 +30,8 @@ export interface OrderAiSummary {
   status: 'PENDING' | 'TRANSCRIBING' | 'ANALYZING' | 'COMPLETED' | 'ERROR';
   rawTranscript?: string;
   aiSummary?: string;
+  analysisResults?: string;
+  chatHistory?: string;
   updatedAt?: string;
 }
 
@@ -252,8 +254,13 @@ export const toggleRemainderPaid = async (orderId: number, paid: boolean, paidAt
   return response.data;
 };
 
-export const analyzeAudioWithPrompt = async (orderId: number, systemPrompt?: string): Promise<OrderAiSummary> => {
-  const response = await api.post(`/orders/${orderId}/ai-analyze`, { systemPrompt });
+export const analyzeAudioWithPrompt = async (
+  orderId: number,
+  systemPrompt?: string,
+  preset?: string,
+  force?: boolean
+): Promise<OrderAiSummary> => {
+  const response = await api.post(`/orders/${orderId}/ai-analyze`, { systemPrompt, preset, force });
   return response.data;
 };
 
@@ -277,4 +284,8 @@ export const chatWithOrderAi = async (
     userMessage
   });
   return response.data;
+};
+
+export const clearOrderAiChat = async (orderId: number): Promise<void> => {
+  await api.delete(`/orders/${orderId}/ai-chat`);
 };
