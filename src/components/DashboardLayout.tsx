@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -7,8 +7,11 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useFeature } from '../hooks/useFeatureToggle';
 import { getOrders, getOrderStatuses } from '../api/kanban';
 import { getProfile } from '../api/settings';
+import { getMyTenants, switchTenant, type MyTenantsResponse } from '../api/auth';
 import { getRecentNotifications, markNotificationAsRead, markAllNotificationsAsRead, type AppNotificationItem } from '../api/notifications';
 import { PushNotificationSettings } from './PushNotificationSettings';
+import { FeatureGate } from './FeatureGate';
+import { CreateCompanyModal } from './CreateCompanyModal';
 import { formatTimeAgo } from '../utils/dateUtils';
 import '../styles/dashboard.css';
 
@@ -16,8 +19,8 @@ const DashboardLayout = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings } = useAppStore();
-  const { logout, role } = useAuthStore();
+  const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings, fetchTenantSettings } = useAppStore();
+  const { logout, role, token, setToken } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -27,6 +30,13 @@ const DashboardLayout = () => {
   const [userEmail, setUserEmail] = useState<string>('');
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Multi-Company State
+  const [myTenantsData, setMyTenantsData] = useState<MyTenantsResponse | null>(null);
+  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
+  const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
+  const [isSwitchingCompany, setIsSwitchingCompany] = useState(false);
+  const companyDropdownRef = useRef<HTMLDivElement>(null);
 
   const hasStorage = useFeature('STORAGE');
   const hasCalendar = useFeature('CALENDAR');
@@ -39,14 +49,54 @@ const DashboardLayout = () => {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
+      if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target as Node)) {
+        setIsCompanyDropdownOpen(false);
+      }
     };
-    if (showNotifications) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showNotifications]);
+  }, []);
+
+  const fetchMyTenantsData = async () => {
+    try {
+      const data = await getMyTenants();
+      setMyTenantsData(data);
+    } catch (err) {
+      console.error("Failed to fetch my tenants", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchMyTenantsData();
+  }, [token]);
+
+  const handleSwitchCompany = async (targetTenantId: number) => {
+    if (targetTenantId === myTenantsData?.currentTenantId || isSwitchingCompany) return;
+    setIsSwitchingCompany(true);
+    try {
+      const newToken = await switchTenant(targetTenantId);
+      setToken(newToken);
+      setIsCompanyDropdownOpen(false);
+      await fetchTenantSettings();
+      await fetchMyTenantsData();
+      window.location.reload();
+    } catch (err) {
+      console.error("Failed to switch company", err);
+    } finally {
+      setIsSwitchingCompany(false);
+    }
+  };
+
+  const handleCompanyCreated = async (newToken: string) => {
+    setToken(newToken);
+    setIsCreateCompanyModalOpen(false);
+    setIsCompanyDropdownOpen(false);
+    await fetchTenantSettings();
+    await fetchMyTenantsData();
+    window.location.reload();
+  };
   
   // PWA Install States
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
@@ -221,14 +271,53 @@ const DashboardLayout = () => {
 
       {/* Glass Sidebar / Mobile Drawer */}
       <aside className={`sidebar glass-panel ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
-        <div className="sidebar-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+        <div className="sidebar-header" style={{ position: 'relative' }}>
+          <div 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '10px', 
+              flex: 1, 
+              cursor: ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) ? 'pointer' : 'default',
+              padding: '6px 8px',
+              borderRadius: 'var(--radius-md)',
+              transition: 'background 0.2s ease',
+              userSelect: 'none',
+              background: isCompanyDropdownOpen ? 'rgba(255, 255, 255, 0.05)' : 'transparent'
+            }}
+            onClick={() => {
+              if ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) {
+                setIsCompanyDropdownOpen(prev => !prev);
+              }
+            }}
+            className="company-switcher-trigger"
+          >
             {tenantSettings?.logoUrl ? (
-              <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 34, height: 34, objectFit: 'contain', background: 'transparent' }} />
+              <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
             ) : (
-              <img src="/logo.png" alt="Alta CRM" style={{ width: 34, height: 34, objectFit: 'contain', background: 'transparent' }} />
+              <img src="/logo.png" alt="Alta CRM" style={{ width: 32, height: 32, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
             )}
-            <h2>{tenantSettings?.name || t('app.name')}</h2>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h2 style={{ fontSize: '1.05rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {tenantSettings?.name || t('app.name')}
+              </h2>
+              {myTenantsData?.tenants && myTenantsData.tenants.length > 1 && (
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                  {myTenantsData.tenants.length} {myTenantsData.tenants.length === 1 ? 'компания' : myTenantsData.tenants.length < 5 ? 'компании' : 'компаний'}
+                </span>
+              )}
+            </div>
+            {((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) && (
+              <ChevronDown 
+                size={16} 
+                style={{ 
+                  color: 'var(--text-secondary)', 
+                  transition: 'transform 0.2s ease', 
+                  transform: isCompanyDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  flexShrink: 0
+                }} 
+              />
+            )}
           </div>
           <button 
             className="btn-icon mobile-close-btn" 
@@ -237,6 +326,77 @@ const DashboardLayout = () => {
           >
             <X size={22} />
           </button>
+
+          {/* Company Switcher Dropdown */}
+          {isCompanyDropdownOpen && (
+            <div 
+              ref={companyDropdownRef}
+              className="company-dropdown-menu"
+            >
+              <div style={{ padding: '6px 8px 4px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Ваши компании
+              </div>
+              <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {myTenantsData?.tenants.map(item => {
+                  const isActive = item.tenantId === myTenantsData.currentTenantId;
+                  return (
+                    <button
+                      key={item.tenantId}
+                      type="button"
+                      onClick={() => handleSwitchCompany(item.tenantId)}
+                      disabled={isSwitchingCompany || isActive}
+                      className={`company-dropdown-item ${isActive ? 'active' : ''}`}
+                    >
+                      {item.logoUrl ? (
+                        <img src={item.logoUrl} alt="" style={{ width: 22, height: 22, objectFit: 'contain', borderRadius: '4px' }} />
+                      ) : (
+                        <div style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: '4px',
+                          background: item.primaryColor || '#3b82f6',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          fontSize: '11px',
+                          fontWeight: 700
+                        }}>
+                          {item.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span style={{ flex: 1, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.name}
+                      </span>
+                      {isActive && <Check size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {myTenantsData?.canCreateCompany && (
+                <>
+                  <div style={{ height: '1px', background: 'var(--glass-border)', margin: '4px 0' }} />
+                  <FeatureGate feature="OWNER_CREATE_COMPANY">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCompanyDropdownOpen(false);
+                        setIsCreateCompanyModalOpen(true);
+                      }}
+                      className="company-create-btn"
+                    >
+                      <Plus size={16} />
+                      <span>Создать компанию</span>
+                      <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                        {myTenantsData.currentCompaniesCount} из {myTenantsData.maxCompaniesLimit}
+                      </span>
+                    </button>
+                  </FeatureGate>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <nav className="sidebar-nav">
@@ -749,6 +909,13 @@ const DashboardLayout = () => {
           </div>
         </div>
       )}
+
+      {/* Modal for Owner to create a new company */}
+      <CreateCompanyModal 
+        isOpen={isCreateCompanyModalOpen} 
+        onClose={() => setIsCreateCompanyModalOpen(false)} 
+        onSuccess={handleCompanyCreated} 
+      />
     </div>
   );
 };
