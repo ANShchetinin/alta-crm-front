@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Edit2, Trash2, Camera, X, User, Crop, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText, Wallet } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Camera, X, User, Crop, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText, Wallet, Building2 } from 'lucide-react';
 import type { Employee } from '../api/employees';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../api/employees';
 import { getOrderStatuses } from '../api/kanban';
 import type { OrderStatus } from '../api/kanban';
+import { getMyTenants, type UserTenant } from '../api/auth';
 import { ImageCropModal } from '../components/ImageCropModal';
 import '../styles/clients.css';
 
@@ -38,6 +39,8 @@ export const Employees = () => {
   const { t } = useTranslation();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [statuses, setStatuses] = useState<OrderStatus[]>([]);
+  const [myTenants, setMyTenants] = useState<UserTenant[]>([]);
+  const [currentTenantId, setCurrentTenantId] = useState<number>(1);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   
@@ -60,6 +63,7 @@ export const Employees = () => {
     email: '',
     password: '',
     allowedStatusIds: [] as number[],
+    allowedTenantIds: [] as number[],
     canViewFinances: false
   });
 
@@ -73,12 +77,17 @@ export const Employees = () => {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [empData, statusData] = await Promise.all([
+      const [empData, statusData, tenantsResp] = await Promise.all([
         getEmployees(),
-        getOrderStatuses().catch(() => [] as OrderStatus[])
+        getOrderStatuses().catch(() => [] as OrderStatus[]),
+        getMyTenants().catch(() => null)
       ]);
       setEmployees(empData);
       setStatuses(statusData);
+      if (tenantsResp) {
+        setMyTenants(tenantsResp.tenants || []);
+        setCurrentTenantId(tenantsResp.currentTenantId || 1);
+      }
     } catch (err) {
       console.error('Failed to load initial data', err);
     } finally {
@@ -122,6 +131,7 @@ export const Employees = () => {
       email: '',
       password: '',
       allowedStatusIds: [],
+      allowedTenantIds: [currentTenantId],
       canViewFinances: false
     });
     setRawImageToCrop(null);
@@ -146,6 +156,7 @@ export const Employees = () => {
       email: employee.email || '',
       password: '',
       allowedStatusIds: employee.allowedStatusIds || [],
+      allowedTenantIds: (employee.allowedTenantIds && employee.allowedTenantIds.length > 0) ? employee.allowedTenantIds : [currentTenantId],
       canViewFinances: !!employee.canViewFinances
     });
     setRawImageToCrop(null);
@@ -200,7 +211,8 @@ export const Employees = () => {
         passportIssuedDate: formData.passportIssuedDate.trim() || undefined,
         passportDepartmentCode: formData.passportDepartmentCode.trim() || undefined,
         registrationAddress: formData.registrationAddress.trim() || undefined,
-        allowedStatusIds: formData.allowedStatusIds
+        allowedStatusIds: formData.allowedStatusIds,
+        allowedTenantIds: formData.allowedTenantIds
       };
 
       if (formData.hasAccount) {
@@ -363,6 +375,30 @@ export const Employees = () => {
                     </td>
                     <td>
                       <div className="client-phone">{employee.position || '—'}</div>
+                      {myTenants.length > 1 && employee.allowedTenantIds && employee.allowedTenantIds.length > 0 && (
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
+                          {employee.allowedTenantIds.map(tid => {
+                            const t = myTenants.find(x => x.tenantId === tid);
+                            if (!t) return null;
+                            const isCurrent = t.tenantId === currentTenantId;
+                            return (
+                              <span 
+                                key={tid}
+                                style={{
+                                  fontSize: '0.7rem',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  background: isCurrent ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                  border: `1px solid ${isCurrent ? 'rgba(59, 130, 246, 0.3)' : 'var(--glass-border)'}`,
+                                  color: isCurrent ? '#60a5fa' : 'var(--text-secondary)'
+                                }}
+                              >
+                                {t.name}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                     </td>
                     <td>
                       <div className="client-phone">{employee.phone || '—'}</div>
@@ -818,6 +854,65 @@ export const Employees = () => {
                     </label>
                   </div>
                 </div>
+
+                {/* Блок Выбора компаний/филиалов сотрудника */}
+                {myTenants.length > 1 && (
+                  <div style={{
+                    marginTop: '16px',
+                    padding: '16px',
+                    background: 'rgba(59, 130, 246, 0.05)',
+                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                    borderRadius: 'var(--radius-md)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <Building2 size={18} style={{ color: '#60a5fa' }} />
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Доступ к компаниям / филиалам</div>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                      Сотрудник сможет работать с заявками в выбранных компаниях
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      {myTenants.map(t => {
+                        const isChecked = formData.allowedTenantIds.includes(t.tenantId);
+                        return (
+                          <div
+                            key={t.tenantId}
+                            onClick={() => {
+                              const next = isChecked
+                                ? formData.allowedTenantIds.filter(id => id !== t.tenantId)
+                                : [...formData.allowedTenantIds, t.tenantId];
+                              setFormData({
+                                ...formData,
+                                allowedTenantIds: next.length ? next : [t.tenantId]
+                              });
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              background: isChecked ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                              border: isChecked ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {isChecked ? (
+                              <CheckSquare size={16} style={{ color: '#60a5fa', flexShrink: 0 }} />
+                            ) : (
+                              <Square size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                            )}
+                            <span style={{ fontSize: '0.82rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {t.name}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
               </div>
               <div className="modal-actions" style={{ padding: '16px', borderTop: '1px solid var(--glass-border)' }}>

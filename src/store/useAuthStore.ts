@@ -5,6 +5,7 @@ interface AuthState {
   role: string | null;
   email: string | null;
   userId: number | null;
+  tenantId: number | null;
   setToken: (token: string | null) => void;
   logout: () => void;
 }
@@ -43,6 +44,16 @@ const getUserIdFromToken = (token: string | null): number | null => {
   }
 };
 
+const getTenantIdFromToken = (token: string | null): number | null => {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.tenantId ? Number(payload.tenantId) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
 const initialToken = localStorage.getItem('altacrm_token');
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -50,6 +61,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   role: getRoleFromToken(initialToken),
   email: getEmailFromToken(initialToken),
   userId: getUserIdFromToken(initialToken),
+  tenantId: getTenantIdFromToken(initialToken),
   
   setToken: (token) => {
     if (token) {
@@ -61,12 +73,13 @@ export const useAuthStore = create<AuthState>((set) => ({
       token,
       role: getRoleFromToken(token),
       email: getEmailFromToken(token),
-      userId: getUserIdFromToken(token)
+      userId: getUserIdFromToken(token),
+      tenantId: getTenantIdFromToken(token)
     });
   },
 
   logout: () => {
     localStorage.removeItem('altacrm_token');
-    set({ token: null, role: null, email: null, userId: null });
+    set({ token: null, role: null, email: null, userId: null, tenantId: null });
   }
 }));
