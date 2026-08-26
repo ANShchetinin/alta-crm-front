@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Edit2, Trash2, Camera, X, User, Crop, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText, Wallet, Building2 } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, User, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText, Wallet, Building2 } from 'lucide-react';
 import type { Employee } from '../api/employees';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../api/employees';
 import { getOrderStatuses } from '../api/kanban';
 import type { OrderStatus } from '../api/kanban';
 import { getMyTenants, type UserTenant } from '../api/auth';
-import { ImageCropModal } from '../components/ImageCropModal';
+import { AvatarUpload } from '../components/AvatarUpload';
 import '../styles/clients.css';
 
 export const getEmployeeInitials = (name: string): string => {
@@ -67,8 +67,7 @@ export const Employees = () => {
     canViewFinances: false
   });
 
-  const [rawImageToCrop, setRawImageToCrop] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   useEffect(() => {
     fetchInitialData();
@@ -134,7 +133,6 @@ export const Employees = () => {
       allowedTenantIds: [currentTenantId],
       canViewFinances: false
     });
-    setRawImageToCrop(null);
     setIsModalOpen(true);
   };
 
@@ -159,32 +157,11 @@ export const Employees = () => {
       allowedTenantIds: (employee.allowedTenantIds && employee.allowedTenantIds.length > 0) ? employee.allowedTenantIds : [currentTenantId],
       canViewFinances: !!employee.canViewFinances
     });
-    setRawImageToCrop(null);
     setIsModalOpen(true);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setRawImageToCrop(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-    e.target.value = '';
-  };
-
-  const handleCropComplete = (croppedDataUrl: string) => {
-    setFormData(prev => ({ ...prev, avatarUrl: croppedDataUrl }));
-    setRawImageToCrop(null);
-  };
-
-  const handleRemoveAvatar = () => {
-    setRawImageToCrop(null);
-    setFormData(prev => ({ ...prev, avatarUrl: '' }));
+  const handleAvatarChange = (url: string) => {
+    setFormData(prev => ({ ...prev, avatarUrl: url }));
   };
 
   const toggleStatusSelection = (statusId: number) => {
@@ -454,15 +431,6 @@ export const Employees = () => {
         </table>
       </div>
 
-      {/* Image Crop Modal */}
-      {rawImageToCrop && (
-        <ImageCropModal
-          imageSrc={rawImageToCrop}
-          onCrop={handleCropComplete}
-          onClose={() => setRawImageToCrop(null)}
-        />
-      )}
-
       {/* Modal Overlay */}
       {isModalOpen && createPortal(
         <div className="modal-overlay">
@@ -482,93 +450,25 @@ export const Employees = () => {
               <div className="modal-body" style={{ overflowY: 'auto', paddingRight: '6px' }}>
                 
                 {/* Аватарка */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '18px',
-                  padding: '14px 16px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-md)',
-                  marginBottom: '16px'
-                }}>
-                  <div style={{
-                    width: '72px',
-                    height: '72px',
-                    borderRadius: '50%',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.3rem',
-                    fontWeight: 700,
-                    color: '#fff',
-                    background: formData.avatarUrl ? 'transparent' : getAvatarGradient(formData.name || 'Сотрудник'),
-                    border: '2.5px solid rgba(255, 255, 255, 0.18)',
-                    boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-                    flexShrink: 0
-                  }}>
-                    {formData.avatarUrl ? (
+                <AvatarUpload
+                  label="Фотография сотрудника"
+                  initialAvatarUrl={formData.avatarUrl}
+                  onAvatarUrlChange={handleAvatarChange}
+                  fallbackIcon={<User size={30} />}
+                  renderAvatarContent={(avatarUrl, _name, fallbackIcon) => (
+                    avatarUrl ? (
                       <img 
-                        src={formData.avatarUrl} 
+                        src={avatarUrl} 
                         alt="Avatar preview" 
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                       />
                     ) : (
-                      formData.name ? getEmployeeInitials(formData.name) : <User size={30} />
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Фотография сотрудника</div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        accept="image/*" 
-                        style={{ display: 'none' }} 
-                        onChange={handleFileChange} 
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="btn btn-sm btn-ghost"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 12px' }}
-                      >
-                        <Camera size={14} /> {formData.avatarUrl ? 'Заменить' : 'Выбрать фото'}
-                      </button>
-                      {formData.avatarUrl && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => setRawImageToCrop(formData.avatarUrl)}
-                            className="btn btn-sm btn-ghost"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', padding: '6px 10px' }}
-                            title="Кадрировать"
-                          >
-                            <Crop size={14} /> Кадрировать
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleRemoveAvatar}
-                            className="btn btn-sm"
-                            style={{
-                              background: 'rgba(239, 68, 68, 0.15)',
-                              color: 'var(--danger)',
-                              border: '1px solid rgba(239, 68, 68, 0.25)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '0.8rem',
-                              padding: '6px 10px'
-                            }}
-                          >
-                            <X size={14} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                      formData.name ? getEmployeeInitials(formData.name) : fallbackIcon
+                    )
+                  )}
+                >
+                  {null}
+                </AvatarUpload>
 
                 <div className="form-group">
                   <label>{t('employees.modal.name') || 'ФИО'} <span style={{ color: 'var(--danger)' }}>*</span></label>

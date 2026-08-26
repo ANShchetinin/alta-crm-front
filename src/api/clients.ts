@@ -5,6 +5,8 @@ export interface ClientContact {
   position?: string;
   phone?: string;
   email?: string;
+  whatsapp?: string;
+  telegram?: string;
   isPrimary?: boolean;
 }
 
@@ -36,34 +38,38 @@ export interface Client {
   contacts?: ClientContact[];
   leadSource?: string;
   createdAt: string;
+  whatsapp?: string;
+  telegram?: string;
 }
 
 export interface ClientCreateRequest {
   clientType?: 'INDIVIDUAL' | 'LEGAL_ENTITY';
-  avatarUrl?: string;
+  avatarUrl?: string | null;
   name: string;
-  legalName?: string;
+  legalName?: string | null;
   phone: string;
-  birthDate?: string;
-  passportSeriesNumber?: string;
-  passportIssuedBy?: string;
-  passportIssuedDate?: string;
-  registrationAddress?: string;
-  email?: string;
-  inn?: string;
-  kpp?: string;
-  ogrn?: string;
-  legalAddress?: string;
-  actualAddress?: string;
-  bankName?: string;
-  bik?: string;
-  checkingAccount?: string;
-  correspondentAccount?: string;
-  vatStatus?: string;
-  contactPerson?: string;
-  contactPosition?: string;
+  birthDate?: string | null;
+  passportSeriesNumber?: string | null;
+  passportIssuedBy?: string | null;
+  passportIssuedDate?: string | null;
+  registrationAddress?: string | null;
+  email?: string | null;
+  inn?: string | null;
+  kpp?: string | null;
+  ogrn?: string | null;
+  legalAddress?: string | null;
+  actualAddress?: string | null;
+  bankName?: string | null;
+  bik?: string | null;
+  checkingAccount?: string | null;
+  correspondentAccount?: string | null;
+  vatStatus?: string | null;
+  contactPerson?: string | null;
+  contactPosition?: string | null;
   contacts?: ClientContact[];
-  leadSource?: string;
+  leadSource?: string | null;
+  whatsapp?: string | null;
+  telegram?: string | null;
 }
 
 export const getClients = async (): Promise<Client[]> => {
