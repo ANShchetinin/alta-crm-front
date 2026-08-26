@@ -150,10 +150,35 @@
 }
 
 .card-phone-btn,
+.card-messenger-btn,
 .card-assignee-avatar {
   width: 28px;
   height: 28px;
   font-size: 0.72rem;
+}
+
+.card-messenger-btn {
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.card-messenger-btn:hover {
+  transform: scale(1.08);
+  opacity: 0.95;
+}
+
+.card-messenger-btn.whatsapp-btn {
+  background: #25D366;
+}
+
+.card-messenger-btn.telegram-btn {
+  background: #0088cc;
 }
 
 .card-address-row {
@@ -264,6 +289,7 @@
     font-size: 1.02rem;
   }
   .card-phone-btn,
+  .card-messenger-btn,
   .card-assignee-avatar {
     width: 32px;
     height: 32px;

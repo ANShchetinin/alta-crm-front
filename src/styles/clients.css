@@ -564,3 +564,84 @@ select.search-input option {
   flex-wrap: wrap;
 }
 
+/* Стили для мессенджеров */
+.input-with-icon {
+  position: relative;
+}
+
+.input-with-icon .input-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.input-with-icon input {
+  padding-left: 36px;
+}
+
+.messenger-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  margin-left: 6px;
+  transition: transform 0.2s ease;
+  color: white;
+}
+
+.messenger-link:hover {
+  transform: scale(1.15);
+}
+
+.whatsapp-link {
+  background: #25D366;
+}
+
+.telegram-link {
+  background: #0088cc;
+}
+
+.client-phone {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Кнопки контактов в карточке заказа */
+.contact-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.contact-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: white;
+}
+
+.whatsapp-btn {
+  background: #25D366;
+}
+
+.telegram-btn {
+  background: #0088cc;
+}
+
+.contact-btn:hover {
+  transform: scale(1.1);
+  opacity: 0.9;
+}
+

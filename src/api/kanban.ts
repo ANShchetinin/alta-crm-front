@@ -72,6 +72,8 @@ export interface Order {
   clientId: number;
   clientName?: string;
   clientPhone?: string;
+  clientWhatsapp?: string;
+  clientTelegram?: string;
   clientType?: string;
   clientAvatarUrl?: string;
   statusId: number;

@@ -16,7 +16,7 @@ import { FeatureFlags } from './pages/FeatureFlags';
 import { useFeature } from './hooks/useFeatureToggle';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import type { FeatureKey } from './api/features';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
 import './i18n';

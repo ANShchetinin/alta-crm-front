@@ -1,6 +1,48 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, MoreVertical, Trash2, Edit2, ChevronDown, ChevronsDown, ChevronsUp, Paperclip, Download, Eye, EyeOff, Mic, Phone, MapPin, X, Search, Tag, Building2, User, Users, Ruler, Wrench, RefreshCw, RotateCcw, FileText, AlertCircle, AlertTriangle, FileCheck, CheckCircle2, Check, CalendarDays, Bell, Camera, MessageSquare, Sparkles, Send, Copy, FileDown, Bot, Coins } from 'lucide-react';
+import {
+  Plus,
+  MoreVertical,
+  Trash2,
+  Edit2,
+  ChevronDown,
+  ChevronsDown,
+  ChevronsUp,
+  Paperclip,
+  Download,
+  Eye,
+  EyeOff,
+  Mic,
+  Phone,
+  MapPin,
+  X,
+  Search,
+  Tag,
+  Building2,
+  User,
+  Users,
+  Ruler,
+  Wrench,
+  RefreshCw,
+  RotateCcw,
+  FileText,
+  AlertCircle,
+  AlertTriangle,
+  FileCheck,
+  CheckCircle2,
+  Check,
+  CalendarDays,
+  Bell,
+  Camera,
+  MessageSquare,
+  Sparkles,
+  Send,
+  Copy,
+  FileDown,
+  Bot,
+  Coins,
+  MessageCircle
+} from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
@@ -30,6 +72,7 @@ import { useTouchKanbanDrag } from '../hooks/useTouchKanbanDrag';
 import { useTouchColumnReorder } from '../hooks/useTouchColumnReorder';
 import { DocumentScannerModal } from '../components/DocumentScannerModal';
 import { ActUploadActionSheet } from '../components/ActUploadActionSheet';
+import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
 import '../styles/kanban.css';
 interface MaterialSearchSelectProps {
   value: number;
@@ -255,7 +298,7 @@ const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({ value, clients,
                     {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1px' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1px', flexWrap: 'wrap' }}>
                   {selectedClient.phone && (
                     <a
                       href={`tel:${selectedClient.phone.replace(/[^\d+]/g, '')}`}
@@ -267,6 +310,34 @@ const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({ value, clients,
                     </a>
                   )}
                   {selectedClient.inn && <span>ИНН: {selectedClient.inn}</span>}
+                  {selectedClient?.whatsapp && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(getWhatsAppLink(selectedClient.whatsapp), '_blank');
+                      }}
+                      title={`Написать в WhatsApp: ${selectedClient.whatsapp}`}
+                      className="contact-btn whatsapp-btn"
+                      style={{ width: '24px', height: '24px' }}
+                    >
+                      <MessageCircle size={13} />
+                    </button>
+                  )}
+                  {selectedClient?.telegram && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(getTelegramLink(selectedClient.telegram), '_blank');
+                      }}
+                      title={`Написать в Telegram: ${selectedClient.telegram}`}
+                      className="contact-btn telegram-btn"
+                      style={{ width: '24px', height: '24px' }}
+                    >
+                      <Send size={13} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -879,6 +950,8 @@ const Kanban = () => {
   const [newClientType, setNewClientType] = useState<'INDIVIDUAL' | 'LEGAL_ENTITY'>('INDIVIDUAL');
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientWhatsapp, setNewClientWhatsapp] = useState('');
+  const [newClientTelegram, setNewClientTelegram] = useState('');
   const [newClientInn, setNewClientInn] = useState('');
   const [newClientContactPerson, setNewClientContactPerson] = useState('');
   const [newClientLeadSource, setNewClientLeadSource] = useState('');
@@ -1356,7 +1429,9 @@ const Kanban = () => {
         phone: newClientPhone.trim(),
         inn: newClientType === 'LEGAL_ENTITY' && newClientInn.trim() ? newClientInn.trim() : undefined,
         contactPerson: newClientType === 'LEGAL_ENTITY' && newClientContactPerson.trim() ? newClientContactPerson.trim() : undefined,
-        leadSource: finalSource || undefined
+        leadSource: finalSource || undefined,
+        whatsapp: newClientWhatsapp.trim() || undefined,
+        telegram: newClientTelegram.trim() || undefined
       });
       setClients(prev => [created, ...prev]);
       setFormData(prev => ({ ...prev, clientId: created.id.toString() }));
@@ -1364,6 +1439,8 @@ const Kanban = () => {
       setNewClientType('INDIVIDUAL');
       setNewClientName('');
       setNewClientPhone('');
+      setNewClientWhatsapp('');
+      setNewClientTelegram('');
       setNewClientInn('');
       setNewClientContactPerson('');
       setNewClientLeadSource('');
@@ -2562,6 +2639,36 @@ const Kanban = () => {
               </a>
             )}
 
+            {client?.whatsapp && (
+              <a
+                href={getWhatsAppLink(client.whatsapp)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                title={`Написать в WhatsApp: ${client.whatsapp}`}
+                className="card-messenger-btn whatsapp-btn"
+              >
+                <MessageCircle size={14} />
+              </a>
+            )}
+
+            {client?.telegram && (
+              <a
+                href={getTelegramLink(client.telegram)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                title={`Написать в Telegram: ${client.telegram}`}
+                className="card-messenger-btn telegram-btn"
+              >
+                <Send size={14} />
+              </a>
+            )}
+
             {assignee && (
               <div 
                 className="card-assignee-avatar"
@@ -3647,7 +3754,7 @@ const Kanban = () => {
                           />
                           {(() => {
                             const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
-                            if (selectedClient && (selectedClient.phone || selectedClient.leadSource)) {
+                            if (selectedClient && (selectedClient.phone || selectedClient.leadSource || selectedClient.whatsapp || selectedClient.telegram)) {
                               return (
                                 <div style={{
                                   marginTop: '8px',
@@ -3675,6 +3782,52 @@ const Kanban = () => {
                                       title={`Позвонить клиенту: ${selectedClient.phone}`}
                                     >
                                       <Phone size={14} /> {selectedClient.phone}
+                                    </a>
+                                  )}
+                                  {selectedClient.whatsapp && (
+                                    <a
+                                      href={getWhatsAppLink(selectedClient.whatsapp)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        fontSize: '0.84rem',
+                                        color: '#25D366',
+                                        textDecoration: 'none',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '5px 12px',
+                                        background: 'rgba(37, 211, 102, 0.12)',
+                                        border: '1px solid rgba(37, 211, 102, 0.3)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        fontWeight: 600
+                                      }}
+                                      title={`Написать в WhatsApp: ${selectedClient.whatsapp}`}
+                                    >
+                                      <MessageCircle size={14} /> WhatsApp
+                                    </a>
+                                  )}
+                                  {selectedClient.telegram && (
+                                    <a
+                                      href={getTelegramLink(selectedClient.telegram)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        fontSize: '0.84rem',
+                                        color: '#0088cc',
+                                        textDecoration: 'none',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '5px 12px',
+                                        background: 'rgba(0, 136, 204, 0.12)',
+                                        border: '1px solid rgba(0, 136, 204, 0.3)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        fontWeight: 600
+                                      }}
+                                      title={`Написать в Telegram: ${selectedClient.telegram}`}
+                                    >
+                                      <Send size={14} /> Telegram
                                     </a>
                                   )}
                                   {selectedClient.leadSource && (
@@ -6422,6 +6575,36 @@ const Kanban = () => {
                     className="search-input"
                     style={{ width: '100%', paddingLeft: '12px' }}
                   />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>WhatsApp</label>
+                    <div className="input-with-icon">
+                      <MessageCircle className="input-icon" size={16} />
+                      <input
+                        type="text"
+                        placeholder="+7 (900) 123-45-67"
+                        value={newClientWhatsapp}
+                        onChange={(e) => setNewClientWhatsapp(e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '36px' }}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Telegram</label>
+                    <div className="input-with-icon">
+                      <Send className="input-icon" size={16} />
+                      <input
+                        type="text"
+                        placeholder="@username"
+                        value={newClientTelegram}
+                        onChange={(e) => setNewClientTelegram(e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '36px' }}
+                      />
+                    </div>
+                  </div>
                 </div>
                 {newClientType === 'LEGAL_ENTITY' && (
                   <>

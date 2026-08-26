@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { 
   Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone, X, 
   ChevronDown, Tag, Building2, User, MapPin, CreditCard, Users, PlusCircle,
-  Camera, Crop
+  MessageCircle, Send
 } from 'lucide-react';
 import type { Client, ClientContact } from '../api/clients';
 import { getClients, createClient, updateClient, deleteClient } from '../api/clients';
@@ -13,7 +13,8 @@ import { getOrdersByClient, getOrderStatuses, moveOrder } from '../api/kanban';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { formatDateInTimezone } from '../utils/dateUtils';
-import { ImageCropModal } from '../components/ImageCropModal';
+import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
+import { AvatarUpload } from '../components/AvatarUpload';
 import '../styles/clients.css';
 
 export const getClientInitials = (name: string): string => {
@@ -108,11 +109,12 @@ export const Clients = () => {
     contactPosition: '',
     contacts: [] as ClientContact[],
     leadSource: '',
-    customLeadSource: ''
+    customLeadSource: '',
+    whatsapp: '',
+    telegram: ''
   });
 
-  const [rawImageToCrop, setRawImageToCrop] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   useEffect(() => {
     fetchClients();
@@ -152,6 +154,8 @@ export const Clients = () => {
       (c.contactPerson && c.contactPerson.toLowerCase().includes(q)) ||
       (c.leadSource && c.leadSource.toLowerCase().includes(q)) ||
       (c.passportSeriesNumber && c.passportSeriesNumber.includes(q)) ||
+      (c.whatsapp && c.whatsapp.toLowerCase().includes(q)) ||
+      (c.telegram && c.telegram.toLowerCase().includes(q)) ||
       (c.contacts && c.contacts.some(cnt => cnt.name.toLowerCase().includes(q) || (cnt.phone && cnt.phone.includes(q))))
     );
   });
@@ -184,9 +188,10 @@ export const Clients = () => {
       contactPosition: '',
       contacts: [],
       leadSource: '',
-      customLeadSource: ''
+      customLeadSource: '',
+      whatsapp: '',
+      telegram: ''
     });
-    setRawImageToCrop(null);
     setIsModalOpen(true);
   };
 
@@ -220,34 +225,15 @@ export const Clients = () => {
       contactPosition: client.contactPosition || '',
       contacts: client.contacts ? [...client.contacts] : [],
       leadSource: isPreset || !source ? source : 'custom',
-      customLeadSource: !isPreset && source ? source : ''
+      customLeadSource: !isPreset && source ? source : '',
+      whatsapp: client.whatsapp || '',
+      telegram: client.telegram || ''
     });
-    setRawImageToCrop(null);
     setIsModalOpen(true);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setRawImageToCrop(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-    e.target.value = '';
-  };
-
-  const handleCropComplete = (croppedDataUrl: string) => {
-    setFormData(prev => ({ ...prev, avatarUrl: croppedDataUrl }));
-    setRawImageToCrop(null);
-  };
-
-  const handleRemoveAvatar = () => {
-    setRawImageToCrop(null);
-    setFormData(prev => ({ ...prev, avatarUrl: '' }));
+  const handleAvatarChange = (url: string) => {
+    setFormData(prev => ({ ...prev, avatarUrl: url }));
   };
 
   const openHistoryModal = async (client: Client) => {
@@ -308,30 +294,32 @@ export const Clients = () => {
 
       const payload = {
         clientType: formData.clientType,
-        avatarUrl: formData.avatarUrl || undefined,
+        avatarUrl: formData.avatarUrl || null,
         name: formData.name.trim(),
-        legalName: formData.legalName.trim() || undefined,
+        legalName: formData.legalName.trim() || null,
         phone: formData.phone.trim(),
-        birthDate: formData.birthDate.trim() || undefined,
-        passportSeriesNumber: formData.passportSeriesNumber.trim() || undefined,
-        passportIssuedBy: formData.passportIssuedBy.trim() || undefined,
-        passportIssuedDate: formData.passportIssuedDate.trim() || undefined,
-        registrationAddress: formData.registrationAddress.trim() || undefined,
-        email: formData.email.trim() || undefined,
-        inn: formData.inn.trim() || undefined,
-        kpp: formData.kpp.trim() || undefined,
-        ogrn: formData.ogrn.trim() || undefined,
-        legalAddress: formData.legalAddress.trim() || undefined,
-        actualAddress: formData.actualAddress.trim() || undefined,
-        bankName: formData.bankName.trim() || undefined,
-        bik: formData.bik.trim() || undefined,
-        checkingAccount: formData.checkingAccount.trim() || undefined,
-        correspondentAccount: formData.correspondentAccount.trim() || undefined,
-        vatStatus: formData.vatStatus || undefined,
-        contactPerson: formData.contactPerson.trim() || (validContacts.find(c => c.isPrimary)?.name || undefined),
-        contactPosition: formData.contactPosition.trim() || (validContacts.find(c => c.isPrimary)?.position || undefined),
-        contacts: validContacts.length > 0 ? validContacts : undefined,
-        leadSource: finalLeadSource || undefined
+        birthDate: formData.birthDate.trim() || null,
+        passportSeriesNumber: formData.passportSeriesNumber.trim() || null,
+        passportIssuedBy: formData.passportIssuedBy.trim() || null,
+        passportIssuedDate: formData.passportIssuedDate.trim() || null,
+        registrationAddress: formData.registrationAddress.trim() || null,
+        email: formData.email.trim() || null,
+        inn: formData.inn.trim() || null,
+        kpp: formData.kpp.trim() || null,
+        ogrn: formData.ogrn.trim() || null,
+        legalAddress: formData.legalAddress.trim() || null,
+        actualAddress: formData.actualAddress.trim() || null,
+        bankName: formData.bankName.trim() || null,
+        bik: formData.bik.trim() || null,
+        checkingAccount: formData.checkingAccount.trim() || null,
+        correspondentAccount: formData.correspondentAccount.trim() || null,
+        vatStatus: formData.vatStatus || null,
+        contactPerson: formData.contactPerson.trim() || (validContacts.find(c => c.isPrimary)?.name || null),
+        contactPosition: formData.contactPosition.trim() || (validContacts.find(c => c.isPrimary)?.position || null),
+        contacts: validContacts.length > 0 ? validContacts : [],
+        leadSource: finalLeadSource || null,
+        whatsapp: formData.whatsapp.trim() || null,
+        telegram: formData.telegram.trim() || null
       };
 
       if (editingClient) {
@@ -536,7 +524,7 @@ export const Clients = () => {
                       <div className="client-phone">
                         {client.phone ? (
                           <a 
-                            href={`tel:${client.phone}`} 
+                            href={`tel:${client.phone.replace(/[^\d+]/g, '')}`} 
                             title="Позвонить"
                             onClick={(e) => e.stopPropagation()}
                             style={{
@@ -557,6 +545,30 @@ export const Clients = () => {
                             <span style={{ whiteSpace: 'nowrap' }}>{client.phone}</span>
                           </a>
                         ) : '-'}
+                        {client.whatsapp && (
+                          <a
+                            href={getWhatsAppLink(client.whatsapp)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Написать в WhatsApp: ${client.whatsapp}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="messenger-link whatsapp-link"
+                          >
+                            <MessageCircle size={13} />
+                          </a>
+                        )}
+                        {client.telegram && (
+                          <a
+                            href={getTelegramLink(client.telegram)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Написать в Telegram: ${client.telegram}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="messenger-link telegram-link"
+                          >
+                            <Send size={13} />
+                          </a>
+                        )}
                       </div>
                     </td>
                     <td>
@@ -700,35 +712,15 @@ export const Clients = () => {
                 </div>
 
                 {/* Avatar / Photo / Logo Upload */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '18px',
-                  padding: '14px 16px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-md)',
-                  marginBottom: '16px'
-                }}>
-                  <div style={{
-                    width: '72px',
-                    height: '72px',
-                    borderRadius: '50%',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.3rem',
-                    fontWeight: 700,
-                    color: '#fff',
-                    background: formData.avatarUrl ? 'transparent' : getAvatarGradient(formData.name || (formData.clientType === 'LEGAL_ENTITY' ? 'Компания' : 'Клиент')),
-                    border: '2.5px solid rgba(255, 255, 255, 0.18)',
-                    boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-                    flexShrink: 0
-                  }}>
-                    {formData.avatarUrl ? (
+                <AvatarUpload
+                  label={formData.clientType === 'LEGAL_ENTITY' ? 'Логотип / Фото компании' : 'Фотография клиента'}
+                  initialAvatarUrl={formData.avatarUrl}
+                  onAvatarUrlChange={handleAvatarChange}
+                  fallbackIcon={formData.clientType === 'LEGAL_ENTITY' ? <Building2 size={30} /> : <User size={30} />}
+                  renderAvatarContent={(avatarUrl, _name, fallbackIcon) => (
+                    avatarUrl ? (
                       <img 
-                        src={formData.avatarUrl} 
+                        src={avatarUrl} 
                         alt="Avatar preview" 
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                       />
@@ -736,63 +728,13 @@ export const Clients = () => {
                       formData.name ? (
                         formData.clientType === 'LEGAL_ENTITY' ? <Building2 size={30} /> : getClientInitials(formData.name)
                       ) : (
-                        formData.clientType === 'LEGAL_ENTITY' ? <Building2 size={30} /> : <User size={30} />
+                        fallbackIcon
                       )
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                      {formData.clientType === 'LEGAL_ENTITY' ? 'Логотип / Фото компании' : 'Фотография клиента'}
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        accept="image/*" 
-                        style={{ display: 'none' }} 
-                        onChange={handleFileChange} 
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="btn btn-sm btn-ghost"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 12px' }}
-                      >
-                        <Camera size={14} /> {formData.avatarUrl ? 'Заменить' : 'Выбрать фото'}
-                      </button>
-                      {formData.avatarUrl && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => setRawImageToCrop(formData.avatarUrl)}
-                            className="btn btn-sm btn-ghost"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', padding: '6px 10px' }}
-                            title="Кадрировать"
-                          >
-                            <Crop size={14} /> Кадрировать
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleRemoveAvatar}
-                            className="btn btn-sm"
-                            style={{
-                              background: 'rgba(239, 68, 68, 0.15)',
-                              color: 'var(--danger)',
-                              border: '1px solid rgba(239, 68, 68, 0.25)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '0.8rem',
-                              padding: '6px 10px'
-                            }}
-                          >
-                            <Trash2 size={13} /> Удалить
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                    )
+                  )}
+                >
+                  {null}
+                </AvatarUpload>
 
                 {formData.clientType === 'INDIVIDUAL' ? (
                   <>
@@ -819,6 +761,37 @@ export const Clients = () => {
                         className="search-input"
                         style={{ width: '100%', paddingLeft: '12px' }}
                       />
+                    </div>
+                    {/* WhatsApp и Telegram */}
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>WhatsApp</label>
+                        <div className="input-with-icon">
+                          <MessageCircle className="input-icon" size={16} />
+                          <input
+                            type="text"
+                            placeholder="+7 (900) 123-45-67 или никнейм"
+                            value={formData.whatsapp}
+                            onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '36px' }}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label>Telegram</label>
+                        <div className="input-with-icon">
+                          <Send className="input-icon" size={16} />
+                          <input
+                            type="text"
+                            placeholder="@username"
+                            value={formData.telegram}
+                            onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '36px' }}
+                          />
+                        </div>
+                      </div>
                     </div>
                     <div className="form-group">
                       <label>Email</label>
@@ -958,6 +931,34 @@ export const Clients = () => {
                             className="search-input"
                             style={{ width: '100%', paddingLeft: '12px' }}
                           />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label>WhatsApp</label>
+                          <div className="input-with-icon">
+                            <MessageCircle className="input-icon" size={16} />
+                            <input
+                              type="text"
+                              placeholder="+7 (900) 123-45-67 или никнейм"
+                              value={formData.whatsapp}
+                              onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                              className="search-input"
+                              style={{ width: '100%', paddingLeft: '36px' }}
+                            />
+                          </div>
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label>Telegram</label>
+                          <div className="input-with-icon">
+                            <Send className="input-icon" size={16} />
+                            <input
+                              type="text"
+                              placeholder="@username"
+                              value={formData.telegram}
+                              onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
+                              className="search-input"
+                              style={{ width: '100%', paddingLeft: '36px' }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1413,13 +1414,6 @@ export const Clients = () => {
         document.body
       )}
 
-      {rawImageToCrop && (
-        <ImageCropModal 
-          imageSrc={rawImageToCrop} 
-          onCrop={handleCropComplete} 
-          onClose={() => setRawImageToCrop(null)} 
-        />
-      )}
     </div>
   );
 };
