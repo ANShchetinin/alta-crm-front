@@ -9,7 +9,9 @@ import {
   Ruler,
   Package,
   Lightbulb,
-  Minus
+  Minus,
+  RefreshCw,
+  Box
 } from 'lucide-react';
 import type { Material } from '../api/storage';
 import {
@@ -19,6 +21,7 @@ import {
   saveOrderMeasurement,
   type MeasurementDto,
   type MeasurementRoomDto,
+  type MeasurementCalculationItemDto,
   type MeasurementCalculateResponse
 } from '../api/measurements';
 
@@ -56,7 +59,13 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   const [saving, setSaving] = useState<boolean>(false);
   const [calculating, setCalculating] = useState<boolean>(false);
   const [calcResult, setCalcResult] = useState<MeasurementCalculateResponse | null>(null);
-  const [showSpecDetails, setShowSpecDetails] = useState<boolean>(false);
+  const [showSpecDetails, setShowSpecDetails] = useState<boolean>(true); // По умолчанию открыта детализация
+
+  // Интерактивные строки сметы
+  const [customItems, setCustomItems] = useState<MeasurementCalculationItemDto[]>([]);
+  const [isManualEditMode, setIsManualEditMode] = useState<boolean>(false);
+  const [isAddMaterialModalOpen, setIsAddMaterialModalOpen] = useState<boolean>(false);
+  const [selectedAddMaterialId, setSelectedAddMaterialId] = useState<number | ''>('');
 
   // Фильтруем материалы склада по типам
   const canvasMaterials = materials.filter(m => {
@@ -117,6 +126,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       chandeliersCount: 1,
       tracksLength: 0,
       corniceLength: 0,
+      corniceType: 'ПК-14',
       pipesCount: 0,
       tileLength: 0
     };
@@ -128,6 +138,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   const performCalculation = useCallback((currentRooms: MeasurementRoomDto[]) => {
     if (currentRooms.length === 0) {
       setCalcResult(null);
+      setCustomItems([]);
       return;
     }
 
@@ -141,6 +152,9 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     promise
       .then(res => {
         setCalcResult(res);
+        if (!isManualEditMode) {
+          setCustomItems(res.items || []);
+        }
       })
       .catch(err => {
         console.error('Ошибка расчета сметы:', err);
@@ -148,7 +162,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       .finally(() => {
         setCalculating(false);
       });
-  }, [orderId]);
+  }, [orderId, isManualEditMode]);
 
   useEffect(() => {
     if (debounceTimerRef.current) {
@@ -187,6 +201,85 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     }
   };
 
+  // Ручное редактирование строк сметы
+  const updateSpecItem = (index: number, patch: Partial<MeasurementCalculationItemDto>) => {
+    setIsManualEditMode(true);
+    setCustomItems(prev => {
+      const next = [...prev];
+      const current = { ...next[index], ...patch };
+      const q = typeof current.quantity === 'number' ? current.quantity : parseFloat(current.quantity as any) || 0;
+      const p = typeof current.unitSalePrice === 'number' ? current.unitSalePrice : parseFloat(current.unitSalePrice as any) || 0;
+      const cp = typeof current.unitCostPrice === 'number' ? current.unitCostPrice : parseFloat(current.unitCostPrice as any) || 0;
+
+      current.quantity = q;
+      current.unitSalePrice = p;
+      current.unitCostPrice = cp;
+      current.totalSalePrice = Math.round(q * p * 100) / 100;
+      current.totalCostPrice = Math.round(q * cp * 100) / 100;
+
+      next[index] = current;
+      return next;
+    });
+  };
+
+  const removeSpecItem = (index: number) => {
+    setIsManualEditMode(true);
+    setCustomItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addCustomEmptyItem = () => {
+    setIsManualEditMode(true);
+    const currentRoomName = rooms[activeRoomIdx]?.roomName || 'Помещение 1';
+    const newItem: MeasurementCalculationItemDto = {
+      name: 'Дополнительная позиция / работа',
+      type: 'SERVICE',
+      quantity: 1,
+      unit: 'шт.',
+      unitSalePrice: 0,
+      unitCostPrice: 0,
+      totalSalePrice: 0,
+      totalCostPrice: 0,
+      roomName: currentRoomName
+    };
+    setCustomItems(prev => [...prev, newItem]);
+  };
+
+  const addMaterialFromWarehouse = (matId: number) => {
+    const mat = materials.find(m => m.id === matId);
+    if (!mat) return;
+
+    setIsManualEditMode(true);
+    const currentRoomName = rooms[activeRoomIdx]?.roomName || 'Помещение 1';
+    const newItem: MeasurementCalculationItemDto = {
+      materialId: mat.id,
+      name: mat.name,
+      type: mat.type || 'MATERIAL',
+      quantity: 1,
+      unit: mat.unit || 'шт.',
+      unitSalePrice: mat.salePrice || 0,
+      unitCostPrice: mat.costPrice || 0,
+      totalSalePrice: mat.salePrice || 0,
+      totalCostPrice: mat.costPrice || 0,
+      roomName: currentRoomName
+    };
+    setCustomItems(prev => [...prev, newItem]);
+    setIsAddMaterialModalOpen(false);
+    setSelectedAddMaterialId('');
+  };
+
+  const resetToAutoCalculated = () => {
+    setIsManualEditMode(false);
+    performCalculation(rooms);
+  };
+
+  // Вычисляем итоговые суммы по активным строкам сметы (customItems)
+  const effectiveTotalSalePrice = customItems.reduce((sum, it) => sum + (it.totalSalePrice || 0), 0);
+  const effectiveTotalCostPrice = customItems.reduce((sum, it) => sum + (it.totalCostPrice || 0), 0);
+  const effectiveProfit = effectiveTotalSalePrice - effectiveTotalCostPrice;
+  const effectiveMarginPercent = effectiveTotalSalePrice > 0
+    ? Math.round((effectiveProfit / effectiveTotalSalePrice) * 100)
+    : 0;
+
   const handleSave = async () => {
     if (!orderId) return;
     setSaving(true);
@@ -197,8 +290,24 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
         rooms
       };
       const saved = await saveOrderMeasurement(orderId, dto);
-      if (calcResult && onSaved) {
-        onSaved(saved, calcResult);
+
+      // Формируем результирующий ответ с актуальными строками сметы
+      const effectiveResponse: MeasurementCalculateResponse = {
+        totalSalePrice: effectiveTotalSalePrice,
+        totalCostPrice: effectiveTotalCostPrice,
+        expectedProfit: effectiveProfit,
+        profitMarginPercent: effectiveMarginPercent,
+        totalArea: calcResult?.totalArea || rooms.reduce((sum, r) => sum + (r.area || 0), 0),
+        totalPerimeter: calcResult?.totalPerimeter || rooms.reduce((sum, r) => sum + (r.perimeter || 0), 0),
+        totalRoomsCount: rooms.length,
+        totalLightsCount: rooms.reduce((sum, r) => sum + (r.lightsCount || 0), 0),
+        totalPipesCount: rooms.reduce((sum, r) => sum + (r.pipesCount || 0), 0),
+        totalCorniceLength: rooms.reduce((sum, r) => sum + (r.corniceLength || 0), 0),
+        items: customItems
+      };
+
+      if (onSaved) {
+        onSaved(saved, effectiveResponse);
       }
     } catch (e: any) {
       console.error('Не удалось сохранить замер', e);
@@ -218,7 +327,6 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
   const currentRoom = rooms[activeRoomIdx] || rooms[0];
 
-  // Стили общих инпутов
   const darkInputStyle: React.CSSProperties = {
     width: '100%',
     height: '38px',
@@ -354,14 +462,6 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               color: 'var(--text-secondary)',
               cursor: 'pointer',
               transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget.style as any).borderColor = 'var(--accent-primary)';
-              (e.currentTarget.style as any).color = 'var(--text-primary)';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget.style as any).borderColor = 'var(--glass-border)';
-              (e.currentTarget.style as any).color = 'var(--text-secondary)';
             }}
           >
             + {preset}
@@ -805,7 +905,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
         />
       </div>
 
-      {/* 4. Плавающий блок итогов (Live Calculation) */}
+      {/* 4. Плавающий блок итогов и ИНТЕРАКТИВНАЯ ТАБЛИЦА СМЕТЫ */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(16, 185, 129, 0.08))',
         border: '1px solid rgba(59, 130, 246, 0.3)',
@@ -822,7 +922,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               ИТОГОВАЯ СМЕТА {calculating && <span style={{ color: 'var(--accent-primary)', textTransform: 'none' }}>• пересчет...</span>}
             </div>
             <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#4ade80', letterSpacing: '-0.5px' }}>
-              {calcResult?.totalSalePrice != null ? `${calcResult.totalSalePrice.toLocaleString('ru-RU')} ₽` : '0 ₽'}
+              {effectiveTotalSalePrice.toLocaleString('ru-RU')} ₽
             </div>
           </div>
 
@@ -840,20 +940,20 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           }}>
             <div>
               <span>Общая площадь: </span>
-              <strong style={{ color: 'var(--text-primary)' }}>{calcResult?.totalArea || 0} м²</strong>
+              <strong style={{ color: 'var(--text-primary)' }}>{calcResult?.totalArea || rooms.reduce((s, r) => s + (r.area || 0), 0)} м²</strong>
             </div>
             <div>
               <span>Периметр: </span>
-              <strong style={{ color: 'var(--text-primary)' }}>{calcResult?.totalPerimeter || 0} м.п.</strong>
+              <strong style={{ color: 'var(--text-primary)' }}>{calcResult?.totalPerimeter || rooms.reduce((s, r) => s + (r.perimeter || 0), 0)} м.п.</strong>
             </div>
             <div>
               <span>Светильников: </span>
-              <strong style={{ color: 'var(--text-primary)' }}>{calcResult?.totalLightsCount || 0} шт.</strong>
+              <strong style={{ color: 'var(--text-primary)' }}>{rooms.reduce((s, r) => s + (r.lightsCount || 0), 0)} шт.</strong>
             </div>
           </div>
 
           {/* Финансовые показатели (только для canViewFinances) */}
-          {canViewFinances && calcResult && (
+          {canViewFinances && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -865,14 +965,14 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             }}>
               <div>
                 <span style={{ color: 'var(--text-secondary)' }}>Себестоимость: </span>
-                <strong style={{ color: '#e2e8f0' }}>{calcResult.totalCostPrice?.toLocaleString('ru-RU')} ₽</strong>
+                <strong style={{ color: '#e2e8f0' }}>{effectiveTotalCostPrice.toLocaleString('ru-RU')} ₽</strong>
               </div>
               <div style={{ borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: '12px' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Прибыль: </span>
-                <strong style={{ color: '#60a5fa' }}>{calcResult.expectedProfit?.toLocaleString('ru-RU')} ₽</strong>
-                {calcResult.profitMarginPercent != null && !isNaN(calcResult.profitMarginPercent) && (
+                <strong style={{ color: '#60a5fa' }}>{effectiveProfit.toLocaleString('ru-RU')} ₽</strong>
+                {effectiveMarginPercent > 0 && (
                   <span style={{ marginLeft: '4px', opacity: 0.85, color: '#93c5fd' }}>
-                    ({calcResult.profitMarginPercent}%)
+                    ({effectiveMarginPercent}%)
                   </span>
                 )}
               </div>
@@ -880,72 +980,243 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           )}
         </div>
 
-        {/* Раскрывающийся аккордеон с деталями сметы */}
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowSpecDetails(prev => !prev)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--accent-primary)',
-              fontSize: '0.84rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: 0
-            }}
-          >
-            {showSpecDetails ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-            {showSpecDetails ? 'Скрыть детализацию позиций сметы' : `Показать детализацию позиций (${calcResult?.items?.length || 0})`}
-          </button>
+        {/* Заголовок с кнопками добавления и сброса */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setShowSpecDetails(prev => !prev)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--accent-primary)',
+                fontSize: '0.88rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: 0
+              }}
+            >
+              {showSpecDetails ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+              {showSpecDetails ? 'Скрыть таблицу сметы' : `Позиции сметы (${customItems.length})`}
+            </button>
+            {isManualEditMode && (
+              <span style={{ fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                Ручные правки
+              </span>
+            )}
+          </div>
 
-          {showSpecDetails && calcResult?.items && (
-            <div style={{
-              marginTop: '12px',
-              background: 'rgba(0, 0, 0, 0.35)',
-              borderRadius: '8px',
-              overflowX: 'auto',
-              border: '1px solid var(--glass-border)'
-            }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                <thead>
-                  <tr style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'var(--text-secondary)', textAlign: 'left' }}>
-                    <th style={{ padding: '8px 12px', width: '35px' }}>#</th>
-                    <th style={{ padding: '8px 12px' }}>Наименование позиции</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'center' }}>Кол-во</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Цена</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Сумма</th>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setIsAddMaterialModalOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                background: 'rgba(59, 130, 246, 0.15)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                color: '#60a5fa',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <Box size={14} /> + Со склада
+            </button>
+
+            <button
+              type="button"
+              onClick={addCustomEmptyItem}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid var(--glass-border)',
+                color: 'var(--text-primary)',
+                fontSize: '0.82rem',
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+            >
+              <Plus size={14} /> + Своя позиция
+            </button>
+
+            {isManualEditMode && (
+              <button
+                type="button"
+                onClick={resetToAutoCalculated}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  background: 'transparent',
+                  border: '1px dashed rgba(245, 158, 11, 0.4)',
+                  color: '#fbbf24',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer'
+                }}
+                title="Сбросить ручные правки и вернуть авторасчет по комнатам"
+              >
+                <RefreshCw size={13} /> Авторасчет
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Раскрытая интерактивная таблица сметы */}
+        {showSpecDetails && (
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.35)',
+            borderRadius: '8px',
+            overflowX: 'auto',
+            border: '1px solid var(--glass-border)'
+          }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+              <thead>
+                <tr style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'var(--text-secondary)', textAlign: 'left' }}>
+                  <th style={{ padding: '8px 10px', width: '35px' }}>#</th>
+                  <th style={{ padding: '8px 10px' }}>Наименование позиции / услуги</th>
+                  <th style={{ padding: '8px 10px', width: '90px', textAlign: 'center' }}>Кол-во</th>
+                  <th style={{ padding: '8px 10px', width: '80px', textAlign: 'center' }}>Ед.</th>
+                  <th style={{ padding: '8px 10px', width: '110px', textAlign: 'right' }}>Цена (₽)</th>
+                  <th style={{ padding: '8px 10px', width: '110px', textAlign: 'right' }}>Сумма (₽)</th>
+                  <th style={{ padding: '8px 10px', width: '40px' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {customItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      Нет позиций в смете. Введите размеры комнат или добавьте позиции кнопками выше.
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {calcResult.items.map((item, idx) => (
+                ) : (
+                  customItems.map((item, idx) => (
                     <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                      <td style={{ padding: '7px 12px', color: 'var(--text-secondary)' }}>{idx + 1}</td>
-                      <td style={{ padding: '7px 12px' }}>
-                        <div style={{ color: 'var(--text-primary)' }}>{item.name}</div>
+                      <td style={{ padding: '6px 10px', color: 'var(--text-secondary)', fontWeight: 600 }}>{idx + 1}</td>
+                      <td style={{ padding: '6px 10px' }}>
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={e => updateSpecItem(idx, { name: e.target.value })}
+                          style={{
+                            width: '100%',
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid transparent',
+                            borderRadius: '4px',
+                            color: 'var(--text-primary)',
+                            padding: '4px 8px',
+                            fontSize: '0.84rem'
+                          }}
+                          onFocus={e => (e.target.style.borderColor = 'var(--accent-primary)')}
+                          onBlur={e => (e.target.style.borderColor = 'transparent')}
+                        />
                         {item.roomName && (
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{item.roomName}</span>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', paddingLeft: '8px' }}>
+                            {item.roomName}
+                          </div>
                         )}
                       </td>
-                      <td style={{ padding: '7px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                        {item.quantity} {item.unit}
+                      <td style={{ padding: '6px 10px' }}>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={item.quantity}
+                          onChange={e => updateSpecItem(idx, { quantity: parseFloat(e.target.value) || 0 })}
+                          style={{
+                            width: '100%',
+                            textAlign: 'center',
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '4px',
+                            color: 'var(--text-primary)',
+                            padding: '4px 6px',
+                            fontWeight: 600
+                          }}
+                        />
                       </td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>
-                        {item.unitSalePrice?.toLocaleString('ru-RU')} ₽
+                      <td style={{ padding: '6px 10px' }}>
+                        <select
+                          value={item.unit || 'шт.'}
+                          onChange={e => updateSpecItem(idx, { unit: e.target.value })}
+                          style={{
+                            width: '100%',
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '4px',
+                            color: 'var(--text-primary)',
+                            padding: '4px',
+                            fontSize: '0.78rem'
+                          }}
+                        >
+                          <option value="м²" style={{ background: '#1e293b', color: '#f8fafc' }}>м²</option>
+                          <option value="м.п." style={{ background: '#1e293b', color: '#f8fafc' }}>м.п.</option>
+                          <option value="шт." style={{ background: '#1e293b', color: '#f8fafc' }}>шт.</option>
+                          <option value="компл." style={{ background: '#1e293b', color: '#f8fafc' }}>компл.</option>
+                          <option value="услуга" style={{ background: '#1e293b', color: '#f8fafc' }}>услуга</option>
+                        </select>
                       </td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600, color: '#4ade80' }}>
-                        {item.totalSalePrice?.toLocaleString('ru-RU')} ₽
+                      <td style={{ padding: '6px 10px' }}>
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={item.unitSalePrice || ''}
+                          onChange={e => updateSpecItem(idx, { unitSalePrice: parseFloat(e.target.value) || 0 })}
+                          style={{
+                            width: '100%',
+                            textAlign: 'right',
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '4px',
+                            color: 'var(--text-primary)',
+                            padding: '4px 6px',
+                            fontWeight: 600
+                          }}
+                        />
+                      </td>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, color: '#4ade80' }}>
+                        {(item.totalSalePrice || 0).toLocaleString('ru-RU')} ₽
+                      </td>
+                      <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => removeSpecItem(idx)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: 0.8
+                          }}
+                          title="Удалить позицию"
+                        >
+                          <Trash2 size={15} />
+                        </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Кнопки действий */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
@@ -987,6 +1258,94 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Модальное окно выбора товара со склада */}
+      {isAddMaterialModalOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => setIsAddMaterialModalOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.7)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            zIndex: 10005
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--card-bg, #1a1f2c)',
+              border: '1px solid var(--glass-border)',
+              borderRadius: 'var(--radius-lg)',
+              maxWidth: '500px',
+              width: '100%',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Box size={18} style={{ color: 'var(--accent-primary)' }} />
+                Добавить позицию со склада
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsAddMaterialModalOpen(false)}
+                className="btn-icon"
+                style={{ fontSize: '1.2rem', padding: '4px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Выберите материал или услугу:</label>
+              <select
+                value={selectedAddMaterialId}
+                onChange={e => setSelectedAddMaterialId(e.target.value ? Number(e.target.value) : '')}
+                style={{ ...selectStyle, height: '44px', fontSize: '0.92rem' }}
+              >
+                <option value="" style={{ background: '#1e293b', color: '#f8fafc' }}>— Выберите из номенклатуры склада —</option>
+                {materials.map(m => (
+                  <option key={m.id} value={m.id} style={{ background: '#1e293b', color: '#f8fafc' }}>
+                    {m.name} ({m.salePrice} ₽/{m.unit}) {m.quantityInStock ? `• ост: ${m.quantityInStock} ${m.unit}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setIsAddMaterialModalOpen(false)}
+                className="btn btn-ghost"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                disabled={!selectedAddMaterialId}
+                onClick={() => {
+                  if (selectedAddMaterialId) {
+                    addMaterialFromWarehouse(Number(selectedAddMaterialId));
+                  }
+                }}
+                className="btn btn-primary"
+                style={{ padding: '8px 18px', fontWeight: 600 }}
+              >
+                Добавить в смету
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
