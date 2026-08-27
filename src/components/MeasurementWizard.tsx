@@ -5,7 +5,11 @@ import {
   Save,
   FileDown,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Ruler,
+  Package,
+  Lightbulb,
+  Minus
 } from 'lucide-react';
 import type { Material } from '../api/storage';
 import {
@@ -80,7 +84,6 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             setRooms(dto.rooms);
             setNotes(dto.notes || '');
           } else {
-            // Создаем первую комнату по умолчанию
             setRooms([createDefaultRoom('Гостиная')]);
           }
         })
@@ -202,13 +205,53 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
   if (loading) {
     return (
-      <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+      <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         Загрузка параметров замера...
       </div>
     );
   }
 
   const currentRoom = rooms[activeRoomIdx] || rooms[0];
+
+  // Стили общих инпутов
+  const darkInputStyle: React.CSSProperties = {
+    width: '100%',
+    height: '38px',
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid var(--glass-border)',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--text-primary)',
+    padding: '0 12px',
+    fontSize: '0.9rem',
+    outline: 'none',
+    boxSizing: 'border-box'
+  };
+
+  const selectStyle: React.CSSProperties = {
+    ...darkInputStyle,
+    cursor: 'pointer',
+    appearance: 'auto'
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: '0.78rem',
+    color: 'var(--text-secondary)',
+    display: 'block',
+    marginBottom: '6px',
+    fontWeight: 500
+  };
+
+  const sectionHeaderStyle: React.CSSProperties = {
+    fontSize: '0.84rem',
+    fontWeight: 600,
+    color: 'var(--text-secondary)',
+    marginBottom: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -218,7 +261,8 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
         alignItems: 'center',
         gap: '8px',
         overflowX: 'auto',
-        paddingBottom: '4px'
+        paddingBottom: '4px',
+        scrollbarWidth: 'none'
       }}>
         {rooms.map((room, idx) => {
           const isActive = idx === activeRoomIdx;
@@ -233,23 +277,25 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                 gap: '8px',
                 padding: '8px 14px',
                 borderRadius: 'var(--radius-md)',
-                background: isActive ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.05)',
+                background: isActive ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))' : 'rgba(255, 255, 255, 0.04)',
                 color: isActive ? '#ffffff' : 'var(--text-primary)',
                 border: '1px solid ' + (isActive ? 'var(--accent-primary)' : 'var(--glass-border)'),
                 fontWeight: isActive ? 600 : 400,
                 fontSize: '0.88rem',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease'
+                transition: 'all 0.15s ease',
+                boxShadow: isActive ? '0 4px 12px var(--accent-glow)' : 'none'
               }}
             >
               <span>{room.roomName || `Помещение ${idx + 1}`}</span>
               <span style={{
-                fontSize: '0.75rem',
-                opacity: 0.8,
-                background: isActive ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-                padding: '1px 6px',
-                borderRadius: '10px'
+                fontSize: '0.74rem',
+                opacity: 0.9,
+                background: isActive ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                fontWeight: 600
               }}>
                 {room.area || 0} м²
               </span>
@@ -258,28 +304,29 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
         })}
 
         {/* Быстрое добавление комнат */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '4px' }}>
-          <button
-            type="button"
-            onClick={() => addRoom()}
-            className="btn btn-ghost"
-            style={{
-              padding: '8px 12px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px dashed var(--glass-border)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.85rem',
-              color: 'var(--accent-primary)'
-            }}
-          >
-            <Plus size={15} /> Добавить
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => addRoom()}
+          style={{
+            padding: '8px 14px',
+            borderRadius: 'var(--radius-md)',
+            background: 'transparent',
+            border: '1px dashed var(--glass-border)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '0.85rem',
+            color: 'var(--accent-primary)',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
+          }}
+        >
+          <Plus size={15} /> Добавить
+        </button>
       </div>
 
-      {/* Быстрые пресеты для добавления */}
+      {/* Быстрые пресеты для добавления комнат */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Шаблоны:</span>
         {PRESET_ROOMS.map(preset => (
@@ -295,12 +342,21 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             }}
             style={{
               fontSize: '0.76rem',
-              padding: '2px 8px',
+              padding: '3px 9px',
               borderRadius: '6px',
               background: 'rgba(255, 255, 255, 0.04)',
               border: '1px solid var(--glass-border)',
               color: 'var(--text-secondary)',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget.style as any).borderColor = 'var(--accent-primary)';
+              (e.currentTarget.style as any).color = 'var(--text-primary)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget.style as any).borderColor = 'var(--glass-border)';
+              (e.currentTarget.style as any).color = 'var(--text-secondary)';
             }}
           >
             + {preset}
@@ -313,28 +369,26 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           background: 'rgba(255, 255, 255, 0.02)',
           border: '1px solid var(--glass-border)',
           borderRadius: 'var(--radius-lg)',
-          padding: '16px',
+          padding: '18px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px'
+          gap: '18px'
         }}>
-          {/* Заголовок комнаты и удаление */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, maxWidth: '300px' }}>
+          {/* Название помещения и кнопка удаления */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+            <div style={{ flex: 1, maxWidth: '320px' }}>
               <input
                 type="text"
                 value={currentRoom.roomName}
                 onChange={e => updateRoom(activeRoomIdx, { roomName: e.target.value })}
                 placeholder="Название помещения"
                 style={{
+                  ...darkInputStyle,
                   fontSize: '1.05rem',
                   fontWeight: 600,
-                  background: 'rgba(0,0,0,0.2)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '6px',
-                  padding: '6px 10px',
-                  color: 'var(--text-primary)',
-                  width: '100%'
+                  height: '42px',
+                  background: 'rgba(0,0,0,0.3)',
+                  border: '1px solid rgba(59, 130, 246, 0.4)'
                 }}
               />
             </div>
@@ -344,94 +398,104 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                 type="button"
                 onClick={() => removeRoom(activeRoomIdx)}
                 className="btn-icon"
-                style={{ color: '#ef4444', padding: '6px' }}
+                style={{
+                  color: '#ef4444',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.82rem',
+                  fontWeight: 500
+                }}
                 title="Удалить это помещение"
               >
-                <Trash2 size={16} />
+                <Trash2 size={15} /> Удалить комнату
               </button>
             )}
           </div>
 
           {/* 1. Блок геометрических размеров */}
           <div>
-            <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              📐 Геометрия помещения
+            <div style={sectionHeaderStyle}>
+              <Ruler size={15} style={{ color: 'var(--accent-primary)' }} />
+              Геометрия помещения
             </div>
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-              gap: '10px'
+              gap: '12px'
             }}>
               <div>
-                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                  Площадь (м²)
-                </label>
+                <label style={labelStyle}>Площадь (м²)</label>
                 <input
                   type="number"
                   step="0.1"
                   min="0"
                   value={currentRoom.area || ''}
                   onChange={e => updateRoom(activeRoomIdx, { area: parseFloat(e.target.value) || 0 })}
-                  className="form-control"
-                  style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--accent-primary)' }}
+                  style={{ ...darkInputStyle, fontWeight: 700, fontSize: '1.05rem', color: '#4ade80' }}
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                  Периметр (м.п.)
-                </label>
+                <label style={labelStyle}>Периметр (м.п.)</label>
                 <input
                   type="number"
                   step="0.1"
                   min="0"
                   value={currentRoom.perimeter || ''}
                   onChange={e => updateRoom(activeRoomIdx, { perimeter: parseFloat(e.target.value) || 0 })}
-                  className="form-control"
-                  style={{ fontWeight: 600 }}
+                  style={{ ...darkInputStyle, fontWeight: 600 }}
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                  Высота стен (м)
-                </label>
+                <label style={labelStyle}>Высота стен (м)</label>
                 <input
                   type="number"
                   step="0.05"
                   min="1"
                   value={currentRoom.height || 2.7}
                   onChange={e => updateRoom(activeRoomIdx, { height: parseFloat(e.target.value) || 2.7 })}
-                  className="form-control"
+                  style={darkInputStyle}
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                  Доп. углы (&gt;4)
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <label style={labelStyle}>Доп. углы (&gt;4)</label>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: '38px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  overflow: 'hidden'
+                }}>
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { extraCorners: Math.max(0, (currentRoom.extraCorners || 0) - 1) })}
-                    style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}
+                    style={{ width: '36px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    -
+                    <Minus size={13} />
                   </button>
                   <input
                     type="number"
                     min="0"
                     value={currentRoom.extraCorners || 0}
                     onChange={e => updateRoom(activeRoomIdx, { extraCorners: parseInt(e.target.value) || 0 })}
-                    className="form-control"
-                    style={{ textAlign: 'center', fontWeight: 600 }}
+                    style={{ flex: 1, height: '100%', border: 'none', background: 'transparent', color: '#fff', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
                   />
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { extraCorners: (currentRoom.extraCorners || 0) + 1 })}
-                    style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}
+                    style={{ width: '36px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    +
+                    <Plus size={13} />
                   </button>
                 </div>
               </div>
@@ -440,29 +504,27 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
           {/* 2. Выбор материалов со склада */}
           <div>
-            <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              📦 Материалы со склада
+            <div style={sectionHeaderStyle}>
+              <Package size={15} style={{ color: '#fbbf24' }} />
+              Материалы со склада
             </div>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '10px'
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '12px'
             }}>
               {/* Полотно */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                  Фактура полотна
-                </label>
+                <label style={labelStyle}>Фактура полотна</label>
                 <select
                   value={currentRoom.canvasMaterialId || ''}
                   onChange={e => updateRoom(activeRoomIdx, { canvasMaterialId: e.target.value ? Number(e.target.value) : undefined })}
-                  className="form-control"
-                  style={{ width: '100%' }}
+                  style={selectStyle}
                 >
-                  <option value="">— Без полотна со склада —</option>
+                  <option value="" style={{ background: '#1e293b', color: '#f8fafc' }}>— Без полотна со склада —</option>
                   {canvasMaterials.map(m => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} ({m.salePrice} ₽/{m.unit}) {m.quantityInStock ? `— ост: ${m.quantityInStock} ${m.unit}` : ''}
+                    <option key={m.id} value={m.id} style={{ background: '#1e293b', color: '#f8fafc' }}>
+                      {m.name} ({m.salePrice} ₽/{m.unit}) {m.quantityInStock ? `• ост: ${m.quantityInStock} ${m.unit}` : ''}
                     </option>
                   ))}
                 </select>
@@ -470,19 +532,16 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
               {/* Профиль */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                  Тип профиля (багет)
-                </label>
+                <label style={labelStyle}>Тип профиля (багет)</label>
                 <select
                   value={currentRoom.profileMaterialId || ''}
                   onChange={e => updateRoom(activeRoomIdx, { profileMaterialId: e.target.value ? Number(e.target.value) : undefined })}
-                  className="form-control"
-                  style={{ width: '100%' }}
+                  style={selectStyle}
                 >
-                  <option value="">— Стандартный профиль —</option>
+                  <option value="" style={{ background: '#1e293b', color: '#f8fafc' }}>— Стандартный профиль —</option>
                   {profileMaterials.map(m => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} ({m.salePrice} ₽/{m.unit})
+                    <option key={m.id} value={m.id} style={{ background: '#1e293b', color: '#f8fafc' }}>
+                      {m.name} ({m.salePrice} ₽/{m.unit}) {m.quantityInStock ? `• ост: ${m.quantityInStock} ${m.unit}` : ''}
                     </option>
                   ))}
                 </select>
@@ -490,19 +549,16 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
               {/* Вставка / маскировочная лента */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                  Вставка / маскировочная лента
-                </label>
+                <label style={labelStyle}>Вставка / маскировочная лента</label>
                 <select
                   value={currentRoom.insertMaterialId || ''}
                   onChange={e => updateRoom(activeRoomIdx, { insertMaterialId: e.target.value ? Number(e.target.value) : undefined })}
-                  className="form-control"
-                  style={{ width: '100%' }}
+                  style={selectStyle}
                 >
-                  <option value="">— Без декоративной вставки —</option>
+                  <option value="" style={{ background: '#1e293b', color: '#f8fafc' }}>— Без вставки —</option>
                   {insertMaterials.map(m => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} ({m.salePrice} ₽/{m.unit})
+                    <option key={m.id} value={m.id} style={{ background: '#1e293b', color: '#f8fafc' }}>
+                      {m.name} ({m.salePrice} ₽/{m.unit}) {m.quantityInStock ? `• ост: ${m.quantityInStock} ${m.unit}` : ''}
                     </option>
                   ))}
                 </select>
@@ -512,104 +568,158 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
           {/* 3. Дополнительные опции и работы */}
           <div>
-            <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              💡 Освещение и доп. работы
+            <div style={sectionHeaderStyle}>
+              <Lightbulb size={15} style={{ color: '#60a5fa' }} />
+              Освещение и доп. работы
             </div>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-              gap: '10px'
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              gap: '12px'
             }}>
               {/* Точечные светильники */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--glass-border)' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Светильники (шт.)</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+              <div style={{
+                background: 'rgba(255,255,255,0.02)',
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--glass-border)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between'
+              }}>
+                <span style={labelStyle}>Светильники (шт.)</span>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: '36px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  overflow: 'hidden'
+                }}>
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { lightsCount: Math.max(0, (currentRoom.lightsCount || 0) - 1) })}
-                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}
+                    style={{ width: '32px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    -
+                    <Minus size={13} />
                   </button>
                   <input
                     type="number"
                     min="0"
                     value={currentRoom.lightsCount || 0}
                     onChange={e => updateRoom(activeRoomIdx, { lightsCount: parseInt(e.target.value) || 0 })}
-                    className="form-control"
-                    style={{ textAlign: 'center', fontWeight: 600 }}
+                    style={{ flex: 1, height: '100%', border: 'none', background: 'transparent', color: '#fff', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
                   />
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { lightsCount: (currentRoom.lightsCount || 0) + 1 })}
-                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}
+                    style={{ width: '32px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    +
+                    <Plus size={13} />
                   </button>
                 </div>
               </div>
 
               {/* Люстры */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--glass-border)' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Люстры (шт.)</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+              <div style={{
+                background: 'rgba(255,255,255,0.02)',
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--glass-border)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between'
+              }}>
+                <span style={labelStyle}>Люстры (шт.)</span>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: '36px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  overflow: 'hidden'
+                }}>
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { chandeliersCount: Math.max(0, (currentRoom.chandeliersCount || 0) - 1) })}
-                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}
+                    style={{ width: '32px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    -
+                    <Minus size={13} />
                   </button>
                   <input
                     type="number"
                     min="0"
                     value={currentRoom.chandeliersCount || 0}
                     onChange={e => updateRoom(activeRoomIdx, { chandeliersCount: parseInt(e.target.value) || 0 })}
-                    className="form-control"
-                    style={{ textAlign: 'center', fontWeight: 600 }}
+                    style={{ flex: 1, height: '100%', border: 'none', background: 'transparent', color: '#fff', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
                   />
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { chandeliersCount: (currentRoom.chandeliersCount || 0) + 1 })}
-                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}
+                    style={{ width: '32px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    +
+                    <Plus size={13} />
                   </button>
                 </div>
               </div>
 
               {/* Обводы труб */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--glass-border)' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Обводы труб (шт.)</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+              <div style={{
+                background: 'rgba(255,255,255,0.02)',
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--glass-border)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between'
+              }}>
+                <span style={labelStyle}>Обводы труб (шт.)</span>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: '36px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  overflow: 'hidden'
+                }}>
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { pipesCount: Math.max(0, (currentRoom.pipesCount || 0) - 1) })}
-                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}
+                    style={{ width: '32px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    -
+                    <Minus size={13} />
                   </button>
                   <input
                     type="number"
                     min="0"
                     value={currentRoom.pipesCount || 0}
                     onChange={e => updateRoom(activeRoomIdx, { pipesCount: parseInt(e.target.value) || 0 })}
-                    className="form-control"
-                    style={{ textAlign: 'center', fontWeight: 600 }}
+                    style={{ flex: 1, height: '100%', border: 'none', background: 'transparent', color: '#fff', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
                   />
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { pipesCount: (currentRoom.pipesCount || 0) + 1 })}
-                    style={{ padding: '4px 8px', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}
+                    style={{ width: '32px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    +
+                    <Plus size={13} />
                   </button>
                 </div>
               </div>
 
               {/* Карнизы / ниши */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--glass-border)' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Ниша / карниз (м.п.)</span>
+              <div style={{
+                background: 'rgba(255,255,255,0.02)',
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--glass-border)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between'
+              }}>
+                <span style={labelStyle}>Ниша / карниз (м.п.)</span>
                 <input
                   type="number"
                   step="0.1"
@@ -617,14 +727,21 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                   placeholder="0.0"
                   value={currentRoom.corniceLength || ''}
                   onChange={e => updateRoom(activeRoomIdx, { corniceLength: parseFloat(e.target.value) || 0 })}
-                  className="form-control"
-                  style={{ marginTop: '4px' }}
+                  style={darkInputStyle}
                 />
               </div>
 
               {/* Керамогранит / сложные стены */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--glass-border)' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Керамогранит (м.п.)</span>
+              <div style={{
+                background: 'rgba(255,255,255,0.02)',
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--glass-border)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between'
+              }}>
+                <span style={labelStyle}>Керамогранит (м.п.)</span>
                 <input
                   type="number"
                   step="0.1"
@@ -632,8 +749,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                   placeholder="0.0"
                   value={currentRoom.tileLength || ''}
                   onChange={e => updateRoom(activeRoomIdx, { tileLength: parseFloat(e.target.value) || 0 })}
-                  className="form-control"
-                  style={{ marginTop: '4px' }}
+                  style={darkInputStyle}
                 />
               </div>
             </div>
@@ -643,16 +759,26 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
       {/* Заметки замерщика */}
       <div>
-        <label style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+        <label style={labelStyle}>
           📝 Заметки замерщика / особенности монтажа
         </label>
         <textarea
-          rows={2}
+          rows={3}
           value={notes}
           onChange={e => setNotes(e.target.value)}
           placeholder="Особые указания монтажникам, тип проводки, скрытые коммуникации..."
-          className="form-control"
-          style={{ width: '100%', resize: 'vertical' }}
+          style={{
+            width: '100%',
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid var(--glass-border)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--text-primary)',
+            padding: '10px 12px',
+            fontSize: '0.88rem',
+            outline: 'none',
+            resize: 'vertical',
+            boxSizing: 'border-box'
+          }}
         />
       </div>
 
@@ -661,23 +787,34 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
         background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(16, 185, 129, 0.08))',
         border: '1px solid rgba(59, 130, 246, 0.3)',
         borderRadius: 'var(--radius-lg)',
-        padding: '16px 20px',
+        padding: '18px 20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px'
+        gap: '14px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
           <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Итоговая смета {calculating && <span style={{ color: 'var(--accent-primary)' }}>• пересчет...</span>}
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 600 }}>
+              ИТОГОВАЯ СМЕТА {calculating && <span style={{ color: 'var(--accent-primary)', textTransform: 'none' }}>• пересчет...</span>}
             </div>
-            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#4ade80' }}>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#4ade80', letterSpacing: '-0.5px' }}>
               {calcResult?.totalSalePrice != null ? `${calcResult.totalSalePrice.toLocaleString('ru-RU')} ₽` : '0 ₽'}
             </div>
           </div>
 
           {/* Сводка геометрии */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            fontSize: '0.86rem',
+            color: 'var(--text-secondary)',
+            background: 'rgba(0, 0, 0, 0.25)',
+            padding: '8px 14px',
+            borderRadius: '8px',
+            flexWrap: 'wrap'
+          }}>
             <div>
               <span>Общая площадь: </span>
               <strong style={{ color: 'var(--text-primary)' }}>{calcResult?.totalArea || 0} м²</strong>
@@ -698,19 +835,23 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              background: 'rgba(0, 0, 0, 0.25)',
-              padding: '6px 12px',
+              background: 'rgba(0, 0, 0, 0.35)',
+              padding: '8px 14px',
               borderRadius: '8px',
-              fontSize: '0.82rem'
+              fontSize: '0.84rem'
             }}>
               <div>
                 <span style={{ color: 'var(--text-secondary)' }}>Себестоимость: </span>
-                <strong>{calcResult.totalCostPrice?.toLocaleString('ru-RU')} ₽</strong>
+                <strong style={{ color: '#e2e8f0' }}>{calcResult.totalCostPrice?.toLocaleString('ru-RU')} ₽</strong>
               </div>
-              <div style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '12px' }}>
+              <div style={{ borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: '12px' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Прибыль: </span>
                 <strong style={{ color: '#60a5fa' }}>{calcResult.expectedProfit?.toLocaleString('ru-RU')} ₽</strong>
-                <span style={{ marginLeft: '4px', opacity: 0.8 }}>({calcResult.profitMarginPercent}%)</span>
+                {calcResult.profitMarginPercent != null && !isNaN(calcResult.profitMarginPercent) && (
+                  <span style={{ marginLeft: '4px', opacity: 0.85, color: '#93c5fd' }}>
+                    ({calcResult.profitMarginPercent}%)
+                  </span>
+                )}
               </div>
             </div>
           )}
@@ -725,54 +866,54 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               background: 'transparent',
               border: 'none',
               color: 'var(--accent-primary)',
-              fontSize: '0.82rem',
+              fontSize: '0.84rem',
               fontWeight: 600,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
+              gap: '6px',
               padding: 0
             }}
           >
-            {showSpecDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {showSpecDetails ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
             {showSpecDetails ? 'Скрыть детализацию позиций сметы' : `Показать детализацию позиций (${calcResult?.items?.length || 0})`}
           </button>
 
           {showSpecDetails && calcResult?.items && (
             <div style={{
-              marginTop: '10px',
-              background: 'rgba(0, 0, 0, 0.3)',
+              marginTop: '12px',
+              background: 'rgba(0, 0, 0, 0.35)',
               borderRadius: '8px',
-              overflow: 'hidden',
+              overflowX: 'auto',
               border: '1px solid var(--glass-border)'
             }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                 <thead>
-                  <tr style={{ background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-secondary)', textAlign: 'left' }}>
-                    <th style={{ padding: '8px 10px', width: '30px' }}>#</th>
-                    <th style={{ padding: '8px 10px' }}>Наименование позиции</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Кол-во</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right' }}>Цена</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right' }}>Сумма</th>
+                  <tr style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'var(--text-secondary)', textAlign: 'left' }}>
+                    <th style={{ padding: '8px 12px', width: '35px' }}>#</th>
+                    <th style={{ padding: '8px 12px' }}>Наименование позиции</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'center' }}>Кол-во</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Цена</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Сумма</th>
                   </tr>
                 </thead>
                 <tbody>
                   {calcResult.items.map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)' }}>
-                      <td style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>{idx + 1}</td>
-                      <td style={{ padding: '6px 10px' }}>
-                        <div>{item.name}</div>
+                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                      <td style={{ padding: '7px 12px', color: 'var(--text-secondary)' }}>{idx + 1}</td>
+                      <td style={{ padding: '7px 12px' }}>
+                        <div style={{ color: 'var(--text-primary)' }}>{item.name}</div>
                         {item.roomName && (
                           <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{item.roomName}</span>
                         )}
                       </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                      <td style={{ padding: '7px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                         {item.quantity} {item.unit}
                       </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'right' }}>
+                      <td style={{ padding: '7px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>
                         {item.unitSalePrice?.toLocaleString('ru-RU')} ₽
                       </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, color: '#4ade80' }}>
+                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600, color: '#4ade80' }}>
                         {item.totalSalePrice?.toLocaleString('ru-RU')} ₽
                       </td>
                     </tr>
@@ -794,7 +935,9 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                border: '1px solid var(--glass-border)'
+                border: '1px solid var(--glass-border)',
+                padding: '9px 16px',
+                fontSize: '0.88rem'
               }}
             >
               <FileDown size={16} /> Скачать Договор (DOCX)
@@ -810,9 +953,10 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '10px 18px',
-                fontWeight: 600
+                gap: '8px',
+                padding: '10px 20px',
+                fontWeight: 600,
+                fontSize: '0.92rem'
               }}
             >
               <Save size={16} /> {saving ? 'Сохранение...' : 'Сохранить смету в заказ'}

@@ -75,9 +75,9 @@ describe('MeasurementWizard Component', () => {
     );
 
     expect(screen.getByText('Гостиная')).toBeInTheDocument();
-    expect(screen.getByText('📐 Геометрия помещения')).toBeInTheDocument();
-    expect(screen.getByText('📦 Материалы со склада')).toBeInTheDocument();
-    expect(screen.getByText('💡 Освещение и доп. работы')).toBeInTheDocument();
+    expect(screen.getByText('Геометрия помещения')).toBeInTheDocument();
+    expect(screen.getByText('Материалы со склада')).toBeInTheDocument();
+    expect(screen.getByText('Освещение и доп. работы')).toBeInTheDocument();
   });
 
   it('allows adding a new room from presets', async () => {
