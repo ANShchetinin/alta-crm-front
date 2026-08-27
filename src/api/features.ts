@@ -10,7 +10,8 @@ export type FeatureKey =
   | 'WEB_PUSH'
   | 'WHITE_LABEL'
   | 'DOCUMENT_SCANNER'
-  | 'OWNER_CREATE_COMPANY';
+  | 'OWNER_CREATE_COMPANY'
+  | 'MEASUREMENT_CALCULATOR';
 
 export interface FeatureInfo {
   key: FeatureKey;

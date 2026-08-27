@@ -73,6 +73,7 @@ import { useTouchColumnReorder } from '../hooks/useTouchColumnReorder';
 import { DocumentScannerModal } from '../components/DocumentScannerModal';
 import { ActUploadActionSheet } from '../components/ActUploadActionSheet';
 import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
+import { MeasurementWizard } from '../components/MeasurementWizard';
 import '../styles/kanban.css';
 interface MaterialSearchSelectProps {
   value: number;
@@ -1024,7 +1025,7 @@ const Kanban = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Order Modal Tab State
-  const [orderModalTab, setOrderModalTab] = useState<'MAIN' | 'CONTRACT' | 'MATERIALS' | 'FILES' | 'AI'>('MAIN');
+  const [orderModalTab, setOrderModalTab] = useState<'MAIN' | 'MEASUREMENT' | 'CONTRACT' | 'MATERIALS' | 'FILES' | 'AI'>('MAIN');
 
   // Contract Generation & Prompt Modal State
   const [isContractPromptOpen, setIsContractPromptOpen] = useState(false);
@@ -3517,6 +3518,27 @@ const Kanban = () => {
                 >
                   <User size={15} /> Основное
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderModalTab('MEASUREMENT')}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: orderModalTab === 'MEASUREMENT' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: orderModalTab === 'MEASUREMENT' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    fontWeight: orderModalTab === 'MEASUREMENT' ? 600 : 400,
+                    padding: '10px 14px',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
+                  }}
+                >
+                  <Ruler size={15} /> Замер и смета
+                </button>
                 {!isWorker && hasContractTemplates && (
                   <button
                     type="button"
@@ -4375,7 +4397,64 @@ const Kanban = () => {
                   </>
                 )}
 
-                {/* 2. ДОГОВОР И СПЕЦИФИКАЦИЯ */}
+                {/* 2. ЗАМЕР И СМЕТА */}
+                {orderModalTab === 'MEASUREMENT' && (
+                  <MeasurementWizard
+                    orderId={editingOrderId || undefined}
+                    materials={allMaterials}
+                    canViewFinances={role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER'}
+                    onDownloadDocx={handleStartGenerateContract}
+                    onSaved={(_, calc) => {
+                      setFormData(prev => {
+                        const newTotalPrice = calc.totalSalePrice.toString();
+                        const prepay = parseFloat(prev.prepayment) || 0;
+                        const newRem = Math.max(0, calc.totalSalePrice - prepay).toString();
+
+                        const installSum = calc.items
+                          .filter(it => it.type === 'SERVICE')
+                          .reduce((sum, it) => sum + (it.totalSalePrice || 0), 0);
+
+                        const updatedParams = { ...getContractParams() };
+                        updatedParams.area = calc.totalArea.toString();
+                        updatedParams.perimeter = calc.totalPerimeter.toString();
+                        updatedParams.lightsCount = calc.totalLightsCount.toString();
+                        updatedParams.pipeCount = calc.totalPipesCount.toString();
+                        if (calc.totalCorniceLength > 0) {
+                          updatedParams.timberLength = calc.totalCorniceLength.toString();
+                        }
+
+                        updatedParams.specItems = calc.items.map((it, i) => ({
+                          idx: i + 1,
+                          name: it.name + (it.roomName ? ` (${it.roomName})` : ''),
+                          quantity: it.quantity.toString(),
+                          unit: it.unit || 'шт.',
+                          price: it.unitSalePrice,
+                          total: it.totalSalePrice
+                        }));
+
+                        return {
+                          ...prev,
+                          totalPrice: newTotalPrice,
+                          remainder: newRem,
+                          installationPrice: installSum.toString(),
+                          contractParams: updatedParams
+                        };
+                      });
+
+                      if (editingOrderId) {
+                        setCards(prev => prev.map(c => c.id === editingOrderId ? {
+                          ...c,
+                          totalPrice: calc.totalSalePrice,
+                          remainder: Math.max(0, calc.totalSalePrice - (c.prepayment || 0)),
+                          installationPrice: calc.items.filter(it => it.type === 'SERVICE').reduce((sum, it) => sum + (it.totalSalePrice || 0), 0)
+                        } : c));
+                      }
+                      alert('Замер и смета успешно сохранены в заказ!');
+                    }}
+                  />
+                )}
+
+                {/* 3. ДОГОВОР И СПЕЦИФИКАЦИЯ */}
                 {orderModalTab === 'CONTRACT' && (
                   <>
                     {/* Шапка Договора */}

@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -40,6 +40,7 @@ const DashboardLayout = () => {
 
   const hasStorage = useFeature('STORAGE');
   const hasCalendar = useFeature('CALENDAR');
+  const hasMeasurementCalculator = useFeature('MEASUREMENT_CALCULATOR');
   const hasFinances = useFeature('FINANCES');
   const hasReports = useFeature('REPORTS');
   const hasContractTemplates = useFeature('CONTRACT_TEMPLATES');
@@ -433,6 +434,12 @@ const DashboardLayout = () => {
                 <NavLink to="/calendar" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <CalendarDays size={20} />
                   <span>{t('nav.calendar') || 'Календарь'}</span>
+                </NavLink>
+              )}
+              {hasMeasurementCalculator && (
+                <NavLink to="/measurements" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <Ruler size={20} />
+                  <span>Замеры</span>
                 </NavLink>
               )}
               <NavLink to="/clients" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
