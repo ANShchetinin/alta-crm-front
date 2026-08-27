@@ -74,6 +74,11 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     return (m.type === 'MATERIAL' || !m.type) && (n.includes('вставка') || n.includes('заглушка') || n.includes('лента') || n.includes('маскиров'));
   });
 
+  const corniceMaterials = materials.filter(m => {
+    const n = m.name.toLowerCase();
+    return n.includes('карниз') || n.includes('пк-5') || n.includes('пк5') || n.includes('пк-14') || n.includes('пк14') || n.includes('гардин') || n.includes('ниша') || n.includes('брус');
+  });
+
   // Загрузка сохраненного замера
   useEffect(() => {
     if (orderId) {
@@ -717,18 +722,36 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                 border: '1px solid var(--glass-border)',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between'
+                justifyContent: 'space-between',
+                gap: '6px'
               }}>
                 <span style={labelStyle}>Ниша / карниз (м.п.)</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  placeholder="0.0"
-                  value={currentRoom.corniceLength || ''}
-                  onChange={e => updateRoom(activeRoomIdx, { corniceLength: parseFloat(e.target.value) || 0 })}
-                  style={darkInputStyle}
-                />
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    placeholder="0.0"
+                    value={currentRoom.corniceLength || ''}
+                    onChange={e => updateRoom(activeRoomIdx, { corniceLength: parseFloat(e.target.value) || 0 })}
+                    style={{ ...darkInputStyle, width: '65px', flexShrink: 0, padding: '0 8px' }}
+                  />
+                  <select
+                    value={currentRoom.corniceType || 'ПК-14'}
+                    onChange={e => updateRoom(activeRoomIdx, { corniceType: e.target.value })}
+                    style={{ ...selectStyle, fontSize: '0.8rem', padding: '0 6px' }}
+                  >
+                    <option value="ПК-14" style={{ background: '#1e293b', color: '#f8fafc' }}>ПК-14</option>
+                    <option value="ПК-5" style={{ background: '#1e293b', color: '#f8fafc' }}>ПК-5</option>
+                    <option value="Гардина" style={{ background: '#1e293b', color: '#f8fafc' }}>Гардина</option>
+                    <option value="Брус" style={{ background: '#1e293b', color: '#f8fafc' }}>Брус</option>
+                    {corniceMaterials.map(m => (
+                      <option key={m.id} value={m.name} style={{ background: '#1e293b', color: '#f8fafc' }}>
+                        {m.name} ({m.salePrice} ₽/{m.unit})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {/* Керамогранит / сложные стены */}
