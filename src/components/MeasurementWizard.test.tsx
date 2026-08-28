@@ -1,6 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MeasurementWizard } from './MeasurementWizard';
+
+vi.mock('../api/estimationServices', () => ({
+  getActiveEstimationServices: vi.fn().mockResolvedValue([
+    {
+      id: 1,
+      name: 'Монтаж натяжного потолка',
+      isActive: true,
+      slots: [
+        {
+          id: 10,
+          name: 'Фактура полотна',
+          slotType: 'DROPDOWN',
+          calculationBasis: 'AREA',
+          wasteCoefficient: 1.05,
+          isRequired: true,
+          materials: [
+            { materialId: 100, materialName: 'MSD Premium', unit: 'м²', salePrice: 500, costPrice: 200, isDefault: true }
+          ]
+        }
+      ]
+    }
+  ])
+}));
 
 vi.mock('../api/measurements', () => ({
   getMeasurementByOrderId: vi.fn().mockResolvedValue({
@@ -76,8 +99,11 @@ describe('MeasurementWizard Component', () => {
 
     expect(screen.getByText('Гостиная')).toBeInTheDocument();
     expect(screen.getByText('Геометрия помещения')).toBeInTheDocument();
-    expect(screen.getByText('Материалы со склада')).toBeInTheDocument();
-    expect(screen.getByText('Освещение и доп. работы')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText('Монтаж натяжного потолка')).toBeInTheDocument();
+      expect(screen.getByText('Фактура полотна')).toBeInTheDocument();
+    });
   });
 
   it('allows adding a new room from presets', async () => {
@@ -91,7 +117,6 @@ describe('MeasurementWizard Component', () => {
     const bedroomPresetBtn = screen.getByText('+ Спальня');
     fireEvent.click(bedroomPresetBtn);
 
-    // Должна появиться кнопка/таб Спальня
     expect(screen.getByText('Спальня')).toBeInTheDocument();
   });
 });

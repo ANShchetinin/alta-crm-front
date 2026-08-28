@@ -75,108 +75,6 @@ import { ActUploadActionSheet } from '../components/ActUploadActionSheet';
 import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
 import { MeasurementWizard } from '../components/MeasurementWizard';
 import '../styles/kanban.css';
-interface MaterialSearchSelectProps {
-  value: number;
-  materials: Material[];
-  onChange: (materialId: number) => void;
-}
-
-const MaterialSearchSelect: React.FC<MaterialSearchSelectProps> = ({ value, materials, onChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const selectedMaterial = materials.find(m => m.id === value);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return materials;
-    const q = search.toLowerCase().trim();
-    return materials.filter(m => m.name.toLowerCase().includes(q));
-  }, [materials, search]);
-
-  return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%', minWidth: 0, flex: 3 }}>
-      <button
-        type="button"
-        onClick={() => {
-          setIsOpen(!isOpen);
-          setSearch('');
-        }}
-        className="material-select-btn"
-      >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: selectedMaterial ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-          {selectedMaterial ? (
-            <span>
-              <span style={{ fontWeight: 600 }}>{selectedMaterial.name}</span>
-              {selectedMaterial.unit && (
-                <span style={{ opacity: 0.6, marginLeft: '4px', fontSize: '0.75rem' }}>
-                  ({selectedMaterial.unit})
-                </span>
-              )}
-            </span>
-          ) : 'Выберите позицию...'}
-        </span>
-        <ChevronDown size={14} style={{ opacity: 0.6, flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
-      </button>
-
-      {isOpen && (
-        <div className="material-select-dropdown">
-          <div className="material-select-search-box">
-            <Search size={13} className="material-select-search-icon" />
-            <input
-              type="text"
-              autoFocus
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Поиск по названию..."
-              className="material-select-search-input"
-              onClick={e => e.stopPropagation()}
-            />
-          </div>
-
-          <div className="material-select-list">
-            {filtered.length === 0 ? (
-              <div className="material-select-empty">
-                Ничего не найдено
-              </div>
-            ) : (
-              filtered.map(m => {
-                const isSelected = m.id === value;
-                return (
-                  <div
-                    key={m.id}
-                    className={`material-select-item ${isSelected ? 'selected' : ''}`}
-                    onClick={() => {
-                      onChange(m.id);
-                      setIsOpen(false);
-                    }}
-                  >
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
-                    {m.unit && <span style={{ fontSize: '0.72rem', opacity: 0.6, marginLeft: '6px', flexShrink: 0 }}>{m.unit}</span>}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 interface ClientSearchSelectProps {
   value: string;
@@ -882,7 +780,6 @@ const Kanban = () => {
   const isWorker = role === 'WORKER';
   const hasAiSummary = useFeature('AI_SUMMARY');
   const hasContractTemplates = useFeature('CONTRACT_TEMPLATES');
-  const hasStorage = useFeature('STORAGE');
   const hasDocumentScanner = useFeature('DOCUMENT_SCANNER');
   const { setNewOrdersCount, fetchLowStockMaterials, tenantSettings } = useAppStore();
   const [columns, setColumns] = useState<OrderStatus[]>([]);
@@ -2254,29 +2151,6 @@ const Kanban = () => {
     }
   };
 
-  const addMaterialRow = () => {
-    if (allMaterials.length === 0) return;
-    setFormData({
-      ...formData,
-      materials: [
-        ...formData.materials, 
-        { materialId: allMaterials[0].id, quantity: 1 }
-      ]
-    });
-  };
-
-  const updateMaterialRow = (index: number, field: string, value: string | number) => {
-    const updated = [...formData.materials];
-    if (field === 'materialId') updated[index].materialId = typeof value === 'number' ? value : parseInt(value);
-    if (field === 'quantity') updated[index].quantity = typeof value === 'number' ? value : (parseFloat(value) || 0);
-    setFormData({ ...formData, materials: updated });
-  };
-
-  const removeMaterialRow = (index: number) => {
-    const updated = formData.materials.filter((_, i) => i !== index);
-    setFormData({ ...formData, materials: updated });
-  };
-
   const getContractParams = (): ContractParams => {
     return formData.contractParams ? {
       ...formData.contractParams,
@@ -3565,29 +3439,6 @@ const Kanban = () => {
                         {formData.orderNumber}
                       </span>
                     ) : null}
-                  </button>
-                )}
-                {!isWorker && hasStorage && (
-                  <button
-                    type="button"
-                    onClick={() => setOrderModalTab('MATERIALS')}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      borderBottom: orderModalTab === 'MATERIALS' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                      color: orderModalTab === 'MATERIALS' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                      fontWeight: orderModalTab === 'MATERIALS' ? 600 : 400,
-                      padding: '10px 14px',
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0
-                    }}
-                  >
-                    <Tag size={15} /> {t('kanban.modal.materials') || 'Каталог'} {formData.materials.length > 0 && `(${formData.materials.length})`}
                   </button>
                 )}
                 <button
@@ -5016,94 +4867,6 @@ const Kanban = () => {
                       </div>
                     </div>
                   </>
-                )}
-
-                {/* 3. МАТЕРИАЛЫ И УСЛУГИ */}
-                {orderModalTab === 'MATERIALS' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
-                      <div>
-                        <h3 style={{margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)'}}>{t('kanban.modal.materials')}</h3>
-                        <p style={{margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>
-                          Материалы со склада и доп. услуги (монтаж, установка светильников и т.д.)
-                        </p>
-                      </div>
-                      <button type="button" onClick={addMaterialRow} className="btn btn-ghost" style={{padding: '6px 12px', fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
-                        <Plus size={15} /> {t('kanban.modal.addMaterial')}
-                      </button>
-                    </div>
-
-                    {formData.materials.length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {formData.materials.map((mat, index) => (
-                          <div key={index} style={{
-                            display: 'flex', 
-                            gap: '8px', 
-                            alignItems: 'center',
-                            background: 'var(--input-bg)',
-                            border: '1px solid var(--glass-border)',
-                            borderRadius: 'var(--radius-sm)',
-                            padding: '6px 8px'
-                          }}>
-                            <MaterialSearchSelect
-                              value={mat.materialId}
-                              materials={allMaterials}
-                              onChange={(newId) => updateMaterialRow(index, 'materialId', newId)}
-                            />
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '85px', flexShrink: 0 }}>
-                              <input 
-                                type="number" 
-                                step="0.01" 
-                                min="0"
-                                value={mat.quantity} 
-                                onChange={(e) => updateMaterialRow(index, 'quantity', e.target.value)}
-                                style={{ width: '100%', padding: '5px 8px', fontSize: '0.82rem', height: '32px' }}
-                                placeholder="Кол-во"
-                                className="custom-number-input"
-                              />
-                            </div>
-                            <button 
-                              type="button" 
-                              onClick={() => removeMaterialRow(index)} 
-                              style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', opacity: 0.8}}
-                              title="Удалить строку"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        ))}
-                        <div style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '12px 16px',
-                          background: 'rgba(245, 158, 11, 0.08)',
-                          border: '1px solid rgba(245, 158, 11, 0.25)',
-                          borderRadius: 'var(--radius-sm)',
-                          marginTop: '4px'
-                        }}>
-                          <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                            Итого себестоимость материалов со склада:
-                          </span>
-                          <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f59e0b' }}>
-                            {currentMaterialsCost.toLocaleString('ru-RU')} ₽
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{
-                        background: 'var(--input-bg)',
-                        border: '1px dashed var(--glass-border)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: '32px 16px',
-                        textAlign: 'center',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.88rem'
-                      }}>
-                        В заказ пока не добавлены материалы со склада. Нажмите «+ Добавить материал» выше.
-                      </div>
-                    )}
-                  </div>
                 )}
 
                 {/* 4. ФАЙЛЫ */}

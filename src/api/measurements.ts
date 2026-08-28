@@ -21,6 +21,12 @@ export interface MeasurementRoomDto {
   corniceLength?: number;
   pipesCount?: number;
   tileLength?: number;
+  slotSelections?: {
+    slotId: number;
+    materialId: number;
+    customQuantity?: number;
+    customValue?: string;
+  }[];
   extraParamsJson?: string;
 }
 

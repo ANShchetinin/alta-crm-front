@@ -8,10 +8,10 @@ import {
   ChevronUp,
   Ruler,
   Package,
-  Lightbulb,
   Minus,
   RefreshCw,
-  Box
+  Box,
+  Layers
 } from 'lucide-react';
 import type { Material } from '../api/storage';
 import {
@@ -24,6 +24,8 @@ import {
   type MeasurementCalculationItemDto,
   type MeasurementCalculateResponse
 } from '../api/measurements';
+import { getActiveEstimationServices, type EstimationService } from '../api/estimationServices';
+import { SearchSelect, type SearchSelectOption } from './SearchSelect';
 
 interface MeasurementWizardProps {
   orderId?: number;
@@ -59,7 +61,10 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   const [saving, setSaving] = useState<boolean>(false);
   const [calculating, setCalculating] = useState<boolean>(false);
   const [calcResult, setCalcResult] = useState<MeasurementCalculateResponse | null>(null);
-  const [showSpecDetails, setShowSpecDetails] = useState<boolean>(true); // По умолчанию открыта детализация
+  const [showSpecDetails, setShowSpecDetails] = useState<boolean>(true);
+
+  // Динамические глобальные услуги со слотами
+  const [estimationServices, setEstimationServices] = useState<EstimationService[]>([]);
 
   // Интерактивные строки сметы
   const [customItems, setCustomItems] = useState<MeasurementCalculationItemDto[]>([]);
@@ -67,28 +72,13 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   const [isAddMaterialModalOpen, setIsAddMaterialModalOpen] = useState<boolean>(false);
   const [selectedAddMaterialId, setSelectedAddMaterialId] = useState<number | ''>('');
 
-  // Фильтруем материалы склада по типам
-  const canvasMaterials = materials.filter(m => {
-    const n = m.name.toLowerCase();
-    return (m.type === 'MATERIAL' || !m.type) && (n.includes('полотно') || n.includes('msd') || n.includes('мат') || n.includes('глян') || n.includes('сатин') || n.includes('ткань') || n.includes('descor') || n.includes('clipso') || m.unit === 'м²');
-  });
+  // Загрузка услуг и замера
+  useEffect(() => {
+    getActiveEstimationServices()
+      .then(setEstimationServices)
+      .catch(err => console.error('Ошибка загрузки сметных услуг:', err));
+  }, []);
 
-  const profileMaterials = materials.filter(m => {
-    const n = m.name.toLowerCase();
-    return (m.type === 'MATERIAL' || !m.type) && (n.includes('профиль') || n.includes('багет') || n.includes('пвх') || n.includes('алюмин') || n.includes('теневой') || n.includes('парящий') || m.unit === 'м.п.' || m.unit === 'м');
-  });
-
-  const insertMaterials = materials.filter(m => {
-    const n = m.name.toLowerCase();
-    return (m.type === 'MATERIAL' || !m.type) && (n.includes('вставка') || n.includes('заглушка') || n.includes('лента') || n.includes('маскиров'));
-  });
-
-  const corniceMaterials = materials.filter(m => {
-    const n = m.name.toLowerCase();
-    return n.includes('карниз') || n.includes('пк-5') || n.includes('пк5') || n.includes('пк-14') || n.includes('пк14') || n.includes('гардин') || n.includes('ниша') || n.includes('брус');
-  });
-
-  // Загрузка сохраненного замера
   useEffect(() => {
     if (orderId) {
       setLoading(true);
@@ -119,16 +109,13 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       height: 2.7,
       baseCorners: 4,
       extraCorners: 0,
-      canvasMaterialId: canvasMaterials[0]?.id,
-      profileMaterialId: profileMaterials[0]?.id,
-      insertMaterialId: insertMaterials[0]?.id,
       lightsCount: 0,
       chandeliersCount: 1,
       tracksLength: 0,
       corniceLength: 0,
-      corniceType: 'ПК-14',
       pipesCount: 0,
-      tileLength: 0
+      tileLength: 0,
+      slotSelections: []
     };
   }
 
@@ -183,6 +170,36 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     setRooms(prev => {
       const next = [...prev];
       next[idx] = { ...next[idx], ...patch };
+      return next;
+    });
+  };
+
+  const updateRoomSlotSelection = (roomIdx: number, slotId: number, materialId: number | undefined, customQuantity?: number) => {
+    setRooms(prev => {
+      const next = [...prev];
+      const room = { ...next[roomIdx] };
+      let selections = [...(room.slotSelections || [])];
+
+      const existIdx = selections.findIndex(s => s.slotId === slotId);
+      if (materialId == null) {
+        // Очистить выбор
+        selections = selections.filter(s => s.slotId !== slotId);
+      } else if (existIdx >= 0) {
+        selections[existIdx] = {
+          ...selections[existIdx],
+          materialId,
+          customQuantity: customQuantity !== undefined ? customQuantity : selections[existIdx].customQuantity
+        };
+      } else {
+        selections.push({
+          slotId,
+          materialId,
+          customQuantity: customQuantity !== undefined ? customQuantity : 1
+        });
+      }
+
+      room.slotSelections = selections;
+      next[roomIdx] = room;
       return next;
     });
   };
@@ -272,7 +289,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     performCalculation(rooms);
   };
 
-  // Вычисляем итоговые суммы по активным строкам сметы (customItems)
+  // Вычисляем итоговые суммы
   const effectiveTotalSalePrice = customItems.reduce((sum, it) => sum + (it.totalSalePrice || 0), 0);
   const effectiveTotalCostPrice = customItems.reduce((sum, it) => sum + (it.totalCostPrice || 0), 0);
   const effectiveProfit = effectiveTotalSalePrice - effectiveTotalCostPrice;
@@ -291,7 +308,6 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       };
       const saved = await saveOrderMeasurement(orderId, dto);
 
-      // Формируем результирующий ответ с актуальными строками сметы
       const effectiveResponse: MeasurementCalculateResponse = {
         totalSalePrice: effectiveTotalSalePrice,
         totalCostPrice: effectiveTotalCostPrice,
@@ -340,12 +356,6 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     boxSizing: 'border-box'
   };
 
-  const selectStyle: React.CSSProperties = {
-    ...darkInputStyle,
-    cursor: 'pointer',
-    appearance: 'auto'
-  };
-
   const labelStyle: React.CSSProperties = {
     fontSize: '0.78rem',
     color: 'var(--text-secondary)',
@@ -365,6 +375,15 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
   };
+
+  const allWarehouseOptions: SearchSelectOption[] = materials.map(m => ({
+    value: m.id,
+    label: m.name,
+    price: m.salePrice,
+    unit: m.unit,
+    stock: m.quantityInStock,
+    subLabel: m.type === 'SERVICE' ? 'Услуга' : 'Товар'
+  }));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -584,299 +603,148 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { extraCorners: Math.max(0, (currentRoom.extraCorners || 0) - 1) })}
-                    style={{ width: '36px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ width: '36px', minWidth: '36px', flexShrink: 0, height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <Minus size={13} />
+                    <Minus size={14} />
                   </button>
                   <input
                     type="number"
                     min="0"
                     value={currentRoom.extraCorners || 0}
                     onChange={e => updateRoom(activeRoomIdx, { extraCorners: parseInt(e.target.value) || 0 })}
-                    style={{ flex: 1, height: '100%', border: 'none', background: 'transparent', color: '#fff', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
+                    style={{ flex: 1, minWidth: '40px', height: '100%', border: 'none', background: 'transparent', color: '#fff', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
                   />
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { extraCorners: (currentRoom.extraCorners || 0) + 1 })}
-                    style={{ width: '36px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ width: '36px', minWidth: '36px', flexShrink: 0, height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <Plus size={13} />
+                    <Plus size={14} />
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 2. Выбор материалов со склада */}
-          <div>
-            <div style={sectionHeaderStyle}>
-              <Package size={15} style={{ color: '#fbbf24' }} />
-              Материалы со склада
-            </div>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '12px'
-            }}>
-              {/* Полотно */}
-              <div>
-                <label style={labelStyle}>Фактура полотна</label>
-                <select
-                  value={currentRoom.canvasMaterialId || ''}
-                  onChange={e => updateRoom(activeRoomIdx, { canvasMaterialId: e.target.value ? Number(e.target.value) : undefined })}
-                  style={selectStyle}
-                >
-                  <option value="" style={{ background: '#1e293b', color: '#f8fafc' }}>— Без полотна со склада —</option>
-                  {canvasMaterials.map(m => (
-                    <option key={m.id} value={m.id} style={{ background: '#1e293b', color: '#f8fafc' }}>
-                      {m.name} ({m.salePrice} ₽/{m.unit}) {m.quantityInStock ? `• ост: ${m.quantityInStock} ${m.unit}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Профиль */}
-              <div>
-                <label style={labelStyle}>Тип профиля (багет)</label>
-                <select
-                  value={currentRoom.profileMaterialId || ''}
-                  onChange={e => updateRoom(activeRoomIdx, { profileMaterialId: e.target.value ? Number(e.target.value) : undefined })}
-                  style={selectStyle}
-                >
-                  <option value="" style={{ background: '#1e293b', color: '#f8fafc' }}>— Стандартный профиль —</option>
-                  {profileMaterials.map(m => (
-                    <option key={m.id} value={m.id} style={{ background: '#1e293b', color: '#f8fafc' }}>
-                      {m.name} ({m.salePrice} ₽/{m.unit}) {m.quantityInStock ? `• ост: ${m.quantityInStock} ${m.unit}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Вставка / маскировочная лента */}
-              <div>
-                <label style={labelStyle}>Вставка / маскировочная лента</label>
-                <select
-                  value={currentRoom.insertMaterialId || ''}
-                  onChange={e => updateRoom(activeRoomIdx, { insertMaterialId: e.target.value ? Number(e.target.value) : undefined })}
-                  style={selectStyle}
-                >
-                  <option value="" style={{ background: '#1e293b', color: '#f8fafc' }}>— Без вставки —</option>
-                  {insertMaterials.map(m => (
-                    <option key={m.id} value={m.id} style={{ background: '#1e293b', color: '#f8fafc' }}>
-                      {m.name} ({m.salePrice} ₽/{m.unit}) {m.quantityInStock ? `• ост: ${m.quantityInStock} ${m.unit}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Дополнительные опции и работы */}
-          <div>
-            <div style={sectionHeaderStyle}>
-              <Lightbulb size={15} style={{ color: '#60a5fa' }} />
-              Освещение и доп. работы
-            </div>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-              gap: '12px'
-            }}>
-              {/* Точечные светильники */}
-              <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                padding: '10px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--glass-border)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between'
-              }}>
-                <span style={labelStyle}>Светильники (шт.)</span>
+          {/* 2. Динамические сметные услуги и слоты тенанта (Category-Driven) */}
+          {estimationServices.length > 0 ? (
+            estimationServices.map(svc => (
+              <div key={svc.id}>
+                <div style={sectionHeaderStyle}>
+                  <Layers size={15} style={{ color: 'var(--accent-primary)' }} />
+                  {svc.name}
+                </div>
                 <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  height: '36px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-sm)',
-                  overflow: 'hidden'
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '12px'
                 }}>
-                  <button
-                    type="button"
-                    onClick={() => updateRoom(activeRoomIdx, { lightsCount: Math.max(0, (currentRoom.lightsCount || 0) - 1) })}
-                    style={{ width: '32px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Minus size={13} />
-                  </button>
-                  <input
-                    type="number"
-                    min="0"
-                    value={currentRoom.lightsCount || 0}
-                    onChange={e => updateRoom(activeRoomIdx, { lightsCount: parseInt(e.target.value) || 0 })}
-                    style={{ flex: 1, height: '100%', border: 'none', background: 'transparent', color: '#fff', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => updateRoom(activeRoomIdx, { lightsCount: (currentRoom.lightsCount || 0) + 1 })}
-                    style={{ width: '32px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Plus size={13} />
-                  </button>
+                  {svc.slots.filter(s => s.slotType !== 'AUTO_INCLUDE').map(slot => {
+                    const currentSelection = (currentRoom.slotSelections || []).find(s => s.slotId === slot.id);
+                    const slotOptions: SearchSelectOption[] = slot.materials.map(m => ({
+                      value: m.materialId,
+                      label: m.materialName,
+                      price: m.salePrice,
+                      unit: m.unit,
+                      stock: m.quantityInStock
+                    }));
+
+                    const isCounterBasis = slot.calculationBasis === 'COUNT' || slot.calculationBasis === 'LENGTH';
+
+                    return (
+                      <div
+                        key={slot.id}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          padding: '10px 12px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--glass-border)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={labelStyle}>{slot.name}</span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                            {slot.calculationBasis === 'AREA' ? 'по м²' : slot.calculationBasis === 'PERIMETER' ? 'по м.п.' : ''}
+                          </span>
+                        </div>
+
+                        {isCounterBasis && (
+                          <div style={{ display: 'flex', alignItems: 'center', height: '36px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', marginBottom: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const curQ = currentSelection?.customQuantity || 0;
+                                updateRoomSlotSelection(activeRoomIdx, slot.id!, currentSelection?.materialId, Math.max(0, curQ - 1));
+                              }}
+                              style={{ width: '36px', minWidth: '36px', flexShrink: 0, height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <Minus size={13} />
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              step={slot.calculationBasis === 'LENGTH' ? '0.1' : '1'}
+                              value={currentSelection?.customQuantity || 0}
+                              onChange={e => updateRoomSlotSelection(activeRoomIdx, slot.id!, currentSelection?.materialId, parseFloat(e.target.value) || 0)}
+                              style={{ flex: 1, minWidth: '40px', height: '100%', border: 'none', background: 'transparent', color: '#fff', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const curQ = currentSelection?.customQuantity || 0;
+                                updateRoomSlotSelection(activeRoomIdx, slot.id!, currentSelection?.materialId, curQ + 1);
+                              }}
+                              style={{ width: '36px', minWidth: '36px', flexShrink: 0, height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <Plus size={13} />
+                            </button>
+                          </div>
+                        )}
+
+                        <SearchSelect
+                          options={slotOptions.length > 0 ? slotOptions : allWarehouseOptions}
+                          value={currentSelection?.materialId}
+                          placeholder={slot.isRequired ? '— Выберите материал —' : '— Без позиции —'}
+                          onChange={val => updateRoomSlotSelection(activeRoomIdx, slot.id!, val ? Number(val) : undefined)}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-
-              {/* Люстры */}
-              <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                padding: '10px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--glass-border)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between'
-              }}>
-                <span style={labelStyle}>Люстры (шт.)</span>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  height: '36px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-sm)',
-                  overflow: 'hidden'
-                }}>
-                  <button
-                    type="button"
-                    onClick={() => updateRoom(activeRoomIdx, { chandeliersCount: Math.max(0, (currentRoom.chandeliersCount || 0) - 1) })}
-                    style={{ width: '32px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Minus size={13} />
-                  </button>
-                  <input
-                    type="number"
-                    min="0"
-                    value={currentRoom.chandeliersCount || 0}
-                    onChange={e => updateRoom(activeRoomIdx, { chandeliersCount: parseInt(e.target.value) || 0 })}
-                    style={{ flex: 1, height: '100%', border: 'none', background: 'transparent', color: '#fff', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => updateRoom(activeRoomIdx, { chandeliersCount: (currentRoom.chandeliersCount || 0) + 1 })}
-                    style={{ width: '32px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Plus size={13} />
-                  </button>
-                </div>
+            ))
+          ) : (
+            /* Базовые поля, если услуги еще не инициализированы */
+            <div>
+              <div style={sectionHeaderStyle}>
+                <Package size={15} style={{ color: '#fbbf24' }} />
+                Материалы со склада (Базовый набор)
               </div>
-
-              {/* Обводы труб */}
-              <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                padding: '10px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--glass-border)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between'
-              }}>
-                <span style={labelStyle}>Обводы труб (шт.)</span>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  height: '36px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-sm)',
-                  overflow: 'hidden'
-                }}>
-                  <button
-                    type="button"
-                    onClick={() => updateRoom(activeRoomIdx, { pipesCount: Math.max(0, (currentRoom.pipesCount || 0) - 1) })}
-                    style={{ width: '32px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Minus size={13} />
-                  </button>
-                  <input
-                    type="number"
-                    min="0"
-                    value={currentRoom.pipesCount || 0}
-                    onChange={e => updateRoom(activeRoomIdx, { pipesCount: parseInt(e.target.value) || 0 })}
-                    style={{ flex: 1, height: '100%', border: 'none', background: 'transparent', color: '#fff', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                <div>
+                  <label style={labelStyle}>Полотно со склада</label>
+                  <SearchSelect
+                    options={allWarehouseOptions}
+                    value={currentRoom.canvasMaterialId}
+                    placeholder="— Выберите полотно —"
+                    onChange={val => updateRoom(activeRoomIdx, { canvasMaterialId: val ? Number(val) : undefined })}
                   />
-                  <button
-                    type="button"
-                    onClick={() => updateRoom(activeRoomIdx, { pipesCount: (currentRoom.pipesCount || 0) + 1 })}
-                    style={{ width: '32px', height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Plus size={13} />
-                  </button>
                 </div>
-              </div>
-
-              {/* Карнизы / ниши */}
-              <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                padding: '10px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--glass-border)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '6px'
-              }}>
-                <span style={labelStyle}>Ниша / карниз (м.п.)</span>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    placeholder="0.0"
-                    value={currentRoom.corniceLength || ''}
-                    onChange={e => updateRoom(activeRoomIdx, { corniceLength: parseFloat(e.target.value) || 0 })}
-                    style={{ ...darkInputStyle, width: '65px', flexShrink: 0, padding: '0 8px' }}
+                <div>
+                  <label style={labelStyle}>Профиль (багет)</label>
+                  <SearchSelect
+                    options={allWarehouseOptions}
+                    value={currentRoom.profileMaterialId}
+                    placeholder="— Выберите профиль —"
+                    onChange={val => updateRoom(activeRoomIdx, { profileMaterialId: val ? Number(val) : undefined })}
                   />
-                  <select
-                    value={currentRoom.corniceType || 'ПК-14'}
-                    onChange={e => updateRoom(activeRoomIdx, { corniceType: e.target.value })}
-                    style={{ ...selectStyle, fontSize: '0.8rem', padding: '0 6px' }}
-                  >
-                    <option value="ПК-14" style={{ background: '#1e293b', color: '#f8fafc' }}>ПК-14</option>
-                    <option value="ПК-5" style={{ background: '#1e293b', color: '#f8fafc' }}>ПК-5</option>
-                    <option value="Гардина" style={{ background: '#1e293b', color: '#f8fafc' }}>Гардина</option>
-                    <option value="Брус" style={{ background: '#1e293b', color: '#f8fafc' }}>Брус</option>
-                    {corniceMaterials.map(m => (
-                      <option key={m.id} value={m.name} style={{ background: '#1e293b', color: '#f8fafc' }}>
-                        {m.name} ({m.salePrice} ₽/{m.unit})
-                      </option>
-                    ))}
-                  </select>
                 </div>
-              </div>
-
-              {/* Керамогранит / сложные стены */}
-              <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                padding: '10px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--glass-border)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between'
-              }}>
-                <span style={labelStyle}>Керамогранит (м.п.)</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  placeholder="0.0"
-                  value={currentRoom.tileLength || ''}
-                  onChange={e => updateRoom(activeRoomIdx, { tileLength: parseFloat(e.target.value) || 0 })}
-                  style={darkInputStyle}
-                />
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -947,8 +815,8 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               <strong style={{ color: 'var(--text-primary)' }}>{calcResult?.totalPerimeter || rooms.reduce((s, r) => s + (r.perimeter || 0), 0)} м.п.</strong>
             </div>
             <div>
-              <span>Светильников: </span>
-              <strong style={{ color: 'var(--text-primary)' }}>{rooms.reduce((s, r) => s + (r.lightsCount || 0), 0)} шт.</strong>
+              <span>Помещений: </span>
+              <strong style={{ color: 'var(--text-primary)' }}>{rooms.length}</strong>
             </div>
           </div>
 
@@ -1307,18 +1175,12 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
             <div>
               <label style={labelStyle}>Выберите материал или услугу:</label>
-              <select
+              <SearchSelect
+                options={allWarehouseOptions}
                 value={selectedAddMaterialId}
-                onChange={e => setSelectedAddMaterialId(e.target.value ? Number(e.target.value) : '')}
-                style={{ ...selectStyle, height: '44px', fontSize: '0.92rem' }}
-              >
-                <option value="" style={{ background: '#1e293b', color: '#f8fafc' }}>— Выберите из номенклатуры склада —</option>
-                {materials.map(m => (
-                  <option key={m.id} value={m.id} style={{ background: '#1e293b', color: '#f8fafc' }}>
-                    {m.name} ({m.salePrice} ₽/{m.unit}) {m.quantityInStock ? `• ост: ${m.quantityInStock} ${m.unit}` : ''}
-                  </option>
-                ))}
-              </select>
+                placeholder="Поиск по номенклатуре склада..."
+                onChange={val => setSelectedAddMaterialId(val ? Number(val) : '')}
+              />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>

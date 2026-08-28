@@ -6,7 +6,10 @@ import { updateProfile, updateTenantSettings, uploadTenantLogo, getProfile } fro
 import type { TenantRequisites } from '../api/settings';
 import { useState, useRef, useEffect } from 'react';
 import { PushNotificationSettings } from '../components/PushNotificationSettings';
+import { EstimationServiceBuilder } from '../components/EstimationServiceBuilder';
+import { getMaterials, type Material } from '../api/storage';
 import { TIMEZONE_OPTIONS } from '../utils/dateUtils';
+import { Sliders } from 'lucide-react';
 import '../styles/clients.css'; // Reusing standard wrapper/header styles
 
 export const Settings = () => {
@@ -182,19 +185,83 @@ export const Settings = () => {
     }
   };
 
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [activeTab, setActiveTab] = useState<'GENERAL' | 'ESTIMATION'>('GENERAL');
+
+  useEffect(() => {
+    getMaterials()
+      .then(setMaterials)
+      .catch(err => console.error('Ошибка загрузки материалов:', err));
+  }, []);
+
   return (
     <div className="clients-wrapper">
-      <div className="clients-header">
+      <div className="clients-header" style={{ marginBottom: '16px' }}>
         <h1>{t('settings.title')}</h1>
       </div>
 
-      <div className="glass-panel" style={{ padding: '24px', maxWidth: '600px', borderRadius: 'var(--radius-lg)' }}>
-        <h2 style={{ fontSize: '1.25rem', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <User size={20} />
-          {t('settings.profile')}
-        </h2>
-        
-        <form onSubmit={handleProfileSave}>
+      {/* Навигация по вкладкам настроек */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        marginBottom: '20px',
+        borderBottom: '1px solid var(--glass-border)',
+        paddingBottom: '10px'
+      }}>
+        <button
+          type="button"
+          onClick={() => setActiveTab('GENERAL')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            borderRadius: 'var(--radius-md)',
+            background: activeTab === 'GENERAL' ? 'var(--accent-primary, #0ea5e9)' : 'rgba(255, 255, 255, 0.04)',
+            color: activeTab === 'GENERAL' ? '#fff' : 'var(--text-primary)',
+            border: '1px solid ' + (activeTab === 'GENERAL' ? 'var(--accent-primary, #0ea5e9)' : 'var(--glass-border)'),
+            fontWeight: activeTab === 'GENERAL' ? 600 : 400,
+            fontSize: '0.9rem',
+            cursor: 'pointer'
+          }}
+        >
+          <Building2 size={16} /> Общие настройки и профиль
+        </button>
+
+        {role === 'OWNER' && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('ESTIMATION')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-md)',
+              background: activeTab === 'ESTIMATION' ? 'linear-gradient(135deg, #3b82f6, #6366f1)' : 'rgba(255, 255, 255, 0.04)',
+              color: activeTab === 'ESTIMATION' ? '#fff' : 'var(--text-primary)',
+              border: '1px solid ' + (activeTab === 'ESTIMATION' ? '#3b82f6' : 'var(--glass-border)'),
+              fontWeight: activeTab === 'ESTIMATION' ? 600 : 400,
+              fontSize: '0.9rem',
+              cursor: 'pointer'
+            }}
+          >
+            <Sliders size={16} /> 📐 Конструктор калькулятора
+          </button>
+        )}
+      </div>
+
+      {activeTab === 'ESTIMATION' && role === 'OWNER' ? (
+        <EstimationServiceBuilder materials={materials} />
+      ) : (
+        <div className="glass-panel" style={{ padding: '24px', maxWidth: '600px', borderRadius: 'var(--radius-lg)' }}>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <User size={20} />
+            {t('settings.profile')}
+          </h2>
+          
+          <form onSubmit={handleProfileSave}>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '4px' }}>
               Email
@@ -1094,6 +1161,7 @@ export const Settings = () => {
         </div>
 
       </div>
+      )}
     </div>
   );
 };
