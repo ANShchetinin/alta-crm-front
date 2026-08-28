@@ -37,10 +37,12 @@ export interface MeasurementDto {
   totalCostPrice?: number;
   notes?: string;
   rooms: MeasurementRoomDto[];
+  items?: MeasurementCalculationItemDto[];
 }
 
 export interface MeasurementCalculationItemDto {
   materialId?: number;
+  slotId?: number;
   name: string;
   type: 'MATERIAL' | 'SERVICE';
   quantity: number;

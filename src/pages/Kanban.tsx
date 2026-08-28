@@ -46,7 +46,7 @@ import {
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import { useTranslation } from 'react-i18next';
-import { getOrderStatuses, getOrders, moveOrder, completeOrder, createOrder, updateOrder, uploadAttachment, toggleAttachmentIsAct, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, getNextOrderNumber, downloadContractDocx, analyzeAudioWithPrompt, chatWithOrderAi, clearOrderAiChat } from '../api/kanban';
+import { getOrderStatuses, getOrders, moveOrder, completeOrder, createOrder, updateOrder, uploadAttachment, toggleAttachmentIsAct, fetchAttachmentBlob, deleteAttachment, renameAttachment, deleteOrder, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, getAiSummary, uploadAudio, deleteOrderAudio, getNextOrderNumber, downloadContractDocx, analyzeAudioWithPrompt, chatWithOrderAi, clearOrderAiChat } from '../api/kanban';
 import type { OrderStatus, Order, OrderMaterial, OrderAttachment, OrderAiSummary, ContractParams, ChatMessage } from '../api/kanban';
 import { getOrderAiUsage, type OrderAiCostDto } from '../api/aiUsage';
 import { SYSTEM_PROMPT_SUMMARY, SYSTEM_PROMPT_SALES_ADVICE, SYSTEM_PROMPT_CHAT_ASSISTANT } from '../constants/aiPrompts';
@@ -1899,6 +1899,24 @@ const Kanban = () => {
     }
   };
 
+  const handleDeleteAudio = async () => {
+    if (!editingOrderId) return;
+    if (!window.confirm('Удалить аудиозапись звонка и результаты анализа? Аудиофайл будет безвозвратно удален из хранилища S3.')) {
+      return;
+    }
+    try {
+      await deleteOrderAudio(editingOrderId);
+      setAiSummary(null);
+      setChatMessages([]);
+      if (orderChatCacheRef.current) {
+        delete orderChatCacheRef.current[editingOrderId];
+      }
+    } catch (err: any) {
+      console.error('Failed to delete audio', err);
+      alert(err.response?.data?.message || 'Не удалось удалить аудиозапись звонка');
+    }
+  };
+
   const getAnalysisResultsMap = (summary: OrderAiSummary | null): Record<string, string> => {
     if (!summary || !summary.analysisResults) return {};
     try {
@@ -2180,65 +2198,6 @@ const Kanban = () => {
         [key]: value
       }
     }));
-  };
-
-  const addSpecRow = () => {
-    const cp = getContractParams();
-    const currentItems = cp.specItems || [];
-    const newItem = {
-      idx: currentItems.length + 1,
-      name: '',
-      quantity: '1',
-      unit: 'шт.',
-      price: 0,
-      total: 0
-    };
-    updateContractParam('specItems', [...currentItems, newItem]);
-  };
-
-  const updateSpecRow = (idx: number, field: string, value: any) => {
-    const cp = getContractParams();
-    const currentItems = [...(cp.specItems || [])];
-    if (!currentItems[idx]) return;
-    
-    const row = { ...currentItems[idx], [field]: value };
-    if (field === 'quantity' || field === 'price') {
-      const q = parseFloat(String(row.quantity).replace(',', '.') || '0');
-      const p = parseFloat(String(row.price) || '0');
-      row.total = Math.round(q * p * 100) / 100;
-    }
-    currentItems[idx] = row;
-    updateContractParam('specItems', currentItems);
-  };
-
-  const removeSpecRow = (idx: number) => {
-    const cp = getContractParams();
-    const currentItems = (cp.specItems || []).filter((_, i) => i !== idx);
-    updateContractParam('specItems', currentItems);
-  };
-
-  const populateSpecFromOrderMaterials = () => {
-    if (formData.materials.length === 0) {
-      alert('Во вкладке «Материалы» нет добавленных позиций.');
-      return;
-    }
-    const newItems = formData.materials.map((m, idx) => {
-      const mat = allMaterials.find(item => item.id === m.materialId);
-      const name = mat?.name || 'Материал / Услуга';
-      const unit = mat?.unit || 'шт.';
-      const qty = String(m.quantity || 1);
-      const price = mat?.salePrice != null && mat.salePrice > 0 ? mat.salePrice : (mat?.costPrice || 0);
-      const qNum = parseFloat(qty.replace(',', '.') || '0');
-      return {
-        idx: idx + 1,
-        name,
-        quantity: qty,
-        unit,
-        price,
-        total: Math.round(qNum * price * 100) / 100
-      };
-    });
-    updateContractParam('specItems', newItems);
   };
 
   const toggleActItem = (itemId: string) => {
@@ -4591,236 +4550,7 @@ const Kanban = () => {
                       </div>
                     </div>
 
-                    {/* Блок 2: Спецификация товаров и услуг */}
-                    <div style={{
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid var(--glass-border)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '16px',
-                      marginBottom: '18px'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                        <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <FileText size={15} style={{ color: '#4ade80' }} />
-                          2. Спецификация товаров и услуг (Приложение №4)
-                        </h4>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            type="button"
-                            onClick={populateSpecFromOrderMaterials}
-                            className="btn btn-ghost"
-                            style={{ padding: '4px 10px', fontSize: '0.78rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            title="Заполнить из вкладки Материалы"
-                          >
-                            <RefreshCw size={12} /> Заполнить из материалов
-                          </button>
-                          <button
-                            type="button"
-                            onClick={addSpecRow}
-                            className="btn btn-ghost"
-                            style={{ padding: '4px 10px', fontSize: '0.78rem', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '4px' }}
-                          >
-                            <Plus size={13} /> + Строка
-                          </button>
-                        </div>
-                      </div>
-
-                      {(getContractParams().specItems || []).length > 0 ? (
-                        <>
-                          {/* Mobile Card Layout */}
-                          <div className="spec-mobile-cards">
-                            {(getContractParams().specItems || []).map((it, idx) => (
-                              <div key={idx} className="spec-card">
-                                <div className="spec-card-header">
-                                  <span className="spec-card-num">#{idx + 1}</span>
-                                  <input
-                                    type="text"
-                                    value={it.name}
-                                    onChange={e => updateSpecRow(idx, 'name', e.target.value)}
-                                    placeholder="Наименование (товар или услуга)..."
-                                    className="spec-card-name-input"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => removeSpecRow(idx)}
-                                    className="spec-card-delete-btn"
-                                    title="Удалить позицию"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                </div>
-                                <div className="spec-card-grid">
-                                  <div className="spec-card-field">
-                                    <label>Кол-во</label>
-                                    <input
-                                      type="text"
-                                      value={it.quantity}
-                                      onChange={e => updateSpecRow(idx, 'quantity', e.target.value)}
-                                      placeholder="1"
-                                    />
-                                  </div>
-                                  <div className="spec-card-field">
-                                    <label>Ед. изм.</label>
-                                    <select
-                                      value={it.unit || 'м²'}
-                                      onChange={e => updateSpecRow(idx, 'unit', e.target.value)}
-                                      style={{
-                                        width: '100%',
-                                        height: '36px',
-                                        borderRadius: 'var(--radius-sm)',
-                                        background: 'var(--input-bg)',
-                                        border: '1px solid var(--glass-border)',
-                                        color: 'var(--text-primary)',
-                                        padding: '0 6px',
-                                        cursor: 'pointer',
-                                        appearance: 'auto'
-                                      }}
-                                    >
-                                      <option value="м²">м²</option>
-                                      <option value="м.пог">м.пог</option>
-                                      <option value="шт.">шт.</option>
-                                    </select>
-                                  </div>
-                                  <div className="spec-card-field">
-                                    <label>Цена (₽)</label>
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      value={it.price}
-                                      onChange={e => updateSpecRow(idx, 'price', e.target.value)}
-                                      placeholder="0"
-                                    />
-                                  </div>
-                                  <div className="spec-card-field spec-card-sum-box">
-                                    <label>Сумма</label>
-                                    <div className="spec-card-sum-val">
-                                      {(it.total || 0).toLocaleString('ru-RU')} ₽
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Desktop Table Layout */}
-                          <div className="spec-desktop-table">
-                            <table className="spec-table">
-                              <thead>
-                                <tr>
-                                  <th style={{ width: '35px' }}>№</th>
-                                  <th>Наименование</th>
-                                  <th style={{ width: '80px' }}>Кол-во</th>
-                                  <th style={{ width: '70px' }}>Ед.</th>
-                                  <th style={{ width: '110px' }}>Цена (₽)</th>
-                                  <th style={{ width: '120px' }}>Сумма (₽)</th>
-                                  <th style={{ width: '40px' }}></th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {(getContractParams().specItems || []).map((it, idx) => (
-                                  <tr key={idx}>
-                                    <td style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{idx + 1}</td>
-                                    <td>
-                                      <input
-                                        type="text"
-                                        value={it.name}
-                                        onChange={e => updateSpecRow(idx, 'name', e.target.value)}
-                                        placeholder="Полотно / Монтаж..."
-                                        className="spec-table-input"
-                                      />
-                                    </td>
-                                    <td>
-                                      <input
-                                        type="text"
-                                        value={it.quantity}
-                                        onChange={e => updateSpecRow(idx, 'quantity', e.target.value)}
-                                        placeholder="1"
-                                        className="spec-table-input"
-                                      />
-                                    </td>
-                                    <td>
-                                      <select
-                                        value={it.unit || 'м²'}
-                                        onChange={e => updateSpecRow(idx, 'unit', e.target.value)}
-                                        className="spec-table-input"
-                                        style={{
-                                          width: '100%',
-                                          padding: '4px 2px',
-                                          textAlign: 'center',
-                                          cursor: 'pointer',
-                                          appearance: 'auto'
-                                        }}
-                                      >
-                                        <option value="м²">м²</option>
-                                        <option value="м.пог">м.пог</option>
-                                        <option value="шт.">шт.</option>
-                                      </select>
-                                    </td>
-                                    <td>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        value={it.price}
-                                        onChange={e => updateSpecRow(idx, 'price', e.target.value)}
-                                        className="spec-table-input"
-                                      />
-                                    </td>
-                                    <td style={{ fontWeight: 700, color: '#4ade80' }}>
-                                      {(it.total || 0).toLocaleString('ru-RU')} ₽
-                                    </td>
-                                    <td>
-                                      <button
-                                        type="button"
-                                        onClick={() => removeSpecRow(idx)}
-                                        style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
-                                        title="Удалить"
-                                      >
-                                        <Trash2 size={16} />
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </>
-                      ) : (
-                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '12px', padding: '12px', background: 'rgba(255,255,255,0.01)', borderRadius: 'var(--radius-sm)' }}>
-                          Спецификация формируется автоматически из расчета заказа или может быть заполнена вручную кнопкой «+ Строка» / «Заполнить из материалов».
-                        </div>
-                      )}
-
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '12px',
-                        flexWrap: 'wrap',
-                        marginTop: '12px',
-                        paddingTop: '12px',
-                        borderTop: '1px solid var(--glass-border)'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <label style={{ fontSize: '0.85rem', margin: 0, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Скидка (₽):</label>
-                          <input
-                            type="text"
-                            placeholder="0"
-                            value={getContractParams().discount || ''}
-                            onChange={(e) => updateContractParam('discount', e.target.value)}
-                            className="spec-table-input"
-                            style={{ width: '110px', height: '36px' }}
-                          />
-                        </div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                          Итого по спецификации:{' '}
-                          <strong style={{ fontSize: '1.05rem', color: '#4ade80', marginLeft: '4px' }}>
-                            {((getContractParams().specItems || []).reduce((acc, it) => acc + (it.total || 0), 0) - (parseFloat(getContractParams().discount || '0') || 0)).toLocaleString('ru-RU')} ₽
-                          </strong>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Блок 3: Чек-лист выполненных работ для Акта */}
+                    {/* Блок 2: Чек-лист выполненных работ для Акта */}
                     <div style={{
                       background: 'rgba(255, 255, 255, 0.02)',
                       border: '1px solid var(--glass-border)',
@@ -4829,7 +4559,7 @@ const Kanban = () => {
                     }}>
                       <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <FileCheck size={15} style={{ color: '#60a5fa' }} />
-                        3. Чек-лист выполненных работ для Акта (Приложение №3)
+                        2. Чек-лист выполненных работ для Акта (Приложение №3)
                       </h4>
 
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
@@ -5254,7 +4984,29 @@ const Kanban = () => {
                           Расшифровка аудиозаписей, анализ переговоров и умный диалог с AI
                         </p>
                       </div>
-                      <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {aiSummary && (
+                          <button
+                            type="button"
+                            onClick={handleDeleteAudio}
+                            className="btn btn-ghost"
+                            style={{
+                              color: '#ef4444',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              padding: '8px 12px',
+                              borderRadius: 'var(--radius-sm)',
+                              fontSize: '0.85rem',
+                              fontWeight: 500,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                            title="Удалить аудиозапись из S3 и очистить анализ"
+                          >
+                            <Trash2 size={14} />
+                            Удалить звонок
+                          </button>
+                        )}
                         <button 
                           type="button"
                           onClick={() => audioFileInputRef.current?.click()}

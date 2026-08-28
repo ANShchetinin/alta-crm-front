@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Package, Wrench, Layers, Trash2 } from 'lucide-react';
+import { Search, Plus, Package, Wrench, Layers, Trash2, Check, Tag } from 'lucide-react';
 import type { Material, MaterialType } from '../api/storage';
 import { getMaterials, createMaterial, updateMaterial, deleteMaterial } from '../api/storage';
+import { getEstimationServices, type EstimationService } from '../api/estimationServices';
 import { useAppStore } from '../store/useAppStore';
 import '../styles/clients.css';
 
@@ -13,6 +14,7 @@ export const Storage = () => {
   const { t } = useTranslation();
   const { fetchLowStockMaterials } = useAppStore();
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [estimationServices, setEstimationServices] = useState<EstimationService[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<'ALL' | 'MATERIAL' | 'SERVICE'>('ALL');
@@ -22,23 +24,32 @@ export const Storage = () => {
   const [formData, setFormData] = useState<{
     name: string;
     type: MaterialType;
+    category: string;
     unit: string;
     quantityInStock: string;
     costPrice: string;
     salePrice: string;
     minQuantity: string;
+    globalServiceIds: number[];
+    isDefault: boolean;
   }>({
     name: '',
     type: 'MATERIAL',
+    category: 'Полотно',
     unit: 'шт',
     quantityInStock: '0',
     costPrice: '',
     salePrice: '',
-    minQuantity: '0'
+    minQuantity: '0',
+    globalServiceIds: [],
+    isDefault: false
   });
 
   useEffect(() => {
     fetchMaterials();
+    getEstimationServices()
+      .then(setEstimationServices)
+      .catch(err => console.error('Ошибка загрузки глобальных услуг:', err));
   }, []);
 
   const fetchMaterials = async () => {
@@ -54,7 +65,7 @@ export const Storage = () => {
   };
 
   const filteredMaterials = materials.filter(m => {
-    const matchesSearch = m.name.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = m.name.toLowerCase().includes(search.toLowerCase()) || (m.category || '').toLowerCase().includes(search.toLowerCase());
     const mType = m.type || 'MATERIAL';
     const matchesType = filterType === 'ALL' || mType === filterType;
     return matchesSearch && matchesType;
@@ -63,16 +74,26 @@ export const Storage = () => {
   const materialsCount = materials.filter(m => (m.type || 'MATERIAL') === 'MATERIAL').length;
   const servicesCount = materials.filter(m => m.type === 'SERVICE').length;
 
+  const availableCategories = useMemo(() => {
+    const fromMaterials = materials.map(m => m.category?.trim()).filter(Boolean) as string[];
+    const fromSlots = estimationServices.flatMap(s => (s.slots || []).map(slot => slot.name?.trim())).filter(Boolean) as string[];
+    const combined = Array.from(new Set([...fromMaterials, ...fromSlots]));
+    return combined.sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [materials, estimationServices]);
+
   const openAddModal = (defaultType: MaterialType = 'MATERIAL') => {
     setEditingId(null);
     setFormData({
       name: '',
       type: defaultType,
+      category: '',
       unit: defaultType === 'SERVICE' ? 'шт.' : 'м²',
       quantityInStock: '0',
       costPrice: '',
       salePrice: '',
-      minQuantity: '0'
+      minQuantity: '0',
+      globalServiceIds: [],
+      isDefault: false
     });
     setIsModalOpen(true);
   };
@@ -83,13 +104,26 @@ export const Storage = () => {
     setFormData({
       name: material.name,
       type: mType,
+      category: material.category || (mType === 'SERVICE' ? 'Монтажные работы' : 'Полотно'),
       unit: material.unit,
       quantityInStock: material.quantityInStock != null ? material.quantityInStock.toString() : '0',
       costPrice: material.costPrice != null ? material.costPrice.toString() : '0',
       salePrice: material.salePrice != null ? material.salePrice.toString() : (material.costPrice != null ? material.costPrice.toString() : '0'),
-      minQuantity: material.minQuantity ? material.minQuantity.toString() : '0'
+      minQuantity: material.minQuantity ? material.minQuantity.toString() : '0',
+      globalServiceIds: material.globalServiceIds || [],
+      isDefault: Boolean(material.isDefault)
     });
     setIsModalOpen(true);
+  };
+
+  const toggleGlobalService = (serviceId: number) => {
+    setFormData(prev => {
+      const exists = prev.globalServiceIds.includes(serviceId);
+      const nextIds = exists
+        ? prev.globalServiceIds.filter(id => id !== serviceId)
+        : [...prev.globalServiceIds, serviceId];
+      return { ...prev, globalServiceIds: nextIds };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,11 +136,14 @@ export const Storage = () => {
       const payload = {
         name: formData.name.trim(),
         type: formData.type,
+        category: formData.category.trim() || undefined,
         unit: formData.unit.trim() || (isService ? 'усл.' : 'шт'),
         quantityInStock: isService ? 0 : parseFloat(formData.quantityInStock || '0'),
         minQuantity: isService ? 0 : parseFloat(formData.minQuantity || '0'),
         costPrice: cPrice,
-        salePrice: sPrice
+        salePrice: sPrice,
+        globalServiceIds: formData.globalServiceIds,
+        isDefault: formData.isDefault
       };
       
       if (editingId) {
@@ -148,135 +185,197 @@ export const Storage = () => {
         <div>
           <h1 style={{ margin: 0, fontSize: '1.4rem' }}>{t('storage.title')}</h1>
           <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Складской учет материалов, себестоимость, цены продажи клиенту и каталог услуг
+            Управление материалами на складе и прайс-листом услуг для калькулятора замера
           </p>
         </div>
-        
-        <div className="clients-actions">
-          <div className="search-input-wrapper">
-            <Search className="search-icon" size={18} />
-            <input 
-              type="text" 
-              placeholder={t('storage.search')}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="search-input"
-            />
-          </div>
-          <button onClick={() => openAddModal('MATERIAL')} className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <Plus size={18} />
-            <span>Добавить позицию</span>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            type="button" 
+            onClick={() => openAddModal('SERVICE')}
+            className="btn btn-ghost"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(168, 85, 247, 0.4)', color: '#c084fc' }}
+          >
+            <Plus size={16} /> + Добавить услугу
+          </button>
+          <button 
+            type="button" 
+            onClick={() => openAddModal('MATERIAL')}
+            className="btn btn-primary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Plus size={16} /> + Добавить материал
           </button>
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div style={{
-        display: 'flex',
-        gap: '8px',
-        marginBottom: '16px',
-        alignItems: 'center',
-        flexWrap: 'wrap'
-      }}>
-        <button
-          type="button"
-          onClick={() => setFilterType('ALL')}
-          className={`btn ${filterType === 'ALL' ? 'btn-primary' : 'btn-ghost'}`}
-          style={{ padding: '6px 14px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-        >
-          <Layers size={15} />
-          Все ({materials.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setFilterType('MATERIAL')}
-          className={`btn ${filterType === 'MATERIAL' ? 'btn-primary' : 'btn-ghost'}`}
-          style={{ padding: '6px 14px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-        >
-          <Package size={15} />
-          Материалы ({materialsCount})
-        </button>
-        <button
-          type="button"
-          onClick={() => setFilterType('SERVICE')}
-          className={`btn ${filterType === 'SERVICE' ? 'btn-primary' : 'btn-ghost'}`}
-          style={{ padding: '6px 14px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-        >
-          <Wrench size={15} />
-          Услуги и работы ({servicesCount})
-        </button>
+      {/* Filter Tabs & Search */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', margin: '20px 0 16px 0' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setFilterType('ALL')}
+            className="btn btn-ghost"
+            style={{
+              padding: '6px 14px',
+              fontSize: '0.85rem',
+              borderRadius: 'var(--radius-sm)',
+              background: filterType === 'ALL' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.03)',
+              color: filterType === 'ALL' ? '#ffffff' : 'var(--text-secondary)',
+              border: '1px solid ' + (filterType === 'ALL' ? 'var(--accent-primary)' : 'var(--glass-border)')
+            }}
+          >
+            Все позиции ({materials.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterType('MATERIAL')}
+            className="btn btn-ghost"
+            style={{
+              padding: '6px 14px',
+              fontSize: '0.85rem',
+              borderRadius: 'var(--radius-sm)',
+              background: filterType === 'MATERIAL' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.03)',
+              color: filterType === 'MATERIAL' ? '#60a5fa' : 'var(--text-secondary)',
+              border: '1px solid ' + (filterType === 'MATERIAL' ? 'rgba(59, 130, 246, 0.4)' : 'var(--glass-border)'),
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Package size={15} /> Материалы ({materialsCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterType('SERVICE')}
+            className="btn btn-ghost"
+            style={{
+              padding: '6px 14px',
+              fontSize: '0.85rem',
+              borderRadius: 'var(--radius-sm)',
+              background: filterType === 'SERVICE' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.03)',
+              color: filterType === 'SERVICE' ? '#c084fc' : 'var(--text-secondary)',
+              border: '1px solid ' + (filterType === 'SERVICE' ? 'rgba(168, 85, 247, 0.4)' : 'var(--glass-border)'),
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Wrench size={15} /> Услуги ({servicesCount})
+          </button>
+        </div>
+
+        <div className="search-box" style={{ width: '280px' }}>
+          <Search size={16} className="search-icon" />
+          <input 
+            type="text" 
+            placeholder="Поиск по названию или типу..." 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="search-input"
+          />
+        </div>
       </div>
 
       {/* Table */}
-      <div className="clients-table-container glass-panel">
-        <table className="clients-table">
+      <div className="table-responsive glass-panel" style={{ borderRadius: 'var(--radius-lg)', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 220px)', width: '100%' }}>
+        <table className="clients-table" style={{ width: '100%', minWidth: '850px' }}>
           <thead>
             <tr>
-              <th style={{ width: '110px' }}>Тип</th>
-              <th>{t('storage.columns.name')}</th>
-              <th style={{ width: '90px' }}>{t('storage.columns.unit')}</th>
-              <th style={{ width: '100px' }}>В наличии</th>
-              <th style={{ width: '100px' }}>Мин. остаток</th>
-              <th style={{ textAlign: 'right', width: '130px' }}>Себестоимость</th>
-              <th style={{ textAlign: 'right', width: '140px', color: 'var(--accent-primary)' }}>Цена продажи</th>
-              <th style={{ width: '50px', textAlign: 'center' }}></th>
+              <th style={{ width: '40px' }}>#</th>
+              <th>Наименование</th>
+              <th>Тип / Категория</th>
+              <th style={{ width: '90px' }}>Ед. изм.</th>
+              <th style={{ width: '130px', textAlign: 'right' }}>Остаток на складе</th>
+              <th style={{ width: '130px', textAlign: 'right' }}>Себестоимость</th>
+              <th style={{ width: '140px', textAlign: 'right' }}>Цена продажи</th>
+              <th style={{ width: '60px', textAlign: 'center' }}></th>
             </tr>
           </thead>
           <tbody>
             {filteredMaterials.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', opacity: 0.6, padding: '32px' }}>
-                  {t('storage.noMaterials')}
+                <td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                  Позиции не найдены
                 </td>
               </tr>
             ) : (
-              filteredMaterials.map(material => {
+              filteredMaterials.map((material, idx) => {
                 const isService = material.type === 'SERVICE';
-                const isLowStock = !isService && material.quantityInStock <= (material.minQuantity || 0);
-                const sPrice = material.salePrice != null && material.salePrice > 0 ? material.salePrice : material.costPrice;
+                const isLow = !isService && material.quantityInStock <= (material.minQuantity || 0);
+                const sPrice = material.salePrice != null ? material.salePrice : material.costPrice;
 
                 return (
-                  <tr key={material.id} onClick={() => openEditModal(material)} style={{ cursor: 'pointer' }}>
+                  <tr 
+                    key={material.id}
+                    onClick={() => openEditModal(material)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <td style={{ color: 'var(--text-secondary)' }}>{idx + 1}</td>
                     <td>
-                      <span style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        background: isService ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                        color: isService ? '#c084fc' : '#93c5fd',
-                        border: isService ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)'
-                      }}>
-                        {isService ? <Wrench size={12} /> : <Package size={12} />}
-                        {isService ? 'Услуга' : 'Материал'}
-                      </span>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {isService ? (
+                          <span style={{ color: '#c084fc', display: 'flex', alignItems: 'center' }} title="Услуга / Монтаж">
+                            <Wrench size={15} />
+                          </span>
+                        ) : (
+                          <span style={{ color: '#60a5fa', display: 'flex', alignItems: 'center' }} title="Материал со склада">
+                            <Package size={15} />
+                          </span>
+                        )}
+                        <span>{material.name}</span>
+                        {material.isDefault && (
+                          <span style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', fontWeight: 600 }}>
+                            По умолчанию
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td>
-                      <div className="client-name" style={{ fontWeight: 600 }}>{material.name}</div>
-                    </td>
-                    <td>
-                      <div className="client-phone">{material.unit}</div>
-                    </td>
-                    <td>
-                      {isService ? (
-                        <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.85rem' }}>— (услуга)</span>
-                      ) : (
+                      {material.category ? (
                         <span style={{
-                          fontWeight: 600,
-                          color: isLowStock ? '#f87171' : 'var(--text-primary)'
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          fontSize: '0.76rem',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid var(--glass-border)',
+                          color: 'var(--text-secondary)'
                         }}>
-                          {material.quantityInStock}
+                          <Tag size={12} style={{ opacity: 0.7 }} />
+                          {material.category}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                          {isService ? 'Услуга' : 'Материал'}
                         </span>
                       )}
                     </td>
                     <td>
+                      <span style={{ 
+                        display: 'inline-block', 
+                        padding: '2px 6px', 
+                        borderRadius: '4px', 
+                        background: 'rgba(255,255,255,0.05)', 
+                        fontSize: '0.8rem' 
+                      }}>
+                        {material.unit}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
                       {isService ? (
-                        <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: '0.85rem' }}>—</span>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>—</span>
                       ) : (
-                        <div className="client-phone">{material.minQuantity || 0}</div>
+                        <span style={{ 
+                          fontWeight: 600, 
+                          color: isLow ? 'var(--danger)' : 'var(--text-primary)',
+                          background: isLow ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
+                          padding: isLow ? '2px 6px' : '0',
+                          borderRadius: '4px'
+                        }}>
+                          {material.quantityInStock} {material.unit}
+                        </span>
                       )}
                     </td>
                     <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>
@@ -307,7 +406,7 @@ export const Storage = () => {
       {/* Modal Overlay */}
       {isModalOpen && createPortal(
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '540px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '560px' }}>
             <div className="modal-header">
               <h2>{editingId ? 'Редактировать позицию' : 'Добавить материал или услугу'}</h2>
               <button 
@@ -320,9 +419,9 @@ export const Storage = () => {
               </button>
             </div>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-              <div className="modal-body">
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {/* Type Selection */}
-                <div className="form-group">
+                <div className="form-group" style={{ marginBottom: 0 }}>
                   <label>Тип позиции *</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
                     <button
@@ -368,19 +467,107 @@ export const Storage = () => {
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label>{formData.type === 'SERVICE' ? 'Название услуги (например: Установка светильников) *' : 'Наименование материала *'}</label>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>{formData.type === 'SERVICE' ? 'Название услуги *' : 'Наименование материала *'}</label>
                   <input 
                     type="text" 
                     required
-                    placeholder={formData.type === 'SERVICE' ? 'Установка точечных светильников' : 'Полотно MSD Premium 3.2м'}
+                    placeholder={formData.type === 'SERVICE' ? 'Установка точечного светильника' : 'Полотно MSD Premium 3.2м (Мат)'}
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
                   />
                 </div>
 
+                {/* Категория / Тип для группировки в калькуляторе */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Категория / Тип позиции в смете</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Для взаимозаменяемости в смете</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Например: Полотно, Профиль, Светильник..."
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  />
+                  {availableCategories.length > 0 && (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                      {availableCategories.map(cat => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, category: cat })}
+                          style={{
+                            fontSize: '0.74rem',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            background: formData.category === cat ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                            border: '1px solid ' + (formData.category === cat ? 'var(--accent-primary)' : 'var(--glass-border)'),
+                            color: formData.category === cat ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Привязка к глобальным услугам */}
+                {estimationServices.length > 0 && (
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Layers size={15} style={{ color: 'var(--accent-primary)' }} />
+                      Привязать к глобальной услуге калькулятора
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
+                      {estimationServices.map(svc => {
+                        const isSelected = formData.globalServiceIds.includes(svc.id!);
+                        return (
+                          <button
+                            key={svc.id}
+                            type="button"
+                            onClick={() => toggleGlobalService(svc.id!)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 12px',
+                              borderRadius: 'var(--radius-sm)',
+                              background: isSelected ? 'linear-gradient(135deg, #3b82f6, #6366f1)' : 'rgba(255, 255, 255, 0.04)',
+                              color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                              border: '1px solid ' + (isSelected ? '#3b82f6' : 'var(--glass-border)'),
+                              cursor: 'pointer',
+                              fontSize: '0.84rem',
+                              fontWeight: isSelected ? 600 : 400
+                            }}
+                          >
+                            {isSelected && <Check size={14} />}
+                            {svc.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Чекбокс позиции по умолчанию */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)' }}>
+                  <input
+                    type="checkbox"
+                    id="isDefaultCheckbox"
+                    checked={formData.isDefault}
+                    onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <label htmlFor="isDefaultCheckbox" style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                    Выбирать по умолчанию в смете (для своего типа при включении услуги)
+                  </label>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="form-group">
+                  <div className="form-group" style={{ marginBottom: 0 }}>
                     <label>Единица измерения *</label>
                     <select 
                       required
@@ -392,9 +579,11 @@ export const Storage = () => {
                       <option value="м²">м²</option>
                       <option value="м.пог">м.пог</option>
                       <option value="шт.">шт.</option>
+                      <option value="компл.">компл.</option>
+                      <option value="усл.">усл.</option>
                     </select>
                   </div>
-                  <div className="form-group">
+                  <div className="form-group" style={{ marginBottom: 0 }}>
                     <label style={{ color: '#4ade80', fontWeight: 600 }}>Цена продажи клиенту (₽) *</label>
                     <input 
                       type="number" 
@@ -409,8 +598,8 @@ export const Storage = () => {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="form-group">
-                    <label>{formData.type === 'SERVICE' ? 'Себестоимость / прямые затраты (₽)' : 'Себестоимость закупки (₽) *'}</label>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>{formData.type === 'SERVICE' ? 'Себестоимость / затраты (₽)' : 'Себестоимость закупки (₽) *'}</label>
                     <input 
                       type="number" 
                       required={formData.type === 'MATERIAL'}
@@ -422,7 +611,7 @@ export const Storage = () => {
                     />
                   </div>
                   {formData.type === 'MATERIAL' ? (
-                    <div className="form-group">
+                    <div className="form-group" style={{ marginBottom: 0 }}>
                       <label>Количество на складе</label>
                       <input 
                         type="number" 
@@ -433,7 +622,7 @@ export const Storage = () => {
                       />
                     </div>
                   ) : (
-                    <div className="form-group">
+                    <div className="form-group" style={{ marginBottom: 0 }}>
                       <label style={{ opacity: 0.5 }}>Складской учет</label>
                       <input 
                         type="text" 
@@ -446,7 +635,7 @@ export const Storage = () => {
                 </div>
 
                 {formData.type === 'MATERIAL' && (
-                  <div className="form-group">
+                  <div className="form-group" style={{ marginBottom: 0 }}>
                     <label>Мин. остаток (для оповещений о закупке)</label>
                     <input 
                       type="number" 
@@ -458,7 +647,7 @@ export const Storage = () => {
                   </div>
                 )}
               </div>
-              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
                 {editingId ? (
                   <button 
                     type="button" 

@@ -11,6 +11,10 @@ export interface Material {
   minQuantity?: number;
   costPrice: number;
   salePrice?: number;
+  category?: string;
+  slotIds?: number[];
+  globalServiceIds?: number[];
+  isDefault?: boolean;
 }
 
 export const getMaterials = async (): Promise<Material[]> => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   Trash2,
@@ -7,24 +7,21 @@ import {
   ChevronDown,
   ChevronUp,
   Ruler,
-  Package,
   Minus,
-  RefreshCw,
   Box,
-  Layers
+  Layers,
+  Check
 } from 'lucide-react';
 import type { Material } from '../api/storage';
 import {
   getMeasurementByOrderId,
-  calculateOrderMeasurement,
-  calculateStandaloneMeasurement,
   saveOrderMeasurement,
   type MeasurementDto,
   type MeasurementRoomDto,
   type MeasurementCalculationItemDto,
   type MeasurementCalculateResponse
 } from '../api/measurements';
-import { getActiveEstimationServices, type EstimationService } from '../api/estimationServices';
+import { getActiveEstimationServices, type EstimationService, type EstimationServiceSlot } from '../api/estimationServices';
 import { SearchSelect, type SearchSelectOption } from './SearchSelect';
 
 interface MeasurementWizardProps {
@@ -59,8 +56,6 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   const [activeRoomIdx, setActiveRoomIdx] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
-  const [calculating, setCalculating] = useState<boolean>(false);
-  const [calcResult, setCalcResult] = useState<MeasurementCalculateResponse | null>(null);
   const [showSpecDetails, setShowSpecDetails] = useState<boolean>(true);
 
   // Динамические глобальные услуги со слотами
@@ -72,34 +67,48 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   const [isAddMaterialModalOpen, setIsAddMaterialModalOpen] = useState<boolean>(false);
   const [selectedAddMaterialId, setSelectedAddMaterialId] = useState<number | ''>('');
 
-  // Загрузка услуг и замера
+  // Загрузка услуг и сохраненной сметы
   useEffect(() => {
-    getActiveEstimationServices()
-      .then(setEstimationServices)
-      .catch(err => console.error('Ошибка загрузки сметных услуг:', err));
-  }, []);
+    let isMounted = true;
+    setLoading(true);
 
-  useEffect(() => {
-    if (orderId) {
-      setLoading(true);
-      getMeasurementByOrderId(orderId)
-        .then(dto => {
-          if (dto && dto.rooms && dto.rooms.length > 0) {
-            setRooms(dto.rooms);
-            setNotes(dto.notes || '');
-          } else {
-            setRooms([createDefaultRoom('Гостиная')]);
-          }
-        })
-        .catch(err => {
-          console.error('Ошибка загрузки замера:', err);
-          setRooms([createDefaultRoom('Гостиная')]);
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setRooms([createDefaultRoom('Гостиная')]);
-    }
-  }, [orderId]);
+    Promise.all([
+      getActiveEstimationServices().catch(() => [] as EstimationService[]),
+      orderId ? getMeasurementByOrderId(orderId).catch(() => null) : Promise.resolve(null)
+    ]).then(async ([loadedServices, dto]) => {
+      if (!isMounted) return;
+      setEstimationServices(loadedServices);
+
+      const targetRooms = (dto && dto.rooms && dto.rooms.length > 0)
+        ? dto.rooms
+        : [createDefaultRoom('Гостиная')];
+
+      setRooms(targetRooms);
+      setNotes(dto?.notes || '');
+
+      // Если у замера уже сохранены точные позиции сметы, восстанавливаем их.
+      // Изначально для новой заявки/замера смета пустая, пока пользователь не нажмет на чипсу услуги.
+      let calculatedItems: MeasurementCalculationItemDto[] = [];
+      if (dto && dto.items && dto.items.length > 0) {
+        calculatedItems = dto.items;
+      }
+
+      if (isMounted) {
+        setCustomItems(calculatedItems);
+        setLoading(false);
+      }
+    }).catch(err => {
+      console.error('Ошибка инициализации замера:', err);
+      if (isMounted) {
+        setRooms([createDefaultRoom('Гостиная')]);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [orderId, materials]);
 
   function createDefaultRoom(name: string): MeasurementRoomDto {
     return {
@@ -110,7 +119,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       baseCorners: 4,
       extraCorners: 0,
       lightsCount: 0,
-      chandeliersCount: 1,
+      chandeliersCount: 0,
       tracksLength: 0,
       corniceLength: 0,
       pipesCount: 0,
@@ -119,100 +128,170 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     };
   }
 
-  // Live calculation с дебаунсом
-  const debounceTimerRef = useRef<any>(null);
+  const currentRoom = rooms[activeRoomIdx] || rooms[0];
 
-  const performCalculation = useCallback((currentRooms: MeasurementRoomDto[]) => {
-    if (currentRooms.length === 0) {
-      setCalcResult(null);
-      setCustomItems([]);
-      return;
-    }
+  // Проверка активности глобальной услуги для текущей комнаты
+  const isServiceActiveInRoom = (service: EstimationService): boolean => {
+    const currentRoomName = currentRoom?.roomName || 'Гостиная';
+    const slotIds = (service.slots || []).map(s => s.id);
+    return customItems.some(it => 
+      (it.roomName === currentRoomName || !it.roomName) && 
+      it.slotId != null && 
+      slotIds.includes(it.slotId)
+    );
+  };
 
-    setCalculating(true);
-    const req = { rooms: currentRooms };
+  // Переключение чипсы глобальной услуги (Включить / Выключить в смету комнаты)
+  const toggleGlobalServiceInRoom = (service: EstimationService) => {
+    if (!currentRoom) return;
+    setIsManualEditMode(true);
+    const currentRoomName = currentRoom.roomName || 'Гостиная';
+    const slotIds = (service.slots || []).map(s => s.id);
+    const isActive = isServiceActiveInRoom(service);
 
-    const promise = orderId
-      ? calculateOrderMeasurement(orderId, req)
-      : calculateStandaloneMeasurement(req);
+    if (isActive) {
+      // Отключаем услугу: удаляем ее строки из сметы для текущей комнаты
+      setCustomItems(prev => prev.filter(it => 
+        !(it.roomName === currentRoomName && it.slotId != null && slotIds.includes(it.slotId))
+      ));
+    } else {
+      // Включаем услугу: добавляем позиции по умолчанию для каждого слота услуги
+      const newItemsToAdd: MeasurementCalculationItemDto[] = [];
 
-    promise
-      .then(res => {
-        setCalcResult(res);
-        if (!isManualEditMode) {
-          setCustomItems(res.items || []);
+      (service.slots || []).forEach(slot => {
+        if (!slot.materials || slot.materials.length === 0) return;
+
+        // Ищем материал по умолчанию или берем первый
+        const defaultMat = slot.materials.find(m => m.isDefault) || slot.materials[0];
+        const fullMat = materials.find(m => m.id === defaultMat.materialId);
+
+        // Рассчитываем начальный объем на базе calculationBasis
+        let quantity = 1;
+        const waste = slot.wasteCoefficient || 1.0;
+
+        if (slot.calculationBasis === 'AREA') {
+          quantity = Math.round((currentRoom.area || 15) * waste * 100) / 100;
+        } else if (slot.calculationBasis === 'PERIMETER') {
+          quantity = Math.round((currentRoom.perimeter || 16) * waste * 100) / 100;
+        } else if (slot.calculationBasis === 'COUNT' || slot.calculationBasis === 'LENGTH') {
+          quantity = 1;
         }
-      })
-      .catch(err => {
-        console.error('Ошибка расчета сметы:', err);
-      })
-      .finally(() => {
-        setCalculating(false);
+
+        const salePrice = defaultMat.salePrice != null ? defaultMat.salePrice : (fullMat?.salePrice || 0);
+        const costPrice = defaultMat.costPrice != null ? defaultMat.costPrice : (fullMat?.costPrice || 0);
+
+        newItemsToAdd.push({
+          materialId: defaultMat.materialId,
+          slotId: slot.id,
+          name: fullMat?.name || defaultMat.materialName || 'Позиция',
+          type: fullMat?.type || defaultMat.type || 'MATERIAL',
+          quantity: quantity,
+          unit: fullMat?.unit || defaultMat.unit || 'шт.',
+          unitSalePrice: salePrice,
+          unitCostPrice: costPrice,
+          totalSalePrice: Math.round(quantity * salePrice * 100) / 100,
+          totalCostPrice: Math.round(quantity * costPrice * 100) / 100,
+          roomName: currentRoomName
+        });
       });
-  }, [orderId, isManualEditMode]);
 
-  useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
+      setCustomItems(prev => [...prev, ...newItemsToAdd]);
     }
-    debounceTimerRef.current = setTimeout(() => {
-      performCalculation(rooms);
-    }, 300);
+  };
 
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [rooms, performCalculation]);
-
+  // Автоматический пересчет объемов по площади/периметру при изменении размеров комнаты
   const updateRoom = (idx: number, patch: Partial<MeasurementRoomDto>) => {
     setRooms(prev => {
       const next = [...prev];
-      next[idx] = { ...next[idx], ...patch };
+      const oldRoom = next[idx];
+      const updated = { ...oldRoom, ...patch };
+      next[idx] = updated;
+
+      // Если изменились area или perimeter, синхронизируем зависимые строки сметы
+      if ((patch.area !== undefined && patch.area !== oldRoom.area) || 
+          (patch.perimeter !== undefined && patch.perimeter !== oldRoom.perimeter)) {
+        setCustomItems(currentItems => currentItems.map(it => {
+          if (it.roomName !== updated.roomName && it.roomName !== oldRoom.roomName) return it;
+          if (!it.slotId) return it;
+
+          // Ищем слот
+          let targetSlot: EstimationServiceSlot | undefined;
+          for (const s of estimationServices) {
+            targetSlot = (s.slots || []).find(slot => slot.id === it.slotId);
+            if (targetSlot) break;
+          }
+
+          if (!targetSlot) return it;
+
+          let newQ = it.quantity;
+          const waste = targetSlot.wasteCoefficient || 1.0;
+          if (targetSlot.calculationBasis === 'AREA' && patch.area !== undefined) {
+            newQ = Math.round(patch.area * waste * 100) / 100;
+          } else if (targetSlot.calculationBasis === 'PERIMETER' && patch.perimeter !== undefined) {
+            newQ = Math.round(patch.perimeter * waste * 100) / 100;
+          }
+
+          const saleP = it.unitSalePrice || 0;
+          const costP = it.unitCostPrice || 0;
+          return {
+            ...it,
+            roomName: updated.roomName,
+            quantity: newQ,
+            totalSalePrice: Math.round(newQ * saleP * 100) / 100,
+            totalCostPrice: Math.round(newQ * costP * 100) / 100
+          };
+        }));
+      }
+
       return next;
     });
   };
 
-  const updateRoomSlotSelection = (roomIdx: number, slotId: number, materialId: number | undefined, customQuantity?: number) => {
-    setRooms(prev => {
+  // Смена материала в строке сметы (выбор альтернативного из этого же слота/категории)
+  const switchRowMaterial = (rowIndex: number, newMaterialId: number) => {
+    setIsManualEditMode(true);
+    const item = customItems[rowIndex];
+    const newMat = materials.find(m => m.id === newMaterialId);
+    if (!newMat) return;
+
+    setCustomItems(prev => {
       const next = [...prev];
-      const room = { ...next[roomIdx] };
-      let selections = [...(room.slotSelections || [])];
+      const q = item.quantity || 1;
+      const sPrice = newMat.salePrice != null ? newMat.salePrice : (newMat.costPrice || 0);
+      const cPrice = newMat.costPrice || 0;
 
-      const existIdx = selections.findIndex(s => s.slotId === slotId);
-      if (materialId == null) {
-        // Очистить выбор
-        selections = selections.filter(s => s.slotId !== slotId);
-      } else if (existIdx >= 0) {
-        selections[existIdx] = {
-          ...selections[existIdx],
-          materialId,
-          customQuantity: customQuantity !== undefined ? customQuantity : selections[existIdx].customQuantity
-        };
-      } else {
-        selections.push({
-          slotId,
-          materialId,
-          customQuantity: customQuantity !== undefined ? customQuantity : 1
-        });
-      }
-
-      room.slotSelections = selections;
-      next[roomIdx] = room;
+      next[rowIndex] = {
+        ...item,
+        materialId: newMat.id,
+        name: newMat.name,
+        unit: newMat.unit || item.unit,
+        unitSalePrice: sPrice,
+        unitCostPrice: cPrice,
+        totalSalePrice: Math.round(q * sPrice * 100) / 100,
+        totalCostPrice: Math.round(q * cPrice * 100) / 100
+      };
       return next;
     });
   };
 
   const addRoom = (presetName?: string) => {
-    const newName = presetName || `Помещение ${rooms.length + 1}`;
-    setRooms(prev => [...prev, createDefaultRoom(newName)]);
+    let newName = presetName || `Помещение ${rooms.length + 1}`;
+    if (presetName) {
+      const existingCount = rooms.filter(r => r.roomName === presetName || r.roomName.startsWith(`${presetName} `)).length;
+      if (existingCount > 0) {
+        newName = `${presetName} ${existingCount + 1}`;
+      }
+    }
+    const newRoom = createDefaultRoom(newName);
+    setRooms(prev => [...prev, newRoom]);
     setActiveRoomIdx(rooms.length);
   };
 
   const removeRoom = (idx: number) => {
     if (rooms.length <= 1) return;
+    const roomToRemove = rooms[idx];
     setRooms(prev => prev.filter((_, i) => i !== idx));
+    setCustomItems(prev => prev.filter(it => it.roomName !== roomToRemove.roomName));
     if (activeRoomIdx >= idx && activeRoomIdx > 0) {
       setActiveRoomIdx(activeRoomIdx - 1);
     }
@@ -246,7 +325,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
   const addCustomEmptyItem = () => {
     setIsManualEditMode(true);
-    const currentRoomName = rooms[activeRoomIdx]?.roomName || 'Помещение 1';
+    const currentRoomName = currentRoom?.roomName || 'Помещение 1';
     const newItem: MeasurementCalculationItemDto = {
       name: 'Дополнительная позиция / работа',
       type: 'SERVICE',
@@ -266,7 +345,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     if (!mat) return;
 
     setIsManualEditMode(true);
-    const currentRoomName = rooms[activeRoomIdx]?.roomName || 'Помещение 1';
+    const currentRoomName = currentRoom?.roomName || 'Помещение 1';
     const newItem: MeasurementCalculationItemDto = {
       materialId: mat.id,
       name: mat.name,
@@ -284,11 +363,6 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     setSelectedAddMaterialId('');
   };
 
-  const resetToAutoCalculated = () => {
-    setIsManualEditMode(false);
-    performCalculation(rooms);
-  };
-
   // Вычисляем итоговые суммы
   const effectiveTotalSalePrice = customItems.reduce((sum, it) => sum + (it.totalSalePrice || 0), 0);
   const effectiveTotalCostPrice = customItems.reduce((sum, it) => sum + (it.totalCostPrice || 0), 0);
@@ -297,6 +371,9 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     ? Math.round((effectiveProfit / effectiveTotalSalePrice) * 100)
     : 0;
 
+  const totalArea = rooms.reduce((sum, r) => sum + (r.area || 0), 0);
+  const totalPerimeter = rooms.reduce((sum, r) => sum + (r.perimeter || 0), 0);
+
   const handleSave = async () => {
     if (!orderId) return;
     setSaving(true);
@@ -304,7 +381,10 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       const dto: MeasurementDto = {
         orderId,
         notes,
-        rooms
+        rooms,
+        items: customItems,
+        totalPrice: effectiveTotalSalePrice,
+        totalCostPrice: effectiveTotalCostPrice
       };
       const saved = await saveOrderMeasurement(orderId, dto);
 
@@ -313,12 +393,12 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
         totalCostPrice: effectiveTotalCostPrice,
         expectedProfit: effectiveProfit,
         profitMarginPercent: effectiveMarginPercent,
-        totalArea: calcResult?.totalArea || rooms.reduce((sum, r) => sum + (r.area || 0), 0),
-        totalPerimeter: calcResult?.totalPerimeter || rooms.reduce((sum, r) => sum + (r.perimeter || 0), 0),
+        totalArea: totalArea,
+        totalPerimeter: totalPerimeter,
         totalRoomsCount: rooms.length,
-        totalLightsCount: rooms.reduce((sum, r) => sum + (r.lightsCount || 0), 0),
-        totalPipesCount: rooms.reduce((sum, r) => sum + (r.pipesCount || 0), 0),
-        totalCorniceLength: rooms.reduce((sum, r) => sum + (r.corniceLength || 0), 0),
+        totalLightsCount: customItems.filter(it => it.name.toLowerCase().includes('светильник')).reduce((s, it) => s + (it.quantity || 0), 0),
+        totalPipesCount: customItems.filter(it => it.name.toLowerCase().includes('труб')).reduce((s, it) => s + (it.quantity || 0), 0),
+        totalCorniceLength: customItems.filter(it => it.name.toLowerCase().includes('карниз') || it.name.toLowerCase().includes('ниша')).reduce((s, it) => s + (it.quantity || 0), 0),
         items: customItems
       };
 
@@ -340,8 +420,6 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       </div>
     );
   }
-
-  const currentRoom = rooms[activeRoomIdx] || rooms[0];
 
   const darkInputStyle: React.CSSProperties = {
     width: '100%',
@@ -382,7 +460,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     price: m.salePrice,
     unit: m.unit,
     stock: m.quantityInStock,
-    subLabel: m.type === 'SERVICE' ? 'Услуга' : 'Товар'
+    subLabel: m.category || (m.type === 'SERVICE' ? 'Услуга' : 'Материал')
   }));
 
   return (
@@ -465,13 +543,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           <button
             key={preset}
             type="button"
-            onClick={() => {
-              if (rooms.length === 1 && rooms[0].roomName === 'Гостиная' && rooms[0].area === 15) {
-                updateRoom(0, { roomName: preset });
-              } else {
-                addRoom(preset);
-              }
-            }}
+            onClick={() => addRoom(preset)}
             style={{
               fontSize: '0.76rem',
               padding: '3px 9px',
@@ -626,122 +698,59 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             </div>
           </div>
 
-          {/* 2. Динамические сметные услуги и слоты тенанта (Category-Driven) */}
-          {estimationServices.length > 0 ? (
-            estimationServices.map(svc => (
-              <div key={svc.id}>
+          {/* 2. ЧИПСЫ ГЛОБАЛЬНЫХ УСЛУГ (Быстрое добавление пакетов в смету комнаты) */}
+          {estimationServices.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <div style={sectionHeaderStyle}>
                   <Layers size={15} style={{ color: 'var(--accent-primary)' }} />
-                  {svc.name}
+                  Глобальные услуги для комнаты
                 </div>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                  gap: '12px'
-                }}>
-                  {svc.slots.filter(s => s.slotType !== 'AUTO_INCLUDE').map(slot => {
-                    const currentSelection = (currentRoom.slotSelections || []).find(s => s.slotId === slot.id);
-                    const slotOptions: SearchSelectOption[] = slot.materials.map(m => ({
-                      value: m.materialId,
-                      label: m.materialName,
-                      price: m.salePrice,
-                      unit: m.unit,
-                      stock: m.quantityInStock
-                    }));
-
-                    const isCounterBasis = slot.calculationBasis === 'COUNT' || slot.calculationBasis === 'LENGTH';
-
-                    return (
-                      <div
-                        key={slot.id}
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.02)',
-                          padding: '10px 12px',
-                          borderRadius: 'var(--radius-sm)',
-                          border: '1px solid var(--glass-border)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '6px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={labelStyle}>{slot.name}</span>
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                            {slot.calculationBasis === 'AREA' ? 'по м²' : slot.calculationBasis === 'PERIMETER' ? 'по м.п.' : ''}
-                          </span>
-                        </div>
-
-                        {isCounterBasis && (
-                          <div style={{ display: 'flex', alignItems: 'center', height: '36px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', marginBottom: '4px' }}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const curQ = currentSelection?.customQuantity || 0;
-                                updateRoomSlotSelection(activeRoomIdx, slot.id!, currentSelection?.materialId, Math.max(0, curQ - 1));
-                              }}
-                              style={{ width: '36px', minWidth: '36px', flexShrink: 0, height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            >
-                              <Minus size={13} />
-                            </button>
-                            <input
-                              type="number"
-                              min="0"
-                              step={slot.calculationBasis === 'LENGTH' ? '0.1' : '1'}
-                              value={currentSelection?.customQuantity || 0}
-                              onChange={e => updateRoomSlotSelection(activeRoomIdx, slot.id!, currentSelection?.materialId, parseFloat(e.target.value) || 0)}
-                              style={{ flex: 1, minWidth: '40px', height: '100%', border: 'none', background: 'transparent', color: '#fff', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const curQ = currentSelection?.customQuantity || 0;
-                                updateRoomSlotSelection(activeRoomIdx, slot.id!, currentSelection?.materialId, curQ + 1);
-                              }}
-                              style={{ width: '36px', minWidth: '36px', flexShrink: 0, height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            >
-                              <Plus size={13} />
-                            </button>
-                          </div>
-                        )}
-
-                        <SearchSelect
-                          options={slotOptions.length > 0 ? slotOptions : allWarehouseOptions}
-                          value={currentSelection?.materialId}
-                          placeholder={slot.isRequired ? '— Выберите материал —' : '— Без позиции —'}
-                          onChange={val => updateRoomSlotSelection(activeRoomIdx, slot.id!, val ? Number(val) : undefined)}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Нажмите на чипсу, чтобы включить/выключить пакет услуг в смету
+                </span>
               </div>
-            ))
-          ) : (
-            /* Базовые поля, если услуги еще не инициализированы */
-            <div>
-              <div style={sectionHeaderStyle}>
-                <Package size={15} style={{ color: '#fbbf24' }} />
-                Материалы со склада (Базовый набор)
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-                <div>
-                  <label style={labelStyle}>Полотно со склада</label>
-                  <SearchSelect
-                    options={allWarehouseOptions}
-                    value={currentRoom.canvasMaterialId}
-                    placeholder="— Выберите полотно —"
-                    onChange={val => updateRoom(activeRoomIdx, { canvasMaterialId: val ? Number(val) : undefined })}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Профиль (багет)</label>
-                  <SearchSelect
-                    options={allWarehouseOptions}
-                    value={currentRoom.profileMaterialId}
-                    placeholder="— Выберите профиль —"
-                    onChange={val => updateRoom(activeRoomIdx, { profileMaterialId: val ? Number(val) : undefined })}
-                  />
-                </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {estimationServices.map(svc => {
+                  const active = isServiceActiveInRoom(svc);
+                  return (
+                    <button
+                      key={svc.id}
+                      type="button"
+                      onClick={() => toggleGlobalServiceInRoom(svc)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 16px',
+                        borderRadius: '24px',
+                        background: active 
+                          ? 'linear-gradient(135deg, #0ea5e9, #3b82f6)' 
+                          : 'rgba(255, 255, 255, 0.04)',
+                        color: active ? '#ffffff' : 'var(--text-primary)',
+                        border: '1px solid ' + (active ? '#38bdf8' : 'var(--glass-border)'),
+                        cursor: 'pointer',
+                        fontSize: '0.88rem',
+                        fontWeight: active ? 600 : 400,
+                        transition: 'all 0.2s ease',
+                        boxShadow: active ? '0 4px 14px rgba(14, 165, 233, 0.4)' : 'none'
+                      }}
+                    >
+                      {active ? <Check size={16} /> : <Plus size={16} style={{ opacity: 0.6 }} />}
+                      {svc.name}
+                      <span style={{
+                        fontSize: '0.72rem',
+                        opacity: 0.85,
+                        background: active ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.06)',
+                        padding: '1px 6px',
+                        borderRadius: '10px'
+                      }}>
+                        {svc.slots?.length || 0} поз.
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -754,7 +763,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           📝 Заметки замерщика / особенности монтажа
         </label>
         <textarea
-          rows={3}
+          rows={2}
           value={notes}
           onChange={e => setNotes(e.target.value)}
           placeholder="Особые указания монтажникам, тип проводки, скрытые коммуникации..."
@@ -764,8 +773,8 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             border: '1px solid var(--glass-border)',
             borderRadius: 'var(--radius-sm)',
             color: 'var(--text-primary)',
-            padding: '10px 12px',
-            fontSize: '0.88rem',
+            padding: '8px 12px',
+            fontSize: '0.86rem',
             outline: 'none',
             resize: 'vertical',
             boxSizing: 'border-box'
@@ -773,7 +782,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
         />
       </div>
 
-      {/* 4. Плавающий блок итогов и ИНТЕРАКТИВНАЯ ТАБЛИЦА СМЕТЫ */}
+      {/* 3. Плавающий блок итогов и ИНТЕРАКТИВНАЯ ТАБЛИЦА СМЕТЫ */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(16, 185, 129, 0.08))',
         border: '1px solid rgba(59, 130, 246, 0.3)',
@@ -787,7 +796,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
           <div>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 600 }}>
-              ИТОГОВАЯ СМЕТА {calculating && <span style={{ color: 'var(--accent-primary)', textTransform: 'none' }}>• пересчет...</span>}
+              ИТОГОВАЯ СМЕТА
             </div>
             <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#4ade80', letterSpacing: '-0.5px' }}>
               {effectiveTotalSalePrice.toLocaleString('ru-RU')} ₽
@@ -808,11 +817,11 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           }}>
             <div>
               <span>Общая площадь: </span>
-              <strong style={{ color: 'var(--text-primary)' }}>{calcResult?.totalArea || rooms.reduce((s, r) => s + (r.area || 0), 0)} м²</strong>
+              <strong style={{ color: 'var(--text-primary)' }}>{totalArea} м²</strong>
             </div>
             <div>
               <span>Периметр: </span>
-              <strong style={{ color: 'var(--text-primary)' }}>{calcResult?.totalPerimeter || rooms.reduce((s, r) => s + (r.perimeter || 0), 0)} м.п.</strong>
+              <strong style={{ color: 'var(--text-primary)' }}>{totalPerimeter} м.п.</strong>
             </div>
             <div>
               <span>Помещений: </span>
@@ -848,7 +857,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           )}
         </div>
 
-        {/* Заголовок с кнопками добавления и сброса */}
+        {/* Заголовок с кнопками добавления */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
@@ -872,7 +881,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             </button>
             {isManualEditMode && (
               <span style={{ fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                Ручные правки
+                Пользовательские правки
               </span>
             )}
           </div>
@@ -917,32 +926,10 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             >
               <Plus size={14} /> + Своя позиция
             </button>
-
-            {isManualEditMode && (
-              <button
-                type="button"
-                onClick={resetToAutoCalculated}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  background: 'transparent',
-                  border: '1px dashed rgba(245, 158, 11, 0.4)',
-                  color: '#fbbf24',
-                  fontSize: '0.82rem',
-                  cursor: 'pointer'
-                }}
-                title="Сбросить ручные правки и вернуть авторасчет по комнатам"
-              >
-                <RefreshCw size={13} /> Авторасчет
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Раскрытая интерактивная таблица сметы */}
+        {/* Раскрытая интерактивная таблица сметы с Dropdown выбора альтернативных материалов */}
         {showSpecDetails && (
           <div style={{
             background: 'rgba(0, 0, 0, 0.35)',
@@ -954,7 +941,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               <thead>
                 <tr style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'var(--text-secondary)', textAlign: 'left' }}>
                   <th style={{ padding: '8px 10px', width: '35px' }}>#</th>
-                  <th style={{ padding: '8px 10px' }}>Наименование позиции / услуги</th>
+                  <th style={{ padding: '8px 10px', minWidth: '260px' }}>Наименование позиции / услуги (выбор из типа)</th>
                   <th style={{ padding: '8px 10px', width: '90px', textAlign: 'center' }}>Кол-во</th>
                   <th style={{ padding: '8px 10px', width: '80px', textAlign: 'center' }}>Ед.</th>
                   <th style={{ padding: '8px 10px', width: '110px', textAlign: 'right' }}>Цена (₽)</th>
@@ -966,120 +953,174 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                 {customItems.length === 0 ? (
                   <tr>
                     <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      Нет позиций в смете. Введите размеры комнат или добавьте позиции кнопками выше.
+                      Нет позиций в смете. Нажмите на чипсу услуги выше или кнопку «+ Со склада».
                     </td>
                   </tr>
                 ) : (
-                  customItems.map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                      <td style={{ padding: '6px 10px', color: 'var(--text-secondary)', fontWeight: 600 }}>{idx + 1}</td>
-                      <td style={{ padding: '6px 10px' }}>
-                        <input
-                          type="text"
-                          value={item.name}
-                          onChange={e => updateSpecItem(idx, { name: e.target.value })}
-                          style={{
-                            width: '100%',
-                            background: 'rgba(255,255,255,0.03)',
-                            border: '1px solid transparent',
-                            borderRadius: '4px',
-                            color: 'var(--text-primary)',
-                            padding: '4px 8px',
-                            fontSize: '0.84rem'
-                          }}
-                          onFocus={e => (e.target.style.borderColor = 'var(--accent-primary)')}
-                          onBlur={e => (e.target.style.borderColor = 'transparent')}
-                        />
-                        {item.roomName && (
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', paddingLeft: '8px' }}>
-                            {item.roomName}
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: '6px 10px' }}>
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          value={item.quantity}
-                          onChange={e => updateSpecItem(idx, { quantity: parseFloat(e.target.value) || 0 })}
-                          style={{
-                            width: '100%',
-                            textAlign: 'center',
-                            background: 'rgba(255,255,255,0.04)',
-                            border: '1px solid var(--glass-border)',
-                            borderRadius: '4px',
-                            color: 'var(--text-primary)',
-                            padding: '4px 6px',
-                            fontWeight: 600
-                          }}
-                        />
-                      </td>
-                      <td style={{ padding: '6px 10px' }}>
-                        <select
-                          value={item.unit || 'шт.'}
-                          onChange={e => updateSpecItem(idx, { unit: e.target.value })}
-                          style={{
-                            width: '100%',
-                            background: 'rgba(255,255,255,0.04)',
-                            border: '1px solid var(--glass-border)',
-                            borderRadius: '4px',
-                            color: 'var(--text-primary)',
-                            padding: '4px',
-                            fontSize: '0.78rem'
-                          }}
-                        >
-                          <option value="м²" style={{ background: '#1e293b', color: '#f8fafc' }}>м²</option>
-                          <option value="м.п." style={{ background: '#1e293b', color: '#f8fafc' }}>м.п.</option>
-                          <option value="шт." style={{ background: '#1e293b', color: '#f8fafc' }}>шт.</option>
-                          <option value="компл." style={{ background: '#1e293b', color: '#f8fafc' }}>компл.</option>
-                          <option value="услуга" style={{ background: '#1e293b', color: '#f8fafc' }}>услуга</option>
-                        </select>
-                      </td>
-                      <td style={{ padding: '6px 10px' }}>
-                        <input
-                          type="number"
-                          step="1"
-                          min="0"
-                          value={item.unitSalePrice || ''}
-                          onChange={e => updateSpecItem(idx, { unitSalePrice: parseFloat(e.target.value) || 0 })}
-                          style={{
-                            width: '100%',
-                            textAlign: 'right',
-                            background: 'rgba(255,255,255,0.04)',
-                            border: '1px solid var(--glass-border)',
-                            borderRadius: '4px',
-                            color: 'var(--text-primary)',
-                            padding: '4px 6px',
-                            fontWeight: 600
-                          }}
-                        />
-                      </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, color: '#4ade80' }}>
-                        {(item.totalSalePrice || 0).toLocaleString('ru-RU')} ₽
-                      </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => removeSpecItem(idx)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#ef4444',
-                            cursor: 'pointer',
-                            padding: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            opacity: 0.8
-                          }}
-                          title="Удалить позицию"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  customItems.map((item, idx) => {
+                    // Ищем слот, чтобы дать выбор альтернативных материалов того же типа
+                    let linkedSlot: EstimationServiceSlot | undefined;
+                    if (item.slotId) {
+                      for (const svc of estimationServices) {
+                        linkedSlot = (svc.slots || []).find(s => s.id === item.slotId);
+                        if (linkedSlot) break;
+                      }
+                    }
+
+                    const hasAlternatives = linkedSlot && linkedSlot.materials && linkedSlot.materials.length > 1;
+
+                    return (
+                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                        <td style={{ padding: '6px 10px', color: 'var(--text-secondary)', fontWeight: 600 }}>{idx + 1}</td>
+                        <td style={{ padding: '6px 10px' }}>
+                          {hasAlternatives ? (
+                            /* Дропдаун с альтернативными материалами этого же типа */
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <select
+                                value={item.materialId || ''}
+                                onChange={e => switchRowMaterial(idx, Number(e.target.value))}
+                                style={{
+                                  width: '100%',
+                                  background: 'rgba(59, 130, 246, 0.12)',
+                                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                                  borderRadius: '4px',
+                                  color: '#ffffff',
+                                  padding: '5px 8px',
+                                  fontSize: '0.86rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  outline: 'none'
+                                }}
+                              >
+                                {linkedSlot!.materials.map(alt => (
+                                  <option key={alt.materialId} value={alt.materialId} style={{ background: '#1e293b', color: '#ffffff' }}>
+                                    {alt.materialName} ({alt.salePrice} ₽/{alt.unit})
+                                  </option>
+                                ))}
+                              </select>
+                              {item.roomName && (
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', paddingLeft: '4px' }}>
+                                  {item.roomName} • {linkedSlot?.name}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            /* Обычное поле ввода названия */
+                            <div>
+                              <input
+                                type="text"
+                                value={item.name}
+                                onChange={e => updateSpecItem(idx, { name: e.target.value })}
+                                style={{
+                                  width: '100%',
+                                  background: 'rgba(255,255,255,0.03)',
+                                  border: '1px solid transparent',
+                                  borderRadius: '4px',
+                                  color: 'var(--text-primary)',
+                                  padding: '4px 8px',
+                                  fontSize: '0.84rem'
+                                }}
+                                onFocus={e => (e.target.style.borderColor = 'var(--accent-primary)')}
+                                onBlur={e => (e.target.style.borderColor = 'transparent')}
+                              />
+                              {item.roomName && (
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', paddingLeft: '8px' }}>
+                                  {item.roomName}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '6px 10px' }}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.quantity}
+                            onChange={e => updateSpecItem(idx, { quantity: parseFloat(e.target.value) || 0 })}
+                            style={{
+                              width: '100%',
+                              textAlign: 'center',
+                              background: 'rgba(255,255,255,0.04)',
+                              border: '1px solid var(--glass-border)',
+                              borderRadius: '4px',
+                              color: 'var(--text-primary)',
+                              padding: '4px 6px',
+                              fontWeight: 600
+                            }}
+                          />
+                        </td>
+                        <td style={{ padding: '6px 10px' }}>
+                          <select
+                            value={item.unit || 'шт.'}
+                            onChange={e => updateSpecItem(idx, { unit: e.target.value })}
+                            style={{
+                              width: '100%',
+                              background: 'rgba(255,255,255,0.04)',
+                              border: '1px solid var(--glass-border)',
+                              borderRadius: '4px',
+                              color: 'var(--text-primary)',
+                              padding: '4px',
+                              fontSize: '0.78rem'
+                            }}
+                          >
+                            <option value="м²" style={{ background: '#1e293b', color: '#f8fafc' }}>м²</option>
+                            <option value="м.пог" style={{ background: '#1e293b', color: '#f8fafc' }}>м.пог</option>
+                            <option value="м.п." style={{ background: '#1e293b', color: '#f8fafc' }}>м.п.</option>
+                            <option value="шт." style={{ background: '#1e293b', color: '#f8fafc' }}>шт.</option>
+                            <option value="шт" style={{ background: '#1e293b', color: '#f8fafc' }}>шт</option>
+                            <option value="компл." style={{ background: '#1e293b', color: '#f8fafc' }}>компл.</option>
+                            <option value="усл." style={{ background: '#1e293b', color: '#f8fafc' }}>усл.</option>
+                            {item.unit && !['м²', 'м.пог', 'м.п.', 'шт.', 'шт', 'компл.', 'усл.'].includes(item.unit) && (
+                              <option value={item.unit} style={{ background: '#1e293b', color: '#f8fafc' }}>{item.unit}</option>
+                            )}
+                          </select>
+                        </td>
+                        <td style={{ padding: '6px 10px' }}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.unitSalePrice || ''}
+                            onChange={e => updateSpecItem(idx, { unitSalePrice: parseFloat(e.target.value) || 0 })}
+                            style={{
+                              width: '100%',
+                              textAlign: 'right',
+                              background: 'rgba(255,255,255,0.04)',
+                              border: '1px solid var(--glass-border)',
+                              borderRadius: '4px',
+                              color: 'var(--text-primary)',
+                              padding: '4px 6px',
+                              fontWeight: 600
+                            }}
+                          />
+                        </td>
+                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, color: '#4ade80' }}>
+                          {(item.totalSalePrice || 0).toLocaleString('ru-RU')} ₽
+                        </td>
+                        <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => removeSpecItem(idx)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              opacity: 0.8
+                            }}
+                            title="Удалить позицию"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

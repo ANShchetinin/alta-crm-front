@@ -388,7 +388,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }} onClick={e => e.stopPropagation()}>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'rgba(255, 255, 255, 0.05)', padding: '4px 8px', borderRadius: '6px' }}>
-                      Групп выбора: {svc.slots.length}
+                      Позиций в смете: {svc.slots.length}
                     </span>
 
                     <button
@@ -419,7 +419,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                 {isExpanded && (
                   <div style={{ padding: '16px 18px', borderTop: '1px solid var(--glass-border)', background: 'rgba(0, 0, 0, 0.2)' }}>
                     <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
-                      Группы выбора и привязанные материалы склада:
+                      Материал / Услуга, добавляемые в смету автоматически:
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
@@ -441,7 +441,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                               {slot.name}
                             </span>
                             <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', background: 'rgba(59, 130, 246, 0.12)', padding: '2px 6px', borderRadius: '4px' }}>
-                              Базис: {slot.calculationBasis} {slot.wasteCoefficient > 1 ? `(×${slot.wasteCoefficient})` : ''}
+                              Единица расчета: {slot.calculationBasis} {slot.wasteCoefficient > 1 ? `(×${slot.wasteCoefficient})` : ''}
                             </span>
                           </div>
 
@@ -503,10 +503,8 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
             padding: '20px',
             zIndex: 10010
           }}
-          onClick={() => setEditingService(null)}
         >
           <div
-            onClick={e => e.stopPropagation()}
             style={{
               background: 'var(--card-bg, #1a1f2c)',
               border: '1px solid var(--glass-border)',
@@ -608,12 +606,12 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                 />
               </div>
 
-              {/* Блок слотов / групп выбора */}
+              {/* Блок слотов / позиций сметы */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <div style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Tag size={16} style={{ color: 'var(--accent-primary)' }} />
-                    Группы выбора и слоты материалов:
+                    Материал / Услуга, добавляемые в смету автоматически:
                   </div>
                   <button
                     type="button"
@@ -621,7 +619,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                     className="btn btn-ghost"
                     style={{ fontSize: '0.82rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', border: '1px dashed var(--glass-border)' }}
                   >
-                    <Plus size={14} /> + Добавить группу выбора
+                    <Plus size={14} /> + Добавить материал
                   </button>
                 </div>
 
@@ -644,7 +642,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                           type="text"
                           value={slot.name}
                           onChange={e => updateSlot(sIdx, { name: e.target.value })}
-                          placeholder="Название группы (например: Фактура полотна)"
+                          placeholder="Название материала / услуги (например: Полотно, Стеновой багет, Монтаж)"
                           style={{
                             flex: 1,
                             height: '34px',
@@ -661,7 +659,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                           type="button"
                           onClick={() => removeSlot(sIdx)}
                           style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
-                          title="Удалить эту группу"
+                          title="Удалить эту позицию"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -670,7 +668,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                       {/* Настройки формулы расчета слота */}
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
                         <div>
-                          <label style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Базис объема</label>
+                          <label style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Единица расчета</label>
                           <select
                             value={slot.calculationBasis}
                             onChange={e => updateSlot(sIdx, { calculationBasis: e.target.value as CalculationBasis })}
@@ -710,10 +708,10 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                         </div>
                       </div>
 
-                      {/* Привязка материалов склада тегами */}
+                      {/* Привязка взаимозаменяемых материалов склада */}
                       <div style={{ marginTop: '6px' }}>
                         <label style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                          Привязать материалы со склада в эту группу:
+                          Добавить взаимозаменяемые материалы со склада:
                         </label>
                         <div style={{ maxWidth: '400px', marginBottom: '8px' }}>
                           <SearchSelect

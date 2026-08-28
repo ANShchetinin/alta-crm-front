@@ -97,12 +97,10 @@ describe('MeasurementWizard Component', () => {
       />
     );
 
-    expect(screen.getByText('Гостиная')).toBeInTheDocument();
-    expect(screen.getByText('Геометрия помещения')).toBeInTheDocument();
-
     await waitFor(() => {
-      expect(screen.getByText('Монтаж натяжного потолка')).toBeInTheDocument();
-      expect(screen.getByText('Фактура полотна')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Гостиная')).toBeInTheDocument();
+      expect(screen.getByText('Геометрия помещения')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Монтаж натяжного потолка/i })).toBeInTheDocument();
     });
   });
 
@@ -114,9 +112,15 @@ describe('MeasurementWizard Component', () => {
       />
     );
 
+    await waitFor(() => {
+      expect(screen.getByText('+ Спальня')).toBeInTheDocument();
+    });
+
     const bedroomPresetBtn = screen.getByText('+ Спальня');
     fireEvent.click(bedroomPresetBtn);
 
-    expect(screen.getByText('Спальня')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Спальня')).toBeInTheDocument();
+    });
   });
 });
