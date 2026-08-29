@@ -712,16 +712,16 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             </div>
           </div>
 
-          {/* 2. ЧИПСЫ ГЛОБАЛЬНЫХ УСЛУГ (Быстрое добавление пакетов в смету комнаты) */}
+          {/* 2. ПАКЕТЫ РАБОТ И КОМПЛЕКТАЦИЯ (Быстрое добавление пакетов в смету комнаты) */}
           {estimationServices.length > 0 && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <div style={sectionHeaderStyle}>
                   <Layers size={15} style={{ color: 'var(--accent-primary)' }} />
-                  Глобальные услуги для комнаты
+                  Виды работ и комплектация
                 </div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Нажмите на чипсу, чтобы включить/выключить пакет услуг в смету
+                  Нажмите, чтобы включить или исключить пакет работ из сметы
                 </span>
               </div>
 
@@ -958,7 +958,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               <thead>
                 <tr style={{ background: 'var(--table-header-bg, rgba(255, 255, 255, 0.06))', color: 'var(--text-secondary)', textAlign: 'left' }}>
                   <th style={{ padding: '8px 10px', width: '35px' }}>#</th>
-                  <th style={{ padding: '8px 10px', minWidth: '260px' }}>Наименование позиции / услуги (выбор из типа)</th>
+                  <th style={{ padding: '8px 10px', minWidth: '260px' }}>Наименование позиции / работы (выбор материала)</th>
                   <th style={{ padding: '8px 10px', width: '90px', textAlign: 'center' }}>Кол-во</th>
                   <th style={{ padding: '8px 10px', width: '80px', textAlign: 'center' }}>Ед.</th>
                   <th style={{ padding: '8px 10px', width: '110px', textAlign: 'right' }}>Цена (₽)</th>
@@ -970,7 +970,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                 {customItems.length === 0 ? (
                   <tr>
                     <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      Нет позиций в смете. Нажмите на чипсу услуги выше или кнопку «+ Со склада».
+                      Нет позиций в смете. Выберите нужные виды работ выше или добавьте позиции со склада кнопкой «+ Со склада».
                     </td>
                   </tr>
                 ) : (

@@ -514,12 +514,12 @@ export const Storage = () => {
                   )}
                 </div>
 
-                {/* Привязка к глобальным услугам */}
+                {/* Привязка к разделу сметного калькулятора */}
                 {estimationServices.length > 0 && (
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Layers size={15} style={{ color: 'var(--accent-primary)' }} />
-                      Привязать к глобальной услуге калькулятора
+                      Привязать к разделу сметного калькулятора
                     </label>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
                       {estimationServices.map(svc => {

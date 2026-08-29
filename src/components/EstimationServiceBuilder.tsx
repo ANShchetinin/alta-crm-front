@@ -273,10 +273,10 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
         <div>
           <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Sliders size={20} style={{ color: 'var(--accent-primary)' }} />
-            Конструктор сметных услуг и правил расчета
+            Конструктор пакетов работ и правил расчета сметы
           </h3>
           <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Настройте пакеты услуг, группы выбора и привяжите номенклатуру склада тегами. 0% хардкода.
+            Настройте пакеты работ, группы выбора материалов и привяжите номенклатуру склада. 0% хардкода.
           </div>
         </div>
 
@@ -288,7 +288,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
               className="btn btn-ghost"
               style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem' }}
             >
-              <RefreshCw size={14} /> Заполнить шаблоны потолков
+              <RefreshCw size={14} /> Заполнить базовые пакеты
             </button>
           )}
           <button
@@ -297,12 +297,12 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
             className="btn btn-primary"
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '0.88rem' }}
           >
-            <Plus size={16} /> + Добавить услугу
+            <Plus size={16} /> + Добавить пакет работ
           </button>
         </div>
       </div>
 
-      {/* Список глобальных услуг */}
+      {/* Список пакетов работ */}
       {services.length === 0 ? (
         <div style={{
           textAlign: 'center',
@@ -314,10 +314,10 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
         }}>
           <Layers size={40} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
           <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            Сметные услуги еще не созданы
+            Пакеты работ еще не созданы
           </div>
           <div style={{ fontSize: '0.86rem', marginTop: '6px', maxWidth: '500px', margin: '6px auto 16px' }}>
-            Нажмите кнопку «Заполнить шаблоны потолков» для быстрой загрузки базовых пакетов монтажа или создайте свои уникальные услуги.
+            Нажмите кнопку «Заполнить базовые пакеты» для быстрой загрузки стандартных наборов монтажа или создайте свои уникальные пакеты.
           </div>
           <button
             type="button"
@@ -524,7 +524,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
             <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Layers size={20} style={{ color: 'var(--accent-primary)' }} />
-                {editingService.id ? `Редактирование услуги: ${editingService.name}` : 'Создание новой сметной услуги'}
+                {editingService.id ? `Редактирование пакета: ${editingService.name}` : 'Создание нового пакета работ'}
               </h3>
               <button
                 type="button"
@@ -541,7 +541,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
               {/* Основные параметры услуги */}
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px' }}>
                 <div>
-                  <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Название услуги</label>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Название пакета работ</label>
                   <input
                     type="text"
                     value={editingService.name}
