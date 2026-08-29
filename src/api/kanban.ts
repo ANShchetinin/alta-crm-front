@@ -218,6 +218,10 @@ export const uploadAudio = async (orderId: number, file: File): Promise<void> =>
   await api.post(`/orders/${orderId}/audio`, formData);
 };
 
+export const deleteOrderAudio = async (orderId: number): Promise<void> => {
+  await api.delete(`/orders/${orderId}/audio`);
+};
+
 export const getAiSummary = async (orderId: number): Promise<OrderAiSummary> => {
   const response = await api.get(`/orders/${orderId}/ai-summary`);
   return response.data;

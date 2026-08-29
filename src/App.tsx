@@ -11,6 +11,7 @@ import { Tenants } from './pages/Tenants';
 import { ContractTemplates } from './pages/ContractTemplates';
 import { Earnings } from './pages/Earnings';
 import { Calendar } from './pages/Calendar';
+import { Measurements } from './pages/Measurements';
 import { Finances } from './pages/Finances';
 import { FeatureFlags } from './pages/FeatureFlags';
 import { useFeature } from './hooks/useFeatureToggle';
@@ -152,6 +153,7 @@ function App() {
           <Route index element={<IndexRedirect />} />
           <Route path="kanban" element={<Kanban />} />
           <Route path="calendar" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER', 'SUPERADMIN']}><FeatureRoute feature="CALENDAR"><Calendar /></FeatureRoute></RoleRoute>} />
+          <Route path="measurements" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER', 'SUPERADMIN']}><FeatureRoute feature="MEASUREMENT_CALCULATOR"><Measurements /></FeatureRoute></RoleRoute>} />
           <Route path="earnings" element={<RoleRoute allowedRoles={['WORKER', 'OWNER', 'MANAGER', 'SUPERADMIN']}><Earnings /></RoleRoute>} />
           <Route path="clients" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Clients /></RoleRoute>} />
           <Route path="employees" element={<RoleRoute allowedRoles={['OWNER', 'SUPERADMIN']}><Employees /></RoleRoute>} />
