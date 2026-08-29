@@ -186,7 +186,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           name: fullMat?.name || defaultMat.materialName || 'Позиция',
           type: fullMat?.type || defaultMat.type || 'MATERIAL',
           quantity: quantity,
-          unit: fullMat?.unit || defaultMat.unit || 'шт.',
+          unit: fullMat?.unit || defaultMat.unit || 'шт',
           unitSalePrice: salePrice,
           unitCostPrice: costPrice,
           totalSalePrice: Math.round(quantity * salePrice * 100) / 100,
@@ -254,6 +254,17 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     const newMat = materials.find(m => m.id === newMaterialId);
     if (!newMat) return;
 
+    let targetSlotId = item.slotId;
+    if (!targetSlotId) {
+      for (const svc of estimationServices) {
+        const found = (svc.slots || []).find(s => (s.materials || []).some(m => m.materialId === newMaterialId || m.materialId === item.materialId));
+        if (found) {
+          targetSlotId = found.id;
+          break;
+        }
+      }
+    }
+
     setCustomItems(prev => {
       const next = [...prev];
       const q = item.quantity || 1;
@@ -263,6 +274,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       next[rowIndex] = {
         ...item,
         materialId: newMat.id,
+        slotId: targetSlotId,
         name: newMat.name,
         unit: newMat.unit || item.unit,
         unitSalePrice: sPrice,
@@ -330,7 +342,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       name: 'Дополнительная позиция / работа',
       type: 'SERVICE',
       quantity: 1,
-      unit: 'шт.',
+      unit: 'шт',
       unitSalePrice: 0,
       unitCostPrice: 0,
       totalSalePrice: 0,
@@ -351,7 +363,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       name: mat.name,
       type: mat.type || 'MATERIAL',
       quantity: 1,
-      unit: mat.unit || 'шт.',
+      unit: mat.unit || 'шт',
       unitSalePrice: mat.salePrice || 0,
       unitCostPrice: mat.costPrice || 0,
       totalSalePrice: mat.salePrice || 0,
@@ -966,6 +978,12 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                         if (linkedSlot) break;
                       }
                     }
+                    if (!linkedSlot && item.materialId) {
+                      for (const svc of estimationServices) {
+                        linkedSlot = (svc.slots || []).find(s => (s.materials || []).some(m => m.materialId === item.materialId));
+                        if (linkedSlot) break;
+                      }
+                    }
 
                     const hasAlternatives = linkedSlot && linkedSlot.materials && linkedSlot.materials.length > 1;
 
@@ -1052,7 +1070,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                         </td>
                         <td style={{ padding: '6px 10px' }}>
                           <select
-                            value={item.unit || 'шт.'}
+                            value={item.unit || 'шт'}
                             onChange={e => updateSpecItem(idx, { unit: e.target.value })}
                             style={{
                               width: '100%',
@@ -1067,11 +1085,11 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                             <option value="м²" style={{ background: '#1e293b', color: '#f8fafc' }}>м²</option>
                             <option value="м.пог" style={{ background: '#1e293b', color: '#f8fafc' }}>м.пог</option>
                             <option value="м.п." style={{ background: '#1e293b', color: '#f8fafc' }}>м.п.</option>
-                            <option value="шт." style={{ background: '#1e293b', color: '#f8fafc' }}>шт.</option>
                             <option value="шт" style={{ background: '#1e293b', color: '#f8fafc' }}>шт</option>
+                            <option value="шт." style={{ background: '#1e293b', color: '#f8fafc' }}>шт.</option>
                             <option value="компл." style={{ background: '#1e293b', color: '#f8fafc' }}>компл.</option>
                             <option value="усл." style={{ background: '#1e293b', color: '#f8fafc' }}>усл.</option>
-                            {item.unit && !['м²', 'м.пог', 'м.п.', 'шт.', 'шт', 'компл.', 'усл.'].includes(item.unit) && (
+                            {item.unit && !['м²', 'м.пог', 'м.п.', 'шт', 'шт.', 'компл.', 'усл.'].includes(item.unit) && (
                               <option value={item.unit} style={{ background: '#1e293b', color: '#f8fafc' }}>{item.unit}</option>
                             )}
                           </select>

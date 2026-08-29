@@ -8,7 +8,7 @@ import { getEstimationServices, type EstimationService } from '../api/estimation
 import { useAppStore } from '../store/useAppStore';
 import '../styles/clients.css';
 
-export const UNIT_OPTIONS = ['м²', 'м.пог', 'шт.'] as const;
+export const UNIT_OPTIONS = ['м²', 'м.пог', 'шт'] as const;
 
 export const Storage = () => {
   const { t } = useTranslation();
@@ -87,7 +87,7 @@ export const Storage = () => {
       name: '',
       type: defaultType,
       category: '',
-      unit: defaultType === 'SERVICE' ? 'шт.' : 'м²',
+      unit: defaultType === 'SERVICE' ? 'шт' : 'м²',
       quantityInStock: '0',
       costPrice: '',
       salePrice: '',
@@ -105,7 +105,7 @@ export const Storage = () => {
       name: material.name,
       type: mType,
       category: material.category || (mType === 'SERVICE' ? 'Монтажные работы' : 'Полотно'),
-      unit: material.unit,
+      unit: material.unit === 'шт.' ? 'шт' : material.unit,
       quantityInStock: material.quantityInStock != null ? material.quantityInStock.toString() : '0',
       costPrice: material.costPrice != null ? material.costPrice.toString() : '0',
       salePrice: material.salePrice != null ? material.salePrice.toString() : (material.costPrice != null ? material.costPrice.toString() : '0'),
@@ -578,7 +578,7 @@ export const Storage = () => {
                     >
                       <option value="м²">м²</option>
                       <option value="м.пог">м.пог</option>
-                      <option value="шт.">шт.</option>
+                      <option value="шт">шт</option>
                       <option value="компл.">компл.</option>
                       <option value="усл.">усл.</option>
                     </select>

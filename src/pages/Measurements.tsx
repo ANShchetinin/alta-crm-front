@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Ruler,
   MapPin,
@@ -395,20 +396,21 @@ export const Measurements: React.FC = () => {
       )}
 
       {/* Модальное окно Мастера замера для конкретного заказа */}
-      {activeOrderId && (
+      {activeOrderId && createPortal(
         <div
           className="modal-overlay"
           onClick={() => setActiveOrderId(null)}
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.7)',
-            backdropFilter: 'blur(4px)',
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '16px',
-            zIndex: 1000
+            padding: '32px 16px',
+            zIndex: 100000,
+            overflowY: 'auto'
           }}
         >
           <div
@@ -417,14 +419,16 @@ export const Measurements: React.FC = () => {
               background: 'var(--card-bg, #1a1f2c)',
               border: '1px solid var(--glass-border)',
               borderRadius: 'var(--radius-lg)',
-              maxWidth: '850px',
+              maxWidth: '900px',
               width: '100%',
-              maxHeight: '90vh',
+              maxHeight: 'calc(100vh - 64px)',
               overflowY: 'auto',
               padding: '24px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '16px'
+              gap: '16px',
+              margin: 'auto',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -453,24 +457,26 @@ export const Measurements: React.FC = () => {
               }}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Модальное окно Экспресс-калькулятора (без заказа) */}
-      {isExpressCalcOpen && (
+      {isExpressCalcOpen && createPortal(
         <div
           className="modal-overlay"
           onClick={() => setIsExpressCalcOpen(false)}
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.7)',
-            backdropFilter: 'blur(4px)',
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '16px',
-            zIndex: 1000
+            padding: '32px 16px',
+            zIndex: 100000,
+            overflowY: 'auto'
           }}
         >
           <div
@@ -479,14 +485,16 @@ export const Measurements: React.FC = () => {
               background: 'var(--card-bg, #1a1f2c)',
               border: '1px solid var(--glass-border)',
               borderRadius: 'var(--radius-lg)',
-              maxWidth: '850px',
+              maxWidth: '900px',
               width: '100%',
-              maxHeight: '90vh',
+              maxHeight: 'calc(100vh - 64px)',
               overflowY: 'auto',
               padding: '24px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '16px'
+              gap: '16px',
+              margin: 'auto',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -513,7 +521,8 @@ export const Measurements: React.FC = () => {
               canViewFinances={role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER'}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
