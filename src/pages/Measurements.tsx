@@ -435,38 +435,12 @@ export const Measurements: React.FC = () => {
       {/* Модальное окно Мастера замера для выбранной заявки */}
       {activeOrderId && createPortal(
         <div
-          className="modal-overlay"
+          className="wizard-modal-overlay"
           onClick={() => setActiveOrderId(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '32px 16px',
-            zIndex: 100000,
-            overflowY: 'auto'
-          }}
         >
           <div
+            className="wizard-modal-box"
             onClick={e => e.stopPropagation()}
-            style={{
-              background: 'var(--modal-bg, var(--card-bg, #1e293b))',
-              border: '1px solid var(--glass-border)',
-              borderRadius: 'var(--radius-lg)',
-              maxWidth: '900px',
-              width: '100%',
-              maxHeight: 'calc(100vh - 64px)',
-              overflowY: 'auto',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              margin: 'auto',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)'
-            }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
@@ -501,38 +475,12 @@ export const Measurements: React.FC = () => {
       {/* Модальное окно Экспресс-калькулятора (без заказа) */}
       {isExpressCalcOpen && createPortal(
         <div
-          className="modal-overlay"
+          className="wizard-modal-overlay"
           onClick={() => setIsExpressCalcOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '32px 16px',
-            zIndex: 100000,
-            overflowY: 'auto'
-          }}
         >
           <div
+            className="wizard-modal-box"
             onClick={e => e.stopPropagation()}
-            style={{
-              background: 'var(--modal-bg, var(--card-bg, #1e293b))',
-              border: '1px solid var(--glass-border)',
-              borderRadius: 'var(--radius-lg)',
-              maxWidth: '900px',
-              width: '100%',
-              maxHeight: 'calc(100vh - 64px)',
-              overflowY: 'auto',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              margin: 'auto',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)'
-            }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>

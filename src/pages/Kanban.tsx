@@ -3275,7 +3275,7 @@ const Kanban = () => {
 
       {isModalOpen && createPortal(
         <div className="modal-overlay" onClick={handleRequestCloseModal}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '92%', minHeight: '620px', display: 'flex', flexDirection: 'column' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: orderModalTab === 'MEASUREMENT' || orderModalTab === 'CONTRACT' ? '1020px' : '840px', width: '95%', minHeight: '620px', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1, minWidth: 0, paddingRight: '8px' }}>
                 <h2 style={{ margin: 0, whiteSpace: 'nowrap' }}>

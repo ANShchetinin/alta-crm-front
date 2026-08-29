@@ -309,3 +309,105 @@ body.light-theme {
 .light-theme textarea {
   color: var(--text-primary);
 }
+
+/* Measurement Wizard Responsive & iOS Safe Area Styles */
+.wizard-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+  padding-top: max(16px, env(safe-area-inset-top, 16px));
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+  padding-left: max(12px, env(safe-area-inset-left, 12px));
+  padding-right: max(12px, env(safe-area-inset-right, 12px));
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wizard-table-desktop {
+  display: block;
+}
+
+.wizard-cards-mobile {
+  display: none;
+}
+
+.wizard-modal-box {
+  background: var(--modal-bg, var(--card-bg, #1e293b));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  max-width: 900px;
+  width: 100%;
+  max-height: calc(100dvh - 36px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100vh - 36px); /* fallback */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+}
+
+.wizard-geometry-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .wizard-modal-overlay {
+    align-items: flex-start !important;
+    padding-top: max(10px, env(safe-area-inset-top, 10px)) !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px)) !important;
+    padding-left: max(6px, env(safe-area-inset-left, 6px)) !important;
+    padding-right: max(6px, env(safe-area-inset-right, 6px)) !important;
+  }
+  .wizard-table-desktop {
+    display: none !important;
+  }
+  .wizard-cards-mobile {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .wizard-modal-box {
+    padding: 14px 10px !important;
+    padding-bottom: max(32px, env(safe-area-inset-bottom, 32px)) !important;
+    border-radius: var(--radius-md) !important;
+    max-height: calc(100dvh - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    max-height: calc(100vh - 20px) !important; /* fallback */
+    gap: 12px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+  }
+  .wizard-geometry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+  .wizard-action-footer {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 10px !important;
+  }
+  .wizard-footer-btn {
+    width: 100% !important;
+    height: 48px !important;
+    justify-content: center !important;
+    font-size: 0.95rem !important;
+  }
+}

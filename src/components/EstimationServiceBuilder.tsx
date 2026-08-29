@@ -677,9 +677,9 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                             style={{ width: '100%', height: '32px', background: 'var(--input-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', fontSize: '0.82rem', borderRadius: '4px', padding: '0 6px' }}
                           >
                             <option value="AREA" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Площадь S (м²)</option>
-                            <option value="PERIMETER" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Периметр P (м.п.)</option>
-                            <option value="COUNT" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Штуки (шт.)</option>
-                            <option value="LENGTH" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Длина (м.п.)</option>
+                            <option value="PERIMETER" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Периметр P (м.пог)</option>
+                            <option value="COUNT" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Штуки (шт)</option>
+                            <option value="LENGTH" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Длина (м.пог)</option>
                             <option value="FIXED" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Фиксировано (1 шт)</option>
                           </select>
                         </div>
