@@ -265,7 +265,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
         alignItems: 'center',
         flexWrap: 'wrap',
         gap: '12px',
-        background: 'rgba(255, 255, 255, 0.02)',
+        background: 'var(--card-bg, rgba(255, 255, 255, 0.02))',
         padding: '16px 20px',
         borderRadius: 'var(--radius-lg)',
         border: '1px solid var(--glass-border)'
@@ -307,7 +307,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
         <div style={{
           textAlign: 'center',
           padding: '48px 20px',
-          background: 'rgba(255, 255, 255, 0.02)',
+          background: 'var(--card-bg, rgba(255, 255, 255, 0.02))',
           borderRadius: 'var(--radius-lg)',
           border: '1px dashed var(--glass-border)',
           color: 'var(--text-secondary)'
@@ -336,11 +336,12 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
               <div
                 key={svc.id}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.025)',
-                  border: '1px solid ' + (isExpanded ? 'rgba(59, 130, 246, 0.4)' : 'var(--glass-border)'),
+                  background: 'var(--card-bg, rgba(255, 255, 255, 0.025))',
+                  border: '1px solid ' + (isExpanded ? 'var(--accent-primary)' : 'var(--glass-border)'),
                   borderRadius: 'var(--radius-md)',
                   overflow: 'hidden',
-                  transition: 'all 0.15s ease'
+                  transition: 'all 0.15s ease',
+                  boxShadow: 'var(--glass-shadow)'
                 }}
               >
                 {/* Карточка-заголовок услуги */}
@@ -351,7 +352,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     cursor: 'pointer',
-                    background: isExpanded ? 'rgba(59, 130, 246, 0.06)' : 'transparent',
+                    background: isExpanded ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
                     userSelect: 'none'
                   }}
                   onClick={() => setExpandedServiceId(isExpanded ? null : (svc.id || null))}
@@ -387,7 +388,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }} onClick={e => e.stopPropagation()}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'rgba(255, 255, 255, 0.05)', padding: '4px 8px', borderRadius: '6px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--chip-bg, rgba(255, 255, 255, 0.05))', padding: '4px 8px', borderRadius: '6px' }}>
                       Позиций в смете: {svc.slots.length}
                     </span>
 
@@ -417,7 +418,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
 
                 {/* Раскрытый список групп/слотов */}
                 {isExpanded && (
-                  <div style={{ padding: '16px 18px', borderTop: '1px solid var(--glass-border)', background: 'rgba(0, 0, 0, 0.2)' }}>
+                  <div style={{ padding: '16px 18px', borderTop: '1px solid var(--glass-border)', background: 'var(--row-hover-bg, rgba(0, 0, 0, 0.05))' }}>
                     <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
                       Материал / Услуга, добавляемые в смету автоматически:
                     </div>
@@ -427,7 +428,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                         <div
                           key={slot.id || sIdx}
                           style={{
-                            background: 'rgba(255, 255, 255, 0.03)',
+                            background: 'var(--card-bg, rgba(255, 255, 255, 0.03))',
                             border: '1px solid var(--glass-border)',
                             borderRadius: '8px',
                             padding: '12px',
@@ -440,7 +441,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                             <span style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
                               {slot.name}
                             </span>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', background: 'rgba(59, 130, 246, 0.12)', padding: '2px 6px', borderRadius: '4px' }}>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', background: 'rgba(59, 130, 246, 0.12)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
                               Единица расчета: {slot.calculationBasis} {slot.wasteCoefficient > 1 ? `(×${slot.wasteCoefficient})` : ''}
                             </span>
                           </div>
@@ -463,12 +464,13 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                                     fontSize: '0.76rem',
                                     padding: '3px 8px',
                                     borderRadius: '6px',
-                                    background: m.isDefault ? 'rgba(74, 222, 128, 0.15)' : 'rgba(255, 255, 255, 0.06)',
-                                    border: m.isDefault ? '1px solid rgba(74, 222, 128, 0.4)' : '1px solid var(--glass-border)',
-                                    color: m.isDefault ? '#4ade80' : 'var(--text-primary)',
+                                    background: m.isDefault ? 'rgba(34, 197, 94, 0.15)' : 'var(--chip-bg, rgba(255, 255, 255, 0.06))',
+                                    border: m.isDefault ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid var(--glass-border)',
+                                    color: m.isDefault ? '#16a34a' : 'var(--text-primary)',
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: '4px'
+                                    gap: '4px',
+                                    fontWeight: m.isDefault ? 600 : 400
                                   }}
                                 >
                                   {m.isDefault && <CheckCircle2 size={11} />}
@@ -495,7 +497,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
+            background: 'rgba(0, 0, 0, 0.6)',
             backdropFilter: 'blur(5px)',
             display: 'flex',
             alignItems: 'center',
@@ -506,7 +508,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
         >
           <div
             style={{
-              background: 'var(--card-bg, #1a1f2c)',
+              background: 'var(--modal-bg, var(--card-bg, #1e293b))',
               border: '1px solid var(--glass-border)',
               borderRadius: 'var(--radius-lg)',
               maxWidth: '850px',
@@ -514,7 +516,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
               maxHeight: '90vh',
               display: 'flex',
               flexDirection: 'column',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
               overflow: 'hidden'
             }}
           >
@@ -548,7 +550,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                     style={{
                       width: '100%',
                       height: '38px',
-                      background: 'rgba(255, 255, 255, 0.05)',
+                      background: 'var(--input-bg)',
                       border: '1px solid var(--glass-border)',
                       borderRadius: 'var(--radius-sm)',
                       color: 'var(--text-primary)',
@@ -568,7 +570,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                     style={{
                       width: '100%',
                       height: '38px',
-                      background: 'rgba(255, 255, 255, 0.05)',
+                      background: 'var(--input-bg)',
                       border: '1px solid var(--glass-border)',
                       borderRadius: 'var(--radius-sm)',
                       color: 'var(--text-primary)',
@@ -578,8 +580,8 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                       boxSizing: 'border-box'
                     }}
                   >
-                    <option value="true" style={{ background: '#1e293b' }}>Активна (отображать в замере)</option>
-                    <option value="false" style={{ background: '#1e293b' }}>Отключена</option>
+                    <option value="true" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Активна (отображать в замере)</option>
+                    <option value="false" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Отключена</option>
                   </select>
                 </div>
               </div>
@@ -594,7 +596,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                   style={{
                     width: '100%',
                     height: '38px',
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: 'var(--input-bg)',
                     border: '1px solid var(--glass-border)',
                     borderRadius: 'var(--radius-sm)',
                     color: 'var(--text-primary)',
@@ -628,7 +630,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                     <div
                       key={sIdx}
                       style={{
-                        background: 'rgba(255, 255, 255, 0.03)',
+                        background: 'var(--card-bg, rgba(255, 255, 255, 0.03))',
                         border: '1px solid var(--glass-border)',
                         borderRadius: 'var(--radius-md)',
                         padding: '16px',
@@ -646,10 +648,10 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                           style={{
                             flex: 1,
                             height: '34px',
-                            background: 'rgba(255, 255, 255, 0.05)',
+                            background: 'var(--input-bg)',
                             border: '1px solid var(--glass-border)',
                             borderRadius: '4px',
-                            color: '#fff',
+                            color: 'var(--text-primary)',
                             fontWeight: 600,
                             padding: '0 10px',
                             fontSize: '0.88rem'
@@ -672,13 +674,13 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                           <select
                             value={slot.calculationBasis}
                             onChange={e => updateSlot(sIdx, { calculationBasis: e.target.value as CalculationBasis })}
-                            style={{ width: '100%', height: '32px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: '#fff', fontSize: '0.82rem', borderRadius: '4px', padding: '0 6px' }}
+                            style={{ width: '100%', height: '32px', background: 'var(--input-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', fontSize: '0.82rem', borderRadius: '4px', padding: '0 6px' }}
                           >
-                            <option value="AREA" style={{ background: '#1e293b' }}>Площадь S (м²)</option>
-                            <option value="PERIMETER" style={{ background: '#1e293b' }}>Периметр P (м.п.)</option>
-                            <option value="COUNT" style={{ background: '#1e293b' }}>Штуки (шт.)</option>
-                            <option value="LENGTH" style={{ background: '#1e293b' }}>Длина (м.п.)</option>
-                            <option value="FIXED" style={{ background: '#1e293b' }}>Фиксировано (1 шт)</option>
+                            <option value="AREA" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Площадь S (м²)</option>
+                            <option value="PERIMETER" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Периметр P (м.п.)</option>
+                            <option value="COUNT" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Штуки (шт.)</option>
+                            <option value="LENGTH" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Длина (м.п.)</option>
+                            <option value="FIXED" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Фиксировано (1 шт)</option>
                           </select>
                         </div>
 
@@ -687,11 +689,11 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                           <select
                             value={slot.slotType}
                             onChange={e => updateSlot(sIdx, { slotType: e.target.value as SlotType })}
-                            style={{ width: '100%', height: '32px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: '#fff', fontSize: '0.82rem', borderRadius: '4px', padding: '0 6px' }}
+                            style={{ width: '100%', height: '32px', background: 'var(--input-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', fontSize: '0.82rem', borderRadius: '4px', padding: '0 6px' }}
                           >
-                            <option value="DROPDOWN" style={{ background: '#1e293b' }}>Выбор одного варианта (Dropdown)</option>
-                            <option value="AUTO_INCLUDE" style={{ background: '#1e293b' }}>Авто-включение (без выбора)</option>
-                            <option value="OPTIONAL" style={{ background: '#1e293b' }}>Опционально (можно пропустить)</option>
+                            <option value="DROPDOWN" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Выбор одного варианта (Dropdown)</option>
+                            <option value="AUTO_INCLUDE" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Авто-включение (без выбора)</option>
+                            <option value="OPTIONAL" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Опционально (можно пропустить)</option>
                           </select>
                         </div>
 
@@ -703,7 +705,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                             min="0.5"
                             value={slot.wasteCoefficient || 1.0}
                             onChange={e => updateSlot(sIdx, { wasteCoefficient: parseFloat(e.target.value) || 1.0 })}
-                            style={{ width: '100%', height: '32px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: '#fff', fontSize: '0.84rem', borderRadius: '4px', padding: '0 8px' }}
+                            style={{ width: '100%', height: '32px', background: 'var(--input-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', fontSize: '0.84rem', borderRadius: '4px', padding: '0 8px' }}
                           />
                         </div>
                       </div>
@@ -732,12 +734,13 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                                 fontSize: '0.78rem',
                                 padding: '4px 10px',
                                 borderRadius: '6px',
-                                background: m.isDefault ? 'rgba(74, 222, 128, 0.15)' : 'rgba(255, 255, 255, 0.06)',
-                                border: m.isDefault ? '1px solid rgba(74, 222, 128, 0.4)' : '1px solid var(--glass-border)',
-                                color: m.isDefault ? '#4ade80' : 'var(--text-primary)',
+                                background: m.isDefault ? 'rgba(34, 197, 94, 0.15)' : 'var(--chip-bg, rgba(255, 255, 255, 0.06))',
+                                border: m.isDefault ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid var(--glass-border)',
+                                color: m.isDefault ? '#16a34a' : 'var(--text-primary)',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '6px'
+                                gap: '6px',
+                                fontWeight: m.isDefault ? 600 : 400
                               }}
                             >
                               <button
@@ -746,10 +749,11 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                                 style={{
                                   background: 'none',
                                   border: 'none',
-                                  color: m.isDefault ? '#4ade80' : 'var(--text-secondary)',
+                                  color: m.isDefault ? '#16a34a' : 'var(--text-secondary)',
                                   cursor: 'pointer',
                                   padding: 0,
-                                  fontSize: '0.72rem'
+                                  fontSize: '0.72rem',
+                                  fontWeight: 600
                                 }}
                                 title={m.isDefault ? 'По умолчанию' : 'Сделать по умолчанию'}
                               >
@@ -774,7 +778,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
             </div>
 
             {/* Footer */}
-            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '12px', background: 'rgba(0,0,0,0.2)' }}>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'flex-end', gap: '12px', background: 'var(--row-hover-bg, rgba(0,0,0,0.05))' }}>
               <button
                 type="button"
                 onClick={() => setEditingService(null)}

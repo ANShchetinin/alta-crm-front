@@ -70,7 +70,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
         style={{
           width: '100%',
           minHeight: '38px',
-          background: 'rgba(255, 255, 255, 0.05)',
+          background: 'var(--input-bg, rgba(255, 255, 255, 0.05))',
           border: isOpen ? '1px solid var(--accent-primary, #3b82f6)' : '1px solid var(--glass-border, rgba(255,255,255,0.1))',
           borderRadius: 'var(--radius-sm, 6px)',
           color: selectedOption ? 'var(--text-primary, #fff)' : 'var(--text-secondary, #94a3b8)',
@@ -83,15 +83,16 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
           opacity: disabled ? 0.6 : 1,
           boxSizing: 'border-box',
           gap: '6px',
-          userSelect: 'none'
+          userSelect: 'none',
+          transition: 'border-color 0.15s ease'
         }}
       >
         <div style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {selectedOption ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-              <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedOption.label}</span>
+              <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>{selectedOption.label}</span>
               {selectedOption.price != null && (
-                <span style={{ fontSize: '0.78rem', color: '#4ade80', flexShrink: 0 }}>
+                <span style={{ fontSize: '0.78rem', color: '#16a34a', fontWeight: 600, flexShrink: 0 }}>
                   ({selectedOption.price} ₽{selectedOption.unit ? `/${selectedOption.unit}` : ''})
                 </span>
               )}
@@ -134,10 +135,10 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
             top: 'calc(100% + 4px)',
             left: 0,
             right: 0,
-            background: 'var(--card-bg, #1e293b)',
+            background: 'var(--dropdown-bg, var(--bg-secondary, #1e293b))',
             border: '1px solid var(--glass-border, rgba(255, 255, 255, 0.15))',
             borderRadius: 'var(--radius-sm, 6px)',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+            boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
             zIndex: 10050,
             overflow: 'hidden',
             maxHeight: '280px',
@@ -146,7 +147,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
           }}
         >
           {/* Поле живого поиска */}
-          <div style={{ padding: '8px', borderBottom: '1px solid var(--glass-border, rgba(255, 255, 255, 0.1))', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ padding: '8px', borderBottom: '1px solid var(--glass-border, rgba(255, 255, 255, 0.1))', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--row-hover-bg)' }}>
             <Search size={14} style={{ color: 'var(--text-secondary, #94a3b8)', flexShrink: 0 }} />
             <input
               ref={searchInputRef}
@@ -158,7 +159,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
                 width: '100%',
                 background: 'transparent',
                 border: 'none',
-                color: '#fff',
+                color: 'var(--text-primary, #fff)',
                 fontSize: '0.82rem',
                 outline: 'none'
               }}
@@ -187,9 +188,9 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
                   fontSize: '0.82rem',
                   color: 'var(--text-secondary, #94a3b8)',
                   cursor: 'pointer',
-                  borderBottom: '1px dashed rgba(255,255,255,0.06)'
+                  borderBottom: '1px dashed var(--glass-border)'
                 }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--row-hover-bg)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
                 {placeholder}
@@ -218,11 +219,11 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
                       justifyContent: 'space-between',
                       cursor: 'pointer',
                       background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                      color: isSelected ? 'var(--accent-primary, #60a5fa)' : 'var(--text-primary, #f8fafc)',
+                      color: isSelected ? 'var(--accent-primary, #3b82f6)' : 'var(--text-primary, #f8fafc)',
                       borderLeft: isSelected ? '3px solid var(--accent-primary, #3b82f6)' : '3px solid transparent'
                     }}
                     onMouseEnter={e => {
-                      if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                      if (!isSelected) e.currentTarget.style.background = 'var(--row-hover-bg)';
                     }}
                     onMouseLeave={e => {
                       if (!isSelected) e.currentTarget.style.background = 'transparent';
@@ -234,7 +235,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
                       </div>
                       <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary, #94a3b8)', display: 'flex', gap: '8px' }}>
                         {opt.price != null && (
-                          <span style={{ color: '#4ade80' }}>
+                          <span style={{ color: '#16a34a', fontWeight: 500 }}>
                             {opt.price} ₽{opt.unit ? `/${opt.unit}` : ''}
                           </span>
                         )}
@@ -244,7 +245,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
                         {opt.subLabel && <span>• {opt.subLabel}</span>}
                       </div>
                     </div>
-                    {isSelected && <Check size={14} style={{ color: 'var(--accent-primary, #60a5fa)', flexShrink: 0 }} />}
+                    {isSelected && <Check size={14} style={{ color: 'var(--accent-primary, #3b82f6)', flexShrink: 0 }} />}
                   </div>
                 );
               })

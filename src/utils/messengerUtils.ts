@@ -1,4 +1,4 @@
-export const getWhatsAppLink = (value?: string | null): string => {
+export const getWhatsAppLink = (value?: string | null, text?: string): string => {
   if (!value) return '';
   const trimmed = value.trim();
   if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
@@ -8,7 +8,7 @@ export const getWhatsAppLink = (value?: string | null): string => {
   if (cleaned.startsWith('8') && cleaned.length === 11) {
     cleaned = '7' + cleaned.slice(1);
   }
-  return `https://wa.me/${cleaned}`;
+  return text ? `https://wa.me/${cleaned}?text=${encodeURIComponent(text)}` : `https://wa.me/${cleaned}`;
 };
 
 export const getTelegramLink = (value?: string | null): string => {

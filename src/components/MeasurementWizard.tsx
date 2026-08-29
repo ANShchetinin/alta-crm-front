@@ -436,7 +436,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   const darkInputStyle: React.CSSProperties = {
     width: '100%',
     height: '38px',
-    background: 'rgba(255, 255, 255, 0.05)',
+    background: 'var(--input-bg, rgba(255, 255, 255, 0.05))',
     border: '1px solid var(--glass-border)',
     borderRadius: 'var(--radius-sm)',
     color: 'var(--text-primary)',
@@ -499,10 +499,10 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                 gap: '8px',
                 padding: '8px 14px',
                 borderRadius: 'var(--radius-md)',
-                background: isActive ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))' : 'rgba(255, 255, 255, 0.04)',
+                background: isActive ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))' : 'var(--chip-bg, rgba(255, 255, 255, 0.04))',
                 color: isActive ? '#ffffff' : 'var(--text-primary)',
                 border: '1px solid ' + (isActive ? 'var(--accent-primary)' : 'var(--glass-border)'),
-                fontWeight: isActive ? 600 : 400,
+                fontWeight: isActive ? 600 : 500,
                 fontSize: '0.88rem',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
@@ -514,7 +514,8 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               <span style={{
                 fontSize: '0.74rem',
                 opacity: 0.9,
-                background: isActive ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                background: isActive ? 'rgba(0, 0, 0, 0.25)' : 'var(--wizard-stat-bg, rgba(255, 255, 255, 0.08))',
+                color: isActive ? '#ffffff' : 'var(--text-primary)',
                 padding: '2px 7px',
                 borderRadius: '10px',
                 fontWeight: 600
@@ -533,7 +534,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             padding: '8px 14px',
             borderRadius: 'var(--radius-md)',
             background: 'transparent',
-            border: '1px dashed var(--glass-border)',
+            border: '1px dashed var(--accent-primary, rgba(59, 130, 246, 0.5))',
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
@@ -541,7 +542,8 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             color: 'var(--accent-primary)',
             cursor: 'pointer',
             whiteSpace: 'nowrap',
-            flexShrink: 0
+            flexShrink: 0,
+            fontWeight: 500
           }}
         >
           <Plus size={15} /> Добавить
@@ -560,7 +562,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               fontSize: '0.76rem',
               padding: '3px 9px',
               borderRadius: '6px',
-              background: 'rgba(255, 255, 255, 0.04)',
+              background: 'var(--chip-bg, rgba(255, 255, 255, 0.04))',
               border: '1px solid var(--glass-border)',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
@@ -574,7 +576,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
       {currentRoom && (
         <div style={{
-          background: 'rgba(255, 255, 255, 0.02)',
+          background: 'var(--card-bg, rgba(255, 255, 255, 0.02))',
           border: '1px solid var(--glass-border)',
           borderRadius: 'var(--radius-lg)',
           padding: '18px',
@@ -595,8 +597,8 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                   fontSize: '1.05rem',
                   fontWeight: 600,
                   height: '42px',
-                  background: 'rgba(0,0,0,0.3)',
-                  border: '1px solid rgba(59, 130, 246, 0.4)'
+                  background: 'var(--input-bg)',
+                  border: '1px solid var(--accent-primary, rgba(59, 130, 246, 0.4))'
                 }}
               />
             </div>
@@ -645,7 +647,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                   min="0"
                   value={currentRoom.area || ''}
                   onChange={e => updateRoom(activeRoomIdx, { area: parseFloat(e.target.value) || 0 })}
-                  style={{ ...darkInputStyle, fontWeight: 700, fontSize: '1.05rem', color: '#4ade80' }}
+                  style={{ ...darkInputStyle, fontWeight: 700, fontSize: '1.05rem', color: '#16a34a' }}
                 />
               </div>
 
@@ -679,7 +681,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   height: '38px',
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: 'var(--input-bg)',
                   border: '1px solid var(--glass-border)',
                   borderRadius: 'var(--radius-sm)',
                   overflow: 'hidden'
@@ -687,7 +689,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { extraCorners: Math.max(0, (currentRoom.extraCorners || 0) - 1) })}
-                    style={{ width: '36px', minWidth: '36px', flexShrink: 0, height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ width: '36px', minWidth: '36px', flexShrink: 0, height: '100%', background: 'var(--row-hover-bg)', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     <Minus size={14} />
                   </button>
@@ -696,12 +698,12 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                     min="0"
                     value={currentRoom.extraCorners || 0}
                     onChange={e => updateRoom(activeRoomIdx, { extraCorners: parseInt(e.target.value) || 0 })}
-                    style={{ flex: 1, minWidth: '40px', height: '100%', border: 'none', background: 'transparent', color: '#fff', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
+                    style={{ flex: 1, minWidth: '40px', height: '100%', border: 'none', background: 'transparent', color: 'var(--text-primary)', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', outline: 'none' }}
                   />
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { extraCorners: (currentRoom.extraCorners || 0) + 1 })}
-                    style={{ width: '36px', minWidth: '36px', flexShrink: 0, height: '100%', background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ width: '36px', minWidth: '36px', flexShrink: 0, height: '100%', background: 'var(--row-hover-bg)', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     <Plus size={14} />
                   </button>
@@ -739,12 +741,12 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                         borderRadius: '24px',
                         background: active 
                           ? 'linear-gradient(135deg, #0ea5e9, #3b82f6)' 
-                          : 'rgba(255, 255, 255, 0.04)',
+                          : 'var(--chip-bg, rgba(255, 255, 255, 0.04))',
                         color: active ? '#ffffff' : 'var(--text-primary)',
                         border: '1px solid ' + (active ? '#38bdf8' : 'var(--glass-border)'),
                         cursor: 'pointer',
                         fontSize: '0.88rem',
-                        fontWeight: active ? 600 : 400,
+                        fontWeight: active ? 600 : 500,
                         transition: 'all 0.2s ease',
                         boxShadow: active ? '0 4px 14px rgba(14, 165, 233, 0.4)' : 'none'
                       }}
@@ -754,7 +756,8 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                       <span style={{
                         fontSize: '0.72rem',
                         opacity: 0.85,
-                        background: active ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.06)',
+                        background: active ? 'rgba(0,0,0,0.2)' : 'var(--wizard-stat-bg, rgba(255,255,255,0.06))',
+                        color: active ? '#ffffff' : 'var(--text-primary)',
                         padding: '1px 6px',
                         borderRadius: '10px'
                       }}>
@@ -781,7 +784,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           placeholder="Особые указания монтажникам, тип проводки, скрытые коммуникации..."
           style={{
             width: '100%',
-            background: 'rgba(255, 255, 255, 0.04)',
+            background: 'var(--input-bg, rgba(255, 255, 255, 0.04))',
             border: '1px solid var(--glass-border)',
             borderRadius: 'var(--radius-sm)',
             color: 'var(--text-primary)',
@@ -796,21 +799,21 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
       {/* 3. Плавающий блок итогов и ИНТЕРАКТИВНАЯ ТАБЛИЦА СМЕТЫ */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(16, 185, 129, 0.08))',
-        border: '1px solid rgba(59, 130, 246, 0.3)',
+        background: 'var(--wizard-summary-gradient)',
+        border: '1px solid var(--wizard-summary-border)',
         borderRadius: 'var(--radius-lg)',
         padding: '18px 20px',
         display: 'flex',
         flexDirection: 'column',
         gap: '14px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+        boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
           <div>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 600 }}>
               ИТОГОВАЯ СМЕТА
             </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#4ade80', letterSpacing: '-0.5px' }}>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#16a34a', letterSpacing: '-0.5px' }}>
               {effectiveTotalSalePrice.toLocaleString('ru-RU')} ₽
             </div>
           </div>
@@ -822,7 +825,8 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             gap: '16px',
             fontSize: '0.86rem',
             color: 'var(--text-secondary)',
-            background: 'rgba(0, 0, 0, 0.25)',
+            background: 'var(--wizard-stat-bg)',
+            border: '1px solid var(--glass-border)',
             padding: '8px 14px',
             borderRadius: '8px',
             flexWrap: 'wrap'
@@ -847,20 +851,21 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              background: 'rgba(0, 0, 0, 0.35)',
+              background: 'var(--wizard-stat-bg)',
+              border: '1px solid var(--glass-border)',
               padding: '8px 14px',
               borderRadius: '8px',
               fontSize: '0.84rem'
             }}>
               <div>
                 <span style={{ color: 'var(--text-secondary)' }}>Себестоимость: </span>
-                <strong style={{ color: '#e2e8f0' }}>{effectiveTotalCostPrice.toLocaleString('ru-RU')} ₽</strong>
+                <strong style={{ color: 'var(--text-primary)' }}>{effectiveTotalCostPrice.toLocaleString('ru-RU')} ₽</strong>
               </div>
-              <div style={{ borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: '12px' }}>
+              <div style={{ borderLeft: '1px solid var(--glass-border)', paddingLeft: '12px' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Прибыль: </span>
-                <strong style={{ color: '#60a5fa' }}>{effectiveProfit.toLocaleString('ru-RU')} ₽</strong>
+                <strong style={{ color: 'var(--accent-primary)' }}>{effectiveProfit.toLocaleString('ru-RU')} ₽</strong>
                 {effectiveMarginPercent > 0 && (
-                  <span style={{ marginLeft: '4px', opacity: 0.85, color: '#93c5fd' }}>
+                  <span style={{ marginLeft: '4px', opacity: 0.85, color: 'var(--accent-primary)' }}>
                     ({effectiveMarginPercent}%)
                   </span>
                 )}
@@ -892,7 +897,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               {showSpecDetails ? 'Скрыть таблицу сметы' : `Позиции сметы (${customItems.length})`}
             </button>
             {isManualEditMode && (
-              <span style={{ fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+              <span style={{ fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.2)', color: '#d97706', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
                 Пользовательские правки
               </span>
             )}
@@ -908,9 +913,9 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                 gap: '5px',
                 padding: '6px 12px',
                 borderRadius: '6px',
-                background: 'rgba(59, 130, 246, 0.15)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                color: '#60a5fa',
+                background: 'rgba(59, 130, 246, 0.12)',
+                border: '1px solid rgba(59, 130, 246, 0.35)',
+                color: 'var(--accent-primary)',
                 fontSize: '0.82rem',
                 fontWeight: 600,
                 cursor: 'pointer'
@@ -928,7 +933,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                 gap: '5px',
                 padding: '6px 12px',
                 borderRadius: '6px',
-                background: 'rgba(255, 255, 255, 0.06)',
+                background: 'var(--row-hover-bg, rgba(255, 255, 255, 0.06))',
                 border: '1px solid var(--glass-border)',
                 color: 'var(--text-primary)',
                 fontSize: '0.82rem',
@@ -944,14 +949,14 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
         {/* Раскрытая интерактивная таблица сметы с Dropdown выбора альтернативных материалов */}
         {showSpecDetails && (
           <div style={{
-            background: 'rgba(0, 0, 0, 0.35)',
+            background: 'var(--table-bg, rgba(0, 0, 0, 0.2))',
             borderRadius: '8px',
             overflowX: 'auto',
             border: '1px solid var(--glass-border)'
           }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
               <thead>
-                <tr style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'var(--text-secondary)', textAlign: 'left' }}>
+                <tr style={{ background: 'var(--table-header-bg, rgba(255, 255, 255, 0.06))', color: 'var(--text-secondary)', textAlign: 'left' }}>
                   <th style={{ padding: '8px 10px', width: '35px' }}>#</th>
                   <th style={{ padding: '8px 10px', minWidth: '260px' }}>Наименование позиции / услуги (выбор из типа)</th>
                   <th style={{ padding: '8px 10px', width: '90px', textAlign: 'center' }}>Кол-во</th>
@@ -988,7 +993,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                     const hasAlternatives = linkedSlot && linkedSlot.materials && linkedSlot.materials.length > 1;
 
                     return (
-                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                      <tr key={idx} style={{ borderBottom: '1px solid var(--glass-border)' }}>
                         <td style={{ padding: '6px 10px', color: 'var(--text-secondary)', fontWeight: 600 }}>{idx + 1}</td>
                         <td style={{ padding: '6px 10px' }}>
                           {hasAlternatives ? (
@@ -999,10 +1004,10 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                                 onChange={e => switchRowMaterial(idx, Number(e.target.value))}
                                 style={{
                                   width: '100%',
-                                  background: 'rgba(59, 130, 246, 0.12)',
-                                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                                  background: 'var(--input-bg, rgba(59, 130, 246, 0.12))',
+                                  border: '1px solid var(--accent-primary, rgba(59, 130, 246, 0.4))',
                                   borderRadius: '4px',
-                                  color: '#ffffff',
+                                  color: 'var(--text-primary)',
                                   padding: '5px 8px',
                                   fontSize: '0.86rem',
                                   fontWeight: 600,
@@ -1011,7 +1016,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                                 }}
                               >
                                 {linkedSlot!.materials.map(alt => (
-                                  <option key={alt.materialId} value={alt.materialId} style={{ background: '#1e293b', color: '#ffffff' }}>
+                                  <option key={alt.materialId} value={alt.materialId} style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>
                                     {alt.materialName} ({alt.salePrice} ₽/{alt.unit})
                                   </option>
                                 ))}
@@ -1031,7 +1036,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                                 onChange={e => updateSpecItem(idx, { name: e.target.value })}
                                 style={{
                                   width: '100%',
-                                  background: 'rgba(255,255,255,0.03)',
+                                  background: 'var(--input-bg, rgba(255,255,255,0.03))',
                                   border: '1px solid transparent',
                                   borderRadius: '4px',
                                   color: 'var(--text-primary)',
@@ -1059,7 +1064,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                             style={{
                               width: '100%',
                               textAlign: 'center',
-                              background: 'rgba(255,255,255,0.04)',
+                              background: 'var(--input-bg, rgba(255,255,255,0.04))',
                               border: '1px solid var(--glass-border)',
                               borderRadius: '4px',
                               color: 'var(--text-primary)',
@@ -1074,7 +1079,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                             onChange={e => updateSpecItem(idx, { unit: e.target.value })}
                             style={{
                               width: '100%',
-                              background: 'rgba(255,255,255,0.04)',
+                              background: 'var(--input-bg, rgba(255,255,255,0.04))',
                               border: '1px solid var(--glass-border)',
                               borderRadius: '4px',
                               color: 'var(--text-primary)',
@@ -1082,15 +1087,15 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                               fontSize: '0.78rem'
                             }}
                           >
-                            <option value="м²" style={{ background: '#1e293b', color: '#f8fafc' }}>м²</option>
-                            <option value="м.пог" style={{ background: '#1e293b', color: '#f8fafc' }}>м.пог</option>
-                            <option value="м.п." style={{ background: '#1e293b', color: '#f8fafc' }}>м.п.</option>
-                            <option value="шт" style={{ background: '#1e293b', color: '#f8fafc' }}>шт</option>
-                            <option value="шт." style={{ background: '#1e293b', color: '#f8fafc' }}>шт.</option>
-                            <option value="компл." style={{ background: '#1e293b', color: '#f8fafc' }}>компл.</option>
-                            <option value="усл." style={{ background: '#1e293b', color: '#f8fafc' }}>усл.</option>
+                            <option value="м²" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>м²</option>
+                            <option value="м.пог" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>м.пог</option>
+                            <option value="м.п." style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>м.п.</option>
+                            <option value="шт" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>шт</option>
+                            <option value="шт." style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>шт.</option>
+                            <option value="компл." style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>компл.</option>
+                            <option value="усл." style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>усл.</option>
                             {item.unit && !['м²', 'м.пог', 'м.п.', 'шт', 'шт.', 'компл.', 'усл.'].includes(item.unit) && (
-                              <option value={item.unit} style={{ background: '#1e293b', color: '#f8fafc' }}>{item.unit}</option>
+                              <option value={item.unit} style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>{item.unit}</option>
                             )}
                           </select>
                         </td>
@@ -1104,7 +1109,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                             style={{
                               width: '100%',
                               textAlign: 'right',
-                              background: 'rgba(255,255,255,0.04)',
+                              background: 'var(--input-bg, rgba(255,255,255,0.04))',
                               border: '1px solid var(--glass-border)',
                               borderRadius: '4px',
                               color: 'var(--text-primary)',
@@ -1113,7 +1118,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                             }}
                           />
                         </td>
-                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, color: '#4ade80' }}>
+                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>
                           {(item.totalSalePrice || 0).toLocaleString('ru-RU')} ₽
                         </td>
                         <td style={{ padding: '6px 10px', textAlign: 'center' }}>
@@ -1194,7 +1199,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.7)',
+            background: 'rgba(0,0,0,0.6)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -1206,7 +1211,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: 'var(--card-bg, #1a1f2c)',
+              background: 'var(--modal-bg, var(--card-bg, #1e293b))',
               border: '1px solid var(--glass-border)',
               borderRadius: 'var(--radius-lg)',
               maxWidth: '500px',
@@ -1214,7 +1219,8 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               padding: '24px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '16px'
+              gap: '16px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

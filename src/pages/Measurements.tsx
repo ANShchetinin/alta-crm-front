@@ -149,7 +149,7 @@ export const Measurements: React.FC = () => {
         {/* Табы фильтра */}
         <div style={{
           display: 'flex',
-          background: 'rgba(255, 255, 255, 0.04)',
+          background: 'var(--chip-bg, rgba(255, 255, 255, 0.04))',
           border: '1px solid var(--glass-border)',
           borderRadius: 'var(--radius-md)',
           padding: '3px'
@@ -165,7 +165,8 @@ export const Measurements: React.FC = () => {
               color: filterMode === 'today' ? '#ffffff' : 'var(--text-secondary)',
               fontWeight: filterMode === 'today' ? 600 : 400,
               fontSize: '0.86rem',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
             }}
           >
             Сегодня
@@ -181,7 +182,8 @@ export const Measurements: React.FC = () => {
               color: filterMode === 'upcoming' ? '#ffffff' : 'var(--text-secondary)',
               fontWeight: filterMode === 'upcoming' ? 600 : 400,
               fontSize: '0.86rem',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
             }}
           >
             Предстоящие
@@ -197,7 +199,8 @@ export const Measurements: React.FC = () => {
               color: filterMode === 'all' ? '#ffffff' : 'var(--text-secondary)',
               fontWeight: filterMode === 'all' ? 600 : 400,
               fontSize: '0.86rem',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
             }}
           >
             Все заявки
@@ -213,7 +216,17 @@ export const Measurements: React.FC = () => {
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="search-input"
-            style={{ width: '100%', paddingLeft: '36px' }}
+            style={{ 
+              width: '100%', 
+              paddingLeft: '36px',
+              background: 'var(--input-bg)',
+              border: '1px solid var(--glass-border)',
+              color: 'var(--text-primary)',
+              borderRadius: 'var(--radius-md)',
+              height: '38px',
+              fontSize: '0.88rem',
+              outline: 'none'
+            }}
           />
         </div>
       </div>
@@ -227,7 +240,7 @@ export const Measurements: React.FC = () => {
         <div style={{
           padding: '48px 20px',
           textAlign: 'center',
-          background: 'rgba(255, 255, 255, 0.02)',
+          background: 'var(--card-bg, rgba(255, 255, 255, 0.02))',
           border: '1px solid var(--glass-border)',
           borderRadius: 'var(--radius-lg)',
           color: 'var(--text-secondary)'
@@ -251,13 +264,14 @@ export const Measurements: React.FC = () => {
               <div
                 key={order.id}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
+                  background: 'var(--card-bg, rgba(255, 255, 255, 0.03))',
                   border: '1px solid var(--glass-border)',
                   borderRadius: 'var(--radius-lg)',
                   padding: '18px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '12px',
+                  boxShadow: 'var(--glass-shadow)',
                   transition: 'transform 0.15s ease, border-color 0.15s ease'
                 }}
               >
@@ -278,10 +292,10 @@ export const Measurements: React.FC = () => {
                       alignItems: 'center',
                       gap: '5px',
                       background: 'rgba(59, 130, 246, 0.12)',
-                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
                       padding: '4px 8px',
                       borderRadius: '6px',
-                      color: '#60a5fa',
+                      color: 'var(--accent-primary)',
                       fontSize: '0.78rem',
                       fontWeight: 600
                     }}>
@@ -296,7 +310,7 @@ export const Measurements: React.FC = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
                       <MapPin size={15} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--accent-primary)' }} />
-                      <span>{order.address}</span>
+                      <span style={{ color: 'var(--text-primary)' }}>{order.address}</span>
                     </div>
 
                     <div style={{ display: 'flex', gap: '8px', marginLeft: '20px' }}>
@@ -306,8 +320,9 @@ export const Measurements: React.FC = () => {
                         rel="noopener noreferrer"
                         style={{
                           fontSize: '0.75rem',
-                          color: '#fc3f1d',
-                          background: 'rgba(252, 63, 29, 0.1)',
+                          color: '#dc2626',
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
                           padding: '3px 8px',
                           borderRadius: '4px',
                           textDecoration: 'none',
@@ -322,8 +337,9 @@ export const Measurements: React.FC = () => {
                         rel="noopener noreferrer"
                         style={{
                           fontSize: '0.75rem',
-                          color: '#22c55e',
+                          color: '#16a34a',
                           background: 'rgba(34, 197, 94, 0.1)',
+                          border: '1px solid rgba(34, 197, 94, 0.2)',
                           padding: '3px 8px',
                           borderRadius: '4px',
                           textDecoration: 'none',
@@ -338,14 +354,14 @@ export const Measurements: React.FC = () => {
 
                 {/* Контакты клиента */}
                 {order.clientPhone && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--glass-border)', paddingTop: '10px' }}>
                     <a
                       href={`tel:${order.clientPhone.replace(/[^\d+]/g, '')}`}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '6px',
-                        color: '#22c55e',
+                        color: '#16a34a',
                         textDecoration: 'none',
                         fontSize: '0.9rem',
                         fontWeight: 600
@@ -358,44 +374,65 @@ export const Measurements: React.FC = () => {
                       {order.clientPhone && (
                         <button
                           type="button"
-                          onClick={() => window.open(getWhatsAppLink(order.clientPhone!), '_blank')}
-                          className="contact-btn whatsapp-btn"
-                          style={{ width: '28px', height: '28px' }}
-                          title="WhatsApp"
+                          onClick={() => {
+                            const waUrl = getWhatsAppLink(order.clientPhone!, `Здравствуйте, ${order.clientName || ''}! Напоминаем о замере.`);
+                            window.open(waUrl, '_blank');
+                          }}
+                          style={{
+                            background: 'rgba(37, 211, 102, 0.15)',
+                            border: '1px solid rgba(37, 211, 102, 0.3)',
+                            color: '#16a34a',
+                            borderRadius: '6px',
+                            padding: '4px 8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600
+                          }}
+                          title="Написать в WhatsApp"
                         >
-                          <MessageCircle size={14} />
+                          <MessageCircle size={13} /> WA
                         </button>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* Кнопка запуска замера */}
-                <button
-                  type="button"
-                  onClick={() => setActiveOrderId(order.id)}
-                  className="btn btn-primary"
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '10px',
-                    fontWeight: 600,
-                    fontSize: '0.9rem',
-                    marginTop: 'auto'
-                  }}
-                >
-                  <Ruler size={16} /> Открыть мастер замера
-                </button>
+                {/* Кнопка запуска Мастера замера */}
+                <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveOrderId(order.id)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      padding: '10px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px var(--accent-glow)',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Ruler size={16} /> Начать замер и смету
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Модальное окно Мастера замера для конкретного заказа */}
+      {/* Модальное окно Мастера замера для выбранной заявки */}
       {activeOrderId && createPortal(
         <div
           className="modal-overlay"
@@ -403,7 +440,7 @@ export const Measurements: React.FC = () => {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.75)',
+            background: 'rgba(0,0,0,0.6)',
             backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
@@ -416,7 +453,7 @@ export const Measurements: React.FC = () => {
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: 'var(--card-bg, #1a1f2c)',
+              background: 'var(--modal-bg, var(--card-bg, #1e293b))',
               border: '1px solid var(--glass-border)',
               borderRadius: 'var(--radius-lg)',
               maxWidth: '900px',
@@ -428,7 +465,7 @@ export const Measurements: React.FC = () => {
               flexDirection: 'column',
               gap: '16px',
               margin: 'auto',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -469,7 +506,7 @@ export const Measurements: React.FC = () => {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.75)',
+            background: 'rgba(0,0,0,0.6)',
             backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
@@ -482,7 +519,7 @@ export const Measurements: React.FC = () => {
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: 'var(--card-bg, #1a1f2c)',
+              background: 'var(--modal-bg, var(--card-bg, #1e293b))',
               border: '1px solid var(--glass-border)',
               borderRadius: 'var(--radius-lg)',
               maxWidth: '900px',
@@ -494,7 +531,7 @@ export const Measurements: React.FC = () => {
               flexDirection: 'column',
               gap: '16px',
               margin: 'auto',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
