@@ -15,32 +15,10 @@ import { useAppStore } from '../store/useAppStore';
 import { formatDateInTimezone } from '../utils/dateUtils';
 import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
 import { AvatarUpload } from '../components/AvatarUpload';
+import { getClientInitials, getAvatarGradient } from '../utils/avatarUtils';
 import '../styles/clients.css';
 
-export const getClientInitials = (name: string): string => {
-  if (!name) return '??';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return parts[0].slice(0, 2).toUpperCase();
-};
-
-export const getAvatarGradient = (str: string): string => {
-  if (!str) return 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  const colors = [
-    'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-    'linear-gradient(135deg, #10b981, #047857)',
-    'linear-gradient(135deg, #8b5cf6, #6d28d9)',
-    'linear-gradient(135deg, #f59e0b, #b45309)',
-    'linear-gradient(135deg, #ec4899, #be185d)',
-    'linear-gradient(135deg, #06b6d4, #0e7490)',
-    'linear-gradient(135deg, #6366f1, #4338ca)',
-  ];
-  return colors[Math.abs(hash) % colors.length];
-};
+export { getClientInitials, getAvatarGradient };
 
 export const PRESET_LEAD_SOURCES = [
   'Авито',
@@ -714,27 +692,11 @@ export const Clients = () => {
                 {/* Avatar / Photo / Logo Upload */}
                 <AvatarUpload
                   label={formData.clientType === 'LEGAL_ENTITY' ? 'Логотип / Фото компании' : 'Фотография клиента'}
-                  initialAvatarUrl={formData.avatarUrl}
+                  name={formData.clientType === 'LEGAL_ENTITY' ? (formData.name || 'Компания') : formData.name}
+                  initialAvatarUrl={formData.avatarUrl || ''}
                   onAvatarUrlChange={handleAvatarChange}
                   fallbackIcon={formData.clientType === 'LEGAL_ENTITY' ? <Building2 size={30} /> : <User size={30} />}
-                  renderAvatarContent={(avatarUrl, _name, fallbackIcon) => (
-                    avatarUrl ? (
-                      <img 
-                        src={avatarUrl} 
-                        alt="Avatar preview" 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                      />
-                    ) : (
-                      formData.name ? (
-                        formData.clientType === 'LEGAL_ENTITY' ? <Building2 size={30} /> : getClientInitials(formData.name)
-                      ) : (
-                        fallbackIcon
-                      )
-                    )
-                  )}
-                >
-                  {null}
-                </AvatarUpload>
+                />
 
                 {formData.clientType === 'INDIVIDUAL' ? (
                   <>

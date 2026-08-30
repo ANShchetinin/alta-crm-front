@@ -1,13 +1,20 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 /**
  * Хук для загрузки и кадрирования аватарок.
  * Используется в Clients.tsx и Employees.tsx.
  */
-export function useAvatarUpload(initialAvatarUrl: string = '') {
+export function useAvatarUpload(
+  initialAvatarUrl: string = '',
+  onAvatarChange?: (url: string) => void
+) {
   const [rawImageToCrop, setRawImageToCrop] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setAvatarUrl(initialAvatarUrl || '');
+  }, [initialAvatarUrl]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -26,17 +33,20 @@ export function useAvatarUpload(initialAvatarUrl: string = '') {
   const handleCropComplete = useCallback((croppedDataUrl: string) => {
     setAvatarUrl(croppedDataUrl);
     setRawImageToCrop(null);
-  }, []);
+    onAvatarChange?.(croppedDataUrl);
+  }, [onAvatarChange]);
 
   const handleRemoveAvatar = useCallback(() => {
     setRawImageToCrop(null);
     setAvatarUrl('');
-  }, []);
+    onAvatarChange?.('');
+  }, [onAvatarChange]);
 
   const resetAvatar = useCallback(() => {
     setRawImageToCrop(null);
     setAvatarUrl(initialAvatarUrl);
-  }, [initialAvatarUrl]);
+    onAvatarChange?.(initialAvatarUrl);
+  }, [initialAvatarUrl, onAvatarChange]);
 
   return {
     avatarUrl,

@@ -2,15 +2,17 @@ import React from 'react';
 import { Camera, Crop, X } from 'lucide-react';
 import { useAvatarUpload } from '../hooks/useAvatarUpload';
 import { ImageCropModal } from './ImageCropModal';
+import { getInitials } from '../utils/avatarUtils';
 
 export interface AvatarUploadProps {
   label: string;
+  name?: string;
   previewSize?: string;
   previewFontSize?: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onAvatarUrlChange: (url: string) => void;
   initialAvatarUrl?: string;
-  renderAvatarContent: (avatarUrl: string, name: string, fallbackIcon: React.ReactNode) => React.ReactNode;
+  renderAvatarContent?: (avatarUrl: string, name: string, fallbackIcon: React.ReactNode) => React.ReactNode;
   fallbackIcon: React.ReactNode;
 }
 
@@ -20,6 +22,7 @@ export interface AvatarUploadProps {
  */
 export const AvatarUpload: React.FC<AvatarUploadProps> = ({
   label,
+  name = '',
   previewSize = '72px',
   previewFontSize = '1.3rem',
   children,
@@ -30,17 +33,31 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
 }) => {
   const {
     avatarUrl,
-    setAvatarUrl,
     rawImageToCrop,
+    setRawImageToCrop,
     fileInputRef,
     handleFileChange,
     handleCropComplete,
     handleRemoveAvatar,
-  } = useAvatarUpload(initialAvatarUrl);
+  } = useAvatarUpload(initialAvatarUrl, onAvatarUrlChange);
 
-  const handleExternalAvatarChange = (url: string) => {
-    setAvatarUrl(url);
-    onAvatarUrlChange(url);
+  const handleRecrop = () => {
+    if (avatarUrl) {
+      setRawImageToCrop(avatarUrl);
+    }
+  };
+
+  const defaultRenderAvatar = (url: string, currentName: string, icon: React.ReactNode) => {
+    if (url) {
+      return (
+        <img 
+          src={url} 
+          alt="Avatar preview" 
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+        />
+      );
+    }
+    return currentName ? getInitials(currentName) : icon;
   };
 
   return (
@@ -71,7 +88,10 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
           boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
           flexShrink: 0
         }}>
-          {renderAvatarContent(avatarUrl, '', fallbackIcon)}
+          {renderAvatarContent 
+            ? renderAvatarContent(avatarUrl, name, fallbackIcon)
+            : defaultRenderAvatar(avatarUrl, name, fallbackIcon)
+          }
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
           <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{label}</div>
@@ -95,7 +115,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
               <>
                 <button
                   type="button"
-                  onClick={() => handleExternalAvatarChange(rawImageToCrop || avatarUrl)}
+                  onClick={handleRecrop}
                   className="btn btn-sm btn-ghost"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', padding: '6px 10px' }}
                   title="Кадрировать"
@@ -129,7 +149,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
         <ImageCropModal 
           imageSrc={rawImageToCrop} 
           onCrop={handleCropComplete} 
-          onClose={() => handleRemoveAvatar()} 
+          onClose={() => setRawImageToCrop(null)} 
         />
       )}
 

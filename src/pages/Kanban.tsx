@@ -119,8 +119,12 @@ const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({ value, clients,
     );
   }, [clients, search]);
 
-  const handleOpen = () => {
+  const mountTimeRef = useRef(Date.now());
+
+  const handleOpen = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) e.stopPropagation();
     if (isWorker) return;
+    if (Date.now() - mountTimeRef.current < 350) return;
     setIsOpen(!isOpen);
     if (!isOpen) {
       setSearch('');
@@ -493,8 +497,12 @@ const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
     );
   }, [employees, search]);
 
-  const handleOpen = () => {
+  const mountTimeRef = useRef(Date.now());
+
+  const handleOpen = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) e.stopPropagation();
     if (isWorker) return;
+    if (Date.now() - mountTimeRef.current < 350) return;
     setIsOpen(!isOpen);
     if (!isOpen) {
       setSearch('');
@@ -2372,7 +2380,7 @@ const Kanban = () => {
             >
               {(card.clientAvatarUrl || client?.avatarUrl) ? (
                 <img 
-                  src={card.clientAvatarUrl || client?.avatarUrl} 
+                  src={(card.clientAvatarUrl || client?.avatarUrl) || ''} 
                   alt={cName} 
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                 />
