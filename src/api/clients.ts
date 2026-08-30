@@ -13,7 +13,7 @@ export interface ClientContact {
 export interface Client {
   id: number;
   clientType?: 'INDIVIDUAL' | 'LEGAL_ENTITY';
-  avatarUrl?: string;
+  avatarUrl?: string | null;
   name: string;
   legalName?: string;
   phone: string;

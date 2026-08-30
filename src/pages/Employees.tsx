@@ -8,32 +8,10 @@ import { getOrderStatuses } from '../api/kanban';
 import type { OrderStatus } from '../api/kanban';
 import { getMyTenants, type UserTenant } from '../api/auth';
 import { AvatarUpload } from '../components/AvatarUpload';
+import { getEmployeeInitials, getAvatarGradient } from '../utils/avatarUtils';
 import '../styles/clients.css';
 
-export const getEmployeeInitials = (name: string): string => {
-  if (!name) return '??';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return parts[0].slice(0, 2).toUpperCase();
-};
-
-export const getAvatarGradient = (str: string): string => {
-  if (!str) return 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  const colors = [
-    'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-    'linear-gradient(135deg, #10b981, #047857)',
-    'linear-gradient(135deg, #8b5cf6, #6d28d9)',
-    'linear-gradient(135deg, #f59e0b, #b45309)',
-    'linear-gradient(135deg, #ec4899, #be185d)',
-    'linear-gradient(135deg, #06b6d4, #0e7490)',
-    'linear-gradient(135deg, #6366f1, #4338ca)',
-  ];
-  return colors[Math.abs(hash) % colors.length];
-};
+export { getEmployeeInitials, getAvatarGradient };
 
 export const Employees = () => {
   const { t } = useTranslation();
@@ -181,7 +159,7 @@ export const Employees = () => {
         name: formData.name.trim(),
         phone: formData.phone.trim(),
         position: formData.position.trim(),
-        avatarUrl: formData.avatarUrl || undefined,
+        avatarUrl: formData.avatarUrl ? formData.avatarUrl : null,
         birthDate: formData.birthDate.trim() || undefined,
         passportSeriesNumber: formData.passportSeriesNumber.trim() || undefined,
         passportIssuedBy: formData.passportIssuedBy.trim() || undefined,
@@ -189,7 +167,8 @@ export const Employees = () => {
         passportDepartmentCode: formData.passportDepartmentCode.trim() || undefined,
         registrationAddress: formData.registrationAddress.trim() || undefined,
         allowedStatusIds: formData.allowedStatusIds,
-        allowedTenantIds: formData.allowedTenantIds
+        allowedTenantIds: formData.allowedTenantIds,
+        canViewFinances: formData.canViewFinances
       };
 
       if (formData.hasAccount) {
@@ -452,23 +431,11 @@ export const Employees = () => {
                 {/* Аватарка */}
                 <AvatarUpload
                   label="Фотография сотрудника"
-                  initialAvatarUrl={formData.avatarUrl}
+                  name={formData.name}
+                  initialAvatarUrl={formData.avatarUrl || ''}
                   onAvatarUrlChange={handleAvatarChange}
                   fallbackIcon={<User size={30} />}
-                  renderAvatarContent={(avatarUrl, _name, fallbackIcon) => (
-                    avatarUrl ? (
-                      <img 
-                        src={avatarUrl} 
-                        alt="Avatar preview" 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                      />
-                    ) : (
-                      formData.name ? getEmployeeInitials(formData.name) : fallbackIcon
-                    )
-                  )}
-                >
-                  {null}
-                </AvatarUpload>
+                />
 
                 <div className="form-group">
                   <label>{t('employees.modal.name') || 'ФИО'} <span style={{ color: 'var(--danger)' }}>*</span></label>

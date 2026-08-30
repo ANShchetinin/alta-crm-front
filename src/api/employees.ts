@@ -5,7 +5,7 @@ export interface Employee {
   name: string;
   phone?: string;
   position?: string;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
   birthDate?: string;
   passportSeriesNumber?: string;
   passportIssuedBy?: string;

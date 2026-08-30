@@ -282,7 +282,7 @@ export const Reports = () => {
       id: number | string; 
       name: string; 
       position: string; 
-      avatarUrl?: string;
+      avatarUrl?: string | null;
       measurements: number; 
       installations: number;
       contracts: number; 

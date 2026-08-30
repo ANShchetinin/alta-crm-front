@@ -249,6 +249,9 @@ export const useTouchKanbanDrag = ({
       const duration = Date.now() - startTime;
       // Only trigger click if it was an intentional stationary TAP (not a scroll gesture) and NOT on an interactive button/link
       if (!hasMoved && !isInteractive && duration < 350) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
         onCardClick(card);
       }
       touchStateRef.current.suppressClickUntil = isInteractive ? 0 : Date.now() + 400;
