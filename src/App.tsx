@@ -14,6 +14,7 @@ import { Calendar } from './pages/Calendar';
 import { Measurements } from './pages/Measurements';
 import { Finances } from './pages/Finances';
 import { FeatureFlags } from './pages/FeatureFlags';
+import { ExitIntentStats } from './pages/ExitIntentStats';
 import { useFeature } from './hooks/useFeatureToggle';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import type { FeatureKey } from './api/features';
@@ -160,6 +161,8 @@ function App() {
           <Route path="storage" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="STORAGE"><Storage /></FeatureRoute></RoleRoute>} />
           <Route path="finances" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="FINANCES"><Finances /></FeatureRoute></RoleRoute>} />
           <Route path="reports" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="REPORTS"><Reports /></FeatureRoute></RoleRoute>} />
+          <Route path="site-analytics" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="EXIT_INTENT_ANALYTICS"><ExitIntentStats /></FeatureRoute></RoleRoute>} />
+          <Route path="exit-intent-stats" element={<Navigate to="/site-analytics" replace />} />
           <Route path="contract-templates" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="CONTRACT_TEMPLATES"><ContractTemplates /></FeatureRoute></RoleRoute>} />
           <Route path="settings" element={<RoleRoute allowedRoles={['OWNER', 'SUPERADMIN']}><Settings /></RoleRoute>} />
           <Route path="feature-flags" element={<RoleRoute allowedRoles={['SUPERADMIN']}><FeatureFlags /></RoleRoute>} />
