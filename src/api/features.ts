@@ -11,7 +11,8 @@ export type FeatureKey =
   | 'WHITE_LABEL'
   | 'DOCUMENT_SCANNER'
   | 'OWNER_CREATE_COMPANY'
-  | 'MEASUREMENT_CALCULATOR';
+  | 'MEASUREMENT_CALCULATOR'
+  | 'EXIT_INTENT_ANALYTICS';
 
 export interface FeatureInfo {
   key: FeatureKey;

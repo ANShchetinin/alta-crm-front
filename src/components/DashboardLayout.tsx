@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -44,6 +44,7 @@ const DashboardLayout = () => {
   const hasFinances = useFeature('FINANCES');
   const hasReports = useFeature('REPORTS');
   const hasContractTemplates = useFeature('CONTRACT_TEMPLATES');
+  const hasExitIntent = useFeature('EXIT_INTENT_ANALYTICS');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -466,6 +467,12 @@ const DashboardLayout = () => {
                 <NavLink to="/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <PieChart size={20} />
                   <span>{t('nav.reports') || 'Отчеты'}</span>
+                </NavLink>
+              )}
+              {hasExitIntent && (
+                <NavLink to="/site-analytics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <TrendingUp size={20} />
+                  <span>{t('nav.siteAnalytics') || 'Аналитика сайта'}</span>
                 </NavLink>
               )}
               {hasContractTemplates && (
