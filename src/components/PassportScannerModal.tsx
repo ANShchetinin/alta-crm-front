@@ -237,7 +237,7 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
             <FileText size={20} style={{ color: '#3b82f6', flexShrink: 0 }} />
             <span>Распознавание паспорта РФ</span>
             <span className="passport-scanner-badge-secure">
-              <Cpu size={13} /> Нейросеть PaddleOCR
+              <Cpu size={13} /> Yandex Vision OCR
             </span>
           </div>
           <button type="button" onClick={onClose} className="passport-scanner-close-btn" title="Закрыть">
