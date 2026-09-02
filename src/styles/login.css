@@ -118,3 +118,36 @@
   }
 }
 
+/* Light Theme overrides for Login */
+body.light-theme .login-card {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06);
+}
+
+body.light-theme .login-header h1 {
+  background: linear-gradient(to right, #0f172a, #334155);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+body.light-theme .login-header p {
+  color: #64748b;
+}
+
+body.light-theme .login-card .input-field {
+  background-color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: #0f172a;
+}
+
+body.light-theme .login-card .input-field:focus {
+  background-color: #ffffff;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+body.light-theme .login-card .input-icon {
+  color: #64748b;
+}
+

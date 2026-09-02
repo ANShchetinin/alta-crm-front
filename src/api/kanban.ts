@@ -6,6 +6,7 @@ export interface OrderStatus {
   color: string;
   sortOrder: number;
   includeInFinances?: boolean;
+  isCompleted?: boolean;
 }
 
 export interface OrderMaterial {
@@ -109,6 +110,7 @@ export interface Order {
   materialsCost?: number;
   profit?: number;
   profitMargin?: number;
+  isArchived?: boolean;
 }
 
 export const getOrderStatuses = async (): Promise<OrderStatus[]> => {
@@ -139,8 +141,22 @@ export const updateFinanceStatuses = async (statusInclusionMap: Record<number, b
   return response.data;
 };
 
-export const getOrders = async (): Promise<Order[]> => {
-  const response = await api.get('/orders');
+export const updateCompletionStatuses = async (statusCompletionMap: Record<number, boolean>): Promise<OrderStatus[]> => {
+  const response = await api.put('/order-statuses/completion-settings', statusCompletionMap);
+  return response.data;
+};
+
+export const getOrders = async (archived?: boolean): Promise<Order[]> => {
+  const params: any = {};
+  if (archived !== undefined) {
+    params.archived = archived;
+  }
+  const response = await api.get('/orders', { params });
+  return response.data;
+};
+
+export const getArchivedOrders = async (): Promise<Order[]> => {
+  const response = await api.get('/orders/archive');
   return response.data;
 };
 

@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, Archive, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -418,6 +418,10 @@ const DashboardLayout = () => {
                 <Wallet size={20} />
                 <span style={{ flex: 1 }}>Мой заработок</span>
               </NavLink>
+              <NavLink to="/archive" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <Archive size={20} />
+                <span style={{ flex: 1 }}>{t('nav.archive') || 'Архив'}</span>
+              </NavLink>
             </>
           )}
           {role !== 'SUPERADMIN' && role !== 'WORKER' && (
@@ -457,6 +461,10 @@ const DashboardLayout = () => {
                   <span>{t('nav.storage')}</span>
                 </NavLink>
               )}
+              <NavLink to="/archive" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <Archive size={20} />
+                <span>{t('nav.archive') || 'Архив'}</span>
+              </NavLink>
               {hasFinances && (role === 'OWNER' || role === 'SUPERADMIN' || (role === 'MANAGER' && canViewFinances)) && (
                 <NavLink to="/finances" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <Wallet size={20} />
