@@ -15,6 +15,7 @@ import { Measurements } from './pages/Measurements';
 import { Finances } from './pages/Finances';
 import { FeatureFlags } from './pages/FeatureFlags';
 import { ExitIntentStats } from './pages/ExitIntentStats';
+import { Archive } from './pages/Archive';
 import { useFeature } from './hooks/useFeatureToggle';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import type { FeatureKey } from './api/features';
@@ -159,6 +160,7 @@ function App() {
           <Route path="clients" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Clients /></RoleRoute>} />
           <Route path="employees" element={<RoleRoute allowedRoles={['OWNER', 'SUPERADMIN']}><Employees /></RoleRoute>} />
           <Route path="storage" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="STORAGE"><Storage /></FeatureRoute></RoleRoute>} />
+          <Route path="archive" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER', 'SUPERADMIN']}><Archive /></RoleRoute>} />
           <Route path="finances" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="FINANCES"><Finances /></FeatureRoute></RoleRoute>} />
           <Route path="reports" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="REPORTS"><Reports /></FeatureRoute></RoleRoute>} />
           <Route path="site-analytics" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="EXIT_INTENT_ANALYTICS"><ExitIntentStats /></FeatureRoute></RoleRoute>} />

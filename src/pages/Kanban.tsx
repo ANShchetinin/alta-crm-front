@@ -846,6 +846,19 @@ const Kanban = () => {
   const [reminderFilter, setReminderFilter] = useState<'all' | 'today' | 'overdue'>('all');
   const [hideEmptyColumns, setHideEmptyColumns] = useState<boolean>(() => localStorage.getItem('kanban_hide_empty_columns') === 'true');
   
+  // Drag & drop outline states
+  const [desktopDraggingCardId, setDesktopDraggingCardId] = useState<number | null>(null);
+  const [desktopDragOverColId, setDesktopDragOverColId] = useState<number | null>(null);
+
+  // Move restriction modal state
+  const [moveRestrictionModal, setMoveRestrictionModal] = useState<{
+    isOpen: boolean;
+    orderId?: number;
+    orderNumber?: string;
+    targetStatusName: string;
+    reason: string;
+  } | null>(null);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
   const [initialFormDataJson, setInitialFormDataJson] = useState<string>('');
@@ -927,6 +940,7 @@ const Kanban = () => {
   const [newColumnName, setNewColumnName] = useState('');
   const [newColumnColor, setNewColumnColor] = useState('#3b82f6');
   const [newColumnIncludeInFinances, setNewColumnIncludeInFinances] = useState(true);
+  const [newColumnIsCompleted, setNewColumnIsCompleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Order Modal Tab State
@@ -1186,14 +1200,47 @@ const Kanban = () => {
     }
   };
 
+  const checkCanMoveOrder = (orderId: number, targetStatusId: number): boolean => {
+    const targetCol = columns.find(c => c.id === targetStatusId);
+    if (!targetCol) return true;
+    const isCompleted = isCompletedColumn(targetCol);
+    if (isCompleted) {
+      const card = cards.find(c => c.id === orderId);
+      const hasAct = card ? (card.attachments || []).some(a => isActFile(a.fileName, a.isAct)) : false;
+      if (!hasAct) {
+        setMoveRestrictionModal({
+          isOpen: true,
+          orderId,
+          orderNumber: card?.orderNumber || `#${orderId}`,
+          targetStatusName: targetCol.name,
+          reason: `Для перевода заявки в статус «${targetCol.name}» необходимо прикрепить подписанный Акт выполненных работ.`
+        });
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleDragStart = (e: React.DragEvent, id: number) => {
     e.dataTransfer.setData('cardId', id.toString());
+    e.dataTransfer.effectAllowed = 'move';
+    setDesktopDraggingCardId(id);
   };
 
   const handleDrop = async (e: React.DragEvent, statusId: number) => {
+    setDesktopDraggingCardId(null);
+    setDesktopDragOverColId(null);
     const cardIdStr = e.dataTransfer.getData('cardId');
     if (!cardIdStr) return;
     const cardId = parseInt(cardIdStr);
+
+    const card = cards.find(c => c.id === cardId);
+    if (!card || card.statusId === statusId) return;
+
+    if (!checkCanMoveOrder(cardId, statusId)) {
+      return;
+    }
+
     const updatedCards = cards.map(c => c.id === cardId ? { ...c, statusId } : c);
     setCards(updatedCards);
     
@@ -1205,8 +1252,11 @@ const Kanban = () => {
 
     try {
       await moveOrder(cardId, statusId);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to move order", err);
+      const errorMsg = err.response?.data?.message || err.message || 'Ошибка перемещения карточки';
+      alert(errorMsg);
+      fetchData();
     }
   };
 
@@ -1227,6 +1277,13 @@ const Kanban = () => {
   } = useTouchKanbanDrag({
     boardRef,
     onDropCard: async (cardId, targetId) => {
+      const card = cards.find(c => c.id === cardId);
+      if (!card || card.statusId === targetId) return;
+
+      if (!checkCanMoveOrder(cardId, targetId)) {
+        return;
+      }
+
       const updatedCards = cards.map(c => c.id === cardId ? { ...c, statusId: targetId } : c);
       setCards(updatedCards);
       const firstStatus = columns.find(s => s.sortOrder === 1);
@@ -1235,8 +1292,11 @@ const Kanban = () => {
       }
       try {
         await moveOrder(cardId, targetId);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to move order via touch drag", err);
+        const errorMsg = err.response?.data?.message || err.message || 'Ошибка перемещения карточки';
+        alert(errorMsg);
+        fetchData();
       }
     },
     onCardClick: (card) => {
@@ -1394,6 +1454,23 @@ const Kanban = () => {
         quantity: typeof m.quantity === 'string' ? parseFloat(m.quantity) : m.quantity
       }))
     };
+
+    const targetStatusId = payload.statusId;
+    const targetCol = columns.find(c => c.id === targetStatusId);
+    if (isCompletedColumn(targetCol)) {
+      const hasActInForm = (formData.attachments || []).some(a => isActFile(a.fileName, a.isAct))
+        || pendingFiles.some(f => isActFile(f.name));
+      if (!hasActInForm) {
+        setMoveRestrictionModal({
+          isOpen: true,
+          orderId: editingOrderId || undefined,
+          orderNumber: formData.orderNumber || (editingOrderId ? `#${editingOrderId}` : 'Новая заявка'),
+          targetStatusName: targetCol?.name || 'Завершен',
+          reason: `Для перевода заявки в статус «${targetCol?.name || 'Завершен'}» необходимо обязательно прикрепить подписанный Акт выполненных работ.`
+        });
+        return;
+      }
+    }
 
     try {
       if (editingOrderId) {
@@ -2124,14 +2201,16 @@ const Kanban = () => {
         await updateOrderStatus(editingColumnId, {
           name: newColumnName,
           color: newColumnColor,
-          includeInFinances: newColumnIncludeInFinances
+          includeInFinances: newColumnIncludeInFinances,
+          isCompleted: newColumnIsCompleted
         });
       } else {
         await createOrderStatus({
           name: newColumnName,
           color: newColumnColor,
           sortOrder: columns.length + 1,
-          includeInFinances: newColumnIncludeInFinances
+          includeInFinances: newColumnIncludeInFinances,
+          isCompleted: newColumnIsCompleted
         });
       }
       setIsColumnModalOpen(false);
@@ -2139,6 +2218,7 @@ const Kanban = () => {
       setNewColumnName('');
       setNewColumnColor('#3b82f6');
       setNewColumnIncludeInFinances(true);
+      setNewColumnIsCompleted(false);
       fetchData();
     } catch (err) {
       console.error("Failed to save column", err);
@@ -2150,6 +2230,7 @@ const Kanban = () => {
     setNewColumnName(col.name);
     setNewColumnColor(col.color || '#3b82f6');
     setNewColumnIncludeInFinances(col.includeInFinances !== false);
+    setNewColumnIsCompleted(Boolean(col.isCompleted));
     setIsColumnModalOpen(true);
   };
 
@@ -2158,6 +2239,7 @@ const Kanban = () => {
     setNewColumnName('');
     setNewColumnColor('#3b82f6');
     setNewColumnIncludeInFinances(true);
+    setNewColumnIsCompleted(false);
     setIsColumnModalOpen(true);
   };
 
@@ -2282,10 +2364,19 @@ const Kanban = () => {
     });
   }, [cards, reminderFilter, remindersMap, searchQuery, clients, employees]);
 
+  const isCompletedColumn = (col?: OrderStatus | null) => {
+    if (!col) return false;
+    if (col.isCompleted !== undefined) return Boolean(col.isCompleted);
+    if (!col.name) return false;
+    const name = col.name.trim().toLowerCase();
+    return name.includes('заверш') || name.includes('готов') || name.includes('выполнен') || name.includes('complete');
+  };
+
   const displayedColumns = useMemo(() => {
     if (!hideEmptyColumns) return columns;
     return columns.filter(col => {
-      return filteredCards.some(c => c.statusId === col.id);
+      const isCompleted = isCompletedColumn(col);
+      return filteredCards.some(c => c.statusId === col.id && (!isCompleted || !c.isArchived));
     });
   }, [columns, hideEmptyColumns, filteredCards]);
 
@@ -2345,11 +2436,15 @@ const Kanban = () => {
     return (
       <div 
         key={card.id} 
-        className={`kanban-card ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''}`}
+        className={`kanban-card ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''} ${desktopDraggingCardId === card.id ? 'is-card-dragging' : ''}`}
         draggable
         onDragStart={(e) => {
           e.stopPropagation();
           handleDragStart(e, card.id);
+        }}
+        onDragEnd={() => {
+          setDesktopDraggingCardId(null);
+          setDesktopDragOverColId(null);
         }}
         onTouchStart={(e) => handleTouchStart(e, card)}
         onTouchMove={handleTouchMove}
@@ -2958,8 +3053,18 @@ const Kanban = () => {
           })()}
 
           {displayedColumns.map(col => {
-            const colCards = filteredCards.filter(c => c.statusId === col.id);
-            const totalInCol = cards.filter(c => c.statusId === col.id).length;
+            const isCompleted = isCompletedColumn(col);
+            let colCards = filteredCards.filter(c => c.statusId === col.id && (!isCompleted || !c.isArchived));
+            if (isCompleted) {
+              colCards = [...colCards].sort((a, b) => {
+                const timeA = a.installedAt ? new Date(a.installedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+                const timeB = b.installedAt ? new Date(b.installedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+                return timeB - timeA;
+              });
+            }
+            const totalInCol = isCompleted
+              ? cards.filter(c => c.statusId === col.id && !c.isArchived).length
+              : cards.filter(c => c.statusId === col.id).length;
             const isCollapsed = collapsedColumns[col.id] !== undefined ? collapsedColumns[col.id] : true;
             const isFilterActive = Boolean(searchQuery.trim()) || reminderFilter !== 'all';
             const countBadgeText = isFilterActive && (colCards.length !== totalInCol || colCards.length === 0)
@@ -3081,8 +3186,18 @@ const Kanban = () => {
           }}
         >
           {displayedColumns.map(col => {
-            const colCards = filteredCards.filter(c => c.statusId === col.id);
-            const totalInCol = cards.filter(c => c.statusId === col.id).length;
+            const isCompleted = isCompletedColumn(col);
+            let colCards = filteredCards.filter(c => c.statusId === col.id && (!isCompleted || !c.isArchived));
+            if (isCompleted) {
+              colCards = [...colCards].sort((a, b) => {
+                const timeA = a.installedAt ? new Date(a.installedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+                const timeB = b.installedAt ? new Date(b.installedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+                return timeB - timeA;
+              });
+            }
+            const totalInCol = isCompleted
+              ? cards.filter(c => c.statusId === col.id && !c.isArchived).length
+              : cards.filter(c => c.statusId === col.id).length;
             const isFilterActive = Boolean(searchQuery.trim()) || reminderFilter !== 'all';
             const countBadgeText = isFilterActive && (colCards.length !== totalInCol || colCards.length === 0)
               ? `${colCards.length}/${totalInCol}`
@@ -3092,13 +3207,15 @@ const Kanban = () => {
             <div 
               key={col.id} 
               data-column-id={col.id}
-              className={`kanban-column glass-panel ${touchTargetStatusId === col.id ? 'is-touch-drop-target' : ''}`}
+              className={`kanban-column glass-panel ${touchTargetStatusId === col.id ? 'is-touch-drop-target' : ''} ${desktopDragOverColId === col.id ? 'is-drop-target' : ''}`}
               draggable
               onDragStart={(e) => {
                 e.dataTransfer.setData('columnId', col.id.toString());
               }}
               onDrop={async (e) => {
                 e.preventDefault();
+                setDesktopDragOverColId(null);
+                setDesktopDraggingCardId(null);
                 const cardId = e.dataTransfer.getData('cardId');
                 if (cardId) {
                   handleDrop(e, col.id);
@@ -3135,7 +3252,16 @@ const Kanban = () => {
                   }
                 }
               }}
-              onDragOver={handleDragOver}
+              onDragOver={(e) => {
+                handleDragOver(e);
+                if (desktopDragOverColId !== col.id) {
+                  setDesktopDragOverColId(col.id);
+                }
+              }}
+              onDragLeave={(e) => {
+                if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                setDesktopDragOverColId(null);
+              }}
             >
               <div className="column-header">
                 <div className="column-title">
@@ -6064,6 +6190,23 @@ const Kanban = () => {
                     <span>Учитывать заявки этого статуса в блоке финансов</span>
                   </label>
                 </div>
+
+                <div className="form-group" style={{ marginTop: '12px', marginBottom: 0 }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '0.88rem' }}>
+                    <input 
+                      type="checkbox"
+                      checked={newColumnIsCompleted}
+                      onChange={(e) => setNewColumnIsCompleted(e.target.checked)}
+                      style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)', cursor: 'pointer', marginTop: '2px', flexShrink: 0 }}
+                    />
+                    <div>
+                      <span style={{ fontWeight: 500 }}>Статус завершения (архивировать заявки)</span>
+                      <span style={{ display: 'block', fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Заявки в этом статусе за предыдущие месяцы будут автоматически перемещаться в раздел «Архив»
+                      </span>
+                    </div>
+                  </label>
+                </div>
               </div>
               <div className="modal-actions">
                 <button type="button" onClick={() => setIsColumnModalOpen(false)} className="btn btn-ghost">
@@ -6516,6 +6659,79 @@ const Kanban = () => {
             }}
           />
         </>
+      )}
+
+      {/* Move Restriction / Act Required Modal */}
+      {moveRestrictionModal && moveRestrictionModal.isOpen && createPortal(
+        <div className="modal-overlay" style={{ zIndex: 1000000 }} onClick={() => setMoveRestrictionModal(null)}>
+          <div 
+            className="modal-content animate-scale-up move-restriction-card" 
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div className="move-restriction-icon-box">
+                <AlertTriangle size={28} />
+              </div>
+              <button type="button" className="btn-icon" onClick={() => setMoveRestrictionModal(null)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="move-restriction-body">
+              <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                Перемещение карточки невозможно
+              </h3>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Заявка: <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{moveRestrictionModal.orderNumber}</span>
+              </div>
+
+              <div className="move-restriction-reason-box">
+                <div style={{ fontWeight: 600, color: '#ef4444', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertCircle size={15} /> Причина запрета:
+                </div>
+                <div>{moveRestrictionModal.reason}</div>
+              </div>
+
+              <div className="move-restriction-hint-box">
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                  💡 Как завершить заявку:
+                </div>
+                <div>
+                  Откройте карточку заявки, перейдите во вкладку <strong>«Файлы»</strong> и прикрепите скан/фото подписанного Акта выполненных работ (или отсканируйте камерой).
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setMoveRestrictionModal(null)}
+              >
+                Понятно
+              </button>
+              {moveRestrictionModal.orderId && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const orderIdToOpen = moveRestrictionModal.orderId!;
+                    setMoveRestrictionModal(null);
+                    const o = cards.find(c => c.id === orderIdToOpen);
+                    if (o) {
+                      openEditModal(o);
+                      setOrderModalTab('FILES');
+                    }
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <FileCheck size={16} /> Прикрепить Акт
+                </button>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
