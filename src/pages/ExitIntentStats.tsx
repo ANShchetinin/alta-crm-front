@@ -18,7 +18,8 @@ import {
   Info,
   X,
   Layers,
-  Sparkles
+  Sparkles,
+  MapPin
 } from 'lucide-react';
 import {
   getExitIntentSummary,
@@ -300,21 +301,28 @@ export const ExitIntentStats: React.FC = () => {
 
       {/* KPI Cards Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-        {/* Card 1: Shows */}
+        {/* Card 1: Visits & Shows */}
         <div className="glass-panel" style={{ padding: '20px', borderRadius: '18px', position: 'relative', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
-              Показы попапа
+              Визиты / Показы
             </span>
             <div style={{ width: 34, height: 34, borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Eye size={18} />
             </div>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>
-            {summary ? summary.totalShows.toLocaleString('ru-RU') : '—'}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>
+              {summary ? summary.totalSessions.toLocaleString('ru-RU') : '—'}
+            </div>
+            {summary && summary.totalSessions > 0 && (
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#3b82f6', background: 'rgba(59, 130, 246, 0.12)', padding: '2px 6px', borderRadius: '6px' }}>
+                CR показа: {summary.conversionToShowRate}%
+              </span>
+            )}
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '6px' }}>
-            {summary ? `${summary.totalSessions} уникальных сессий` : 'Загрузка...'}
+            {summary ? `${summary.totalShows} показов попапа уходящим` : 'Загрузка...'}
           </div>
         </div>
 
@@ -394,31 +402,42 @@ export const ExitIntentStats: React.FC = () => {
         </div>
       </div>
 
-      {/* Conversion Funnel & OS Distribution */}
+      {/* Conversion Funnel, OS Distribution & Geography Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '24px' }}>
         {/* Funnel Card */}
         <div className="glass-panel" style={{ padding: '22px', borderRadius: '20px' }}>
           <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Sparkles size={18} style={{ color: 'var(--accent-primary)' }} />
-            <span>Воронка Exit-Intent</span>
+            <span>Воронка сайта и Exit-Intent</span>
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {/* Step 1: Shows */}
+            {/* Step 1: Total Visits */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', fontWeight: 600, marginBottom: '6px' }}>
-                <span>1. Показ попапа (Охват)</span>
-                <span>{summary?.totalShows || 0} (100%)</span>
+                <span>1. Визиты на сайт (Всего)</span>
+                <span>{summary?.totalSessions || 0} (100%)</span>
               </div>
               <div style={{ height: '8px', width: '100%', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: '100%', background: '#3b82f6', borderRadius: '4px' }} />
               </div>
             </div>
 
-            {/* Step 2: Calculator Opens */}
+            {/* Step 2: Shows */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', fontWeight: 600, marginBottom: '6px' }}>
-                <span>2. Клик в калькулятор</span>
+                <span>2. Показ Exit-Intent попапа</span>
+                <span style={{ color: '#6366f1' }}>{summary?.totalShows || 0} ({summary?.conversionToShowRate || 0}%)</span>
+              </div>
+              <div style={{ height: '8px', width: '100%', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${Math.min(100, summary?.conversionToShowRate || 0)}%`, background: '#6366f1', borderRadius: '4px' }} />
+              </div>
+            </div>
+
+            {/* Step 3: Calculator Opens */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', fontWeight: 600, marginBottom: '6px' }}>
+                <span>3. Клик в калькулятор</span>
                 <span style={{ color: '#10b981' }}>{summary?.totalCalculatorOpens || 0} ({summary?.conversionToCalcRate || 0}%)</span>
               </div>
               <div style={{ height: '8px', width: '100%', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden' }}>
@@ -426,10 +445,10 @@ export const ExitIntentStats: React.FC = () => {
               </div>
             </div>
 
-            {/* Step 3: Any Download */}
+            {/* Step 4: Any Download */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', fontWeight: 600, marginBottom: '6px' }}>
-                <span>3. Скачивание сметы (PDF/PNG)</span>
+                <span>4. Скачивание сметы (PDF/PNG)</span>
                 <span style={{ color: '#ef4444' }}>
                   {(summary?.totalPdfDownloads || 0) + (summary?.totalImageDownloads || 0)} ({summary?.conversionTotalDownloadsRate || 0}%)
                 </span>
@@ -441,11 +460,47 @@ export const ExitIntentStats: React.FC = () => {
           </div>
         </div>
 
+        {/* Geography / Top Cities Card */}
+        <div className="glass-panel" style={{ padding: '22px', borderRadius: '20px' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <MapPin size={18} style={{ color: '#ec4899' }} />
+            <span>География посетителей (Топ городов)</span>
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {summary?.byCity && Object.keys(summary.byCity).length > 0 ? (
+              Object.entries(summary.byCity)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 6)
+                .map(([cityName, count]) => {
+                  const total = summary.totalSessions || 1;
+                  const pct = Math.round((count / total) * 100);
+                  return (
+                    <div key={cityName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', fontWeight: 600 }}>
+                        <MapPin size={14} style={{ color: '#ec4899', flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>{cityName}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
+                        <span style={{ fontWeight: 700 }}>{count}</span>
+                        <span style={{ color: 'var(--text-secondary)', width: '38px', textAlign: 'right' }}>{pct}%</span>
+                      </div>
+                    </div>
+                  );
+                })
+            ) : (
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.84rem', textAlign: 'center', padding: '16px' }}>
+                Нет данных по городам
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* OS & Device Distribution */}
         <div className="glass-panel" style={{ padding: '22px', borderRadius: '20px' }}>
           <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Monitor size={18} style={{ color: 'var(--accent-primary)' }} />
-            <span>Операционные системы и устройства</span>
+            <span>Операционные системы</span>
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -494,11 +549,11 @@ export const ExitIntentStats: React.FC = () => {
               <Search size={16} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
               <input
                 type="text"
-                placeholder="Поиск по IP или ОС..."
+                placeholder="Поиск по IP, городу или ОС..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="form-control"
-                style={{ paddingLeft: '32px', fontSize: '0.84rem', width: '220px', borderRadius: '10px' }}
+                style={{ paddingLeft: '32px', fontSize: '0.84rem', width: '240px', borderRadius: '10px' }}
               />
             </div>
             <button type="submit" className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.84rem', borderRadius: '10px' }}>
@@ -513,7 +568,7 @@ export const ExitIntentStats: React.FC = () => {
             <thead>
               <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-secondary)', textAlign: 'left' }}>
                 <th style={{ padding: '12px 10px', fontWeight: 700 }}>Дата / Время</th>
-                <th style={{ padding: '12px 10px', fontWeight: 700 }}>IP-адрес</th>
+                <th style={{ padding: '12px 10px', fontWeight: 700 }}>IP-адрес / Город</th>
                 <th style={{ padding: '12px 10px', fontWeight: 700 }}>ОС / Браузер</th>
                 <th style={{ padding: '12px 10px', fontWeight: 700 }}>Устройство</th>
                 <th style={{ padding: '12px 10px', fontWeight: 700, textAlign: 'center' }}>Показов</th>
@@ -559,9 +614,21 @@ export const ExitIntentStats: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* IP */}
-                      <td style={{ padding: '12px 10px', fontFamily: 'monospace', fontWeight: 600 }}>
-                        {s.ipAddress || '—'}
+                      {/* IP & City */}
+                      <td style={{ padding: '12px 10px' }}>
+                        <div style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {s.ipAddress || '—'}
+                        </div>
+                        {s.city ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.74rem', color: '#ec4899', fontWeight: 600, marginTop: '2px' }}>
+                            <MapPin size={11} />
+                            <span>{s.city}{s.region ? `, ${s.region}` : ''}</span>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            Локальный / Не определен
+                          </div>
+                        )}
                       </td>
 
                       {/* OS / Browser */}
@@ -589,9 +656,15 @@ export const ExitIntentStats: React.FC = () => {
 
                       {/* Shows count */}
                       <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 700 }}>
-                        <span style={{ background: 'rgba(255, 255, 255, 0.06)', padding: '2px 8px', borderRadius: '8px' }}>
-                          {s.shownCount}
-                        </span>
+                        {s.shownCount > 0 ? (
+                          <span style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', padding: '2px 8px', borderRadius: '8px', fontSize: '0.8rem' }}>
+                            {s.shownCount}
+                          </span>
+                        ) : (
+                          <span style={{ background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: '8px', fontSize: '0.76rem' }}>
+                            0 (Визит)
+                          </span>
+                        )}
                       </td>
 
                       {/* Calc Opened */}
