@@ -21,12 +21,14 @@ describe('ExitIntentStats Component', () => {
       totalCalculatorOpens: 8,
       totalPdfDownloads: 4,
       totalImageDownloads: 2,
+      conversionToShowRate: 208.33,
       conversionToCalcRate: 32.0,
       conversionToPdfRate: 16.0,
       conversionToImageRate: 8.0,
       conversionTotalDownloadsRate: 24.0,
       byOs: { Windows: 10, iOS: 2 },
       byDevice: { DESKTOP: 10, MOBILE: 2 },
+      byCity: { Саратов: 10, Энгельс: 2 },
       dailyStats: []
     });
 
@@ -36,6 +38,8 @@ describe('ExitIntentStats Component', () => {
           id: 1,
           sessionId: 'sess-abc-12345678',
           ipAddress: '192.168.1.50',
+          city: 'Саратов',
+          region: 'Саратовская обл',
           os: 'Windows',
           deviceType: 'DESKTOP',
           browser: 'Chrome',
@@ -61,10 +65,11 @@ describe('ExitIntentStats Component', () => {
     expect(screen.getByText('Аналитика сайта')).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText('25')).toBeInTheDocument();
+      expect(screen.getByText('12')).toBeInTheDocument();
       expect(screen.getByText('8')).toBeInTheDocument();
       expect(screen.getByText('4')).toBeInTheDocument();
       expect(screen.getByText('192.168.1.50')).toBeInTheDocument();
+      expect(screen.getByText('Саратов, Саратовская обл')).toBeInTheDocument();
       expect(screen.getByText('15 400 ₽')).toBeInTheDocument();
     });
   });

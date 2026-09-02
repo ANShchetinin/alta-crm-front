@@ -18,6 +18,8 @@ export interface ExitIntentSessionItem {
   id: number;
   sessionId: string;
   ipAddress?: string;
+  city?: string;
+  region?: string;
   os?: string;
   deviceType?: string;
   browser?: string;
@@ -37,6 +39,7 @@ export interface ExitIntentSessionItem {
 
 export interface DailyExitIntentStat {
   date: string;
+  visits: number;
   shows: number;
   calcOpens: number;
   pdfDownloads: number;
@@ -49,12 +52,14 @@ export interface ExitIntentSummary {
   totalCalculatorOpens: number;
   totalPdfDownloads: number;
   totalImageDownloads: number;
+  conversionToShowRate: number;
   conversionToCalcRate: number;
   conversionToPdfRate: number;
   conversionToImageRate: number;
   conversionTotalDownloadsRate: number;
   byOs: Record<string, number>;
   byDevice: Record<string, number>;
+  byCity: Record<string, number>;
   dailyStats: DailyExitIntentStat[];
 }
 
