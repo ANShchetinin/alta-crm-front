@@ -12,6 +12,7 @@ import type { Order, OrderStatus } from '../api/kanban';
 import { getOrdersByClient, getOrderStatuses, moveOrder } from '../api/kanban';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
+import { useFeature } from '../hooks/useFeatureToggle';
 import { formatDateInTimezone } from '../utils/dateUtils';
 import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
 import { AvatarUpload } from '../components/AvatarUpload';
@@ -47,6 +48,7 @@ export const Clients = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { tenantSettings } = useAppStore();
+  const isPassportOcrEnabled = useFeature('PASSPORT_OCR');
   const [clients, setClients] = useState<Client[]>([]);
   const [statuses, setStatuses] = useState<OrderStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -785,23 +787,25 @@ export const Clients = () => {
                         <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <FileText size={16} /> Данные паспорта и договора
                         </h4>
-                        <button
-                          type="button"
-                          onClick={() => setIsPassportScannerOpen(true)}
-                          className="btn btn-secondary"
-                          style={{
-                            fontSize: '0.78rem',
-                            padding: '4px 10px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            background: 'rgba(59, 130, 246, 0.15)',
-                            borderColor: 'rgba(59, 130, 246, 0.3)',
-                            color: '#60a5fa'
-                          }}
-                        >
-                          📷 Распознать паспорт РФ
-                        </button>
+                        {isPassportOcrEnabled && (
+                          <button
+                            type="button"
+                            onClick={() => setIsPassportScannerOpen(true)}
+                            className="btn btn-secondary"
+                            style={{
+                              fontSize: '0.78rem',
+                              padding: '4px 10px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              background: 'rgba(59, 130, 246, 0.15)',
+                              borderColor: 'rgba(59, 130, 246, 0.3)',
+                              color: '#60a5fa'
+                            }}
+                          >
+                            📷 Распознать паспорт РФ
+                          </button>
+                        )}
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>

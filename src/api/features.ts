@@ -12,7 +12,8 @@ export type FeatureKey =
   | 'DOCUMENT_SCANNER'
   | 'OWNER_CREATE_COMPANY'
   | 'MEASUREMENT_CALCULATOR'
-  | 'EXIT_INTENT_ANALYTICS';
+  | 'EXIT_INTENT_ANALYTICS'
+  | 'PASSPORT_OCR';
 
 export interface FeatureInfo {
   key: FeatureKey;
