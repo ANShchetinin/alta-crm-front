@@ -42,7 +42,7 @@ export async function scanPassportOnBackend(
     '/documents/passport/scan',
     formData,
     {
-      timeout: 30000
+      timeout: 90000
     }
   );
 
