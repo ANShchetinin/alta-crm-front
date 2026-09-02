@@ -4,7 +4,6 @@ import {
   X,
   Upload,
   Camera,
-  ShieldCheck,
   RotateCw,
   ZoomIn,
   ZoomOut,
@@ -15,11 +14,11 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Cpu
 } from 'lucide-react';
-import { recognizeRussianPassport } from '../utils/passportParser';
-import { normalizeRegistrationAddress } from '../utils/addressNormalizer';
 import { scanPassportOnBackend } from '../api/passportOcr';
+import { normalizeRegistrationAddress } from '../utils/addressNormalizer';
 import '../styles/passportScanner.css';
 
 export interface PassportApplyResult {
@@ -48,8 +47,7 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
   isOpen,
   onClose,
   onApply,
-  showInstallationAddressOption = true,
-  currentInstallationAddress = ''
+  showInstallationAddressOption = true
 }) => {
   // Mobile tab state
   const [mobileTab, setMobileTab] = useState<'SCANS' | 'FIELDS'>('SCANS');
@@ -58,21 +56,18 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
   // Page 1 (Main Spread: pages 2-3)
   const [mainPageFile, setMainPageFile] = useState<File | null>(null);
   const [mainPageUrl, setMainPageUrl] = useState<string | null>(null);
-  const [mainPageCanvas, setMainPageCanvas] = useState<HTMLCanvasElement | null>(null);
   const [mainPageRotation, setMainPageRotation] = useState<number>(0);
   const [mainPageZoom, setMainPageZoom] = useState<number>(1);
 
   // Page 2 (Registration Stamp)
   const [regPageFile, setRegPageFile] = useState<File | null>(null);
   const [regPageUrl, setRegPageUrl] = useState<string | null>(null);
-  const [regPageCanvas, setRegPageCanvas] = useState<HTMLCanvasElement | null>(null);
   const [regPageRotation, setRegPageRotation] = useState<number>(0);
   const [regPageZoom, setRegPageZoom] = useState<number>(1);
 
   // Recognition state
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [ocrStatus, setOcrStatus] = useState<string>('');
-  const [ocrProgress, setOcrProgress] = useState<number>(0);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [hasRecognized, setHasRecognized] = useState(false);
 
@@ -106,7 +101,6 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
     if (isOpen) {
       setWarnings([]);
       setOcrStatus('');
-      setOcrProgress(0);
       setMobileTab('SCANS');
     }
   }, [isOpen]);
@@ -119,182 +113,88 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
     };
   }, [mainPageUrl, regPageUrl]);
 
-  // Load image to Canvas with rotation
-  const processImageFileToCanvas = (file: File, rotation: number, callback: (canvas: HTMLCanvasElement, url: string) => void) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const rad = (rotation * Math.PI) / 180;
-      const is90or270 = rotation === 90 || rotation === 270;
-      canvas.width = is90or270 ? img.height : img.width;
-      canvas.height = is90or270 ? img.width : img.height;
-
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.rotate(rad);
-        ctx.drawImage(img, -img.width / 2, -img.height / 2);
-      }
-      callback(canvas, url);
-    };
-    img.src = url;
-  };
-
-  const handleMainFileChange = (file: File) => {
+  const handleMainFileSelected = (file: File) => {
+    if (mainPageUrl) URL.revokeObjectURL(mainPageUrl);
     setMainPageFile(file);
+    setMainPageUrl(URL.createObjectURL(file));
     setMainPageRotation(0);
-    processImageFileToCanvas(file, 0, (canvas, url) => {
-      setMainPageCanvas(canvas);
-      setMainPageUrl(url);
-    });
+    setMainPageZoom(1);
+    setHasRecognized(false);
   };
 
-  const handleRegFileChange = (file: File) => {
+  const handleRegFileSelected = (file: File) => {
+    if (regPageUrl) URL.revokeObjectURL(regPageUrl);
     setRegPageFile(file);
+    setRegPageUrl(URL.createObjectURL(file));
     setRegPageRotation(0);
-    processImageFileToCanvas(file, 0, (canvas, url) => {
-      setRegPageCanvas(canvas);
-      setRegPageUrl(url);
-    });
+    setRegPageZoom(1);
+    setHasRecognized(false);
   };
 
   const rotateMainPage = () => {
-    if (!mainPageFile) return;
-    const nextRot = (mainPageRotation + 90) % 360;
-    setMainPageRotation(nextRot);
-    processImageFileToCanvas(mainPageFile, nextRot, (canvas) => {
-      setMainPageCanvas(canvas);
-    });
+    setMainPageRotation((prev) => (prev + 90) % 360);
   };
 
   const rotateRegPage = () => {
-    if (!regPageFile) return;
-    const nextRot = (regPageRotation + 90) % 360;
-    setRegPageRotation(nextRot);
-    processImageFileToCanvas(regPageFile, nextRot, (canvas) => {
-      setRegPageCanvas(canvas);
-    });
+    setRegPageRotation((prev) => (prev + 90) % 360);
   };
 
-  // Run Local OCR Pipeline
+  // Run Backend Neural OCR Pipeline
   const handleStartOcr = async () => {
-    if (!mainPageCanvas && !regPageCanvas) {
+    if (!mainPageFile && !regPageFile) {
       alert('Пожалуйста, загрузите хотя бы одну страницу паспорта для распознавания.');
       return;
     }
 
     setIsRecognizing(true);
-    setOcrProgress(5);
-    setOcrStatus('Подготовка изображений...');
+    setOcrStatus('Нейросетевой анализ на сервере...');
+    setWarnings([]);
 
     try {
-      let extractedFullName = '';
-      let extractedBirthDate = '';
-      let extractedGender: 'MALE' | 'FEMALE' | 'UNKNOWN' = 'UNKNOWN';
-      let extractedSeriesNumber = '';
-      let extractedIssuedBy = '';
-      let extractedIssuedDate = '';
-      let extractedDeptCode = '';
-      let extractedRegAddress = '';
-      let resWarnings: string[] = [];
+      if (!mainPageFile) {
+        throw new Error('Для распознавания необходим главный разворот паспорта.');
+      }
 
-      let usedBackend = false;
+      const backendRes = await scanPassportOnBackend(mainPageFile, regPageFile);
 
-      // 1. Try Backend Neural OCR Service
-      if (mainPageFile) {
-        try {
-          setOcrStatus('Нейросетевой анализ на сервере...');
-          setOcrProgress(30);
-          const backendRes = await scanPassportOnBackend(mainPageFile, regPageFile);
-          if (backendRes && (backendRes.full_name?.value || backendRes.passport_series_number?.value)) {
-            usedBackend = true;
-            extractedFullName = backendRes.full_name?.value || '';
-            extractedBirthDate = backendRes.birth_date?.value || '';
-            extractedGender = (backendRes.gender?.value as any) || 'UNKNOWN';
-            extractedSeriesNumber = backendRes.passport_series_number?.value || '';
-            extractedIssuedBy = backendRes.passport_issued_by?.value || '';
-            extractedIssuedDate = backendRes.passport_issued_date?.value || '';
-            extractedDeptCode = backendRes.passport_department_code?.value || '';
-            extractedRegAddress = backendRes.registration_address?.value || '';
-            resWarnings = backendRes.warnings || [];
-
-            setConfidence({
-              name: backendRes.full_name?.confidence || 'HIGH',
-              birthDate: backendRes.birth_date?.confidence || 'HIGH',
-              passportSeriesNumber: backendRes.passport_series_number?.confidence || 'HIGH',
-              passportIssuedBy: backendRes.passport_issued_by?.confidence || 'HIGH',
-              passportIssuedDate: backendRes.passport_issued_date?.confidence || 'HIGH',
-              passportDepartmentCode: backendRes.passport_department_code?.confidence || 'HIGH',
-              registrationAddress: backendRes.registration_address?.confidence || 'HIGH'
-            });
-          }
-        } catch (backendErr) {
-          console.warn('Backend OCR unavailable or failed, falling back to local WASM OCR:', backendErr);
+      if (backendRes) {
+        let formattedRegAddress = backendRes.registration_address?.value || '';
+        if (formattedRegAddress) {
+          setOcrStatus('Стандартизация адреса регистрации...');
+          const norm = await normalizeRegistrationAddress(formattedRegAddress);
+          formattedRegAddress = norm.formattedAddress || formattedRegAddress;
         }
+
+        setFormData({
+          name: backendRes.full_name?.value || '',
+          birthDate: backendRes.birth_date?.value || '',
+          gender: (backendRes.gender?.value as any) || 'UNKNOWN',
+          passportSeriesNumber: backendRes.passport_series_number?.value || '',
+          passportIssuedBy: backendRes.passport_issued_by?.value || '',
+          passportIssuedDate: backendRes.passport_issued_date?.value || '',
+          passportDepartmentCode: backendRes.passport_department_code?.value || '',
+          registrationAddress: formattedRegAddress
+        });
+
+        setConfidence({
+          name: backendRes.full_name?.confidence || 'HIGH',
+          birthDate: backendRes.birth_date?.confidence || 'HIGH',
+          passportSeriesNumber: backendRes.passport_series_number?.confidence || 'HIGH',
+          passportIssuedBy: backendRes.passport_issued_by?.confidence || 'HIGH',
+          passportIssuedDate: backendRes.passport_issued_date?.confidence || 'HIGH',
+          passportDepartmentCode: backendRes.passport_department_code?.confidence || 'HIGH',
+          registrationAddress: backendRes.registration_address?.confidence || 'HIGH'
+        });
+
+        setWarnings(backendRes.warnings || []);
+        setHasRecognized(true);
+        // Switch to Fields tab on mobile automatically after recognition
+        setMobileTab('FIELDS');
       }
-
-      // 2. Fallback to Local WebAssembly OCR if Backend was not used
-      if (!usedBackend && mainPageCanvas) {
-        setOcrStatus('Локальный анализ документа (WASM)...');
-        const localExtracted = await recognizeRussianPassport(
-          mainPageCanvas,
-          regPageCanvas,
-          (stage, prog) => {
-            setOcrStatus(stage);
-            setOcrProgress(prog);
-          }
-        );
-
-        if (localExtracted) {
-          extractedFullName = localExtracted.fullName.value;
-          extractedBirthDate = localExtracted.birthDate.value;
-          extractedGender = localExtracted.gender.value;
-          extractedSeriesNumber = localExtracted.passportSeriesNumber.value;
-          extractedIssuedBy = localExtracted.passportIssuedBy.value;
-          extractedIssuedDate = localExtracted.passportIssuedDate.value;
-          extractedDeptCode = localExtracted.passportDepartmentCode.value;
-          extractedRegAddress = localExtracted.registrationAddress.value;
-          resWarnings = localExtracted.warnings || [];
-
-          setConfidence({
-            name: localExtracted.mrzParsed ? 'MRZ' : localExtracted.fullName.confidence,
-            birthDate: localExtracted.mrzParsed ? 'MRZ' : localExtracted.birthDate.confidence,
-            passportSeriesNumber: localExtracted.mrzParsed ? 'MRZ' : localExtracted.passportSeriesNumber.confidence,
-            passportIssuedBy: localExtracted.passportIssuedBy.confidence,
-            passportIssuedDate: localExtracted.passportIssuedDate.confidence,
-            passportDepartmentCode: localExtracted.passportDepartmentCode.confidence,
-            registrationAddress: localExtracted.registrationAddress.confidence
-          });
-        }
-      }
-
-      setWarnings(resWarnings);
-
-      let formattedRegAddress = extractedRegAddress;
-      if (formattedRegAddress) {
-        setOcrStatus('Стандартизация адреса регистрации...');
-        const norm = await normalizeRegistrationAddress(formattedRegAddress);
-        formattedRegAddress = norm.formattedAddress || formattedRegAddress;
-      }
-
-      setFormData({
-        name: extractedFullName,
-        birthDate: extractedBirthDate,
-        gender: extractedGender,
-        passportSeriesNumber: extractedSeriesNumber,
-        passportIssuedBy: extractedIssuedBy,
-        passportIssuedDate: extractedIssuedDate,
-        passportDepartmentCode: extractedDeptCode,
-        registrationAddress: formattedRegAddress
-      });
-
-      setHasRecognized(true);
-      // Switch to Fields tab on mobile automatically after recognition
-      setMobileTab('FIELDS');
     } catch (err: any) {
       console.error('OCR Recognition failed:', err);
-      setWarnings([`Ошибка распознавания: ${err?.message || 'Не удалось распознать скан'}`]);
+      const errMsg = err?.response?.data?.message || err?.message || 'Не удалось распознать скан на сервере';
+      setWarnings([`Ошибка распознавания: ${errMsg}`]);
     } finally {
       setIsRecognizing(false);
       setOcrStatus('');
@@ -337,7 +237,7 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
             <FileText size={20} style={{ color: '#3b82f6', flexShrink: 0 }} />
             <span>Распознавание паспорта РФ</span>
             <span className="passport-scanner-badge-secure">
-              <ShieldCheck size={13} /> 152-ФЗ Локально
+              <Cpu size={13} /> Нейросеть PaddleOCR
             </span>
           </div>
           <button type="button" onClick={onClose} className="passport-scanner-close-btn" title="Закрыть">
@@ -361,105 +261,103 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
             onClick={() => setMobileTab('FIELDS')}
             className={`passport-tab-btn ${mobileTab === 'FIELDS' ? 'active' : ''}`}
           >
-            <Check size={16} />
+            <FileText size={16} />
             <span>2. Данные и сверка</span>
-            {hasRecognized && <span className="passport-tab-badge" style={{ background: '#22c55e' }}>✓</span>}
+            {hasRecognized && (
+              <span className="passport-tab-badge ready">
+                <Check size={12} />
+              </span>
+            )}
           </button>
         </div>
 
-        {/* Body (Split Screen on Desktop, Tabs on Mobile) */}
+        {/* Body */}
         <div className="passport-scanner-body">
-          {/* Left Pane: Image Upload & Preview */}
-          <div className={`passport-scanner-left ${mobileTab === 'SCANS' ? 'mobile-active' : ''}`}>
-            {/* Zone 1: Main Spread */}
-            <div className={`passport-drop-zone ${mainPageUrl ? 'has-image' : ''}`}>
-              <div className="passport-drop-zone-header">
-                <div className="passport-drop-zone-title">
-                  <span style={{ color: '#60a5fa' }}>1.</span> Главный разворот (фото и реквизиты)
-                </div>
-                {mainPageUrl && (
+          {/* Left / Scans View */}
+          <div className={`passport-scanner-scans-col ${mobileTab === 'SCANS' ? 'mobile-visible' : 'mobile-hidden'}`}>
+            {/* Slot 1: Main Page */}
+            <div className={`passport-scan-slot ${mainPageFile ? 'has-file' : ''}`}>
+              <div className="passport-slot-header">
+                <span className="passport-slot-title">1. Главный разворот (фото и реквизиты)</span>
+                {mainPageFile && (
                   <button
                     type="button"
                     onClick={() => {
                       setMainPageFile(null);
+                      if (mainPageUrl) URL.revokeObjectURL(mainPageUrl);
                       setMainPageUrl(null);
-                      setMainPageCanvas(null);
                     }}
-                    className="passport-tool-btn"
+                    className="passport-slot-remove-btn"
                     title="Удалить скан"
                   >
-                    <X size={14} />
+                    <X size={16} />
                   </button>
                 )}
               </div>
 
               {mainPageUrl ? (
                 <div className="passport-preview-box">
-                  <img
-                    src={mainPageUrl}
-                    alt="Главный разворот"
-                    className="passport-preview-img"
-                    style={{ transform: `rotate(${mainPageRotation}deg) scale(${mainPageZoom})` }}
-                  />
-                  <div className="passport-img-toolbar">
-                    <button type="button" onClick={rotateMainPage} className="passport-tool-btn" title="Повернуть на 90°">
-                      <RotateCw size={14} />
+                  <div
+                    className="passport-image-container"
+                    style={{
+                      transform: `rotate(${mainPageRotation}deg) scale(${mainPageZoom})`
+                    }}
+                  >
+                    <img src={mainPageUrl} alt="Главный разворот" className="passport-preview-img" />
+                  </div>
+
+                  <div className="passport-preview-controls">
+                    <button type="button" onClick={rotateMainPage} title="Повернуть на 90°">
+                      <RotateCw size={15} />
                     </button>
                     <button
                       type="button"
-                      onClick={() => setMainPageZoom(Math.min(2.5, mainPageZoom + 0.25))}
-                      className="passport-tool-btn"
+                      onClick={() => setMainPageZoom((z) => Math.min(2.5, z + 0.25))}
                       title="Увеличить"
                     >
-                      <ZoomIn size={14} />
+                      <ZoomIn size={15} />
                     </button>
                     <button
                       type="button"
-                      onClick={() => setMainPageZoom(Math.max(0.75, mainPageZoom - 0.25))}
-                      className="passport-tool-btn"
+                      onClick={() => setMainPageZoom((z) => Math.max(0.75, z - 0.25))}
                       title="Уменьшить"
                     >
-                      <ZoomOut size={14} />
+                      <ZoomOut size={15} />
                     </button>
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
-                  <Upload size={26} style={{ color: '#94a3b8' }} />
-                  <div style={{ fontSize: '0.82rem', color: '#cbd5e1' }}>
-                    Сфотографируйте разворот (стр. 2–3) или загрузите скан
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => mainCameraInputRef.current?.click()}
-                      className="btn btn-primary"
-                      style={{ padding: '8px 14px', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <Camera size={15} />
-                      Снять на камеру
-                    </button>
+                <div className="passport-dropzone">
+                  <div className="passport-dropzone-actions">
                     <button
                       type="button"
                       onClick={() => mainFileInputRef.current?.click()}
-                      className="btn btn-secondary"
-                      style={{ padding: '8px 14px', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      className="passport-upload-btn"
                     >
-                      <Upload size={15} />
-                      Выбрать файл
+                      <Upload size={18} />
+                      <span>Выбрать файл</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => mainCameraInputRef.current?.click()}
+                      className="passport-camera-btn"
+                    >
+                      <Camera size={18} />
+                      <span>Сделать фото</span>
                     </button>
                   </div>
+                  <span className="passport-dropzone-hint">JPG, PNG, WebP или скан (до 20 МБ)</span>
                 </div>
               )}
 
               <input
                 ref={mainFileInputRef}
                 type="file"
-                accept="image/*,application/pdf"
+                accept="image/*"
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) handleMainFileChange(f);
+                  if (f) handleMainFileSelected(f);
                 }}
               />
               <input
@@ -470,100 +368,94 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) handleMainFileChange(f);
+                  if (f) handleMainFileSelected(f);
                 }}
               />
             </div>
 
-            {/* Zone 2: Registration Stamp */}
-            <div className={`passport-drop-zone ${regPageUrl ? 'has-image' : ''}`}>
-              <div className="passport-drop-zone-header">
-                <div className="passport-drop-zone-title">
-                  <span style={{ color: '#4ade80' }}>2.</span> Страница регистрации (прописка)
-                </div>
-                {regPageUrl && (
+            {/* Slot 2: Registration Stamp */}
+            <div className={`passport-scan-slot ${regPageFile ? 'has-file' : ''}`}>
+              <div className="passport-slot-header">
+                <span className="passport-slot-title">2. Страница регистрации (прописка)</span>
+                {regPageFile && (
                   <button
                     type="button"
                     onClick={() => {
                       setRegPageFile(null);
+                      if (regPageUrl) URL.revokeObjectURL(regPageUrl);
                       setRegPageUrl(null);
-                      setRegPageCanvas(null);
                     }}
-                    className="passport-tool-btn"
+                    className="passport-slot-remove-btn"
                     title="Удалить скан"
                   >
-                    <X size={14} />
+                    <X size={16} />
                   </button>
                 )}
               </div>
 
               {regPageUrl ? (
                 <div className="passport-preview-box">
-                  <img
-                    src={regPageUrl}
-                    alt="Страница прописки"
-                    className="passport-preview-img"
-                    style={{ transform: `rotate(${regPageRotation}deg) scale(${regPageZoom})` }}
-                  />
-                  <div className="passport-img-toolbar">
-                    <button type="button" onClick={rotateRegPage} className="passport-tool-btn" title="Повернуть на 90°">
-                      <RotateCw size={14} />
+                  <div
+                    className="passport-image-container"
+                    style={{
+                      transform: `rotate(${regPageRotation}deg) scale(${regPageZoom})`
+                    }}
+                  >
+                    <img src={regPageUrl} alt="Страница регистрации" className="passport-preview-img" />
+                  </div>
+
+                  <div className="passport-preview-controls">
+                    <button type="button" onClick={rotateRegPage} title="Повернуть на 90°">
+                      <RotateCw size={15} />
                     </button>
                     <button
                       type="button"
-                      onClick={() => setRegPageZoom(Math.min(2.5, regPageZoom + 0.25))}
-                      className="passport-tool-btn"
+                      onClick={() => setRegPageZoom((z) => Math.min(2.5, z + 0.25))}
                       title="Увеличить"
                     >
-                      <ZoomIn size={14} />
+                      <ZoomIn size={15} />
                     </button>
                     <button
                       type="button"
-                      onClick={() => setRegPageZoom(Math.max(0.75, regPageZoom - 0.25))}
-                      className="passport-tool-btn"
+                      onClick={() => setRegPageZoom((z) => Math.max(0.75, z - 0.25))}
                       title="Уменьшить"
                     >
-                      <ZoomOut size={14} />
+                      <ZoomOut size={15} />
                     </button>
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
-                  <Upload size={26} style={{ color: '#94a3b8' }} />
-                  <div style={{ fontSize: '0.82rem', color: '#cbd5e1' }}>
-                    Сфотографируйте штамп прописки (стр. 4–5)
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => regCameraInputRef.current?.click()}
-                      className="btn btn-primary"
-                      style={{ padding: '8px 14px', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <Camera size={15} />
-                      Снять на камеру
-                    </button>
+                <div className="passport-dropzone">
+                  <div className="passport-dropzone-actions">
                     <button
                       type="button"
                       onClick={() => regFileInputRef.current?.click()}
-                      className="btn btn-secondary"
-                      style={{ padding: '8px 14px', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      className="passport-upload-btn"
                     >
-                      <Upload size={15} />
-                      Выбрать файл
+                      <Upload size={18} />
+                      <span>Выбрать файл</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => regCameraInputRef.current?.click()}
+                      className="passport-camera-btn"
+                    >
+                      <Camera size={18} />
+                      <span>Сделать фото</span>
                     </button>
                   </div>
+                  <span className="passport-dropzone-hint">Страница со штампом постоянной прописки</span>
                 </div>
               )}
 
               <input
                 ref={regFileInputRef}
                 type="file"
-                accept="image/*,application/pdf"
+                accept="image/*"
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) handleRegFileChange(f);
+                  if (f) handleRegFileSelected(f);
                 }}
               />
               <input
@@ -574,129 +466,106 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) handleRegFileChange(f);
+                  if (f) handleRegFileSelected(f);
                 }}
               />
             </div>
-
-            {/* OCR Start Button */}
-            <button
-              type="button"
-              onClick={handleStartOcr}
-              disabled={isRecognizing || (!mainPageCanvas && !regPageCanvas)}
-              className="btn btn-primary"
-              style={{
-                width: '100%',
-                padding: '13px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)',
-                marginTop: 'auto'
-              }}
-            >
-              {isRecognizing ? <RefreshCw className="spin" size={18} /> : <Sparkles size={18} />}
-              {isRecognizing ? 'Распознавание...' : '🚀 Запустить распознавание'}
-            </button>
           </div>
 
-          {/* Right Pane: Extracted Fields & Verification */}
-          <div className={`passport-scanner-right ${mobileTab === 'FIELDS' ? 'mobile-active' : ''}`}>
-            {/* Mobile Scans Toggle Accordion (to compare scan & fields directly on phone) */}
-            {(mainPageUrl || regPageUrl) && (
-              <div className="passport-mobile-scans-toggle" onClick={() => setShowScansInFieldsView(!showScansInFieldsView)}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ImageIcon size={16} />
-                  <span>{showScansInFieldsView ? 'Скрыть сканы паспорта' : '🔍 Показать сканы для сверки'}</span>
-                </div>
-                {showScansInFieldsView ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </div>
-            )}
+          {/* Right / Fields View */}
+          <div className={`passport-scanner-fields-col ${mobileTab === 'FIELDS' ? 'mobile-visible' : 'mobile-hidden'}`}>
+            {/* Mobile Scan Preview Accordion */}
+            {loadedScansCount > 0 && (
+              <div className="passport-scans-accordion">
+                <button
+                  type="button"
+                  onClick={() => setShowScansInFieldsView((prev) => !prev)}
+                  className="passport-accordion-btn"
+                >
+                  <div className="passport-accordion-title">
+                    <ImageIcon size={16} />
+                    <span>Показать сканы для сверки ({loadedScansCount})</span>
+                  </div>
+                  {showScansInFieldsView ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
 
-            {/* Embedded scans when toggled on mobile */}
-            {showScansInFieldsView && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#0b1120', padding: '8px', borderRadius: '8px' }}>
-                {mainPageUrl && (
-                  <div>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>Главный разворот:</div>
-                    <img
-                      src={mainPageUrl}
-                      alt="Разворот"
-                      style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', transform: `rotate(${mainPageRotation}deg)` }}
-                    />
+                {showScansInFieldsView && (
+                  <div className="passport-accordion-content">
+                    {mainPageUrl && (
+                      <div className="passport-accordion-image-box">
+                        <span className="passport-accordion-label">Главный разворот:</span>
+                        <img
+                          src={mainPageUrl}
+                          alt="Главный разворот"
+                          style={{ transform: `rotate(${mainPageRotation}deg)` }}
+                        />
+                      </div>
+                    )}
+                    {regPageUrl && (
+                      <div className="passport-accordion-image-box">
+                        <span className="passport-accordion-label">Страница регистрации:</span>
+                        <img
+                          src={regPageUrl}
+                          alt="Страница регистрации"
+                          style={{ transform: `rotate(${regPageRotation}deg)` }}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
-                {regPageUrl && (
-                  <div style={{ marginTop: '6px' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>Прописка:</div>
-                    <img
-                      src={regPageUrl}
-                      alt="Прописка"
-                      style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', transform: `rotate(${regPageRotation}deg)` }}
-                    />
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Progress Card */}
-            {isRecognizing && (
-              <div className="passport-progress-card">
-                <div className="passport-progress-label">
-                  <span>{ocrStatus || 'Обработка...'}</span>
-                  <span>{ocrProgress}%</span>
-                </div>
-                <div className="passport-progress-bar-track">
-                  <div className="passport-progress-bar-fill" style={{ width: `${ocrProgress}%` }} />
-                </div>
-              </div>
-            )}
-
-            {/* Warnings Alert */}
+            {/* Warnings list */}
             {warnings.length > 0 && (
-              <div style={{ background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '8px', padding: '10px 12px', color: '#facc15', fontSize: '0.8rem', display: 'flex', gap: '8px' }}>
-                <AlertTriangle size={18} style={{ flexShrink: 0 }} />
-                <div>
-                  {warnings.map((w, idx) => (
-                    <div key={idx}>{w}</div>
-                  ))}
+              <div className="passport-scanner-warnings">
+                {warnings.map((w, idx) => (
+                  <div key={idx} className="passport-warning-item">
+                    <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <span>{w}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Recognition Progress Overlay */}
+            {isRecognizing && (
+              <div className="passport-scanner-progress-box">
+                <div className="passport-progress-header">
+                  <RefreshCw size={18} className="animate-spin" />
+                  <span>{ocrStatus || 'Распознавание...'}</span>
                 </div>
               </div>
             )}
 
             {/* Fields Form */}
-            <div className="passport-fields-table">
+            <div className="passport-fields-form">
               {/* Full Name */}
-              <div className="passport-field-row">
-                <div className="passport-field-label-wrap">
-                  <span>ФИО Клиента</span>
+              <div className="passport-field-group">
+                <div className="passport-field-header">
+                  <label>ФИО Клиента</label>
                   {confidence.name && (
-                    <span className={`passport-conf-badge ${confidence.name.toLowerCase()}`}>
+                    <span className={`passport-confidence-badge ${confidence.name.toLowerCase()}`}>
                       {confidence.name === 'MRZ' ? 'MRZ ✓' : confidence.name}
                     </span>
                   )}
                 </div>
-                <div className="passport-field-input-wrap">
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Фамилия Имя Отчество"
-                    className="passport-field-input"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Иванов Иван Иванович"
+                  className="passport-input"
+                />
               </div>
 
-              {/* Series & Number + Birth Date */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-                <div className="passport-field-row">
-                  <div className="passport-field-label-wrap">
-                    <span>Серия и номер</span>
+              {/* Series, Number & Birth Date */}
+              <div className="passport-fields-row">
+                <div className="passport-field-group">
+                  <div className="passport-field-header">
+                    <label>Серия и номер</label>
                     {confidence.passportSeriesNumber && (
-                      <span className={`passport-conf-badge ${confidence.passportSeriesNumber.toLowerCase()}`}>
+                      <span className={`passport-confidence-badge ${confidence.passportSeriesNumber.toLowerCase()}`}>
                         {confidence.passportSeriesNumber === 'MRZ' ? 'MRZ ✓' : confidence.passportSeriesNumber}
                       </span>
                     )}
@@ -706,15 +575,15 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
                     value={formData.passportSeriesNumber}
                     onChange={(e) => setFormData({ ...formData, passportSeriesNumber: e.target.value })}
                     placeholder="XX XX XXXXXX"
-                    className="passport-field-input"
+                    className="passport-input font-mono"
                   />
                 </div>
 
-                <div className="passport-field-row">
-                  <div className="passport-field-label-wrap">
-                    <span>Дата рождения</span>
+                <div className="passport-field-group">
+                  <div className="passport-field-header">
+                    <label>Дата рождения</label>
                     {confidence.birthDate && (
-                      <span className={`passport-conf-badge ${confidence.birthDate.toLowerCase()}`}>
+                      <span className={`passport-confidence-badge ${confidence.birthDate.toLowerCase()}`}>
                         {confidence.birthDate === 'MRZ' ? 'MRZ ✓' : confidence.birthDate}
                       </span>
                     )}
@@ -724,18 +593,18 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
                     value={formData.birthDate}
                     onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
                     placeholder="ДД.ММ.ГГГГ"
-                    className="passport-field-input"
+                    className="passport-input font-mono"
                   />
                 </div>
               </div>
 
-              {/* Department Code + Issued Date */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-                <div className="passport-field-row">
-                  <div className="passport-field-label-wrap">
-                    <span>Код подразделения</span>
+              {/* Department code & Issued date */}
+              <div className="passport-fields-row">
+                <div className="passport-field-group">
+                  <div className="passport-field-header">
+                    <label>Код подразделения</label>
                     {confidence.passportDepartmentCode && (
-                      <span className={`passport-conf-badge ${confidence.passportDepartmentCode.toLowerCase()}`}>
+                      <span className={`passport-confidence-badge ${confidence.passportDepartmentCode.toLowerCase()}`}>
                         {confidence.passportDepartmentCode}
                       </span>
                     )}
@@ -745,15 +614,15 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
                     value={formData.passportDepartmentCode}
                     onChange={(e) => setFormData({ ...formData, passportDepartmentCode: e.target.value })}
                     placeholder="XXX-XXX"
-                    className="passport-field-input"
+                    className="passport-input font-mono"
                   />
                 </div>
 
-                <div className="passport-field-row">
-                  <div className="passport-field-label-wrap">
-                    <span>Дата выдачи</span>
+                <div className="passport-field-group">
+                  <div className="passport-field-header">
+                    <label>Дата выдачи</label>
                     {confidence.passportIssuedDate && (
-                      <span className={`passport-conf-badge ${confidence.passportIssuedDate.toLowerCase()}`}>
+                      <span className={`passport-confidence-badge ${confidence.passportIssuedDate.toLowerCase()}`}>
                         {confidence.passportIssuedDate}
                       </span>
                     )}
@@ -763,97 +632,111 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
                     value={formData.passportIssuedDate}
                     onChange={(e) => setFormData({ ...formData, passportIssuedDate: e.target.value })}
                     placeholder="ДД.ММ.ГГГГ"
-                    className="passport-field-input"
+                    className="passport-input font-mono"
                   />
                 </div>
               </div>
 
-              {/* Issued By */}
-              <div className="passport-field-row">
-                <div className="passport-field-label-wrap">
-                  <span>Кем выдан</span>
+              {/* Issued by */}
+              <div className="passport-field-group">
+                <div className="passport-field-header">
+                  <label>Кем выдан</label>
                   {confidence.passportIssuedBy && (
-                    <span className={`passport-conf-badge ${confidence.passportIssuedBy.toLowerCase()}`}>
+                    <span className={`passport-confidence-badge ${confidence.passportIssuedBy.toLowerCase()}`}>
                       {confidence.passportIssuedBy}
                     </span>
                   )}
                 </div>
-                <input
-                  type="text"
+                <textarea
+                  rows={2}
                   value={formData.passportIssuedBy}
                   onChange={(e) => setFormData({ ...formData, passportIssuedBy: e.target.value })}
-                  placeholder="Орган выдачи паспорта"
-                  className="passport-field-input"
+                  placeholder="ОТДЕЛОМ ВНУТРЕННИХ ДЕЛ..."
+                  className="passport-textarea"
                 />
               </div>
 
               {/* Registration Address */}
-              <div className="passport-field-row">
-                <div className="passport-field-label-wrap">
-                  <span>Адрес регистрации (прописка)</span>
+              <div className="passport-field-group">
+                <div className="passport-field-header">
+                  <label>Адрес регистрации (прописка)</label>
                   {confidence.registrationAddress && (
-                    <span className={`passport-conf-badge ${confidence.registrationAddress.toLowerCase()}`}>
+                    <span className={`passport-confidence-badge ${confidence.registrationAddress.toLowerCase()}`}>
                       {confidence.registrationAddress}
                     </span>
                   )}
                 </div>
-                <input
-                  type="text"
+                <textarea
+                  rows={2}
                   value={formData.registrationAddress}
                   onChange={(e) => setFormData({ ...formData, registrationAddress: e.target.value })}
-                  placeholder="г. Город, ул. Улица, д. Дом, кв. Кв"
-                  className="passport-field-input"
+                  placeholder="г. Санкт-Петербург, наб. Миклухо-Маклая, д. 3..."
+                  className="passport-textarea"
                 />
+              </div>
+
+              {/* Options */}
+              <div className="passport-options-box">
+                {showInstallationAddressOption && (
+                  <label className="passport-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={addressSameAsInstallation}
+                      onChange={(e) => setAddressSameAsInstallation(e.target.checked)}
+                    />
+                    <span>Установить адрес регистрации как адрес монтажа</span>
+                  </label>
+                )}
               </div>
             </div>
           </div>
         </div>
 
+        {/* Action Bar */}
+        <div className="passport-scanner-action-bar">
+          <button
+            type="button"
+            onClick={handleStartOcr}
+            disabled={isRecognizing || loadedScansCount === 0}
+            className="passport-run-ocr-btn"
+          >
+            {isRecognizing ? (
+              <>
+                <RefreshCw size={18} className="animate-spin" />
+                <span>Распознавание...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={18} />
+                <span>🚀 Запустить распознавание</span>
+              </>
+            )}
+          </button>
+        </div>
+
         {/* Footer */}
         <div className="passport-scanner-footer">
-          <div className="passport-options-wrap">
-            {showInstallationAddressOption && (
-              <label className="passport-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={addressSameAsInstallation}
-                  onChange={(e) => setAddressSameAsInstallation(e.target.checked)}
-                />
-                <span>
-                  Адрес монтажа совпадает с адресом регистрации
-                  {currentInstallationAddress ? ` (текущий: ${currentInstallationAddress})` : ''}
-                </span>
-              </label>
-            )}
-            <label className="passport-checkbox-label">
-              <input
-                type="checkbox"
-                checked={saveScansToFiles}
-                onChange={(e) => setSaveScansToFiles(e.target.checked)}
-              />
-              <span>Прикрепить распознанные сканы к документам клиента / сделки</span>
-            </label>
-          </div>
+          <label className="passport-checkbox-label">
+            <input
+              type="checkbox"
+              checked={saveScansToFiles}
+              onChange={(e) => setSaveScansToFiles(e.target.checked)}
+            />
+            <span>Прикрепить распознанные сканы к документам клиента / сделки</span>
+          </label>
 
-          <div className="passport-action-btns">
-            <button type="button" onClick={onClose} className="btn btn-secondary" style={{ padding: '10px 16px' }}>
+          <div className="passport-footer-buttons">
+            <button type="button" onClick={onClose} className="passport-cancel-btn">
               Отмена
             </button>
             <button
               type="button"
               onClick={handleApply}
               disabled={!formData.name && !formData.passportSeriesNumber}
-              className="btn btn-primary"
-              style={{
-                padding: '10px 20px',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'linear-gradient(135deg, #22c55e, #16a34a)'
-              }}
+              className="passport-apply-btn"
             >
-              <Check size={18} /> Применить данные
+              <Check size={18} />
+              <span>Применить данные</span>
             </button>
           </div>
         </div>
