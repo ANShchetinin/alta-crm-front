@@ -16,6 +16,7 @@ import { formatDateInTimezone } from '../utils/dateUtils';
 import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
 import { AvatarUpload } from '../components/AvatarUpload';
 import { getClientInitials, getAvatarGradient } from '../utils/avatarUtils';
+import { PassportScannerModal, type PassportApplyResult } from '../components/PassportScannerModal';
 import '../styles/clients.css';
 
 export { getClientInitials, getAvatarGradient };
@@ -54,6 +55,7 @@ export const Clients = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [isPassportScannerOpen, setIsPassportScannerOpen] = useState(false);
   
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [historyClient, setHistoryClient] = useState<Client | null>(null);
@@ -71,6 +73,7 @@ export const Clients = () => {
     passportSeriesNumber: '',
     passportIssuedBy: '',
     passportIssuedDate: '',
+    passportDepartmentCode: '',
     registrationAddress: '',
     email: '',
     inn: '',
@@ -150,6 +153,7 @@ export const Clients = () => {
       passportSeriesNumber: '',
       passportIssuedBy: '',
       passportIssuedDate: '',
+      passportDepartmentCode: '',
       registrationAddress: '',
       email: '',
       inn: '',
@@ -187,6 +191,7 @@ export const Clients = () => {
       passportSeriesNumber: client.passportSeriesNumber || '',
       passportIssuedBy: client.passportIssuedBy || '',
       passportIssuedDate: client.passportIssuedDate || '',
+      passportDepartmentCode: client.passportDepartmentCode || '',
       registrationAddress: client.registrationAddress || '',
       email: client.email || '',
       inn: client.inn || '',
@@ -280,6 +285,7 @@ export const Clients = () => {
         passportSeriesNumber: formData.passportSeriesNumber.trim() || null,
         passportIssuedBy: formData.passportIssuedBy.trim() || null,
         passportIssuedDate: formData.passportIssuedDate.trim() || null,
+        passportDepartmentCode: formData.passportDepartmentCode.trim() || null,
         registrationAddress: formData.registrationAddress.trim() || null,
         email: formData.email.trim() || null,
         inn: formData.inn.trim() || null,
@@ -775,9 +781,29 @@ export const Clients = () => {
                       borderRadius: 'var(--radius-md)',
                       marginTop: '8px'
                     }}>
-                      <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <FileText size={16} /> Данные для договора (необязательно)
-                      </h4>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <FileText size={16} /> Данные паспорта и договора
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => setIsPassportScannerOpen(true)}
+                          className="btn btn-secondary"
+                          style={{
+                            fontSize: '0.78rem',
+                            padding: '4px 10px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            background: 'rgba(59, 130, 246, 0.15)',
+                            borderColor: 'rgba(59, 130, 246, 0.3)',
+                            color: '#60a5fa'
+                          }}
+                        >
+                          📷 Распознать паспорт РФ
+                        </button>
+                      </div>
+
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
                         <div className="form-group" style={{ margin: 0 }}>
                           <label>Дата рождения</label>
@@ -802,6 +828,7 @@ export const Clients = () => {
                           />
                         </div>
                       </div>
+
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
                         <div className="form-group" style={{ margin: 0 }}>
                           <label>Кем выдан</label>
@@ -825,7 +852,19 @@ export const Clients = () => {
                             style={{ width: '100%', paddingLeft: '12px' }}
                           />
                         </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label>Код подразделения</label>
+                          <input
+                            type="text"
+                            placeholder="770-001"
+                            value={formData.passportDepartmentCode}
+                            onChange={(e) => setFormData({ ...formData, passportDepartmentCode: e.target.value })}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '12px' }}
+                          />
+                        </div>
                       </div>
+
                       <div className="form-group" style={{ margin: 0 }}>
                         <label>Адрес по прописке (регистрации)</label>
                         <input
@@ -1375,6 +1414,25 @@ export const Clients = () => {
         </div>,
         document.body
       )}
+
+      {/* Local Passport OCR Scanner Modal */}
+      <PassportScannerModal
+        isOpen={isPassportScannerOpen}
+        onClose={() => setIsPassportScannerOpen(false)}
+        showInstallationAddressOption={false}
+        onApply={(result: PassportApplyResult) => {
+          setFormData(prev => ({
+            ...prev,
+            name: result.name || prev.name,
+            birthDate: result.birthDate || prev.birthDate,
+            passportSeriesNumber: result.passportSeriesNumber || prev.passportSeriesNumber,
+            passportIssuedBy: result.passportIssuedBy || prev.passportIssuedBy,
+            passportIssuedDate: result.passportIssuedDate || prev.passportIssuedDate,
+            passportDepartmentCode: result.passportDepartmentCode || prev.passportDepartmentCode,
+            registrationAddress: result.registrationAddress || prev.registrationAddress
+          }));
+        }}
+      />
 
     </div>
   );

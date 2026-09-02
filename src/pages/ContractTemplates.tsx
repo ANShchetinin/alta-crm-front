@@ -68,6 +68,7 @@ const AVAILABLE_TAGS: TagItem[] = [
   { tag: '{{client_passport_series_number}}', name: 'Серия и номер паспорта', example: '63 12 765432', category: 'client', forType: 'INDIVIDUAL' },
   { tag: '{{client_passport_issued_by}}', name: 'Кем выдан паспорт', example: 'УФМС России по г. Москве', category: 'client', forType: 'INDIVIDUAL' },
   { tag: '{{client_passport_issued_date}}', name: 'Дата выдачи паспорта', example: '15.11.2012', category: 'client', forType: 'INDIVIDUAL' },
+  { tag: '{{client_passport_department_code}}', name: 'Код подразделения', example: '770-001', category: 'client', forType: 'INDIVIDUAL' },
   { tag: '{{client_reg_address}}', name: 'Адрес регистрации клиента', example: 'г. Москва, ул. Арбат, д. 22, кв. 15', category: 'client', forType: 'INDIVIDUAL' },
 
   // 4. Заказчик - Юр. лицо (LEGAL_ENTITY)

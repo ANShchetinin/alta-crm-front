@@ -71,6 +71,7 @@ import { getMyReminders, type OrderReminderDto } from '../api/reminders';
 import { useTouchKanbanDrag } from '../hooks/useTouchKanbanDrag';
 import { useTouchColumnReorder } from '../hooks/useTouchColumnReorder';
 import { DocumentScannerModal } from '../components/DocumentScannerModal';
+import { PassportScannerModal, type PassportApplyResult } from '../components/PassportScannerModal';
 import { ActUploadActionSheet } from '../components/ActUploadActionSheet';
 import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
 import { MeasurementWizard } from '../components/MeasurementWizard';
@@ -949,6 +950,8 @@ const Kanban = () => {
   // Contract Generation & Prompt Modal State
   const [isContractPromptOpen, setIsContractPromptOpen] = useState(false);
   const [contractPromptLoading, setContractPromptLoading] = useState(false);
+  const [isPassportScannerOpen, setIsPassportScannerOpen] = useState(false);
+  const [passportScannerTarget, setPassportScannerTarget] = useState<'CONTRACT' | 'NEW_CLIENT' | 'ORDER'>('CONTRACT');
   const [contractPromptData, setContractPromptData] = useState({
     clientId: 0,
     name: '',
@@ -958,6 +961,7 @@ const Kanban = () => {
     passportSeriesNumber: '',
     passportIssuedBy: '',
     passportIssuedDate: '',
+    passportDepartmentCode: '',
     registrationAddress: '',
     installationAddress: '',
     // Ceiling params
@@ -1585,6 +1589,7 @@ const Kanban = () => {
         passportSeriesNumber: client.passportSeriesNumber || '',
         passportIssuedBy: client.passportIssuedBy || '',
         passportIssuedDate: client.passportIssuedDate || '',
+        passportDepartmentCode: client.passportDepartmentCode || '',
         registrationAddress: client.registrationAddress || '',
         installationAddress: formData.address || (client.actualAddress || ''),
         area: cp.area || '70,3',
@@ -1738,6 +1743,7 @@ const Kanban = () => {
           passportSeriesNumber: contractPromptData.passportSeriesNumber.trim(),
           passportIssuedBy: contractPromptData.passportIssuedBy.trim(),
           passportIssuedDate: contractPromptData.passportIssuedDate.trim(),
+          passportDepartmentCode: contractPromptData.passportDepartmentCode.trim() || undefined,
           registrationAddress: contractPromptData.registrationAddress.trim()
         });
       }
@@ -6297,7 +6303,31 @@ const Kanban = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>{newClientType === 'LEGAL_ENTITY' ? 'Наименование организации' : t('clients.modal.name')} *</label>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <label style={{ margin: 0 }}>{newClientType === 'LEGAL_ENTITY' ? 'Наименование организации' : t('clients.modal.name')} *</label>
+                    {newClientType === 'INDIVIDUAL' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPassportScannerTarget('NEW_CLIENT');
+                          setIsPassportScannerOpen(true);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#60a5fa',
+                          fontSize: '0.78rem',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: 0
+                        }}
+                      >
+                        📷 Заполнить по паспорту РФ
+                      </button>
+                    )}
+                  </div>
                   <input 
                     type="text" 
                     required
@@ -6469,10 +6499,34 @@ const Kanban = () => {
                   color: '#93c5fd',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
                   gap: '8px'
                 }}>
-                  <AlertCircle size={18} style={{ flexShrink: 0 }} />
-                  <span>Для формирования договора физлица заполните недостающие паспортные данные:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                    <span>Для договора физлица заполните паспортные данные:</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPassportScannerTarget('CONTRACT');
+                      setIsPassportScannerOpen(true);
+                    }}
+                    className="btn btn-secondary"
+                    style={{
+                      fontSize: '0.78rem',
+                      padding: '4px 10px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      background: 'rgba(59, 130, 246, 0.2)',
+                      borderColor: 'rgba(59, 130, 246, 0.4)',
+                      color: '#60a5fa'
+                    }}
+                  >
+                    📷 Распознать паспорт РФ
+                  </button>
                 </div>
 
                 <div className="form-group">
@@ -6541,8 +6595,8 @@ const Kanban = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-                  <div className="form-group">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
                     <label>Кем выдан паспорт *</label>
                     <input
                       type="text"
@@ -6562,6 +6616,17 @@ const Kanban = () => {
                       placeholder="11.06.2015"
                       value={contractPromptData.passportIssuedDate}
                       onChange={(e) => setContractPromptData({ ...contractPromptData, passportIssuedDate: e.target.value })}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Код подразделения</label>
+                    <input
+                      type="text"
+                      placeholder="770-001"
+                      value={contractPromptData.passportDepartmentCode}
+                      onChange={(e) => setContractPromptData({ ...contractPromptData, passportDepartmentCode: e.target.value })}
                       className="search-input"
                       style={{ width: '100%', paddingLeft: '12px' }}
                     />
@@ -6733,6 +6798,50 @@ const Kanban = () => {
         </div>,
         document.body
       )}
+
+      {/* Local Passport OCR Scanner Modal */}
+      <PassportScannerModal
+        isOpen={isPassportScannerOpen}
+        onClose={() => setIsPassportScannerOpen(false)}
+        showInstallationAddressOption={true}
+        currentInstallationAddress={formData.address || contractPromptData.installationAddress}
+        onApply={async (result: PassportApplyResult) => {
+          if (passportScannerTarget === 'CONTRACT') {
+            setContractPromptData(prev => ({
+              ...prev,
+              name: result.name || prev.name,
+              birthDate: result.birthDate || prev.birthDate,
+              passportSeriesNumber: result.passportSeriesNumber || prev.passportSeriesNumber,
+              passportIssuedBy: result.passportIssuedBy || prev.passportIssuedBy,
+              passportIssuedDate: result.passportIssuedDate || prev.passportIssuedDate,
+              passportDepartmentCode: result.passportDepartmentCode || prev.passportDepartmentCode,
+              registrationAddress: result.registrationAddress || prev.registrationAddress,
+              installationAddress: result.installationAddress || prev.installationAddress
+            }));
+
+            if (result.installationAddress) {
+              setFormData(prev => ({ ...prev, address: result.installationAddress! }));
+            }
+
+            // Save scans to order attachments if requested
+            if (result.saveScans && result.scanFiles.length > 0 && editingOrderId) {
+              for (const file of result.scanFiles) {
+                try {
+                  const att = await uploadAttachment(editingOrderId, file);
+                  setFormData(prev => ({ ...prev, attachments: [...prev.attachments, att] }));
+                } catch (attErr) {
+                  console.warn('Failed to attach passport scan file to order', attErr);
+                }
+              }
+            }
+          } else if (passportScannerTarget === 'NEW_CLIENT') {
+            if (result.name) setNewClientName(result.name);
+            if (result.installationAddress || result.registrationAddress) {
+              setFormData(prev => ({ ...prev, address: result.installationAddress || result.registrationAddress }));
+            }
+          }
+        }}
+      />
     </div>
   );
 };
