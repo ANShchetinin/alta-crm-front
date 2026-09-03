@@ -21,6 +21,7 @@ export interface Client {
   passportSeriesNumber?: string;
   passportIssuedBy?: string;
   passportIssuedDate?: string;
+  passportDepartmentCode?: string;
   registrationAddress?: string;
   email?: string;
   inn?: string;
@@ -52,6 +53,7 @@ export interface ClientCreateRequest {
   passportSeriesNumber?: string | null;
   passportIssuedBy?: string | null;
   passportIssuedDate?: string | null;
+  passportDepartmentCode?: string | null;
   registrationAddress?: string | null;
   email?: string | null;
   inn?: string | null;
