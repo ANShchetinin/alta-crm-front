@@ -11,8 +11,6 @@ import { AvatarUpload } from '../components/AvatarUpload';
 import { getEmployeeInitials, getAvatarGradient } from '../utils/avatarUtils';
 import '../styles/clients.css';
 
-export { getEmployeeInitials, getAvatarGradient };
-
 export const Employees = () => {
   const { t } = useTranslation();
   const [employees, setEmployees] = useState<Employee[]>([]);

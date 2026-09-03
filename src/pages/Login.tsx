@@ -25,7 +25,12 @@ const Login = () => {
     try {
       const token = await loginCall(email, password);
       setToken(token);
-      navigate('/kanban');
+      const role = useAuthStore.getState().role;
+      if (role === 'SUPERADMIN') {
+        navigate('/tenants');
+      } else {
+        navigate('/kanban');
+      }
     } catch (err: any) {
       setErrorMsg(err.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {

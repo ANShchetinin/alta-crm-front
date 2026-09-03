@@ -166,7 +166,7 @@ export const Settings = () => {
       });
       updateTenantSettingsLocally(res);
       alert('Реквизиты и настройки компании успешно сохранены');
-    } catch (err) {
+    } catch {
       alert('Ошибка при сохранении настроек компании');
     } finally {
       setTenantSaving(false);
@@ -180,7 +180,7 @@ export const Settings = () => {
       const res = await uploadTenantLogo(file);
       updateTenantSettingsLocally(res);
       alert('Логотип загружен');
-    } catch (err) {
+    } catch {
       alert('Ошибка при загрузке логотипа');
     }
   };

@@ -1,28 +1,32 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect, Suspense, lazy } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './lib/queryClient';
 import DashboardLayout from './components/DashboardLayout';
-import Login from './pages/Login';
-import Kanban from './pages/Kanban';
-import { Clients } from './pages/Clients';
-import { Storage } from './pages/Storage';
-import { Settings } from './pages/Settings';
-import { Employees } from './pages/Employees';
-import { Reports } from './pages/Reports';
-import { Tenants } from './pages/Tenants';
-import { ContractTemplates } from './pages/ContractTemplates';
-import { Earnings } from './pages/Earnings';
-import { Calendar } from './pages/Calendar';
-import { Measurements } from './pages/Measurements';
-import { Finances } from './pages/Finances';
-import { FeatureFlags } from './pages/FeatureFlags';
-import { ExitIntentStats } from './pages/ExitIntentStats';
-import { Archive } from './pages/Archive';
+import { PageLoader } from './components/PageLoader';
 import { useFeature } from './hooks/useFeatureToggle';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import type { FeatureKey } from './api/features';
-import React, { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
 import './i18n';
+
+const Login = lazy(() => import('./pages/Login'));
+const Kanban = lazy(() => import('./pages/Kanban'));
+const Clients = lazy(() => import('./pages/Clients').then(m => ({ default: m.Clients })));
+const Storage = lazy(() => import('./pages/Storage').then(m => ({ default: m.Storage })));
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const Employees = lazy(() => import('./pages/Employees').then(m => ({ default: m.Employees })));
+const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
+const Tenants = lazy(() => import('./pages/Tenants').then(m => ({ default: m.Tenants })));
+const ContractTemplates = lazy(() => import('./pages/ContractTemplates').then(m => ({ default: m.ContractTemplates })));
+const Earnings = lazy(() => import('./pages/Earnings').then(m => ({ default: m.Earnings })));
+const Calendar = lazy(() => import('./pages/Calendar').then(m => ({ default: m.Calendar })));
+const Measurements = lazy(() => import('./pages/Measurements').then(m => ({ default: m.Measurements })));
+const Finances = lazy(() => import('./pages/Finances').then(m => ({ default: m.Finances })));
+const FeatureFlags = lazy(() => import('./pages/FeatureFlags').then(m => ({ default: m.FeatureFlags })));
+const ExitIntentStats = lazy(() => import('./pages/ExitIntentStats').then(m => ({ default: m.ExitIntentStats })));
+const Archive = lazy(() => import('./pages/Archive').then(m => ({ default: m.Archive })));
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const token = useAuthStore(state => state.token);
@@ -32,35 +36,37 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 const RoleRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) => {
   const role = useAuthStore(state => state.role);
   if (!role || !allowedRoles.includes(role)) {
-    return <Navigate to="/kanban" replace />;
+    return <Navigate to={role === 'SUPERADMIN' ? "/tenants" : "/kanban"} replace />;
   }
   return <>{children}</>;
 };
 
 const FeatureRoute = ({ children, feature }: { children: React.ReactNode; feature: FeatureKey }) => {
+  const role = useAuthStore(state => state.role);
   const isEnabled = useFeature(feature);
   if (!isEnabled) {
-    return <Navigate to="/kanban" replace />;
+    return <Navigate to={role === 'SUPERADMIN' ? "/tenants" : "/kanban"} replace />;
   }
   return <ErrorBoundary featureName={feature}>{children}</ErrorBoundary>;
 };
 
 const IndexRedirect = () => {
   const role = useAuthStore(state => state.role);
-  return <Navigate to={role === 'SUPERADMIN' ? "/feature-flags" : "/kanban"} replace />;
+  return <Navigate to={role === 'SUPERADMIN' ? "/tenants" : "/kanban"} replace />;
 };
 
 function App() {
   const theme = useAppStore(state => state.theme);
   const token = useAuthStore(state => state.token);
+  const role = useAuthStore(state => state.role);
   const fetchTenantSettings = useAppStore(state => state.fetchTenantSettings);
   const tenantSettings = useAppStore(state => state.tenantSettings);
 
   useEffect(() => {
-    if (token) {
+    if (token && role !== 'SUPERADMIN') {
       fetchTenantSettings();
     }
-  }, [token, fetchTenantSettings]);
+  }, [token, role, fetchTenantSettings]);
 
   useEffect(() => {
     if (tenantSettings?.primaryColor) {
@@ -147,31 +153,36 @@ function App() {
   }, [theme]);
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        
-        <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
-          <Route index element={<IndexRedirect />} />
-          <Route path="kanban" element={<Kanban />} />
-          <Route path="calendar" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER', 'SUPERADMIN']}><FeatureRoute feature="CALENDAR"><Calendar /></FeatureRoute></RoleRoute>} />
-          <Route path="measurements" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER', 'SUPERADMIN']}><FeatureRoute feature="MEASUREMENT_CALCULATOR"><Measurements /></FeatureRoute></RoleRoute>} />
-          <Route path="earnings" element={<RoleRoute allowedRoles={['WORKER', 'OWNER', 'MANAGER', 'SUPERADMIN']}><Earnings /></RoleRoute>} />
-          <Route path="clients" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><Clients /></RoleRoute>} />
-          <Route path="employees" element={<RoleRoute allowedRoles={['OWNER', 'SUPERADMIN']}><Employees /></RoleRoute>} />
-          <Route path="storage" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="STORAGE"><Storage /></FeatureRoute></RoleRoute>} />
-          <Route path="archive" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER', 'SUPERADMIN']}><Archive /></RoleRoute>} />
-          <Route path="finances" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="FINANCES"><Finances /></FeatureRoute></RoleRoute>} />
-          <Route path="reports" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="REPORTS"><Reports /></FeatureRoute></RoleRoute>} />
-          <Route path="site-analytics" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="EXIT_INTENT_ANALYTICS"><ExitIntentStats /></FeatureRoute></RoleRoute>} />
-          <Route path="exit-intent-stats" element={<Navigate to="/site-analytics" replace />} />
-          <Route path="contract-templates" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'SUPERADMIN']}><FeatureRoute feature="CONTRACT_TEMPLATES"><ContractTemplates /></FeatureRoute></RoleRoute>} />
-          <Route path="settings" element={<RoleRoute allowedRoles={['OWNER', 'SUPERADMIN']}><Settings /></RoleRoute>} />
-          <Route path="feature-flags" element={<RoleRoute allowedRoles={['SUPERADMIN']}><FeatureFlags /></RoleRoute>} />
-          <Route path="tenants" element={<RoleRoute allowedRoles={['SUPERADMIN']}><Tenants /></RoleRoute>} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            
+            <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
+              <Route index element={<IndexRedirect />} />
+              <Route path="tenants" element={<RoleRoute allowedRoles={['SUPERADMIN']}><Tenants /></RoleRoute>} />
+              <Route path="feature-flags" element={<RoleRoute allowedRoles={['SUPERADMIN']}><FeatureFlags /></RoleRoute>} />
+
+              <Route path="kanban" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><Kanban /></RoleRoute>} />
+              <Route path="calendar" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><FeatureRoute feature="CALENDAR"><Calendar /></FeatureRoute></RoleRoute>} />
+              <Route path="measurements" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><FeatureRoute feature="MEASUREMENT_CALCULATOR"><Measurements /></FeatureRoute></RoleRoute>} />
+              <Route path="earnings" element={<RoleRoute allowedRoles={['WORKER', 'OWNER', 'MANAGER']}><Earnings /></RoleRoute>} />
+              <Route path="clients" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><Clients /></RoleRoute>} />
+              <Route path="employees" element={<RoleRoute allowedRoles={['OWNER']}><Employees /></RoleRoute>} />
+              <Route path="storage" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="STORAGE"><Storage /></FeatureRoute></RoleRoute>} />
+              <Route path="archive" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><Archive /></RoleRoute>} />
+              <Route path="finances" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="FINANCES"><Finances /></FeatureRoute></RoleRoute>} />
+              <Route path="reports" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="REPORTS"><Reports /></FeatureRoute></RoleRoute>} />
+              <Route path="site-analytics" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="EXIT_INTENT_ANALYTICS"><ExitIntentStats /></FeatureRoute></RoleRoute>} />
+              <Route path="exit-intent-stats" element={<Navigate to="/site-analytics" replace />} />
+              <Route path="contract-templates" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="CONTRACT_TEMPLATES"><ContractTemplates /></FeatureRoute></RoleRoute>} />
+              <Route path="settings" element={<RoleRoute allowedRoles={['OWNER']}><Settings /></RoleRoute>} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 
