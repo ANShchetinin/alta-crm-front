@@ -670,7 +670,7 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
                   rows={2}
                   value={formData.registrationAddress}
                   onChange={(e) => setFormData({ ...formData, registrationAddress: e.target.value })}
-                  placeholder="г. Санкт-Петербург, наб. Миклухо-Маклая, д. 3..."
+                  placeholder="г. Москва, ул. Ленина, д. 10, кв. 25"
                   className="passport-textarea"
                 />
               </div>

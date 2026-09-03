@@ -52,14 +52,12 @@ import { getOrderAiUsage, type OrderAiCostDto } from '../api/aiUsage';
 import { SYSTEM_PROMPT_SUMMARY, SYSTEM_PROMPT_SALES_ADVICE, SYSTEM_PROMPT_CHAT_ASSISTANT } from '../constants/aiPrompts';
 import { getClients, createClient, updateClient } from '../api/clients';
 import type { Client } from '../api/clients';
-import { getContractTemplateStatus } from '../api/settings';
-import type { ContractTemplateStatus } from '../api/settings';
-import { PRESET_LEAD_SOURCES, getClientInitials } from './Clients';
+import { getContractTemplateStatus, type ContractTemplateStatus } from '../api/settings';
+import { getClientInitials, getAvatarGradient, getEmployeeInitials } from '../utils/avatarUtils';
 import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
 import { getEmployees } from '../api/employees';
 import type { Employee } from '../api/employees';
-import { getAvatarGradient, getEmployeeInitials } from './Employees';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useFeature } from '../hooks/useFeatureToggle';
@@ -76,712 +74,13 @@ import { ActUploadActionSheet } from '../components/ActUploadActionSheet';
 import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
 import { MeasurementWizard } from '../components/MeasurementWizard';
 import '../styles/kanban.css';
-
-interface ClientSearchSelectProps {
-  value: string;
-  clients: Client[];
-  onChange: (clientId: string) => void;
-  onAddNewClient: () => void;
-  isWorker?: boolean;
-}
-
-const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({ value, clients, onChange, onAddNewClient, isWorker }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const selectedClient = clients.find(c => c.id.toString() === value);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [isOpen]);
-
-  const filteredClients = useMemo(() => {
-    if (!search.trim()) return clients;
-    const q = search.toLowerCase().trim();
-    return clients.filter(c => 
-      c.name.toLowerCase().includes(q) ||
-      (c.phone && c.phone.toLowerCase().includes(q)) ||
-      (c.inn && c.inn.toLowerCase().includes(q)) ||
-      (c.contactPerson && c.contactPerson.toLowerCase().includes(q))
-    );
-  }, [clients, search]);
-
-  const mountTimeRef = useRef(Date.now());
-
-  const handleOpen = (e?: React.MouseEvent | React.TouchEvent) => {
-    if (e) e.stopPropagation();
-    if (isWorker) return;
-    if (Date.now() - mountTimeRef.current < 350) return;
-    setIsOpen(!isOpen);
-    if (!isOpen) {
-      setSearch('');
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 60);
-    }
-  };
-
-  return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      {/* Selected Card / Trigger Button */}
-      <div
-        onClick={handleOpen}
-        style={{
-          width: '100%',
-          padding: '10px 14px',
-          background: selectedClient ? 'rgba(255, 255, 255, 0.04)' : 'var(--input-bg)',
-          border: isOpen ? '1px solid var(--accent-primary)' : '1px solid var(--glass-border)',
-          borderRadius: 'var(--radius-md)',
-          cursor: isWorker ? 'default' : 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '10px',
-          transition: 'all var(--transition-fast)',
-          boxShadow: isOpen ? '0 0 0 2px var(--accent-glow)' : 'none'
-        }}
-      >
-        {selectedClient ? (() => {
-          const isLegal = selectedClient.clientType === 'LEGAL_ENTITY';
-          const cAvatar = selectedClient.avatarUrl;
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: '#fff',
-                background: cAvatar ? 'transparent' : getAvatarGradient(selectedClient.name || (isLegal ? 'Компания' : 'Клиент')),
-                border: '1.5px solid rgba(255, 255, 255, 0.18)',
-                flexShrink: 0
-              }}>
-                {cAvatar ? (
-                  <img src={cAvatar} alt={selectedClient.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  isLegal ? <Building2 size={18} /> : getClientInitials(selectedClient.name)
-                )}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {selectedClient.name}
-                  </span>
-                  <span style={{
-                    fontSize: '0.72rem',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                    color: isLegal ? '#60a5fa' : '#4ade80',
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1px', flexWrap: 'wrap' }}>
-                  {selectedClient.phone && (
-                    <a
-                      href={`tel:${selectedClient.phone.replace(/[^\d+]/g, '')}`}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ color: '#22c55e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}
-                      title={`Позвонить клиенту: ${selectedClient.phone}`}
-                    >
-                      <Phone size={12} /> {selectedClient.phone}
-                    </a>
-                  )}
-                  {selectedClient.inn && <span>ИНН: {selectedClient.inn}</span>}
-                  {selectedClient?.whatsapp && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(getWhatsAppLink(selectedClient.whatsapp), '_blank');
-                      }}
-                      title={`Написать в WhatsApp: ${selectedClient.whatsapp}`}
-                      className="contact-btn whatsapp-btn"
-                      style={{ width: '24px', height: '24px' }}
-                    >
-                      <MessageCircle size={13} />
-                    </button>
-                  )}
-                  {selectedClient?.telegram && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(getTelegramLink(selectedClient.telegram), '_blank');
-                      }}
-                      title={`Написать в Telegram: ${selectedClient.telegram}`}
-                      className="contact-btn telegram-btn"
-                      style={{ width: '24px', height: '24px' }}
-                    >
-                      <Send size={13} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })() : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
-            <User size={18} style={{ opacity: 0.6 }} />
-            <span>Выберите клиента из базы...</span>
-          </div>
-        )}
-        {!isWorker && (
-          <ChevronDown 
-            size={18} 
-            style={{ 
-              color: 'var(--text-secondary)', 
-              transform: isOpen ? 'rotate(180deg)' : 'none', 
-              transition: 'transform 0.2s ease', 
-              flexShrink: 0 
-            }} 
-          />
-        )}
-      </div>
-
-      {/* Hidden input to fulfill HTML form validation if required */}
-      <input type="text" value={value} required style={{ opacity: 0, height: 0, width: 0, position: 'absolute', pointerEvents: 'none' }} onChange={() => {}} />
-
-      {/* Dropdown Menu / Bottom Sheet */}
-      {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: 'calc(100% + 6px)',
-          left: 0,
-          right: 0,
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--glass-border)',
-          borderRadius: 'var(--radius-md)',
-          boxShadow: '0 12px 36px rgba(0, 0, 0, 0.5)',
-          zIndex: 1000,
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '320px'
-        }}>
-          {/* Search Input Bar */}
-          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--glass-border)', background: 'rgba(0, 0, 0, 0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Search size={16} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Поиск по имени, телефону, ИНН..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-primary)',
-                outline: 'none',
-                fontSize: '0.88rem'
-              }}
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px', display: 'flex' }}
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-
-          {/* "+ Создать клиента" Button inside dropdown */}
-          <button
-            type="button"
-            onClick={() => {
-              setIsOpen(false);
-              onAddNewClient();
-            }}
-            style={{
-              padding: '10px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              border: 'none',
-              borderBottom: '1px solid var(--glass-border)',
-              background: 'rgba(59, 130, 246, 0.08)',
-              color: 'var(--accent-primary)',
-              fontWeight: 600,
-              fontSize: '0.86rem',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'background 0.15s ease'
-            }}
-          >
-            <Plus size={16} /> Создать нового клиента
-          </button>
-
-          {/* Clients List */}
-          <div style={{ overflowY: 'auto', flex: 1, maxHeight: '220px' }}>
-            {filteredClients.length === 0 ? (
-              <div style={{ padding: '20px 14px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
-                Клиент не найден
-              </div>
-            ) : (
-              filteredClients.map(c => {
-                const isSelected = c.id.toString() === value;
-                const isLegal = c.clientType === 'LEGAL_ENTITY';
-                const cAvatar = c.avatarUrl;
-
-                return (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      onChange(c.id.toString());
-                      setIsOpen(false);
-                    }}
-                    style={{
-                      padding: '10px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '10px',
-                      cursor: 'pointer',
-                      background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
-                      transition: 'background 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) e.currentTarget.style.background = 'transparent';
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-                      <div style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        color: '#fff',
-                        background: cAvatar ? 'transparent' : getAvatarGradient(c.name || (isLegal ? 'Компания' : 'Клиент')),
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        flexShrink: 0
-                      }}>
-                        {cAvatar ? (
-                          <img src={cAvatar} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          isLegal ? <Building2 size={15} /> : getClientInitials(c.name)
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.88rem', color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {c.name}
-                          </span>
-                          <span style={{
-                            fontSize: '0.68rem',
-                            padding: '1px 5px',
-                            borderRadius: '4px',
-                            background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                            color: isLegal ? '#60a5fa' : '#4ade80',
-                            fontWeight: 600,
-                            whiteSpace: 'nowrap',
-                            flexShrink: 0
-                          }}>
-                            {isLegal ? 'Юр. лицо' : 'Физ. лицо'}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1px' }}>
-                          {c.phone && (
-                            <a
-                              href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}
-                              onClick={(e) => e.stopPropagation()}
-                              style={{ color: '#22c55e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}
-                              title={`Позвонить клиенту: ${c.phone}`}
-                            >
-                              <Phone size={11} /> {c.phone}
-                            </a>
-                          )}
-                          {c.inn && <span>ИНН: {c.inn}</span>}
-                        </div>
-                      </div>
-                    </div>
-                    {isSelected && (
-                      <Check size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-interface EmployeeSearchSelectProps {
-  value: string;
-  employees: Employee[];
-  onChange: (employeeId: string) => void;
-  placeholder?: string;
-  icon?: React.ReactNode;
-  accentColor?: string;
-  isWorker?: boolean;
-}
-
-const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
-  value,
-  employees,
-  onChange,
-  placeholder = 'Не назначен',
-  icon,
-  accentColor = 'var(--accent-primary)',
-  isWorker
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const selectedEmployee = employees.find(e => e.id.toString() === value);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [isOpen]);
-
-  const filteredEmployees = useMemo(() => {
-    if (!search.trim()) return employees;
-    const q = search.toLowerCase().trim();
-    return employees.filter(e => 
-      e.name.toLowerCase().includes(q) ||
-      (e.position && e.position.toLowerCase().includes(q)) ||
-      (e.phone && e.phone.toLowerCase().includes(q))
-    );
-  }, [employees, search]);
-
-  const mountTimeRef = useRef(Date.now());
-
-  const handleOpen = (e?: React.MouseEvent | React.TouchEvent) => {
-    if (e) e.stopPropagation();
-    if (isWorker) return;
-    if (Date.now() - mountTimeRef.current < 350) return;
-    setIsOpen(!isOpen);
-    if (!isOpen) {
-      setSearch('');
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 60);
-    }
-  };
-
-  return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      {/* Selected Card / Trigger */}
-      <div
-        onClick={handleOpen}
-        style={{
-          width: '100%',
-          padding: '8px 12px',
-          background: selectedEmployee ? 'rgba(255, 255, 255, 0.04)' : 'var(--input-bg)',
-          border: isOpen ? `1px solid ${accentColor}` : '1px solid var(--glass-border)',
-          borderRadius: 'var(--radius-md)',
-          cursor: isWorker ? 'default' : 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '8px',
-          transition: 'all var(--transition-fast)',
-          minHeight: '44px'
-        }}
-      >
-        {selectedEmployee ? (() => {
-          const eAvatar = selectedEmployee.avatarUrl;
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-              <div style={{
-                width: '30px',
-                height: '30px',
-                borderRadius: '50%',
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                color: '#fff',
-                background: eAvatar ? 'transparent' : getAvatarGradient(selectedEmployee.name),
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                flexShrink: 0
-              }}>
-                {eAvatar ? (
-                  <img src={eAvatar} alt={selectedEmployee.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  getEmployeeInitials(selectedEmployee.name)
-                )}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                <span style={{ fontWeight: 600, fontSize: '0.86rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {selectedEmployee.name}
-                </span>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {selectedEmployee.position && <span>{selectedEmployee.position}</span>}
-                  {selectedEmployee.phone && (
-                    <a
-                      href={`tel:${selectedEmployee.phone.replace(/[^\d+]/g, '')}`}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ color: '#22c55e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}
-                      title={`Позвонить: ${selectedEmployee.phone}`}
-                    >
-                      <Phone size={10} /> {selectedEmployee.phone}
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })() : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-            {icon || <User size={15} style={{ opacity: 0.6 }} />}
-            <span>{placeholder}</span>
-          </div>
-        )}
-
-        {!isWorker && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            {selectedEmployee && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onChange('');
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  padding: '2px',
-                  display: 'flex',
-                  borderRadius: '50%',
-                  opacity: 0.7
-                }}
-                title="Снять выбор"
-              >
-                <X size={13} />
-              </button>
-            )}
-            <ChevronDown 
-              size={16} 
-              style={{ 
-                color: 'var(--text-secondary)', 
-                transform: isOpen ? 'rotate(180deg)' : 'none', 
-                transition: 'transform 0.2s ease', 
-                flexShrink: 0 
-              }} 
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: 'calc(100% + 6px)',
-          left: 0,
-          right: 0,
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--glass-border)',
-          borderRadius: 'var(--radius-md)',
-          boxShadow: '0 12px 36px rgba(0, 0, 0, 0.5)',
-          zIndex: 1000,
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '280px'
-        }}>
-          {/* Search Bar */}
-          <div style={{ padding: '6px 10px', borderBottom: '1px solid var(--glass-border)', background: 'rgba(0, 0, 0, 0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Search size={14} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Поиск сотрудника..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-primary)',
-                outline: 'none',
-                fontSize: '0.84rem'
-              }}
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px', display: 'flex' }}
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-
-          {/* Option: Не назначен / Снять выбор */}
-          <div
-            onClick={() => {
-              onChange('');
-              setIsOpen(false);
-            }}
-            style={{
-              padding: '8px 12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '8px',
-              cursor: 'pointer',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
-              background: !value ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-              color: !value ? 'var(--accent-primary)' : 'var(--text-secondary)',
-              fontSize: '0.82rem',
-              fontWeight: !value ? 600 : 400
-            }}
-          >
-            <span>— {placeholder}</span>
-            {!value && <Check size={14} style={{ color: 'var(--accent-primary)' }} />}
-          </div>
-
-          {/* List of employees */}
-          <div style={{ overflowY: 'auto', flex: 1, maxHeight: '200px' }}>
-            {filteredEmployees.length === 0 ? (
-              <div style={{ padding: '16px 12px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
-                Сотрудник не найден
-              </div>
-            ) : (
-              filteredEmployees.map(e => {
-                const isSelected = e.id.toString() === value;
-                const eAvatar = e.avatarUrl;
-
-                return (
-                  <div
-                    key={e.id}
-                    onClick={() => {
-                      onChange(e.id.toString());
-                      setIsOpen(false);
-                    }}
-                    style={{
-                      padding: '8px 12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px',
-                      cursor: 'pointer',
-                      background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
-                      transition: 'background 0.15s ease'
-                    }}
-                    onMouseEnter={(ev) => {
-                      if (!isSelected) ev.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-                    }}
-                    onMouseLeave={(ev) => {
-                      if (!isSelected) ev.currentTarget.style.background = 'transparent';
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
-                      <div style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        color: '#fff',
-                        background: eAvatar ? 'transparent' : getAvatarGradient(e.name),
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        flexShrink: 0
-                      }}>
-                        {eAvatar ? (
-                          <img src={eAvatar} alt={e.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          getEmployeeInitials(e.name)
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                        <span style={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.84rem', color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {e.name}
-                        </span>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          {e.position && <span>{e.position}</span>}
-                          {e.phone && (
-                            <a
-                              href={`tel:${e.phone.replace(/[^\d+]/g, '')}`}
-                              onClick={(ev) => ev.stopPropagation()}
-                              style={{ color: '#22c55e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}
-                              title={`Позвонить: ${e.phone}`}
-                            >
-                              <Phone size={10} /> {e.phone}
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    {isSelected && (
-                      <Check size={14} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+import { ClientSearchSelect } from '../features/kanban/components/ClientSearchSelect';
+import { EmployeeSearchSelect } from '../features/kanban/components/EmployeeSearchSelect';
+import { MoveRestrictionModal } from '../features/kanban/components/MoveRestrictionModal';
+import { ColumnModal } from '../features/kanban/components/ColumnModal';
+import { QuickClientModal } from '../features/kanban/components/QuickClientModal';
+import { ContractPromptModal } from '../features/kanban/components/ContractPromptModal';
+import { DEFAULT_ACT_CHECKLIST, mergeActChecklist } from '../features/kanban/constants';
 
 const Kanban = () => {
   const { t } = useTranslation();
@@ -976,48 +275,6 @@ const Kanban = () => {
     discount: '',
     handoverDate: ''
   });
-
-  const DEFAULT_ACT_CHECKLIST: import('../api/kanban').ActChecklistItem[] = [
-    { id: '1', name: 'Установка багета (Ал.)', checked: false },
-    { id: '2', name: 'Установка багета (Пл.)', checked: false },
-    { id: '3', name: 'Установка натяжного потолка', checked: false },
-    { id: '4', name: 'Установка потолочного багета', checked: false },
-    { id: '5', name: 'Установка маскировочной вставки', checked: false },
-    { id: '6', name: 'Установка потолочного карниза (гардины)', checked: false },
-    { id: '7', name: 'Установка светового оборудования', checked: false },
-    { id: '8', name: 'Установка и разводка электропроводки', checked: false },
-    { id: '9', name: 'Установки вентиляции', checked: false },
-    { id: '10', name: 'Установка разделительного багета', checked: false },
-    { id: '11', name: 'Установка пожарных сигнализаций, камер, и навесного оборудования', checked: false },
-    { id: '12', name: 'Установка обвода трубы', checked: false },
-    { id: '13', name: 'Демонтаж замена полотна', checked: false },
-    { id: '14', name: 'Установка бруса и 2х уровневых конструкций', checked: false },
-    { id: '15', name: 'Установка карниза', checked: false }
-  ];
-
-  const mergeActChecklist = (savedList?: import('../api/kanban').ActChecklistItem[]): import('../api/kanban').ActChecklistItem[] => {
-    if (!savedList || savedList.length === 0) {
-      return DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }));
-    }
-    const savedMap = new Map(savedList.map(it => [it.id, it.checked]));
-    const savedNameMap = new Map(savedList.map(it => [it.name, it.checked]));
-
-    const merged = DEFAULT_ACT_CHECKLIST.map(defItem => ({
-      ...defItem,
-      checked: savedMap.has(defItem.id)
-        ? !!savedMap.get(defItem.id)
-        : (savedNameMap.has(defItem.name) ? !!savedNameMap.get(defItem.name) : false)
-    }));
-
-    const defIds = new Set(DEFAULT_ACT_CHECKLIST.map(d => d.id));
-    savedList.forEach(savedItem => {
-      if (!defIds.has(savedItem.id)) {
-        merged.push(savedItem);
-      }
-    });
-
-    return merged;
-  };
 
   const openEditModal = (order: Order) => {
     const prep = order.prepayment != null ? order.prepayment : 0;
@@ -1535,7 +792,7 @@ const Kanban = () => {
           setFormData(parsed.formData);
           setPendingFiles([]);
         }
-      } catch (e) {
+      } catch {
         setIsModalOpen(false);
       }
     } else {
@@ -2728,9 +1985,17 @@ const Kanban = () => {
 
         {/* Measurement Date (if scheduled) */}
         {card.measurementDate && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#a78bfa', background: 'rgba(167, 139, 250, 0.1)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(167, 139, 250, 0.2)', marginBottom: '6px', fontSize: '0.75rem' }}>
+          <div className="card-schedule-badge measurement">
             <Ruler size={11} />
             <span>Замер: {formatDateTimeInTimezone(card.measurementDate)}</span>
+          </div>
+        )}
+
+        {/* Installation Date (if scheduled) */}
+        {card.installationDate && (
+          <div className="card-schedule-badge installation">
+            <Wrench size={11} />
+            <span>Монтаж: {formatDateOnly(card.installationDate)}</span>
           </div>
         )}
 
@@ -2838,7 +2103,7 @@ const Kanban = () => {
               transition: 'all 0.15s ease',
               boxSizing: 'border-box'
             }}
-            title={!Boolean(instName) ? 'Назначьте монтажника в карточке' : (!hasAct ? 'Прикрепите Акт выполненных работ' : 'Завершить монтаж')}
+            title={!instName ? 'Назначьте монтажника в карточке' : (!hasAct ? 'Прикрепите Акт выполненных работ' : 'Завершить монтаж')}
           >
             <CheckCircle2 size={15} /> Завершить монтаж
           </button>
@@ -6080,610 +5345,88 @@ const Kanban = () => {
         document.body
       )}
 
-      {isColumnModalOpen && createPortal(
-        <div className="modal-overlay">
-          <div className="modal-content" style={{maxWidth: '420px'}}>
-            <div className="modal-header">
-              <h2>{editingColumnId ? t('kanban.editColumn') : t('kanban.addColumn')}</h2>
-              <button 
-                type="button" 
-                onClick={() => setIsColumnModalOpen(false)} 
-                className="btn-icon"
-                aria-label="Close"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleSaveColumn} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label>{t('kanban.columnName')}</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={newColumnName}
-                    onChange={(e) => setNewColumnName(e.target.value)}
-                    className="search-input"
-                    style={{width: '100%', paddingLeft: '12px'}}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>{t('kanban.columnColor')}</label>
-                  
-                  {/* Preset colors grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginBottom: '14px' }}>
-                    {[
-                      '#3b82f6', '#06b6d4', '#10b981', '#22c55e', '#84cc16', '#eab308', '#f97316',
-                      '#ef4444', '#f43f5e', '#ec4899', '#a855f7', '#8b5cf6', '#6366f1', '#64748b'
-                    ].map(color => (
-                      <button 
-                        key={color}
-                        type="button"
-                        onClick={() => setNewColumnColor(color)}
-                        style={{
-                          width: '100%',
-                          aspectRatio: '1',
-                          borderRadius: 'var(--radius-sm)',
-                          backgroundColor: color, 
-                          cursor: 'pointer',
-                          border: newColumnColor.toLowerCase() === color.toLowerCase() ? '2px solid white' : '1px solid rgba(255, 255, 255, 0.1)',
-                          boxShadow: newColumnColor.toLowerCase() === color.toLowerCase() ? '0 0 0 2px var(--accent-primary), 0 2px 8px rgba(0, 0, 0, 0.2)' : 'none',
-                          transform: newColumnColor.toLowerCase() === color.toLowerCase() ? 'scale(1.08)' : 'scale(1)',
-                          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                          outline: 'none',
-                          padding: 0
-                        }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Custom color input with picker + hex input + preview */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255, 255, 255, 0.03)', padding: '8px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
-                    <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
-                      <input 
-                        type="color" 
-                        value={newColumnColor.startsWith('#') && newColumnColor.length === 7 ? newColumnColor : '#3b82f6'} 
-                        onChange={(e) => setNewColumnColor(e.target.value)}
-                        style={{ 
-                          position: 'absolute', 
-                          top: 0, 
-                          left: 0, 
-                          width: '100%', 
-                          height: '100%', 
-                          opacity: 0, 
-                          cursor: 'pointer' 
-                        }} 
-                        title="Выбрать цвет из палитры"
-                      />
-                      <div 
-                        style={{ 
-                          width: '100%', 
-                          height: '100%', 
-                          borderRadius: 'var(--radius-sm)', 
-                          backgroundColor: newColumnColor || '#3b82f6', 
-                          border: '2px solid rgba(255, 255, 255, 0.3)',
-                          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
-                          pointerEvents: 'none'
-                        }} 
-                      />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <input 
-                        type="text" 
-                        value={newColumnColor} 
-                        onChange={(e) => setNewColumnColor(e.target.value)}
-                        className="search-input" 
-                        placeholder="#3B82F6"
-                        style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.9rem', padding: '6px 10px' }}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', paddingLeft: '4px', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: newColumnColor || '#3b82f6', display: 'inline-block', flexShrink: 0 }}></span>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{newColumnName || 'Статус'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginTop: '16px', marginBottom: 0 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.88rem' }}>
-                    <input 
-                      type="checkbox"
-                      checked={newColumnIncludeInFinances}
-                      onChange={(e) => setNewColumnIncludeInFinances(e.target.checked)}
-                      style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
-                    />
-                    <span>Учитывать заявки этого статуса в блоке финансов</span>
-                  </label>
-                </div>
-
-                <div className="form-group" style={{ marginTop: '12px', marginBottom: 0 }}>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '0.88rem' }}>
-                    <input 
-                      type="checkbox"
-                      checked={newColumnIsCompleted}
-                      onChange={(e) => setNewColumnIsCompleted(e.target.checked)}
-                      style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)', cursor: 'pointer', marginTop: '2px', flexShrink: 0 }}
-                    />
-                    <div>
-                      <span style={{ fontWeight: 500 }}>Статус завершения (архивировать заявки)</span>
-                      <span style={{ display: 'block', fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        Заявки в этом статусе за предыдущие месяцы будут автоматически перемещаться в раздел «Архив»
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              </div>
-              <div className="modal-actions">
-                <button type="button" onClick={() => setIsColumnModalOpen(false)} className="btn btn-ghost">
-                  {t('kanban.modal.cancel')}
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {t('kanban.modal.save')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
+      {/* Column Create / Edit Modal */}
+      <ColumnModal
+        isOpen={isColumnModalOpen}
+        editingColumnId={editingColumnId}
+        columnName={newColumnName}
+        setColumnName={setNewColumnName}
+        columnColor={newColumnColor}
+        setColumnColor={setNewColumnColor}
+        includeInFinances={newColumnIncludeInFinances}
+        setIncludeInFinances={setNewColumnIncludeInFinances}
+        isCompleted={newColumnIsCompleted}
+        setIsCompleted={setNewColumnIsCompleted}
+        onClose={() => setIsColumnModalOpen(false)}
+        onSubmit={handleSaveColumn}
+      />
 
       {/* Quick Create Client Modal */}
-      {isNewClientModalOpen && createPortal(
-        <div className="modal-overlay" style={{ zIndex: 100000 }}>
-          <div className="modal-content animate-fade-in" style={{ maxWidth: '460px' }}>
-            <div className="modal-header">
-              <h2>{newClientType === 'LEGAL_ENTITY' ? 'Новая компания / Юрлицо' : t('clients.modal.addTitle')}</h2>
-              <button 
-                type="button" 
-                onClick={() => {
-                  setIsNewClientModalOpen(false);
-                  setNewClientType('INDIVIDUAL');
-                  setNewClientName('');
-                  setNewClientPhone('');
-                  setNewClientInn('');
-                  setNewClientContactPerson('');
-                  setNewClientLeadSource('');
-                  setNewClientCustomLeadSource('');
-                }} 
-                className="btn-icon"
-                aria-label="Close"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleQuickCreateClient} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-              <div className="modal-body">
-                {/* Type toggle */}
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
-                  <button
-                    type="button"
-                    onClick={() => setNewClientType('INDIVIDUAL')}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      padding: '6px 10px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: newClientType === 'INDIVIDUAL' ? 'var(--accent-primary)' : 'transparent',
-                      color: newClientType === 'INDIVIDUAL' ? '#fff' : 'var(--text-secondary)',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      fontSize: '0.8rem'
-                    }}
-                  >
-                    <User size={14} />
-                    <span>Физлицо</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewClientType('LEGAL_ENTITY')}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      padding: '6px 10px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: newClientType === 'LEGAL_ENTITY' ? 'var(--accent-primary)' : 'transparent',
-                      color: newClientType === 'LEGAL_ENTITY' ? '#fff' : 'var(--text-secondary)',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      fontSize: '0.8rem'
-                    }}
-                  >
-                    <Building2 size={14} />
-                    <span>Юрлицо</span>
-                  </button>
-                </div>
+      <QuickClientModal
+        isOpen={isNewClientModalOpen}
+        clientType={newClientType}
+        setClientType={setNewClientType}
+        name={newClientName}
+        setName={setNewClientName}
+        phone={newClientPhone}
+        setPhone={setNewClientPhone}
+        whatsapp={newClientWhatsapp}
+        setWhatsapp={setNewClientWhatsapp}
+        telegram={newClientTelegram}
+        setTelegram={setNewClientTelegram}
+        inn={newClientInn}
+        setInn={setNewClientInn}
+        contactPerson={newClientContactPerson}
+        setContactPerson={setNewClientContactPerson}
+        leadSource={newClientLeadSource}
+        setLeadSource={setNewClientLeadSource}
+        customLeadSource={newClientCustomLeadSource}
+        setCustomLeadSource={setNewClientCustomLeadSource}
+        creatingClient={creatingClient}
+        onClose={() => {
+          setIsNewClientModalOpen(false);
+          setNewClientType('INDIVIDUAL');
+          setNewClientName('');
+          setNewClientPhone('');
+          setNewClientInn('');
+          setNewClientContactPerson('');
+          setNewClientLeadSource('');
+          setNewClientCustomLeadSource('');
+        }}
+        onOpenPassportScanner={() => {
+          setPassportScannerTarget('NEW_CLIENT');
+          setIsPassportScannerOpen(true);
+        }}
+        onSubmit={handleQuickCreateClient}
+      />
 
-                <div className="form-group">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <label style={{ margin: 0 }}>{newClientType === 'LEGAL_ENTITY' ? 'Наименование организации' : t('clients.modal.name')} *</label>
-                    {newClientType === 'INDIVIDUAL' && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPassportScannerTarget('NEW_CLIENT');
-                          setIsPassportScannerOpen(true);
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#60a5fa',
-                          fontSize: '0.78rem',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: 0
-                        }}
-                      >
-                        📷 Заполнить по паспорту РФ
-                      </button>
-                    )}
-                  </div>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder={newClientType === 'LEGAL_ENTITY' ? 'ООО «Альфа» или ИП Иванов' : (t('clients.modal.namePlaceholder') || 'Иван Иванов')}
-                    value={newClientName}
-                    onChange={(e) => setNewClientName(e.target.value)}
-                    className="search-input"
-                    style={{ width: '100%', paddingLeft: '12px' }}
-                    autoFocus
-                  />
-                </div>
-                <div className="form-group">
-                  <label>{newClientType === 'LEGAL_ENTITY' ? 'Рабочий телефон' : t('clients.modal.phone')} *</label>
-                  <input 
-                    type="tel" 
-                    required
-                    placeholder={t('clients.modal.phonePlaceholder') || '+7 (999) 000-00-00'}
-                    value={newClientPhone}
-                    onChange={(e) => setNewClientPhone(e.target.value)}
-                    className="search-input"
-                    style={{ width: '100%', paddingLeft: '12px' }}
-                  />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>WhatsApp</label>
-                    <div className="input-with-icon">
-                      <MessageCircle className="input-icon" size={16} />
-                      <input
-                        type="text"
-                        placeholder="+7 (900) 123-45-67"
-                        value={newClientWhatsapp}
-                        onChange={(e) => setNewClientWhatsapp(e.target.value)}
-                        className="search-input"
-                        style={{ width: '100%', paddingLeft: '36px' }}
-                      />
-                    </div>
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>Telegram</label>
-                    <div className="input-with-icon">
-                      <Send className="input-icon" size={16} />
-                      <input
-                        type="text"
-                        placeholder="@username"
-                        value={newClientTelegram}
-                        onChange={(e) => setNewClientTelegram(e.target.value)}
-                        className="search-input"
-                        style={{ width: '100%', paddingLeft: '36px' }}
-                      />
-                    </div>
-                  </div>
-                </div>
-                {newClientType === 'LEGAL_ENTITY' && (
-                  <>
-                    <div className="form-group">
-                      <label>ИНН</label>
-                      <input 
-                        type="text" 
-                        placeholder="7701234567"
-                        value={newClientInn}
-                        onChange={(e) => setNewClientInn(e.target.value)}
-                        className="search-input"
-                        style={{ width: '100%', paddingLeft: '12px' }}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Контактное лицо (ЛПР)</label>
-                      <input 
-                        type="text" 
-                        placeholder="Иванов Иван Иванович"
-                        value={newClientContactPerson}
-                        onChange={(e) => setNewClientContactPerson(e.target.value)}
-                        className="search-input"
-                        style={{ width: '100%', paddingLeft: '12px' }}
-                      />
-                    </div>
-                  </>
-                )}
-                <div className="form-group">
-                  <label>{t('clients.modal.leadSource', 'Источник лида')}</label>
-                  <div className="custom-select-wrapper" style={{ marginBottom: newClientLeadSource === 'custom' ? '8px' : '0' }}>
-                    <select
-                      value={newClientLeadSource}
-                      onChange={(e) => setNewClientLeadSource(e.target.value)}
-                      className="custom-select"
-                    >
-                      <option value="">Не указан</option>
-                      {PRESET_LEAD_SOURCES.map(source => (
-                        <option key={source} value={source}>{source}</option>
-                      ))}
-                      <option value="custom">Другой вариант (ввести вручную)...</option>
-                    </select>
-                    <ChevronDown className="custom-select-icon" size={16} />
-                  </div>
-                  {newClientLeadSource === 'custom' && (
-                    <input
-                      type="text"
-                      required
-                      placeholder="Укажите источник (например: Листовка, Баннер...)"
-                      value={newClientCustomLeadSource}
-                      onChange={(e) => setNewClientCustomLeadSource(e.target.value)}
-                      className="search-input"
-                      style={{ width: '100%', paddingLeft: '12px', marginTop: '6px' }}
-                      autoFocus
-                    />
-                  )}
-                </div>
-              </div>
-              <div className="modal-actions">
-                <button 
-                  type="button" 
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    setIsNewClientModalOpen(false);
-                    setNewClientType('INDIVIDUAL');
-                    setNewClientName('');
-                    setNewClientPhone('');
-                    setNewClientInn('');
-                    setNewClientContactPerson('');
-                    setNewClientLeadSource('');
-                    setNewClientCustomLeadSource('');
-                  }}
-                >
-                  {t('clients.modal.cancel')}
-                </button>
-                <button 
-                  type="submit" 
-                  className="btn btn-primary"
-                  disabled={creatingClient}
-                >
-                  {creatingClient ? t('clients.modal.saving') : (newClientType === 'LEGAL_ENTITY' ? 'Создать компанию' : t('clients.modal.create', 'Создать клиента'))}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
+      {/* Contract Data Prompt Modal */}
+      <ContractPromptModal
+        isOpen={isContractPromptOpen}
+        contractPromptData={contractPromptData}
+        setContractPromptData={setContractPromptData}
+        contractPromptLoading={contractPromptLoading}
+        onClose={() => setIsContractPromptOpen(false)}
+        onOpenPassportScanner={() => {
+          setPassportScannerTarget('CONTRACT');
+          setIsPassportScannerOpen(true);
+        }}
+        onSubmit={handleSavePromptAndGenerate}
+      />
 
-      {/* Contract Data Prompt Modal (Only for missing client passport data) */}
-      {isContractPromptOpen && createPortal(
-        <div className="modal-overlay" onClick={() => !contractPromptLoading && setIsContractPromptOpen(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', width: '92%' }}>
-            <div className="modal-header">
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem', margin: 0 }}>
-                <FileCheck size={20} style={{ color: 'var(--accent-primary)' }} />
-                Данные Заказчика для договора
-              </h2>
-              <button 
-                type="button" 
-                onClick={() => setIsContractPromptOpen(false)} 
-                className="btn-icon"
-                aria-label="Close"
-                disabled={contractPromptLoading}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleSavePromptAndGenerate}>
-              <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto', padding: '16px 20px' }}>
-                <div style={{
-                  background: 'rgba(59, 130, 246, 0.08)',
-                  border: '1px solid rgba(59, 130, 246, 0.25)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '10px 14px',
-                  marginBottom: '16px',
-                  fontSize: '0.85rem',
-                  color: '#93c5fd',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '8px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
-                    <span>Для договора физлица заполните паспортные данные:</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPassportScannerTarget('CONTRACT');
-                      setIsPassportScannerOpen(true);
-                    }}
-                    className="btn btn-secondary"
-                    style={{
-                      fontSize: '0.78rem',
-                      padding: '4px 10px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      background: 'rgba(59, 130, 246, 0.2)',
-                      borderColor: 'rgba(59, 130, 246, 0.4)',
-                      color: '#60a5fa'
-                    }}
-                  >
-                    📷 Распознать паспорт РФ
-                  </button>
-                </div>
-
-                <div className="form-group">
-                  <label>ФИО Заказчика *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Иванов Иван Иванович"
-                    value={contractPromptData.name}
-                    onChange={(e) => setContractPromptData({ ...contractPromptData, name: e.target.value })}
-                    className="search-input"
-                    style={{ width: '100%', paddingLeft: '12px' }}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-                  <div className="form-group">
-                    <label>Телефон 1 *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="+7 (917) 000-00-00"
-                      value={contractPromptData.phone}
-                      onChange={(e) => setContractPromptData({ ...contractPromptData, phone: e.target.value })}
-                      className="search-input"
-                      style={{ width: '100%', paddingLeft: '12px' }}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Телефон 2 (дополнительный)</label>
-                    <input
-                      type="text"
-                      placeholder="+7 (987) 000-00-00"
-                      value={contractPromptData.secondPhone}
-                      onChange={(e) => setContractPromptData({ ...contractPromptData, secondPhone: e.target.value })}
-                      className="search-input"
-                      style={{ width: '100%', paddingLeft: '12px' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-                  <div className="form-group">
-                    <label>Дата рождения *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="21.05.1985"
-                      value={contractPromptData.birthDate}
-                      onChange={(e) => setContractPromptData({ ...contractPromptData, birthDate: e.target.value })}
-                      className="search-input"
-                      style={{ width: '100%', paddingLeft: '12px' }}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Серия и номер паспорта *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="6315 123456"
-                      value={contractPromptData.passportSeriesNumber}
-                      onChange={(e) => setContractPromptData({ ...contractPromptData, passportSeriesNumber: e.target.value })}
-                      className="search-input"
-                      style={{ width: '100%', paddingLeft: '12px' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                    <label>Кем выдан паспорт *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Отделом УФМС России по Саратовской обл..."
-                      value={contractPromptData.passportIssuedBy}
-                      onChange={(e) => setContractPromptData({ ...contractPromptData, passportIssuedBy: e.target.value })}
-                      className="search-input"
-                      style={{ width: '100%', paddingLeft: '12px' }}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Дата выдачи паспорта *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="11.06.2015"
-                      value={contractPromptData.passportIssuedDate}
-                      onChange={(e) => setContractPromptData({ ...contractPromptData, passportIssuedDate: e.target.value })}
-                      className="search-input"
-                      style={{ width: '100%', paddingLeft: '12px' }}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Код подразделения</label>
-                    <input
-                      type="text"
-                      placeholder="770-001"
-                      value={contractPromptData.passportDepartmentCode}
-                      onChange={(e) => setContractPromptData({ ...contractPromptData, passportDepartmentCode: e.target.value })}
-                      className="search-input"
-                      style={{ width: '100%', paddingLeft: '12px' }}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Адрес по прописке (регистрации) *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="г. Саратов, ул. Чернышевского, д. 10, кв. 5"
-                    value={contractPromptData.registrationAddress}
-                    onChange={(e) => setContractPromptData({ ...contractPromptData, registrationAddress: e.target.value })}
-                    className="search-input"
-                    style={{ width: '100%', paddingLeft: '12px' }}
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label>Адрес установки (монтажа) *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="г. Саратов, 1-й проезд Степана Разина, 3/7 кв. 222"
-                    value={contractPromptData.installationAddress}
-                    onChange={(e) => setContractPromptData({ ...contractPromptData, installationAddress: e.target.value })}
-                    className="search-input"
-                    style={{ width: '100%', paddingLeft: '12px' }}
-                  />
-                </div>
-              </div>
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => setIsContractPromptOpen(false)}
-                  disabled={contractPromptLoading}
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={contractPromptLoading}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <FileText size={16} />
-                  {contractPromptLoading ? 'Формирование договора...' : 'Сохранить и сформировать договор (Word)'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
-
+      {/* Move Restriction / Act Required Modal */}
+      <MoveRestrictionModal
+        data={moveRestrictionModal}
+        onClose={() => setMoveRestrictionModal(null)}
+        onOpenOrderFiles={(orderIdToOpen) => {
+          setMoveRestrictionModal(null);
+          const o = cards.find(c => c.id === orderIdToOpen);
+          if (o) {
+            openEditModal(o);
+            setOrderModalTab('FILES');
+          }
+        }}
+      />
       {/* Act & General Upload Mobile Action Sheet */}
       {hasDocumentScanner && (
         <>
@@ -6724,79 +5467,6 @@ const Kanban = () => {
             }}
           />
         </>
-      )}
-
-      {/* Move Restriction / Act Required Modal */}
-      {moveRestrictionModal && moveRestrictionModal.isOpen && createPortal(
-        <div className="modal-overlay" style={{ zIndex: 1000000 }} onClick={() => setMoveRestrictionModal(null)}>
-          <div 
-            className="modal-content animate-scale-up move-restriction-card" 
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <div className="move-restriction-icon-box">
-                <AlertTriangle size={28} />
-              </div>
-              <button type="button" className="btn-icon" onClick={() => setMoveRestrictionModal(null)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="move-restriction-body">
-              <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)', fontWeight: 700 }}>
-                Перемещение карточки невозможно
-              </h3>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Заявка: <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{moveRestrictionModal.orderNumber}</span>
-              </div>
-
-              <div className="move-restriction-reason-box">
-                <div style={{ fontWeight: 600, color: '#ef4444', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <AlertCircle size={15} /> Причина запрета:
-                </div>
-                <div>{moveRestrictionModal.reason}</div>
-              </div>
-
-              <div className="move-restriction-hint-box">
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  💡 Как завершить заявку:
-                </div>
-                <div>
-                  Откройте карточку заявки, перейдите во вкладку <strong>«Файлы»</strong> и прикрепите скан/фото подписанного Акта выполненных работ (или отсканируйте камерой).
-                </div>
-              </div>
-            </div>
-
-            <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={() => setMoveRestrictionModal(null)}
-              >
-                Понятно
-              </button>
-              {moveRestrictionModal.orderId && (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => {
-                    const orderIdToOpen = moveRestrictionModal.orderId!;
-                    setMoveRestrictionModal(null);
-                    const o = cards.find(c => c.id === orderIdToOpen);
-                    if (o) {
-                      openEditModal(o);
-                      setOrderModalTab('FILES');
-                    }
-                  }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <FileCheck size={16} /> Прикрепить Акт
-                </button>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
       )}
 
       {/* Local Passport OCR Scanner Modal */}

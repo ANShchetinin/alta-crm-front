@@ -19,7 +19,7 @@ const getRoleFromToken = (token: string | null): string | null => {
       role = role.substring(5);
     }
     return role;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -29,7 +29,7 @@ const getEmailFromToken = (token: string | null): string | null => {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     return payload.sub || null;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -39,7 +39,7 @@ const getUserIdFromToken = (token: string | null): number | null => {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     return payload.userId ? Number(payload.userId) : null;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -49,7 +49,7 @@ const getTenantIdFromToken = (token: string | null): number | null => {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     return payload.tenantId ? Number(payload.tenantId) : null;
-  } catch (e) {
+  } catch {
     return null;
   }
 };

@@ -1,10 +1,12 @@
-export const getWhatsAppLink = (value?: string | null, text?: string): string => {
+﻿export const getWhatsAppLink = (value?: string | null, text?: string): string => {
   if (!value) return '';
   const trimmed = value.trim();
+  if (!trimmed) return '';
   if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
     return trimmed;
   }
   let cleaned = trimmed.replace(/[^0-9]/g, '');
+  if (!cleaned) return '';
   if (cleaned.startsWith('8') && cleaned.length === 11) {
     cleaned = '7' + cleaned.slice(1);
   }
@@ -14,9 +16,11 @@ export const getWhatsAppLink = (value?: string | null, text?: string): string =>
 export const getTelegramLink = (value?: string | null): string => {
   if (!value) return '';
   const trimmed = value.trim();
+  if (!trimmed) return '';
   if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
     return trimmed;
   }
   const cleaned = trimmed.replace(/^@/, '').replace(/\s/g, '');
+  if (!cleaned) return '';
   return `https://t.me/${cleaned}`;
 };

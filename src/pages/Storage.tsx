@@ -8,8 +8,6 @@ import { getEstimationServices, type EstimationService } from '../api/estimation
 import { useAppStore } from '../store/useAppStore';
 import '../styles/clients.css';
 
-export const UNIT_OPTIONS = ['м²', 'м.пог', 'шт'] as const;
-
 export const Storage = () => {
   const { t } = useTranslation();
   const { fetchLowStockMaterials } = useAppStore();

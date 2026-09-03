@@ -18,7 +18,11 @@ import {
   MessageCircle,
   Send,
   Calculator,
-  Layers
+  Layers,
+  Calendar,
+  CalendarDays,
+  User,
+  Tag
 } from 'lucide-react';
 import { 
   getArchivedOrders, 
@@ -36,8 +40,7 @@ import { getMeasurementByOrderId, type MeasurementDto } from '../api/measurement
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { formatDateTimeInTimezone, formatDateInTimezone } from '../utils/dateUtils';
-import { getAvatarGradient } from './Employees';
-import { getClientInitials } from './Clients';
+import { getAvatarGradient, getClientInitials } from '../utils/avatarUtils';
 import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import '../styles/clients.css';
@@ -221,6 +224,22 @@ export const Archive = () => {
     }
   };
 
+  const hasActiveFilters = searchQuery.trim() !== '' || selectedYear !== 'ALL' || selectedMonth !== 'ALL' || selectedEmployeeId !== 'ALL' || selectedStatusId !== 'ALL';
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (searchQuery.trim()) count++;
+    if (selectedYear !== 'ALL') count++;
+    if (selectedMonth !== 'ALL') count++;
+    if (selectedEmployeeId !== 'ALL') count++;
+    if (selectedStatusId !== 'ALL') count++;
+    return count;
+  }, [searchQuery, selectedYear, selectedMonth, selectedEmployeeId, selectedStatusId]);
+
+  const totalFilteredSum = useMemo(() => {
+    return filteredOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+  }, [filteredOrders]);
+
   const handleOpenDetail = async (order: Order) => {
     setSelectedOrder(order);
     setIsDetailModalOpen(true);
@@ -230,7 +249,7 @@ export const Archive = () => {
       setLoadingMeasurement(true);
       const measurement = await getMeasurementByOrderId(order.id);
       setOrderMeasurement(measurement);
-    } catch (err) {
+    } catch {
       // Measurement might not exist for this order
       setOrderMeasurement(null);
     } finally {
@@ -295,7 +314,7 @@ export const Archive = () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       alert('Ошибка при скачивании договора DOCX');
     }
   };
@@ -311,7 +330,7 @@ export const Archive = () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       alert('Ошибка при скачивании договора PDF');
     }
   };
@@ -399,113 +418,154 @@ export const Archive = () => {
       </div>
 
       {/* Filters Toolbar */}
-      <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-md)', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {/* Row 1: Search */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <div className="search-box" style={{ flex: 1, minWidth: '240px' }}>
-              <Search size={18} />
-              <input
-                type="text"
-                placeholder="Поиск по номеру, клиенту, телефону, адресу, сотруднику..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="search-input"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-
-            {/* Quick Reset */}
-            {(searchQuery || selectedYear !== 'ALL' || selectedMonth !== 'ALL' || selectedEmployeeId !== 'ALL' || selectedStatusId !== 'ALL') && (
+      <div className="archive-filters-panel">
+        {/* Search Row */}
+        <div className="archive-search-row">
+          <div className="archive-search-box">
+            <Search size={18} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Поиск по номеру, клиенту, телефону, адресу, сотруднику..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="archive-search-input"
+            />
+            {searchQuery && (
               <button
                 type="button"
-                onClick={resetFilters}
-                className="btn btn-ghost"
-                style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}
+                onClick={() => setSearchQuery('')}
+                className="archive-search-clear"
+                title="Очистить поиск"
               >
-                Сбросить фильтры
+                <X size={15} />
               </button>
             )}
           </div>
 
-          {/* Row 2: Dropdowns */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            {/* Year */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Год:</span>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="btn-archive-reset"
+              title="Сбросить все фильтры"
+            >
+              <RotateCcw size={14} />
+              <span>Сбросить ({activeFiltersCount})</span>
+            </button>
+          )}
+        </div>
+
+        {/* Dropdown Filters Row */}
+        <div className="archive-filters-row">
+          {/* Year */}
+          <div className={`archive-filter-pill ${selectedYear !== 'ALL' ? 'active' : ''}`}>
+            <Calendar size={14} className="filter-pill-icon" />
+            <span className="filter-pill-label">Год:</span>
+            <select
+              value={selectedYear}
+              onChange={e => setSelectedYear(e.target.value)}
+              className="archive-select"
+            >
+              <option value="ALL">Все годы</option>
+              {availableYears.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Month */}
+          <div className={`archive-filter-pill ${selectedMonth !== 'ALL' ? 'active' : ''}`}>
+            <CalendarDays size={14} className="filter-pill-icon" />
+            <span className="filter-pill-label">Месяц:</span>
+            <select
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+              className="archive-select"
+            >
+              <option value="ALL">Все месяцы</option>
+              {monthsList.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Employee */}
+          {!isWorker && employees.length > 0 && (
+            <div className={`archive-filter-pill ${selectedEmployeeId !== 'ALL' ? 'active' : ''}`}>
+              <User size={14} className="filter-pill-icon" />
+              <span className="filter-pill-label">Сотрудник:</span>
               <select
-                value={selectedYear}
-                onChange={e => setSelectedYear(e.target.value)}
-                className="filter-select"
-                style={{ minWidth: '100px' }}
+                value={selectedEmployeeId}
+                onChange={e => setSelectedEmployeeId(e.target.value)}
+                className="archive-select"
               >
-                <option value="ALL">Все годы</option>
-                {availableYears.map(year => (
-                  <option key={year} value={year}>{year}</option>
+                <option value="ALL">Все сотрудники</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.name}</option>
                 ))}
               </select>
             </div>
+          )}
 
-            {/* Month */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Месяц:</span>
+          {/* Status */}
+          {statuses.length > 0 && (
+            <div className={`archive-filter-pill ${selectedStatusId !== 'ALL' ? 'active' : ''}`}>
+              <Tag size={14} className="filter-pill-icon" />
+              <span className="filter-pill-label">Статус:</span>
               <select
-                value={selectedMonth}
-                onChange={e => setSelectedMonth(e.target.value)}
-                className="filter-select"
-                style={{ minWidth: '120px' }}
+                value={selectedStatusId}
+                onChange={e => setSelectedStatusId(e.target.value)}
+                className="archive-select"
               >
-                <option value="ALL">Все месяцы</option>
-                {monthsList.map(m => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
+                <option value="ALL">Все статусы</option>
+                {statuses.map(st => (
+                  <option key={st.id} value={st.id}>{st.name}</option>
                 ))}
               </select>
             </div>
+          )}
 
-            {/* Employee */}
-            {!isWorker && employees.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Сотрудник:</span>
-                <select
-                  value={selectedEmployeeId}
-                  onChange={e => setSelectedEmployeeId(e.target.value)}
-                  className="filter-select"
-                  style={{ minWidth: '150px' }}
-                >
-                  <option value="ALL">Все сотрудники</option>
-                  {employees.map(emp => (
-                    <option key={emp.id} value={emp.id}>{emp.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+          {/* Sorting */}
+          <div className="archive-filter-pill sort-pill" style={{ marginLeft: 'auto' }}>
+            <ArrowUpDown size={14} className="filter-pill-icon" />
+            <span className="filter-pill-label">Сортировка:</span>
+            <select
+              value={sortField}
+              onChange={e => setSortField(e.target.value as SortField)}
+              className="archive-select"
+            >
+              <option value="installedAt">По дате завершения</option>
+              <option value="createdAt">По дате создания</option>
+              <option value="totalPrice">По стоимости</option>
+              <option value="clientName">По клиенту</option>
+              <option value="orderNumber">По номеру</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => setSortDirection(d => d === 'asc' ? 'desc' : 'asc')}
+              className="btn-sort-dir"
+              title={sortDirection === 'asc' ? 'По возрастанию' : 'По убыванию'}
+            >
+              {sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+            </button>
+          </div>
+        </div>
 
-            {/* Status */}
-            {statuses.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Статус:</span>
-                <select
-                  value={selectedStatusId}
-                  onChange={e => setSelectedStatusId(e.target.value)}
-                  className="filter-select"
-                  style={{ minWidth: '140px' }}
-                >
-                  <option value="ALL">Все статусы</option>
-                  {statuses.map(st => (
-                    <option key={st.id} value={st.id}>{st.name}</option>
-                  ))}
-                </select>
-              </div>
+        {/* Stats Bar */}
+        <div className="archive-stats-bar">
+          <div>
+            Найдено: <strong>{filteredOrders.length}</strong> из {orders.length} заявок
+            {hasActiveFilters && (
+              <span style={{ color: 'var(--accent-primary)', marginLeft: '8px' }}>
+                (применены фильтры: {activeFiltersCount})
+              </span>
             )}
           </div>
+          {filteredOrders.length > 0 && !isWorker && (
+            <div>
+              Общая сумма: <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>{totalFilteredSum.toLocaleString('ru-RU')} ₽</strong>
+            </div>
+          )}
         </div>
       </div>
 

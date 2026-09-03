@@ -163,7 +163,7 @@ export const useTouchKanbanDrag = ({
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
           navigator.vibrate(50);
         }
-      } catch (_) {}
+      } catch {}
     }, longPressDelay);
 
     touchStateRef.current.timer = timer;
@@ -233,7 +233,7 @@ export const useTouchKanbanDrag = ({
           if (typeof navigator !== 'undefined' && navigator.vibrate) {
             navigator.vibrate([30, 40]);
           }
-        } catch (_) {}
+        } catch {}
       }
 
       touchStateRef.current.suppressClickUntil = Date.now() + 400;

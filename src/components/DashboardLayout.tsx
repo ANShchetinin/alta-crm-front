@@ -71,8 +71,10 @@ const DashboardLayout = () => {
   };
 
   useEffect(() => {
-    fetchMyTenantsData();
-  }, [token]);
+    if (role !== 'SUPERADMIN' && token) {
+      fetchMyTenantsData();
+    }
+  }, [token, role]);
 
   const handleSwitchCompany = async (targetTenantId: number) => {
     if (targetTenantId === myTenantsData?.currentTenantId || isSwitchingCompany) return;
@@ -274,53 +276,67 @@ const DashboardLayout = () => {
       {/* Glass Sidebar / Mobile Drawer */}
       <aside className={`sidebar glass-panel ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header" style={{ position: 'relative' }}>
-          <div 
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '10px', 
-              flex: 1, 
-              cursor: ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) ? 'pointer' : 'default',
-              padding: '6px 8px',
-              borderRadius: 'var(--radius-md)',
-              transition: 'background 0.2s ease',
-              userSelect: 'none',
-              background: isCompanyDropdownOpen ? 'rgba(255, 255, 255, 0.05)' : 'transparent'
-            }}
-            onClick={() => {
-              if ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) {
-                setIsCompanyDropdownOpen(prev => !prev);
-              }
-            }}
-            className="company-switcher-trigger"
-          >
-            {tenantSettings?.logoUrl ? (
-              <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
-            ) : (
+          {role === 'SUPERADMIN' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 8px', flex: 1 }}>
               <img src="/logo.png" alt="Alta CRM" style={{ width: 32, height: 32, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
-            )}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h2 style={{ fontSize: '1.05rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {tenantSettings?.name || t('app.name')}
-              </h2>
-              {myTenantsData?.tenants && myTenantsData.tenants.length > 1 && (
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                  {myTenantsData.tenants.length} {myTenantsData.tenants.length === 1 ? 'компания' : myTenantsData.tenants.length < 5 ? 'компании' : 'компаний'}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h2 style={{ fontSize: '1.05rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  AltaCRM
+                </h2>
+                <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                  Панель SuperAdmin
                 </span>
+              </div>
+            </div>
+          ) : (
+            <div 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px', 
+                flex: 1, 
+                cursor: ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) ? 'pointer' : 'default',
+                padding: '6px 8px',
+                borderRadius: 'var(--radius-md)',
+                transition: 'background 0.2s ease',
+                userSelect: 'none',
+                background: isCompanyDropdownOpen ? 'rgba(255, 255, 255, 0.05)' : 'transparent'
+              }}
+              onClick={() => {
+                if ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) {
+                  setIsCompanyDropdownOpen(prev => !prev);
+                }
+              }}
+              className="company-switcher-trigger"
+            >
+              {tenantSettings?.logoUrl ? (
+                <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
+              ) : (
+                <img src="/logo.png" alt="Alta CRM" style={{ width: 32, height: 32, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h2 style={{ fontSize: '1.05rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {tenantSettings?.name || t('app.name')}
+                </h2>
+                {myTenantsData?.tenants && myTenantsData.tenants.length > 1 && (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                    {myTenantsData.tenants.length} {myTenantsData.tenants.length === 1 ? 'компания' : myTenantsData.tenants.length < 5 ? 'компании' : 'компаний'}
+                  </span>
+                )}
+              </div>
+              {((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) && (
+                <ChevronDown 
+                  size={16} 
+                  style={{ 
+                    color: 'var(--text-secondary)', 
+                    transition: 'transform 0.2s ease', 
+                    transform: isCompanyDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    flexShrink: 0
+                  }} 
+                />
               )}
             </div>
-            {((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) && (
-              <ChevronDown 
-                size={16} 
-                style={{ 
-                  color: 'var(--text-secondary)', 
-                  transition: 'transform 0.2s ease', 
-                  transform: isCompanyDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                  flexShrink: 0
-                }} 
-              />
-            )}
-          </div>
+          )}
           <button 
             className="btn-icon mobile-close-btn" 
             onClick={() => setIsMobileMenuOpen(false)}
@@ -496,14 +512,14 @@ const DashboardLayout = () => {
             </>
           )}
           {role === 'SUPERADMIN' && (
-            <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <NavLink to="/tenants" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <Building2 size={20} />
+                <span>Компании</span>
+              </NavLink>
               <NavLink to="/feature-flags" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Sliders size={20} />
                 <span>Feature Flags</span>
-              </NavLink>
-              <NavLink to="/tenants" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                <Building2 size={20} />
-                <span>Компании (Admin)</span>
               </NavLink>
             </div>
           )}

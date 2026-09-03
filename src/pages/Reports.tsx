@@ -12,7 +12,7 @@ import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
 import { getEmployees } from '../api/employees';
 import type { Employee } from '../api/employees';
-import { getEmployeeInitials, getAvatarGradient } from './Employees';
+import { getEmployeeInitials, getAvatarGradient } from '../utils/avatarUtils';
 import { useNavigate } from 'react-router-dom';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend 

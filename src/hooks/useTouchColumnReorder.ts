@@ -47,7 +47,7 @@ export const useTouchColumnReorder = ({
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
         navigator.vibrate(50);
       }
-    } catch (_) {}
+    } catch {}
   }, []);
 
   const handleHandleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -109,7 +109,7 @@ export const useTouchColumnReorder = ({
           if (typeof navigator !== 'undefined' && navigator.vibrate) {
             navigator.vibrate([30, 40]);
           }
-        } catch (_) {}
+        } catch {}
       }
     }
 
