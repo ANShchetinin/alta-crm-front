@@ -18,11 +18,16 @@ export interface UseTouchKanbanDragProps {
   longPressDelay?: number;
 }
 
+// Distance in pixels beyond which a touch gesture is classified as scroll/move rather than tap/hold
+const MOVE_THRESHOLD = 8;
+// Suppression time for synthetic click events after touch interactions
+const CLICK_SUPPRESSION_MS = 1000;
+
 export const useTouchKanbanDrag = ({
   boardRef,
   onDropCard,
   onCardClick,
-  longPressDelay = 250
+  longPressDelay = 500
 }: UseTouchKanbanDragProps) => {
   const [draggingCard, setDraggingCard] = useState<Order | null>(null);
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
@@ -110,7 +115,7 @@ export const useTouchKanbanDrag = ({
 
   const handleTouchStart = useCallback((e: React.TouchEvent, card: Order) => {
     const target = e.target as HTMLElement | null;
-    if (target && target.closest('a, button, input, select, textarea, [data-no-card-click], .kanban-map-pill, .card-phone-btn, .card-complete-btn')) {
+    if (target && target.closest('a, button, input, select, textarea, [data-no-card-click], .kanban-map-pill, .card-phone-btn, .card-messenger-btn, .card-complete-btn')) {
       // Touch is on an interactive link/button inside card - do not initiate touch drag or card click
       return;
     }
@@ -124,6 +129,10 @@ export const useTouchKanbanDrag = ({
     const offsetX = startX - rect.left;
     const offsetY = startY - rect.top;
 
+    if (touchStateRef.current.timer) {
+      clearTimeout(touchStateRef.current.timer);
+    }
+
     touchStateRef.current = {
       startX,
       startY,
@@ -134,16 +143,20 @@ export const useTouchKanbanDrag = ({
       isDragging: false,
       hasMoved: false,
       startTime: Date.now(),
-      suppressClickUntil: 0,
+      suppressClickUntil: touchStateRef.current.suppressClickUntil,
       cardElement: cardEl,
       autoScrollTimer: null
     };
 
     const timer = setTimeout(() => {
-      // Long press activated!
+      // Long press activated ONLY if finger hasn't moved beyond threshold
+      if (touchStateRef.current.hasMoved || touchStateRef.current.card?.id !== card.id) {
+        return;
+      }
+
       touchStateRef.current.isDragging = true;
       touchStateRef.current.hasMoved = true;
-      touchStateRef.current.suppressClickUntil = Date.now() + 400;
+      touchStateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
 
       setDraggingCard(card);
       setDragPosition({ x: startX, y: startY });
@@ -171,16 +184,18 @@ export const useTouchKanbanDrag = ({
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
+    if (!touch) return;
+
     const { startX, startY, isDragging, timer } = touchStateRef.current;
     touchStateRef.current.currentX = touch.clientX;
     touchStateRef.current.currentY = touch.clientY;
 
     if (!isDragging) {
-      // If moved beyond natural finger tremor (16px), user is SCROLLING -> cancel drag timer
+      // If moved beyond threshold, user is SCROLLING -> cancel drag timer immediately
       const dist = Math.hypot(touch.clientX - startX, touch.clientY - startY);
-      if (dist > 16) {
+      if (dist > MOVE_THRESHOLD) {
         touchStateRef.current.hasMoved = true;
-        touchStateRef.current.suppressClickUntil = Date.now() + 400;
+        touchStateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
         if (timer) {
           clearTimeout(timer);
           touchStateRef.current.timer = null;
@@ -199,7 +214,7 @@ export const useTouchKanbanDrag = ({
   }, [handleAutoScroll, updateTargetColumn]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    const { timer, isDragging, card, hasMoved, startTime } = touchStateRef.current;
+    const { timer, isDragging, card, startTime, startX, startY } = touchStateRef.current;
     if (timer) {
       clearTimeout(timer);
       touchStateRef.current.timer = null;
@@ -236,7 +251,7 @@ export const useTouchKanbanDrag = ({
         } catch {}
       }
 
-      touchStateRef.current.suppressClickUntil = Date.now() + 400;
+      touchStateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
       setDraggingCard(null);
       setDragPosition(null);
       setTargetStatusId(null);
@@ -244,17 +259,28 @@ export const useTouchKanbanDrag = ({
       touchStateRef.current.isDragging = false;
       touchStateRef.current.card = null;
     } else if (card) {
+      const touch = e.changedTouches?.[0];
+      const endDist = touch ? Math.hypot(touch.clientX - startX, touch.clientY - startY) : 0;
+      if (endDist > MOVE_THRESHOLD) {
+        touchStateRef.current.hasMoved = true;
+      }
+
       const target = e.target as HTMLElement | null;
-      const isInteractive = target && !!target.closest('a, button, input, select, textarea, [data-no-card-click], .kanban-map-pill, .card-phone-btn, .card-complete-btn');
+      const isInteractive = target && !!target.closest('a, button, input, select, textarea, [data-no-card-click], .kanban-map-pill, .card-phone-btn, .card-messenger-btn, .card-complete-btn');
       const duration = Date.now() - startTime;
+
       // Only trigger click if it was an intentional stationary TAP (not a scroll gesture) and NOT on an interactive button/link
-      if (!hasMoved && !isInteractive && duration < 350) {
+      if (!touchStateRef.current.hasMoved && endDist <= MOVE_THRESHOLD && !isInteractive && duration >= 30 && duration < 450) {
         if (e.cancelable) {
           e.preventDefault();
         }
+        touchStateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
+        touchStateRef.current.hasMoved = true;
         onCardClick(card);
+      } else {
+        touchStateRef.current.hasMoved = true;
+        touchStateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
       }
-      touchStateRef.current.suppressClickUntil = isInteractive ? 0 : Date.now() + 400;
       touchStateRef.current.card = null;
     }
   }, [onDropCard, onCardClick, stopAutoScroll, targetStatusId]);
@@ -265,7 +291,8 @@ export const useTouchKanbanDrag = ({
       touchStateRef.current.timer = null;
     }
     stopAutoScroll();
-    touchStateRef.current.suppressClickUntil = Date.now() + 400;
+    touchStateRef.current.hasMoved = true;
+    touchStateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
     setDraggingCard(null);
     setDragPosition(null);
     setTargetStatusId(null);

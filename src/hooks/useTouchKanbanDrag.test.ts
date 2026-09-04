@@ -39,7 +39,7 @@ describe('useTouchKanbanDrag Hook', () => {
         boardRef,
         onDropCard,
         onCardClick,
-        longPressDelay: 200
+        longPressDelay: 500
       })
     );
 
@@ -65,13 +65,14 @@ describe('useTouchKanbanDrag Hook', () => {
       result.current.handleTouchStart(startEvent, mockOrder);
     });
 
-    // Advance timer by only 50ms (before longPressDelay of 200ms)
+    // Advance timer by only 50ms (before longPressDelay of 500ms)
     act(() => {
       vi.advanceTimersByTime(50);
     });
 
     const endEvent = {
       touches: [],
+      changedTouches: [{ clientX: 50, clientY: 120 }],
       cancelable: true,
       preventDefault: vi.fn()
     } as any;
@@ -91,7 +92,7 @@ describe('useTouchKanbanDrag Hook', () => {
         boardRef,
         onDropCard,
         onCardClick,
-        longPressDelay: 200
+        longPressDelay: 500
       })
     );
 
@@ -121,7 +122,7 @@ describe('useTouchKanbanDrag Hook', () => {
 
     // Advance timer past long press threshold
     act(() => {
-      vi.advanceTimersByTime(210);
+      vi.advanceTimersByTime(510);
     });
 
     expect(result.current.draggingCard).toEqual(mockOrder);
@@ -137,13 +138,13 @@ describe('useTouchKanbanDrag Hook', () => {
     });
   });
 
-  it('cancels long press if user moves significantly before delay (scrolling)', () => {
+  it('cancels long press and does NOT open card if user moves while scrolling', () => {
     const { result } = renderHook(() =>
       useTouchKanbanDrag({
         boardRef,
         onDropCard,
         onCardClick,
-        longPressDelay: 200
+        longPressDelay: 500
       })
     );
 
@@ -167,22 +168,77 @@ describe('useTouchKanbanDrag Hook', () => {
       );
     });
 
-    // Move finger 30px vertically after 40ms
+    // Move finger 15px vertically after 40ms (scrolling gesture)
     act(() => {
       vi.advanceTimersByTime(40);
       result.current.handleTouchMove({
-        touches: [{ clientX: 50, clientY: 150 }],
+        touches: [{ clientX: 50, clientY: 135 }],
         cancelable: true,
         preventDefault: vi.fn()
       } as any);
     });
 
-    // Now advance past 200ms
+    // Advance past 500ms
     act(() => {
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(500);
     });
 
     // Should NOT be dragging
     expect(result.current.draggingCard).toBeNull();
+
+    // Touch ends after scrolling
+    act(() => {
+      result.current.handleTouchEnd({
+        touches: [],
+        changedTouches: [{ clientX: 50, clientY: 135 }],
+        cancelable: true,
+        preventDefault: vi.fn()
+      } as any);
+    });
+
+    // Should NOT have opened card
+    expect(onCardClick).not.toHaveBeenCalled();
+    // Subsequent mouse click should be suppressed
+    expect(result.current.isClickAllowed()).toBe(false);
+  });
+
+  it('cancels drag and suppresses click on touchCancel', () => {
+    const { result } = renderHook(() =>
+      useTouchKanbanDrag({
+        boardRef,
+        onDropCard,
+        onCardClick,
+        longPressDelay: 500
+      })
+    );
+
+    const mockTarget = document.createElement('div');
+    act(() => {
+      result.current.handleTouchStart(
+        { touches: [{ clientX: 50, clientY: 120 }], currentTarget: mockTarget } as any,
+        mockOrder
+      );
+    });
+
+    act(() => {
+      result.current.handleTouchCancel();
+    });
+
+    expect(result.current.draggingCard).toBeNull();
+    expect(onCardClick).not.toHaveBeenCalled();
+    expect(result.current.isClickAllowed()).toBe(false);
+  });
+
+  it('allows desktop mouse click when no touch was performed', () => {
+    const { result } = renderHook(() =>
+      useTouchKanbanDrag({
+        boardRef,
+        onDropCard,
+        onCardClick,
+        longPressDelay: 500
+      })
+    );
+
+    expect(result.current.isClickAllowed()).toBe(true);
   });
 });

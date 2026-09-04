@@ -125,6 +125,9 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   cursor: grab;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  touch-action: pan-y pan-x;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .card-client-avatar {
