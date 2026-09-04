@@ -563,7 +563,7 @@ const Kanban = () => {
     onCardClick: (card) => {
       openEditModal(card);
     },
-    longPressDelay: 250
+    longPressDelay: 500
   });
 
   const {
