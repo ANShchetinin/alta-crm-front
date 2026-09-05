@@ -131,27 +131,27 @@ describe('Archive Page Component', () => {
       expect(screen.getByText('Архив заявок')).toBeInTheDocument();
     });
 
-    // Check table content
-    expect(screen.getByText('А0101_1')).toBeInTheDocument();
-    expect(screen.getByText('А0102_2')).toBeInTheDocument();
-    expect(screen.getByText('Иван Иванов')).toBeInTheDocument();
-    expect(screen.getByText('Анна Смирнова')).toBeInTheDocument();
-    expect(screen.getByText('ул. Ленина, д. 15')).toBeInTheDocument();
-    expect(screen.getByText('пр. Мира, д. 40')).toBeInTheDocument();
+    // Check order content in both desktop table and mobile cards
+    expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('А0102_2').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Иван Иванов').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Анна Смирнова').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/ул\. Ленина, д\. 15/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/пр\. Мира, д\. 40/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('filters orders by search query', async () => {
     render(<Archive />);
 
     await waitFor(() => {
-      expect(screen.getByText('А0101_1')).toBeInTheDocument();
+      expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
     });
 
     const searchInput = screen.getByPlaceholderText(/Поиск по номеру, клиенту/i);
     fireEvent.change(searchInput, { target: { value: 'Смирнова' } });
 
     expect(screen.queryByText('Иван Иванов')).not.toBeInTheDocument();
-    expect(screen.getByText('Анна Смирнова')).toBeInTheDocument();
+    expect(screen.getAllByText('Анна Смирнова').length).toBeGreaterThanOrEqual(1);
   });
 
   it('opens detail modal on order row click, displays estimate, and allows return to kanban', async () => {
@@ -162,10 +162,10 @@ describe('Archive Page Component', () => {
     render(<Archive />);
 
     await waitFor(() => {
-      expect(screen.getByText('А0101_1')).toBeInTheDocument();
+      expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
     });
 
-    const row = screen.getByText('А0101_1').closest('tr');
+    const row = screen.getAllByText('А0101_1')[0].closest('tr');
     expect(row).toBeInTheDocument();
     fireEvent.click(row!);
 
@@ -195,7 +195,7 @@ describe('Archive Page Component', () => {
     render(<Archive />);
 
     await waitFor(() => {
-      expect(screen.getByText('А0101_1')).toBeInTheDocument();
+      expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
     });
 
     const deleteButtons = screen.getAllByTitle('Удалить заявку');
@@ -216,7 +216,7 @@ describe('Archive Page Component', () => {
     render(<Archive />);
 
     await waitFor(() => {
-      expect(screen.getByText('А0101_1')).toBeInTheDocument();
+      expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
     });
 
     const docxButtons = screen.getAllByTitle('Скачать договор Word (.docx)');
@@ -241,5 +241,24 @@ describe('Archive Page Component', () => {
     fireEvent.click(exportBtn);
 
     expect(window.URL.createObjectURL).toHaveBeenCalled();
+  });
+
+  it('opens detail modal on mobile card click', async () => {
+    render(<Archive />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
+    });
+
+    const mobileCards = document.querySelectorAll('.archive-mobile-card');
+    expect(mobileCards.length).toBe(2);
+
+    // mobileCards[0] is the newest order А0102_2 due to desc sort by installedAt
+    fireEvent.click(mobileCards[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Заявка А0102_2')).toBeInTheDocument();
+      expect(screen.getByText('Данные клиента')).toBeInTheDocument();
+    });
   });
 });

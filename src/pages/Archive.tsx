@@ -569,286 +569,528 @@ export const Archive = () => {
         </div>
       </div>
 
-      {/* Main Table */}
-      <div className="table-responsive glass-panel" style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-        {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Загрузка архивных заявок...
+      {/* Main Content Area: Loading / Empty / Desktop Table & Mobile Cards */}
+      {loading ? (
+        <div className="glass-panel" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)', borderRadius: 'var(--radius-md)' }}>
+          Загрузка архивных заявок...
+        </div>
+      ) : sortedOrders.length === 0 ? (
+        <div className="glass-panel" style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-secondary)', borderRadius: 'var(--radius-md)' }}>
+          <ArchiveIcon size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
+          <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            {orders.length === 0 ? 'Архив заявок пуст' : 'По выбранным фильтрам ничего не найдено'}
           </div>
-        ) : sortedOrders.length === 0 ? (
-          <div style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            <ArchiveIcon size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
-            <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              {orders.length === 0 ? 'Архив заявок пуст' : 'По выбранным фильтрам ничего не найдено'}
-            </div>
-            <p style={{ fontSize: '0.85rem', marginTop: '4px' }}>
-              {orders.length === 0 
-                ? 'Заявки автоматически перемещаются в архив после завершения за предыдущие месяцы'
-                : 'Попробуйте изменить параметры поиска или сбросить фильтры'}
-            </p>
-          </div>
-        ) : (
-          <table className="clients-table">
-            <thead>
-              <tr>
-                <th onClick={() => handleSort('orderNumber')} style={{ cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>Номер</span>
-                    {sortField === 'orderNumber' ? (
-                      sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                    ) : (
-                      <ArrowUpDown size={14} style={{ opacity: 0.4 }} />
-                    )}
-                  </div>
-                </th>
-                <th onClick={() => handleSort('installedAt')} style={{ cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>Дата завершения</span>
-                    {sortField === 'installedAt' ? (
-                      sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                    ) : (
-                      <ArrowUpDown size={14} style={{ opacity: 0.4 }} />
-                    )}
-                  </div>
-                </th>
-                <th onClick={() => handleSort('clientName')} style={{ cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>Клиент</span>
-                    {sortField === 'clientName' ? (
-                      sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                    ) : (
-                      <ArrowUpDown size={14} style={{ opacity: 0.4 }} />
-                    )}
-                  </div>
-                </th>
-                <th>Адрес объекта</th>
-                <th>Исполнитель</th>
-                {!isWorker && (
-                  <th onClick={() => handleSort('totalPrice')} style={{ cursor: 'pointer', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                      <span>Сумма сделки</span>
-                      {sortField === 'totalPrice' ? (
+          <p style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+            {orders.length === 0 
+              ? 'Заявки автоматически перемещаются в архив после завершения за предыдущие месяцы'
+              : 'Попробуйте изменить параметры поиска или сбросить фильтры'}
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* 1. Desktop Table View */}
+          <div className="table-responsive glass-panel archive-desktop-table" style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+            <table className="clients-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleSort('orderNumber')} style={{ cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>Номер</span>
+                      {sortField === 'orderNumber' ? (
                         sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
                       ) : (
                         <ArrowUpDown size={14} style={{ opacity: 0.4 }} />
                       )}
                     </div>
                   </th>
-                )}
-                <th>Статус</th>
-                <th style={{ textAlign: 'right' }}>Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedOrders.map(order => {
-                const client = clients.find(c => c.id === order.clientId);
-                const status = statuses.find(s => s.id === order.statusId);
-                const isLegal = (order.clientType || client?.clientType) === 'LEGAL_ENTITY';
-                const cAvatar = order.clientAvatarUrl || client?.avatarUrl;
-                const cName = order.clientName || client?.name || `Клиент #${order.clientId}`;
-                const cPhone = order.clientPhone || client?.phone;
-                const installerName = order.installedByName || order.assigneeName || '—';
-
-                return (
-                  <tr 
-                    key={order.id}
-                    onClick={() => handleOpenDetail(order)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: 700, color: 'var(--accent-primary)', fontSize: '0.92rem' }}>
-                          {order.orderNumber || `#${order.id}`}
-                        </span>
-                        {order.orderNumber && (
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                            ID: {order.id}
-                          </span>
+                  <th onClick={() => handleSort('installedAt')} style={{ cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>Дата завершения</span>
+                      {sortField === 'installedAt' ? (
+                        sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                      ) : (
+                        <ArrowUpDown size={14} style={{ opacity: 0.4 }} />
+                      )}
+                    </div>
+                  </th>
+                  <th onClick={() => handleSort('clientName')} style={{ cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>Клиент</span>
+                      {sortField === 'clientName' ? (
+                        sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                      ) : (
+                        <ArrowUpDown size={14} style={{ opacity: 0.4 }} />
+                      )}
+                    </div>
+                  </th>
+                  <th>Адрес объекта</th>
+                  <th>Исполнитель</th>
+                  {!isWorker && (
+                    <th onClick={() => handleSort('totalPrice')} style={{ cursor: 'pointer', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                        <span>Сумма сделки</span>
+                        {sortField === 'totalPrice' ? (
+                          sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                        ) : (
+                          <ArrowUpDown size={14} style={{ opacity: 0.4 }} />
                         )}
                       </div>
-                    </td>
+                    </th>
+                  )}
+                  <th>Статус</th>
+                  <th style={{ textAlign: 'right' }}>Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedOrders.map(order => {
+                  const client = clients.find(c => c.id === order.clientId);
+                  const status = statuses.find(s => s.id === order.statusId);
+                  const isLegal = (order.clientType || client?.clientType) === 'LEGAL_ENTITY';
+                  const cAvatar = order.clientAvatarUrl || client?.avatarUrl;
+                  const cName = order.clientName || client?.name || `Клиент #${order.clientId}`;
+                  const cPhone = order.clientPhone || client?.phone;
+                  const installerName = order.installedByName || order.assigneeName || '—';
 
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.86rem', color: 'var(--text-primary)' }}>
-                          {order.installedAt 
-                            ? formatDateInTimezone(order.installedAt, tenantSettings?.timezone)
-                            : (order.createdAt ? formatDateInTimezone(order.createdAt, tenantSettings?.timezone) : '—')}
-                        </span>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                          {order.installedAt 
-                            ? formatDateTimeInTimezone(order.installedAt, tenantSettings?.timezone).split(',')[1] || ''
-                            : ''}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          overflow: 'hidden',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          color: '#fff',
-                          background: cAvatar ? 'transparent' : getAvatarGradient(cName),
-                          border: '1px solid rgba(255, 255, 255, 0.15)',
-                          flexShrink: 0
-                        }}>
-                          {cAvatar ? (
-                            <img src={cAvatar} alt={cName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            isLegal ? <Building2 size={15} /> : getClientInitials(cName)
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
-                            {cName}
+                  return (
+                    <tr 
+                      key={order.id}
+                      onClick={() => handleOpenDetail(order)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--accent-primary)', fontSize: '0.92rem' }}>
+                            {order.orderNumber || `#${order.id}`}
                           </span>
-                          {cPhone && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
-                              <a
-                                href={`tel:${cPhone.replace(/[^\d+]/g, '')}`}
-                                onClick={(e) => e.stopPropagation()}
-                                style={{ color: '#22c55e', textDecoration: 'none', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                              >
-                                <Phone size={10} /> {cPhone}
-                              </a>
-                              {order.clientWhatsapp && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    window.open(getWhatsAppLink(order.clientWhatsapp!), '_blank');
-                                  }}
-                                  className="contact-btn whatsapp-btn"
-                                  style={{ width: '18px', height: '18px' }}
-                                  title="WhatsApp"
-                                >
-                                  <MessageCircle size={10} />
-                                </button>
-                              )}
-                              {order.clientTelegram && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    window.open(getTelegramLink(order.clientTelegram!), '_blank');
-                                  }}
-                                  className="contact-btn telegram-btn"
-                                  style={{ width: '18px', height: '18px' }}
-                                  title="Telegram"
-                                >
-                                  <Send size={10} />
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', maxWidth: '240px' }}>
-                        <MapPin size={14} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
-                        <span style={{ fontSize: '0.84rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {order.address || '—'}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td>
-                      <div style={{ fontSize: '0.84rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                        {installerName}
-                      </div>
-                    </td>
-
-                    {!isWorker && (
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#22c55e' }}>
-                            {order.totalPrice != null ? `${order.totalPrice.toLocaleString('ru-RU')} ₽` : '—'}
-                          </span>
-                          {order.prepayment != null && order.prepayment > 0 && (
+                          {order.orderNumber && (
                             <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                              Аванс: {order.prepayment.toLocaleString('ru-RU')} ₽
+                              ID: {order.id}
                             </span>
                           )}
                         </div>
                       </td>
-                    )}
 
-                    <td>
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '3px 10px',
-                          borderRadius: '12px',
-                          fontSize: '0.76rem',
-                          fontWeight: 600,
-                          backgroundColor: status?.color ? `${status.color}22` : 'rgba(59, 130, 246, 0.15)',
-                          color: status?.color || 'var(--accent-primary)',
-                          border: `1px solid ${status?.color || 'var(--accent-primary)'}44`
-                        }}
-                      >
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: status?.color || '#3b82f6' }} />
-                        {status?.name || 'Завершен'}
-                      </span>
-                    </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+                            {order.installedAt 
+                              ? formatDateInTimezone(order.installedAt, tenantSettings?.timezone)
+                              : (order.createdAt ? formatDateInTimezone(order.createdAt, tenantSettings?.timezone) : '—')}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                            {order.installedAt 
+                              ? formatDateTimeInTimezone(order.installedAt, tenantSettings?.timezone).split(',')[1] || ''
+                              : ''}
+                          </span>
+                        </div>
+                      </td>
 
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
-                        <button
-                          type="button"
-                          className="btn-icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDetail(order);
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            color: '#fff',
+                            background: cAvatar ? 'transparent' : getAvatarGradient(cName),
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            flexShrink: 0
+                          }}>
+                            {cAvatar ? (
+                              <img src={cAvatar} alt={cName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              isLegal ? <Building2 size={15} /> : getClientInitials(cName)
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                              {cName}
+                            </span>
+                            {cPhone && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
+                                <a
+                                  href={`tel:${cPhone.replace(/[^\d+]/g, '')}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{ color: '#22c55e', textDecoration: 'none', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                >
+                                  <Phone size={10} /> {cPhone}
+                                </a>
+                                {order.clientWhatsapp && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(getWhatsAppLink(order.clientWhatsapp!), '_blank');
+                                    }}
+                                    className="contact-btn whatsapp-btn"
+                                    style={{ width: '18px', height: '18px' }}
+                                    title="WhatsApp"
+                                  >
+                                    <MessageCircle size={10} />
+                                  </button>
+                                )}
+                                {order.clientTelegram && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(getTelegramLink(order.clientTelegram!), '_blank');
+                                    }}
+                                    className="contact-btn telegram-btn"
+                                    style={{ width: '18px', height: '18px' }}
+                                    title="Telegram"
+                                  >
+                                    <Send size={10} />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', maxWidth: '240px' }}>
+                          <MapPin size={14} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+                          <span style={{ fontSize: '0.84rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {order.address || '—'}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td>
+                        <div style={{ fontSize: '0.84rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                          {installerName}
+                        </div>
+                      </td>
+
+                      {!isWorker && (
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#22c55e' }}>
+                              {order.totalPrice != null ? `${order.totalPrice.toLocaleString('ru-RU')} ₽` : '—'}
+                            </span>
+                            {order.prepayment != null && order.prepayment > 0 && (
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                                Аванс: {order.prepayment.toLocaleString('ru-RU')} ₽
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      )}
+
+                      <td>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '3px 10px',
+                            borderRadius: '12px',
+                            fontSize: '0.76rem',
+                            fontWeight: 600,
+                            backgroundColor: status?.color ? `${status.color}22` : 'rgba(59, 130, 246, 0.15)',
+                            color: status?.color || 'var(--accent-primary)',
+                            border: `1px solid ${status?.color || 'var(--accent-primary)'}44`
                           }}
-                          title="Просмотреть детали заявки"
                         >
-                          <Eye size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownloadDocx(order.id);
-                          }}
-                          title="Скачать договор Word (.docx)"
-                        >
-                          <FileText size={16} />
-                        </button>
-                        {!isWorker && (
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: status?.color || '#3b82f6' }} />
+                          {status?.name || 'Завершен'}
+                        </span>
+                      </td>
+
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                           <button
                             type="button"
-                            className="btn-icon text-danger"
+                            className="btn-icon"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteOrder(order.id, order.orderNumber);
+                              handleOpenDetail(order);
                             }}
-                            title="Удалить заявку"
+                            title="Просмотреть детали заявки"
                           >
-                            <Trash2 size={16} />
+                            <Eye size={16} />
                           </button>
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadDocx(order.id);
+                            }}
+                            title="Скачать договор Word (.docx)"
+                          >
+                            <FileText size={16} />
+                          </button>
+                          {!isWorker && (
+                            <button
+                              type="button"
+                              className="btn-icon text-danger"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteOrder(order.id, order.orderNumber);
+                              }}
+                              title="Удалить заявку"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 2. Mobile Cards View */}
+          <div className="archive-mobile-cards">
+            {sortedOrders.map(order => {
+              const client = clients.find(c => c.id === order.clientId);
+              const status = statuses.find(s => s.id === order.statusId);
+              const isLegal = (order.clientType || client?.clientType) === 'LEGAL_ENTITY';
+              const cAvatar = order.clientAvatarUrl || client?.avatarUrl;
+              const cName = order.clientName || client?.name || `Клиент #${order.clientId}`;
+              const cPhone = order.clientPhone || client?.phone;
+              const installerName = order.installedByName || order.assigneeName || '—';
+
+              return (
+                <div
+                  key={order.id}
+                  className="archive-mobile-card"
+                  onClick={() => handleOpenDetail(order)}
+                >
+                  {/* Card Header: Number, ID and Status Badge */}
+                  <div className="archive-card-header">
+                    <div className="archive-card-number-box">
+                      <span className="archive-card-order-num">
+                        {order.orderNumber || `#${order.id}`}
+                      </span>
+                      {order.orderNumber && (
+                        <span className="archive-card-id-tag">ID: {order.id}</span>
+                      )}
+                    </div>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '3px 10px',
+                        borderRadius: '12px',
+                        fontSize: '0.76rem',
+                        fontWeight: 600,
+                        backgroundColor: status?.color ? `${status.color}22` : 'rgba(59, 130, 246, 0.15)',
+                        color: status?.color || 'var(--accent-primary)',
+                        border: `1px solid ${status?.color || 'var(--accent-primary)'}44`
+                      }}
+                    >
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: status?.color || '#3b82f6' }} />
+                      {status?.name || 'Завершен'}
+                    </span>
+                  </div>
+
+                  {/* Date completed / created */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    <Calendar size={13} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                    <span>
+                      {order.installedAt 
+                        ? `Завершен: ${formatDateTimeInTimezone(order.installedAt, tenantSettings?.timezone)}`
+                        : (order.createdAt ? `Создан: ${formatDateTimeInTimezone(order.createdAt, tenantSettings?.timezone)}` : 'Дата не указана')}
+                    </span>
+                  </div>
+
+                  {/* Client Info */}
+                  <div className="archive-card-client-section">
+                    <div className="archive-card-client-left">
+                      <div
+                        className="archive-card-client-avatar"
+                        style={{
+                          background: cAvatar ? 'transparent' : getAvatarGradient(cName)
+                        }}
+                      >
+                        {cAvatar ? (
+                          <img src={cAvatar} alt={cName} />
+                        ) : (
+                          isLegal ? <Building2 size={16} /> : getClientInitials(cName)
                         )}
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                        <span className="archive-card-client-name">{cName}</span>
+                        {cPhone && (
+                          <a
+                            href={`tel:${cPhone.replace(/[^\d+]/g, '')}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="archive-card-client-phone"
+                          >
+                            <Phone size={11} />
+                            <span>{cPhone}</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Messenger Buttons */}
+                    <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                      {order.clientWhatsapp && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(getWhatsAppLink(order.clientWhatsapp!), '_blank');
+                          }}
+                          className="contact-btn whatsapp-btn"
+                          style={{ width: '28px', height: '28px' }}
+                          title="WhatsApp"
+                        >
+                          <MessageCircle size={13} />
+                        </button>
+                      )}
+                      {order.clientTelegram && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(getTelegramLink(order.clientTelegram!), '_blank');
+                          }}
+                          className="contact-btn telegram-btn"
+                          style={{ width: '28px', height: '28px' }}
+                          title="Telegram"
+                        >
+                          <Send size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  {order.address && (
+                    <div className="archive-card-address-block">
+                      <div className="archive-card-address-text">
+                        <MapPin size={14} style={{ color: 'var(--accent-primary)', flexShrink: 0, marginTop: '2px' }} />
+                        <span>
+                          {order.address}
+                          {order.entrance && `, подъезд ${order.entrance}`}
+                          {order.floor && `, этаж ${order.floor}`}
+                        </span>
+                      </div>
+                      <div className="archive-card-nav-buttons">
+                        <a
+                          href={getYandexMapsUrl(order.address)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="archive-card-nav-link"
+                        >
+                          Яндекс.Карты
+                        </a>
+                        <a
+                          href={get2GisUrl(order.address)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="archive-card-nav-link"
+                        >
+                          2ГИС
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Financial Details & Executor Grid */}
+                  <div className="archive-card-details-grid">
+                    {!isWorker && (
+                      <div>
+                        <div className="archive-card-stat-label">Сумма сделки</div>
+                        <div className="archive-card-stat-value price">
+                          {order.totalPrice != null ? `${order.totalPrice.toLocaleString('ru-RU')} ₽` : '—'}
+                        </div>
+                      </div>
+                    )}
+                    {!isWorker && order.prepayment != null && order.prepayment > 0 && (
+                      <div>
+                        <div className="archive-card-stat-label">Предоплата</div>
+                        <div className="archive-card-stat-value">
+                          {order.prepayment.toLocaleString('ru-RU')} ₽
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <div className="archive-card-stat-label">Исполнитель</div>
+                      <div className="archive-card-stat-value" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <User size={12} style={{ opacity: 0.6, flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {installerName}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mobile Actions */}
+                  <div className="archive-card-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDetail(order);
+                      }}
+                      style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
+                    >
+                      <Eye size={14} /> Подробнее
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadDocx(order.id);
+                      }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      title="Скачать договор Word"
+                    >
+                      <FileText size={14} /> DOCX
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadPdf(order.id);
+                      }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      title="Скачать договор PDF"
+                    >
+                      <Download size={14} /> PDF
+                    </button>
+                    {!isWorker && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost text-danger"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteOrder(order.id, order.orderNumber);
+                        }}
+                        style={{ padding: '6px 8px' }}
+                        title="Удалить заявку"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* Detail & Quick View Modal */}
       {isDetailModalOpen && selectedOrder && (
