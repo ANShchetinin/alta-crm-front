@@ -31,8 +31,10 @@ import {
   deleteOrder,
   downloadContractDocx, 
   downloadContractPdf, 
+  fetchAttachmentBlob,
   type Order, 
-  type OrderStatus 
+  type OrderStatus,
+  type OrderAttachment
 } from '../api/kanban';
 import { getClients, type Client } from '../api/clients';
 import { getEmployees, type Employee } from '../api/employees';
@@ -332,6 +334,43 @@ export const Archive = () => {
       window.URL.revokeObjectURL(url);
     } catch {
       alert('Ошибка при скачивании договора PDF');
+    }
+  };
+
+  const isViewableInBrowser = (fileName: string, contentType?: string) => {
+    const name = fileName.toLowerCase();
+    const type = (contentType || '').toLowerCase();
+    if (type.startsWith('image/') || type.startsWith('audio/') || type.startsWith('video/') || type.startsWith('text/') || type.includes('pdf')) {
+      return true;
+    }
+    return /\.(pdf|png|jpe?g|gif|webp|svg|bmp|txt|csv|log|mp3|wav|ogg|mp4|webm)$/i.test(name);
+  };
+
+  const handleOpenAttachment = async (att: OrderAttachment) => {
+    try {
+      const blob = await fetchAttachmentBlob(att.id, false);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (err) {
+      console.error("Failed to open attachment", err);
+      alert("Не удалось открыть файл");
+    }
+  };
+
+  const handleDownloadAttachment = async (att: OrderAttachment) => {
+    try {
+      const blob = await fetchAttachmentBlob(att.id, true);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = att.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to download attachment", err);
+      alert("Не удалось скачать файл");
     }
   };
 
@@ -1472,35 +1511,79 @@ export const Archive = () => {
                     Прикрепленные документы ({selectedOrder.attachments.length})
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {selectedOrder.attachments.map(att => (
-                      <div 
-                        key={att.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '6px 10px',
-                          background: 'var(--input-bg, rgba(255, 255, 255, 0.02))',
-                          border: '1px solid var(--glass-border)',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.82rem'
-                        }}
-                      >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <FileCheck size={14} style={{ color: att.isAct ? '#22c55e' : 'var(--accent-primary)' }} />
-                          {att.fileName}
-                        </span>
-                        <a
-                          href={`/api/v1/orders/attachments/${att.id}?download=true`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-ghost"
-                          style={{ padding: '2px 6px', fontSize: '0.75rem' }}
+                    {selectedOrder.attachments.map(att => {
+                      const canPreview = isViewableInBrowser(att.fileName, att.contentType);
+                      return (
+                        <div 
+                          key={att.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 12px',
+                            background: att.isAct ? 'rgba(34, 197, 94, 0.04)' : 'var(--input-bg, rgba(255, 255, 255, 0.02))',
+                            border: att.isAct ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid var(--glass-border)',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.84rem',
+                            gap: '10px'
+                          }}
                         >
-                          <Download size={13} /> Скачать
-                        </a>
-                      </div>
-                    ))}
+                          <span 
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '8px', 
+                              overflow: 'hidden', 
+                              textOverflow: 'ellipsis', 
+                              whiteSpace: 'nowrap',
+                              flex: 1,
+                              minWidth: 0
+                            }}
+                            title={att.fileName}
+                          >
+                            <FileCheck size={16} style={{ color: att.isAct ? '#22c55e' : 'var(--accent-primary)', flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {att.fileName}
+                            </span>
+                            {att.isAct && (
+                              <span style={{
+                                fontSize: '0.7rem',
+                                background: 'rgba(34, 197, 94, 0.18)',
+                                color: '#4ade80',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 600,
+                                flexShrink: 0
+                              }}>
+                                Акт
+                              </span>
+                            )}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            {canPreview && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAttachment(att)}
+                                className="btn btn-ghost"
+                                style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                title="Посмотреть в браузере"
+                              >
+                                <Eye size={14} /> <span>Просмотр</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadAttachment(att)}
+                              className="btn btn-ghost"
+                              style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              title="Скачать файл"
+                            >
+                              <Download size={14} /> <span>Скачать</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

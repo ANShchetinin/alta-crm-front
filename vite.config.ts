@@ -47,6 +47,11 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.VITE_APP_VERSION || (process.env.npm_package_version ? `v${process.env.npm_package_version}` : 'v1.0.0')),
   },
+  build: {
+    modulePreload: {
+      polyfill: false,
+    },
+  },
   server: {
     proxy: {
       '/api': {

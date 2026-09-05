@@ -12,7 +12,8 @@ vi.mock('../api/kanban', () => ({
   updateOrder: vi.fn(),
   deleteOrder: vi.fn(),
   downloadContractDocx: vi.fn(),
-  downloadContractPdf: vi.fn()
+  downloadContractPdf: vi.fn(),
+  fetchAttachmentBlob: vi.fn()
 }));
 
 vi.mock('../api/clients', () => ({
@@ -67,6 +68,10 @@ describe('Archive Page Component', () => {
       createdAt: '2026-01-10T10:00:00Z',
       isArchived: true,
       description: 'Монтаж натяжного потолка в гостиной',
+      attachments: [
+        { id: 501, fileName: 'Акт_приема_передачи.pdf', contentType: 'application/pdf', isAct: true },
+        { id: 502, fileName: 'Смета_чертеж.jpg', contentType: 'image/jpeg', isAct: false }
+      ],
       contractParams: {
         specItems: [
           { idx: 1, name: 'Полотно MSD Premium (Гостиная)', quantity: '20', unit: 'м²', price: 1000, total: 20000 },
@@ -259,6 +264,48 @@ describe('Archive Page Component', () => {
     await waitFor(() => {
       expect(screen.getByText('Заявка А0102_2')).toBeInTheDocument();
       expect(screen.getByText('Данные клиента')).toBeInTheDocument();
+    });
+  });
+
+  it('previews and downloads attachments in detail modal', async () => {
+    const fakeBlob = new Blob(['attachment content'], { type: 'application/pdf' });
+    (kanbanApi.fetchAttachmentBlob as any).mockResolvedValue(fakeBlob);
+    window.open = vi.fn();
+    window.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/att-url');
+    window.URL.revokeObjectURL = vi.fn();
+
+    render(<Archive />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
+    });
+
+    const row = screen.getAllByText('А0101_1')[0].closest('tr');
+    fireEvent.click(row!);
+
+    await waitFor(() => {
+      expect(screen.getByText('Прикрепленные документы (2)')).toBeInTheDocument();
+      expect(screen.getByText('Акт_приема_передачи.pdf')).toBeInTheDocument();
+      expect(screen.getByText('Смета_чертеж.jpg')).toBeInTheDocument();
+    });
+
+    // Preview
+    const previewButtons = screen.getAllByTitle('Посмотреть в браузере');
+    expect(previewButtons.length).toBeGreaterThanOrEqual(2);
+    fireEvent.click(previewButtons[0]);
+
+    await waitFor(() => {
+      expect(kanbanApi.fetchAttachmentBlob).toHaveBeenCalledWith(501, false);
+      expect(window.open).toHaveBeenCalledWith('blob:http://localhost/att-url', '_blank');
+    });
+
+    // Download
+    const downloadButtons = screen.getAllByTitle('Скачать файл');
+    expect(downloadButtons.length).toBeGreaterThanOrEqual(2);
+    fireEvent.click(downloadButtons[1]);
+
+    await waitFor(() => {
+      expect(kanbanApi.fetchAttachmentBlob).toHaveBeenCalledWith(502, true);
     });
   });
 });

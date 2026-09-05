@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import i18n from '../i18n';
 import { getLowStockMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
+import { getCurrentTenant, type TenantDto } from '../api/settings';
 
 type Theme = 'dark' | 'light';
 type Language = 'en' | 'ru';
@@ -15,9 +16,9 @@ interface AppState {
   setLanguage: (lang: Language) => void;
   setNewOrdersCount: (count: number) => void;
   fetchLowStockMaterials: () => Promise<void>;
-  tenantSettings: import('../api/settings').TenantDto | null;
+  tenantSettings: TenantDto | null;
   fetchTenantSettings: () => Promise<void>;
-  updateTenantSettingsLocally: (settings: Partial<import('../api/settings').TenantDto>) => void;
+  updateTenantSettingsLocally: (settings: Partial<TenantDto>) => void;
 }
 
 const getInitialTheme = (): Theme => {
@@ -64,7 +65,6 @@ export const useAppStore = create<AppState>((set) => ({
   
   fetchTenantSettings: async () => {
     try {
-      const { getCurrentTenant } = await import('../api/settings');
       const tenant = await getCurrentTenant();
       set({ tenantSettings: tenant });
     } catch (err) {
