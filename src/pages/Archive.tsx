@@ -79,6 +79,17 @@ export const Archive = () => {
   const [orderMeasurement, setOrderMeasurement] = useState<MeasurementDto | null>(null);
   const [loadingMeasurement, setLoadingMeasurement] = useState(false);
 
+  // File In-App Preview State
+  const [previewAttachment, setPreviewAttachment] = useState<{
+    url: string;
+    fileName: string;
+    contentType?: string;
+    isImage: boolean;
+    isPdf: boolean;
+    attachment: OrderAttachment;
+  } | null>(null);
+  const [openingAttachmentId, setOpeningAttachmentId] = useState<number | null>(null);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -348,13 +359,35 @@ export const Archive = () => {
 
   const handleOpenAttachment = async (att: OrderAttachment) => {
     try {
+      setOpeningAttachmentId(att.id);
       const blob = await fetchAttachmentBlob(att.id, false);
       const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      const name = att.fileName.toLowerCase();
+      const type = (att.contentType || blob.type || '').toLowerCase();
+      const isImage = type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(name);
+      const isPdf = type.includes('pdf') || /\.pdf$/i.test(name);
+
+      setPreviewAttachment({
+        url,
+        fileName: att.fileName,
+        contentType: att.contentType,
+        isImage,
+        isPdf,
+        attachment: att
+      });
     } catch (err) {
       console.error("Failed to open attachment", err);
       alert("Не удалось открыть файл");
+    } finally {
+      setOpeningAttachmentId(null);
     }
+  };
+
+  const handleClosePreviewAttachment = () => {
+    if (previewAttachment?.url) {
+      URL.revokeObjectURL(previewAttachment.url);
+    }
+    setPreviewAttachment(null);
   };
 
   const handleDownloadAttachment = async (att: OrderAttachment) => {
@@ -1559,26 +1592,29 @@ export const Archive = () => {
                               </span>
                             )}
                           </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                             {canPreview && (
                               <button
                                 type="button"
                                 onClick={() => handleOpenAttachment(att)}
-                                className="btn btn-ghost"
-                                style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                title="Посмотреть в браузере"
+                                className="btn-icon"
+                                disabled={openingAttachmentId === att.id}
+                                style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                title="Просмотреть"
+                                aria-label="Просмотреть файл"
                               >
-                                <Eye size={14} /> <span>Просмотр</span>
+                                <Eye size={16} />
                               </button>
                             )}
                             <button
                               type="button"
                               onClick={() => handleDownloadAttachment(att)}
-                              className="btn btn-ghost"
-                              style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                              title="Скачать файл"
+                              className="btn-icon"
+                              style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              title="Скачать"
+                              aria-label="Скачать файл"
                             >
-                              <Download size={14} /> <span>Скачать</span>
+                              <Download size={16} />
                             </button>
                           </div>
                         </div>
@@ -1669,6 +1705,121 @@ export const Archive = () => {
               <button type="button" className="btn btn-primary" onClick={handleCloseDetail}>
                 Закрыть
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* In-App File Preview Modal (works 100% in iOS PWA / Android / Web without popup blocker) */}
+      {previewAttachment && (
+        <div 
+          className="modal-overlay" 
+          onClick={handleClosePreviewAttachment}
+          style={{ zIndex: 10020, background: 'rgba(0, 0, 0, 0.85)' }}
+        >
+          <div 
+            className="modal-content animate-scale-up" 
+            style={{ 
+              maxWidth: '920px', 
+              width: '95vw',
+              maxHeight: '92vh', 
+              display: 'flex',
+              flexDirection: 'column',
+              padding: 0,
+              overflow: 'hidden',
+              background: 'var(--bg-secondary, #1e293b)',
+              border: '1px solid var(--glass-border)',
+              borderRadius: 'var(--radius-lg, 16px)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Preview Modal Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 18px',
+              borderBottom: '1px solid var(--glass-border)',
+              background: 'rgba(255, 255, 255, 0.03)',
+              flexShrink: 0
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, paddingRight: '12px' }}>
+                <FileCheck size={18} style={{ color: previewAttachment.attachment.isAct ? '#22c55e' : 'var(--accent-primary)', flexShrink: 0 }} />
+                <span style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {previewAttachment.fileName}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => handleDownloadAttachment(previewAttachment.attachment)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '0.8rem' }}
+                  title="Скачать файл"
+                >
+                  <Download size={15} /> <span>Скачать</span>
+                </button>
+                <button 
+                  type="button" 
+                  className="btn-icon" 
+                  onClick={handleClosePreviewAttachment}
+                  title="Закрыть просмотр"
+                  aria-label="Закрыть просмотр"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Preview Modal Body */}
+            <div style={{
+              flex: 1,
+              overflow: 'auto',
+              padding: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(0, 0, 0, 0.3)',
+              minHeight: '260px'
+            }}>
+              {previewAttachment.isImage ? (
+                <img 
+                  src={previewAttachment.url} 
+                  alt={previewAttachment.fileName} 
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '76vh',
+                    objectFit: 'contain',
+                    borderRadius: '8px',
+                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)'
+                  }} 
+                />
+              ) : previewAttachment.isPdf ? (
+                <iframe 
+                  src={previewAttachment.url} 
+                  title={previewAttachment.fileName}
+                  style={{
+                    width: '100%',
+                    height: '76vh',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: '#ffffff'
+                  }}
+                />
+              ) : (
+                <iframe 
+                  src={previewAttachment.url} 
+                  title={previewAttachment.fileName}
+                  style={{
+                    width: '100%',
+                    height: '76vh',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: 'var(--input-bg, #ffffff)'
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>

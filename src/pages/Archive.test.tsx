@@ -289,18 +289,21 @@ describe('Archive Page Component', () => {
       expect(screen.getByText('Смета_чертеж.jpg')).toBeInTheDocument();
     });
 
-    // Preview
-    const previewButtons = screen.getAllByTitle('Посмотреть в браузере');
+    // In-App Preview
+    const previewButtons = screen.getAllByTitle('Просмотреть');
     expect(previewButtons.length).toBeGreaterThanOrEqual(2);
     fireEvent.click(previewButtons[0]);
 
     await waitFor(() => {
       expect(kanbanApi.fetchAttachmentBlob).toHaveBeenCalledWith(501, false);
-      expect(window.open).toHaveBeenCalledWith('blob:http://localhost/att-url', '_blank');
+      expect(screen.getByTitle('Закрыть просмотр')).toBeInTheDocument();
     });
 
+    // Close preview modal
+    fireEvent.click(screen.getByTitle('Закрыть просмотр'));
+
     // Download
-    const downloadButtons = screen.getAllByTitle('Скачать файл');
+    const downloadButtons = screen.getAllByTitle('Скачать');
     expect(downloadButtons.length).toBeGreaterThanOrEqual(2);
     fireEvent.click(downloadButtons[1]);
 
