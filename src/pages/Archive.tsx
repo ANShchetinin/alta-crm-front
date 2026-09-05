@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Archive as ArchiveIcon, 
   Search, 
@@ -1180,7 +1181,7 @@ export const Archive = () => {
       )}
 
       {/* Detail & Quick View Modal */}
-      {isDetailModalOpen && selectedOrder && (
+      {isDetailModalOpen && selectedOrder && createPortal(
         <div className="modal-overlay" onClick={handleCloseDetail}>
           <div 
             className="modal-content animate-scale-up" 
@@ -1722,11 +1723,12 @@ export const Archive = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* In-App File Preview Modal (works 100% in iOS PWA / Android / Web without popup blocker) */}
-      {previewAttachment && (
+      {previewAttachment && createPortal(
         <div 
           className="archive-preview-overlay animate-fade-in" 
           onClick={handleClosePreviewAttachment}
@@ -1853,7 +1855,8 @@ export const Archive = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
