@@ -5,6 +5,7 @@ import {
   ArrowUpDown, 
   ArrowUp, 
   ArrowDown, 
+  ArrowLeft,
   Building2, 
   Phone, 
   MapPin, 
@@ -389,6 +390,20 @@ export const Archive = () => {
     }
     setPreviewAttachment(null);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (previewAttachment) {
+          handleClosePreviewAttachment();
+        } else if (isDetailModalOpen) {
+          handleCloseDetail();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewAttachment, isDetailModalOpen]);
 
   const handleDownloadAttachment = async (att: OrderAttachment) => {
     try {
@@ -1713,50 +1728,44 @@ export const Archive = () => {
       {/* In-App File Preview Modal (works 100% in iOS PWA / Android / Web without popup blocker) */}
       {previewAttachment && (
         <div 
-          className="modal-overlay" 
+          className="archive-preview-overlay animate-fade-in" 
           onClick={handleClosePreviewAttachment}
-          style={{ zIndex: 10020, background: 'rgba(0, 0, 0, 0.85)' }}
         >
           <div 
-            className="modal-content animate-scale-up" 
-            style={{ 
-              maxWidth: '920px', 
-              width: '95vw',
-              maxHeight: '92vh', 
-              display: 'flex',
-              flexDirection: 'column',
-              padding: 0,
-              overflow: 'hidden',
-              background: 'var(--bg-secondary, #1e293b)',
-              border: '1px solid var(--glass-border)',
-              borderRadius: 'var(--radius-lg, 16px)',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-            }}
+            className="archive-preview-content animate-scale-up" 
             onClick={e => e.stopPropagation()}
           >
             {/* Preview Modal Header */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 18px',
-              borderBottom: '1px solid var(--glass-border)',
-              background: 'rgba(255, 255, 255, 0.03)',
-              flexShrink: 0
-            }}>
+            <div className="archive-preview-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, paddingRight: '12px' }}>
-                <FileCheck size={18} style={{ color: previewAttachment.attachment.isAct ? '#22c55e' : 'var(--accent-primary)', flexShrink: 0 }} />
-                <span style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {previewAttachment.fileName}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                 <button
                   type="button"
                   className="btn btn-secondary"
+                  onClick={handleClosePreviewAttachment}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', fontSize: '0.84rem', flexShrink: 0 }}
+                  title="Вернуться назад в заявку"
+                  aria-label="Вернуться назад в заявку"
+                >
+                  <ArrowLeft size={16} />
+                  <span>Назад</span>
+                </button>
+                <FileCheck size={18} style={{ color: previewAttachment.attachment.isAct ? '#22c55e' : 'var(--accent-primary)', flexShrink: 0, marginLeft: '4px' }} />
+                <span 
+                  style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  title={previewAttachment.fileName}
+                >
+                  {previewAttachment.fileName}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
                   onClick={() => handleDownloadAttachment(previewAttachment.attachment)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '0.8rem' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', fontSize: '0.84rem' }}
                   title="Скачать файл"
+                  aria-label="Скачать файл"
                 >
                   <Download size={15} /> <span>Скачать</span>
                 </button>
@@ -1766,6 +1775,7 @@ export const Archive = () => {
                   onClick={handleClosePreviewAttachment}
                   title="Закрыть просмотр"
                   aria-label="Закрыть просмотр"
+                  style={{ width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   <X size={20} />
                 </button>
@@ -1773,23 +1783,14 @@ export const Archive = () => {
             </div>
 
             {/* Preview Modal Body */}
-            <div style={{
-              flex: 1,
-              overflow: 'auto',
-              padding: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(0, 0, 0, 0.3)',
-              minHeight: '260px'
-            }}>
+            <div className="archive-preview-body">
               {previewAttachment.isImage ? (
                 <img 
                   src={previewAttachment.url} 
                   alt={previewAttachment.fileName} 
                   style={{
                     maxWidth: '100%',
-                    maxHeight: '76vh',
+                    maxHeight: '100%',
                     objectFit: 'contain',
                     borderRadius: '8px',
                     boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)'
@@ -1801,7 +1802,7 @@ export const Archive = () => {
                   type="application/pdf"
                   style={{
                     width: '100%',
-                    height: '76vh',
+                    height: '100%',
                     border: 'none',
                     borderRadius: '8px',
                     background: '#ffffff'
@@ -1812,7 +1813,7 @@ export const Archive = () => {
                     title={previewAttachment.fileName}
                     style={{
                       width: '100%',
-                      height: '76vh',
+                      height: '100%',
                       border: 'none',
                       borderRadius: '8px',
                       background: '#ffffff'
@@ -1843,7 +1844,7 @@ export const Archive = () => {
                   title={previewAttachment.fileName}
                   style={{
                     width: '100%',
-                    height: '76vh',
+                    height: '100%',
                     border: 'none',
                     borderRadius: '8px',
                     background: 'var(--input-bg, #ffffff)'
