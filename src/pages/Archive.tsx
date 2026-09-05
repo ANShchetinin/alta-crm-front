@@ -1796,9 +1796,9 @@ export const Archive = () => {
                   }} 
                 />
               ) : previewAttachment.isPdf ? (
-                <iframe 
-                  src={previewAttachment.url} 
-                  title={previewAttachment.fileName}
+                <object 
+                  data={previewAttachment.url} 
+                  type="application/pdf"
                   style={{
                     width: '100%',
                     height: '76vh',
@@ -1806,7 +1806,37 @@ export const Archive = () => {
                     borderRadius: '8px',
                     background: '#ffffff'
                   }}
-                />
+                >
+                  <iframe 
+                    src={previewAttachment.url} 
+                    title={previewAttachment.fileName}
+                    style={{
+                      width: '100%',
+                      height: '76vh',
+                      border: 'none',
+                      borderRadius: '8px',
+                      background: '#ffffff'
+                    }}
+                  >
+                    <div style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      <FileCheck size={48} style={{ color: 'var(--accent-primary)', marginBottom: '12px' }} />
+                      <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                        {previewAttachment.fileName}
+                      </div>
+                      <p style={{ fontSize: '0.85rem', marginBottom: '16px' }}>
+                        В вашем мобильном браузере встроенный просмотр PDF ограничен. Нажмите кнопку ниже, чтобы открыть или сохранить файл.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => handleDownloadAttachment(previewAttachment.attachment)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <Download size={16} /> Скачать и открыть PDF
+                      </button>
+                    </div>
+                  </iframe>
+                </object>
               ) : (
                 <iframe 
                   src={previewAttachment.url} 
