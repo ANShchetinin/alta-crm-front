@@ -184,6 +184,26 @@
   gap: 8px;
 }
 
+.topbar-actions .btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-md, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-normal, 0.2s ease);
+}
+
+.topbar-actions .btn-icon:hover {
+  background: var(--row-hover-bg, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary);
+}
+
 .notifications-dropdown {
   position: absolute;
   top: 100%;
