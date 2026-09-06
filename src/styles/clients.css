@@ -1205,6 +1205,27 @@ select.search-input option {
     padding: 12px !important;
     padding-bottom: max(20px, calc(env(safe-area-inset-bottom, 0px) + 16px)) !important;
   }
+
+  .archive-preview-zoom-toolbar {
+    bottom: max(20px, calc(env(safe-area-inset-bottom, 0px) + 16px)) !important;
+  }
+}
+
+.archive-preview-zoom-toolbar button {
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast, 0.15s ease);
+}
+
+.archive-preview-zoom-toolbar button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.archive-preview-zoom-toolbar button:disabled {
+  cursor: not-allowed;
 }
 
 

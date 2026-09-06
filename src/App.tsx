@@ -126,7 +126,9 @@ function App() {
 
   useEffect(() => {
     const isLight = theme === 'light';
-    const themeColor = isLight ? '#f8fafc' : '#0f172a';
+    const themeColor = isLight ? '#ffffff' : '#0f172a';
+
+    document.documentElement.style.colorScheme = isLight ? 'light' : 'dark';
 
     if (isLight) {
       document.body.classList.add('light-theme');
