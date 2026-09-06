@@ -129,6 +129,8 @@ function App() {
     const themeColor = isLight ? '#ffffff' : '#0f172a';
 
     document.documentElement.style.colorScheme = isLight ? 'light' : 'dark';
+    document.documentElement.style.backgroundColor = themeColor;
+    document.body.style.backgroundColor = themeColor;
 
     if (isLight) {
       document.body.classList.add('light-theme');
@@ -138,14 +140,13 @@ function App() {
       document.documentElement.classList.remove('light-theme');
     }
 
-    // Update <meta name="theme-color"> for Android status bar
-    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (!metaThemeColor) {
-      metaThemeColor = document.createElement('meta');
-      metaThemeColor.setAttribute('name', 'theme-color');
-      document.head.appendChild(metaThemeColor);
-    }
-    metaThemeColor.setAttribute('content', themeColor);
+    // Force Android Chrome / Samsung Internet status bar update by replacing meta tag
+    document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.remove());
+    const metaThemeColor = document.createElement('meta');
+    metaThemeColor.name = 'theme-color';
+    metaThemeColor.content = themeColor;
+    metaThemeColor.id = 'theme-color-meta';
+    document.head.appendChild(metaThemeColor);
 
     // Update Apple mobile status bar style
     let appleStatusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');

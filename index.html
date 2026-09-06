@@ -21,14 +21,24 @@
         try {
           var theme = localStorage.getItem('altacrm_theme') || 'dark';
           var isLight = theme === 'light';
+          var themeColor = isLight ? '#ffffff' : '#0f172a';
           document.documentElement.style.colorScheme = isLight ? 'light' : 'dark';
+          document.documentElement.style.backgroundColor = themeColor;
           if (isLight) {
             document.documentElement.classList.add('light-theme');
-            var metaTheme = document.getElementById('theme-color-meta');
-            if (metaTheme) metaTheme.setAttribute('content', '#ffffff');
-            var appleBar = document.getElementById('apple-status-bar');
-            if (appleBar) appleBar.setAttribute('content', 'default');
+          } else {
+            document.documentElement.classList.remove('light-theme');
           }
+          var metas = document.querySelectorAll('meta[name="theme-color"]');
+          metas.forEach(function(m) { m.remove(); });
+          var newMeta = document.createElement('meta');
+          newMeta.name = 'theme-color';
+          newMeta.content = themeColor;
+          newMeta.id = 'theme-color-meta';
+          document.head.appendChild(newMeta);
+          
+          var appleBar = document.getElementById('apple-status-bar');
+          if (appleBar) appleBar.setAttribute('content', isLight ? 'default' : 'black-translucent');
         } catch (e) {}
       })();
     </script>
