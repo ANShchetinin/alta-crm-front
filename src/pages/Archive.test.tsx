@@ -311,4 +311,51 @@ describe('Archive Page Component', () => {
       expect(kanbanApi.fetchAttachmentBlob).toHaveBeenCalledWith(502, true);
     });
   });
+
+  it('supports zoom, rotate, and reset for image attachment preview', async () => {
+    const fakeImgBlob = new Blob(['img content'], { type: 'image/jpeg' });
+    (kanbanApi.fetchAttachmentBlob as any).mockResolvedValue(fakeImgBlob);
+    window.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/img-url');
+    window.URL.revokeObjectURL = vi.fn();
+
+    render(<Archive />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
+    });
+
+    const row = screen.getAllByText('А0101_1')[0].closest('tr');
+    fireEvent.click(row!);
+
+    await waitFor(() => {
+      expect(screen.getByText('Смета_чертеж.jpg')).toBeInTheDocument();
+    });
+
+    // Click preview on the second attachment (jpg image)
+    const previewButtons = screen.getAllByTitle('Просмотреть');
+    fireEvent.click(previewButtons[1]);
+
+    await waitFor(() => {
+      expect(screen.getByAltText('Смета_чертеж.jpg')).toBeInTheDocument();
+      expect(screen.getByText('100%')).toBeInTheDocument();
+    });
+
+    // Zoom in
+    const zoomInBtn = screen.getByTitle('Увеличить масштаб');
+    fireEvent.click(zoomInBtn);
+    expect(screen.getByText('150%')).toBeInTheDocument();
+
+    // Rotate
+    const rotateBtn = screen.getByTitle('Повернуть на 90°');
+    fireEvent.click(rotateBtn);
+
+    // Reset
+    const resetBtn = screen.getByTitle('Сбросить масштаб к 100%');
+    fireEvent.click(resetBtn);
+    expect(screen.getByText('100%')).toBeInTheDocument();
+
+    // Close preview with back button
+    const backBtn = screen.getByTitle('Вернуться назад в заявку');
+    fireEvent.click(backBtn);
+  });
 });
