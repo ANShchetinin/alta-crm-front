@@ -126,7 +126,6 @@ function App() {
 
   useEffect(() => {
     const isLight = theme === 'light';
-    const themeColor = isLight ? '#f8fafc' : '#0f172a';
 
     if (isLight) {
       document.body.classList.add('light-theme');
@@ -136,19 +135,19 @@ function App() {
       document.documentElement.classList.remove('light-theme');
     }
 
-    // Update <meta name="theme-color"> for Android status bar
+    // Keep <meta name="theme-color"> as dark (#0f172a) so Android/Samsung status bar always renders visible white icons
     let metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (!metaThemeColor) {
       metaThemeColor = document.createElement('meta');
       metaThemeColor.setAttribute('name', 'theme-color');
       document.head.appendChild(metaThemeColor);
     }
-    metaThemeColor.setAttribute('content', themeColor);
+    metaThemeColor.setAttribute('content', '#0f172a');
 
-    // Update Apple mobile status bar style
+    // Apple mobile status bar style
     let appleStatusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
     if (appleStatusBar) {
-      appleStatusBar.setAttribute('content', isLight ? 'default' : 'black-translucent');
+      appleStatusBar.setAttribute('content', 'black-translucent');
     }
   }, [theme]);
 
