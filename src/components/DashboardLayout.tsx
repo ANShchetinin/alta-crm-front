@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, Archive, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, Archive, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -24,12 +24,43 @@ const DashboardLayout = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('altacrm_sidebar_collapsed') === 'true';
+  });
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [canViewFinances, setCanViewFinances] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>('User');
   const [userEmail, setUserEmail] = useState<string>('');
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('altacrm_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
+
+  const getRouteTitle = () => {
+    const path = location.pathname;
+    if (path.startsWith('/kanban')) return { title: t('nav.orders') || 'Заявки', icon: LayoutDashboard };
+    if (path.startsWith('/calendar')) return { title: t('nav.calendar') || 'Календарь', icon: CalendarDays };
+    if (path.startsWith('/measurements')) return { title: 'Замеры', icon: Ruler };
+    if (path.startsWith('/earnings')) return { title: 'Мой заработок', icon: Wallet };
+    if (path.startsWith('/clients')) return { title: t('nav.clients') || 'Клиенты', icon: Users };
+    if (path.startsWith('/employees')) return { title: t('nav.employees') || 'Сотрудники', icon: UserCircle };
+    if (path.startsWith('/storage')) return { title: t('nav.storage') || 'Склад', icon: Box };
+    if (path.startsWith('/archive')) return { title: t('nav.archive') || 'Архив', icon: Archive };
+    if (path.startsWith('/finances')) return { title: t('nav.finances') || 'Финансы', icon: Wallet };
+    if (path.startsWith('/reports')) return { title: t('nav.reports') || 'Отчеты', icon: PieChart };
+    if (path.startsWith('/site-analytics')) return { title: t('nav.siteAnalytics') || 'Аналитика сайта', icon: TrendingUp };
+    if (path.startsWith('/contract-templates')) return { title: 'Шаблоны договоров', icon: FileText };
+    if (path.startsWith('/settings')) return { title: t('nav.settings') || 'Настройки', icon: Settings };
+    if (path.startsWith('/tenants')) return { title: 'Компании', icon: Building2 };
+    if (path.startsWith('/feature-flags')) return { title: 'Feature Flags', icon: Sliders };
+    return { title: 'Alta CRM', icon: LayoutDashboard };
+  };
 
   // Multi-Company State
   const [myTenantsData, setMyTenantsData] = useState<MyTenantsResponse | null>(null);
@@ -273,12 +304,12 @@ const DashboardLayout = () => {
         />
       )}
 
-      {/* Glass Sidebar / Mobile Drawer */}
-      <aside className={`sidebar glass-panel ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
+      {/* Sidebar / Mobile Drawer */}
+      <aside className={`sidebar ${isSidebarCollapsed ? 'sidebar-collapsed' : ''} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header" style={{ position: 'relative' }}>
           {role === 'SUPERADMIN' ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 8px', flex: 1 }}>
-              <img src="/logo.png" alt="Alta CRM" style={{ width: 32, height: 32, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
+              <img src="/logo.png" alt="Alta CRM" style={{ width: 30, height: 30, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h2 style={{ fontSize: '1.05rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   AltaCRM
@@ -296,11 +327,12 @@ const DashboardLayout = () => {
                 gap: '10px', 
                 flex: 1, 
                 cursor: ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) ? 'pointer' : 'default',
-                padding: '6px 8px',
-                borderRadius: 'var(--radius-md)',
-                transition: 'background 0.2s ease',
+                padding: '4px 6px',
+                borderRadius: 'var(--radius-sm, 8px)',
+                transition: 'background 0.15s ease',
                 userSelect: 'none',
-                background: isCompanyDropdownOpen ? 'rgba(255, 255, 255, 0.05)' : 'transparent'
+                background: isCompanyDropdownOpen ? 'var(--row-hover-bg, rgba(0, 0, 0, 0.05))' : 'transparent',
+                minWidth: 0
               }}
               onClick={() => {
                 if ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) {
@@ -310,12 +342,12 @@ const DashboardLayout = () => {
               className="company-switcher-trigger"
             >
               {tenantSettings?.logoUrl ? (
-                <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
+                <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 30, height: 30, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
               ) : (
-                <img src="/logo.png" alt="Alta CRM" style={{ width: 32, height: 32, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
+                <img src="/logo.png" alt="Alta CRM" style={{ width: 30, height: 30, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <h2 style={{ fontSize: '1.05rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <h2 style={{ fontSize: '0.98rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {tenantSettings?.name || t('app.name')}
                 </h2>
                 {myTenantsData?.tenants && myTenantsData.tenants.length > 1 && (
@@ -326,7 +358,7 @@ const DashboardLayout = () => {
               </div>
               {((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) && (
                 <ChevronDown 
-                  size={16} 
+                  size={15} 
                   style={{ 
                     color: 'var(--text-secondary)', 
                     transition: 'transform 0.2s ease', 
@@ -337,12 +369,22 @@ const DashboardLayout = () => {
               )}
             </div>
           )}
+
+          <button
+            type="button"
+            className="sidebar-toggle-btn"
+            onClick={toggleSidebar}
+            title={isSidebarCollapsed ? 'Развернуть меню' : 'Свернуть меню'}
+          >
+            {isSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          </button>
+
           <button 
             className="btn-icon mobile-close-btn" 
             onClick={() => setIsMobileMenuOpen(false)}
             aria-label="Close menu"
           >
-            <X size={22} />
+            <X size={20} />
           </button>
 
           {/* Company Switcher Dropdown */}
@@ -565,24 +607,28 @@ const DashboardLayout = () => {
 
       {/* Main Content Area */}
       <main className="main-content">
-        <header className="topbar glass-panel">
+        <header className="topbar">
           <div className="topbar-left">
             <button 
               className="btn-icon mobile-menu-btn" 
               onClick={() => setIsMobileMenuOpen(true)}
               aria-label="Open menu"
             >
-              <Menu size={22} />
+              <Menu size={20} />
             </button>
+            <div className="topbar-title-badge">
+              {(() => {
+                const active = getRouteTitle();
+                const Icon = active.icon;
+                return (
+                  <>
+                    <Icon size={18} style={{ color: 'var(--accent-primary, #2563eb)' }} />
+                    <span>{active.title}</span>
+                  </>
+                );
+              })()}
+            </div>
             <div className="topbar-search">
-              <span className="topbar-date">
-                {currentTime.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', {
-                  timeZone: tenantSettings?.timezone || undefined,
-                  weekday: 'short', 
-                  day: 'numeric', 
-                  month: 'short'
-                })}
-              </span>
               <span className="topbar-divider">|</span>
               <span className="topbar-time">
                 {currentTime.toLocaleTimeString(language === 'ru' ? 'ru-RU' : 'en-US', {
@@ -595,6 +641,34 @@ const DashboardLayout = () => {
           </div>
           
           <div className="topbar-actions">
+            {role !== 'SUPERADMIN' && (
+              <button 
+                type="button" 
+                className="topbar-new-order-btn"
+                onClick={() => {
+                  if (location.pathname === '/kanban') {
+                    window.dispatchEvent(new CustomEvent('alta:open-create-order'));
+                  } else {
+                    navigate('/kanban?create=true');
+                  }
+                }}
+                title="Создать новую заявку"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '0 12px',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  borderRadius: 'var(--radius-sm, 6px)',
+                  height: '32px'
+                }}
+              >
+                <Plus size={15} />
+                <span className="hidden sm:inline">Новая заявка</span>
+              </button>
+            )}
+
             {!isStandalone && (
               <button 
                 type="button" 
@@ -608,7 +682,7 @@ const DashboardLayout = () => {
             )}
             <button className="btn-icon" onClick={toggleLanguage} title="Change Language">
               <Globe size={18} /> 
-              <span style={{marginLeft: '4px', fontSize: '0.75rem', fontWeight: 'bold'}}>{language.toUpperCase()}</span>
+              <span style={{marginLeft: '2px', fontSize: '0.72rem', fontWeight: 'bold'}}>{language.toUpperCase()}</span>
             </button>
             <button className="btn-icon" onClick={toggleTheme} title="Toggle Theme">
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -622,9 +696,7 @@ const DashboardLayout = () => {
               >
                 <Bell size={18} />
                 {totalUnreadBadge > 0 && (
-                  <span className="notification-badge">
-                    {totalUnreadBadge}
-                  </span>
+                  <span className="notification-badge" />
                 )}
               </button>
               {showNotifications && (
@@ -762,43 +834,56 @@ const DashboardLayout = () => {
 
       {/* Mobile Bottom Navigation Bar */}
       {role === 'WORKER' && (
-        <nav className="mobile-bottom-nav glass-panel">
-          <NavLink to="/kanban" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} style={{ flex: 1 }}>
+        <nav className="mobile-bottom-nav">
+          <NavLink to="/kanban" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <LayoutDashboard size={20} />
             </div>
-            <span>{t('nav.orders') || 'Мои заявки'}</span>
+            <span>{t('nav.orders') || 'Заявки'}</span>
           </NavLink>
-          {hasCalendar && (
-            <NavLink to="/calendar" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} style={{ flex: 1 }}>
+          {hasMeasurementCalculator && (
+            <NavLink to="/measurements" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+              <div className="bottom-nav-icon-wrapper">
+                <Ruler size={20} />
+              </div>
+              <span>Замеры</span>
+            </NavLink>
+          )}
+          {hasCalendar && !hasMeasurementCalculator && (
+            <NavLink to="/calendar" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
               <div className="bottom-nav-icon-wrapper">
                 <CalendarDays size={20} />
               </div>
               <span>Календарь</span>
             </NavLink>
           )}
-          <NavLink to="/earnings" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} style={{ flex: 1 }}>
+          <NavLink to="/earnings" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <Wallet size={20} />
             </div>
             <span>Заработок</span>
           </NavLink>
+          <NavLink to="/archive" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <div className="bottom-nav-icon-wrapper">
+              <Archive size={20} />
+            </div>
+            <span>Архив</span>
+          </NavLink>
           <button 
             type="button" 
-            className="bottom-nav-item"
-            style={{ flex: 1 }}
-            onClick={() => setIsProfileModalOpen(true)}
+            className={`bottom-nav-item ${isMobileMenuOpen ? 'active' : ''}`}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             <div className="bottom-nav-icon-wrapper">
-              <Bell size={20} />
+              <Menu size={20} />
             </div>
-            <span>Профиль</span>
+            <span>Меню</span>
           </button>
         </nav>
       )}
 
       {role !== 'SUPERADMIN' && role !== 'WORKER' && (
-        <nav className="mobile-bottom-nav glass-panel">
+        <nav className="mobile-bottom-nav">
           <NavLink to="/kanban" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <LayoutDashboard size={20} />
@@ -807,28 +892,77 @@ const DashboardLayout = () => {
             <span>{t('nav.orders')}</span>
           </NavLink>
           <NavLink to="/clients" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
-            <Users size={20} />
+            <div className="bottom-nav-icon-wrapper">
+              <Users size={20} />
+            </div>
             <span>{t('nav.clients')}</span>
           </NavLink>
-          {hasStorage && (
+          {hasFinances && (role === 'OWNER' || (role === 'MANAGER' && canViewFinances)) ? (
+            <NavLink to="/finances" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+              <div className="bottom-nav-icon-wrapper">
+                <Wallet size={20} />
+              </div>
+              <span>Финансы</span>
+            </NavLink>
+          ) : hasStorage ? (
             <NavLink to="/storage" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
-              <Box size={20} />
+              <div className="bottom-nav-icon-wrapper">
+                <Box size={20} />
+              </div>
               <span>{t('nav.storage')}</span>
             </NavLink>
-          )}
-          {hasReports && (
+          ) : null}
+          {hasCalendar ? (
+            <NavLink to="/calendar" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+              <div className="bottom-nav-icon-wrapper">
+                <CalendarDays size={20} />
+              </div>
+              <span>{t('nav.calendar') || 'Календарь'}</span>
+            </NavLink>
+          ) : hasReports ? (
             <NavLink to="/reports" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
-              <PieChart size={20} />
+              <div className="bottom-nav-icon-wrapper">
+                <PieChart size={20} />
+              </div>
               <span>{t('nav.reports') || 'Отчеты'}</span>
             </NavLink>
-          )}
+          ) : null}
           <button 
             type="button" 
             className={`bottom-nav-item ${isMobileMenuOpen ? 'active' : ''}`}
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            <Menu size={20} />
+            <div className="bottom-nav-icon-wrapper">
+              <Menu size={20} />
+            </div>
             <span>{t('nav.more') || 'Еще'}</span>
+          </button>
+        </nav>
+      )}
+
+      {role === 'SUPERADMIN' && (
+        <nav className="mobile-bottom-nav">
+          <NavLink to="/tenants" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <div className="bottom-nav-icon-wrapper">
+              <Building2 size={20} />
+            </div>
+            <span>Компании</span>
+          </NavLink>
+          <NavLink to="/feature-flags" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <div className="bottom-nav-icon-wrapper">
+              <Sliders size={20} />
+            </div>
+            <span>Flags</span>
+          </NavLink>
+          <button 
+            type="button" 
+            className={`bottom-nav-item ${isMobileMenuOpen ? 'active' : ''}`}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            <div className="bottom-nav-icon-wrapper">
+              <Menu size={20} />
+            </div>
+            <span>Меню</span>
           </button>
         </nav>
       )}

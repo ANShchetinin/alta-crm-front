@@ -647,6 +647,35 @@
   display: none;
 }
 
+/* Order Slide-Over Drawer */
+.order-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  z-index: 10005;
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.order-drawer-content {
+  background: var(--bg-secondary, #ffffff);
+  border-left: 1px solid var(--glass-border, #e2e8f0);
+  width: 100%;
+  max-width: 720px;
+  height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.2);
+  animation: sheetSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
 /* DaData dark theme overrides */
 .react-dadata__suggestions {
   background-color: var(--bg-secondary) !important;

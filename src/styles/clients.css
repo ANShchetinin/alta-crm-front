@@ -74,8 +74,8 @@ select.search-input option {
 }
 
 .clients-table th {
-  padding: 16px;
-  font-size: 0.85rem;
+  padding: 8px 12px;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -85,11 +85,14 @@ select.search-input option {
   top: 0;
   background: var(--table-header-bg);
   backdrop-filter: blur(8px);
+  z-index: 10;
 }
 
 .clients-table td {
-  padding: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 8px 12px;
+  height: 40px;
+  font-size: 0.84rem;
+  border-bottom: 1px solid var(--glass-border);
   color: var(--text-primary);
 }
 
