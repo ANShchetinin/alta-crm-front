@@ -135,18 +135,26 @@ function App() {
     if (isLight) {
       document.body.classList.add('light-theme');
       document.documentElement.classList.add('light-theme');
+      document.body.classList.remove('dark-theme');
+      document.documentElement.classList.remove('dark-theme');
     } else {
       document.body.classList.remove('light-theme');
       document.documentElement.classList.remove('light-theme');
+      document.body.classList.add('dark-theme');
+      document.documentElement.classList.add('dark-theme');
     }
 
-    // Force Android Chrome / Samsung Internet status bar update by replacing meta tag
-    document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.remove());
-    const metaThemeColor = document.createElement('meta');
-    metaThemeColor.name = 'theme-color';
-    metaThemeColor.content = themeColor;
-    metaThemeColor.id = 'theme-color-meta';
-    document.head.appendChild(metaThemeColor);
+    // Update <meta name="theme-color"> for Android status bar
+    const metaThemeColor = document.getElementById('theme-color-meta') || document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', themeColor);
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      meta.content = themeColor;
+      meta.id = 'theme-color-meta';
+      document.head.appendChild(meta);
+    }
 
     // Update Apple mobile status bar style
     let appleStatusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');

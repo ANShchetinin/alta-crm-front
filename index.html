@@ -9,10 +9,10 @@
     <meta name="color-scheme" content="dark light" />
     
     <!-- PWA & Mobile Meta Tags -->
-    <meta name="theme-color" content="#0f172a" id="theme-color-meta" />
+    <meta name="theme-color" content="#ffffff" id="theme-color-meta" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" id="apple-status-bar" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" id="apple-status-bar" />
     <meta name="apple-mobile-web-app-title" content="Alta CRM" />
     <meta name="application-name" content="Alta CRM" />
     
@@ -26,19 +26,19 @@
           document.documentElement.style.backgroundColor = themeColor;
           if (isLight) {
             document.documentElement.classList.add('light-theme');
+            document.documentElement.classList.remove('dark-theme');
           } else {
             document.documentElement.classList.remove('light-theme');
+            document.documentElement.classList.add('dark-theme');
           }
-          var metas = document.querySelectorAll('meta[name="theme-color"]');
-          metas.forEach(function(m) { m.remove(); });
-          var newMeta = document.createElement('meta');
-          newMeta.name = 'theme-color';
-          newMeta.content = themeColor;
-          newMeta.id = 'theme-color-meta';
-          document.head.appendChild(newMeta);
-          
+          var meta = document.getElementById('theme-color-meta');
+          if (meta) {
+            meta.setAttribute('content', themeColor);
+          }
           var appleBar = document.getElementById('apple-status-bar');
-          if (appleBar) appleBar.setAttribute('content', isLight ? 'default' : 'black-translucent');
+          if (appleBar) {
+            appleBar.setAttribute('content', isLight ? 'default' : 'black-translucent');
+          }
         } catch (e) {}
       })();
     </script>
