@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  color-scheme: dark;
   /* Dynamic Glassmorphism Theme (Dark mode default) */
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
@@ -60,8 +59,6 @@ html {
   position: relative;
   box-sizing: border-box;
   -webkit-text-size-adjust: 100%;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
 }
 
 body {
@@ -331,18 +328,7 @@ body.light-theme input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 /* Light theme overrides */
-html.light-theme {
-  background-color: #ffffff;
-}
-
-html:not(.light-theme) {
-  background-color: #0f172a;
-}
-
-html.light-theme,
-:root.light-theme,
 body.light-theme {
-  color-scheme: light;
   --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
   --bg-surface-elevated: #ffffff;

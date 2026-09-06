@@ -6,42 +6,14 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="color-scheme" content="dark light" />
     
     <!-- PWA & Mobile Meta Tags -->
-    <meta name="theme-color" content="#ffffff" id="theme-color-meta" />
+    <meta name="theme-color" content="#0f172a" id="theme-color-meta" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" id="apple-status-bar" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" id="apple-status-bar" />
     <meta name="apple-mobile-web-app-title" content="Alta CRM" />
     <meta name="application-name" content="Alta CRM" />
-    
-    <script>
-      (function() {
-        try {
-          var theme = localStorage.getItem('altacrm_theme') || 'dark';
-          var isLight = theme === 'light';
-          var themeColor = isLight ? '#ffffff' : '#0f172a';
-          document.documentElement.style.colorScheme = isLight ? 'light' : 'dark';
-          document.documentElement.style.backgroundColor = themeColor;
-          if (isLight) {
-            document.documentElement.classList.add('light-theme');
-            document.documentElement.classList.remove('dark-theme');
-          } else {
-            document.documentElement.classList.remove('light-theme');
-            document.documentElement.classList.add('dark-theme');
-          }
-          var meta = document.getElementById('theme-color-meta');
-          if (meta) {
-            meta.setAttribute('content', themeColor);
-          }
-          var appleBar = document.getElementById('apple-status-bar');
-          if (appleBar) {
-            appleBar.setAttribute('content', isLight ? 'default' : 'black-translucent');
-          }
-        } catch (e) {}
-      })();
-    </script>
     
     <title>AltaCRM</title>
   </head>

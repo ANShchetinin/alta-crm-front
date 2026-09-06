@@ -126,35 +126,24 @@ function App() {
 
   useEffect(() => {
     const isLight = theme === 'light';
-    const themeColor = isLight ? '#ffffff' : '#0f172a';
-
-    document.documentElement.style.colorScheme = isLight ? 'light' : 'dark';
-    document.documentElement.style.backgroundColor = themeColor;
-    document.body.style.backgroundColor = themeColor;
+    const themeColor = isLight ? '#f8fafc' : '#0f172a';
 
     if (isLight) {
       document.body.classList.add('light-theme');
       document.documentElement.classList.add('light-theme');
-      document.body.classList.remove('dark-theme');
-      document.documentElement.classList.remove('dark-theme');
     } else {
       document.body.classList.remove('light-theme');
       document.documentElement.classList.remove('light-theme');
-      document.body.classList.add('dark-theme');
-      document.documentElement.classList.add('dark-theme');
     }
 
     // Update <meta name="theme-color"> for Android status bar
-    const metaThemeColor = document.getElementById('theme-color-meta') || document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', themeColor);
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = 'theme-color';
-      meta.content = themeColor;
-      meta.id = 'theme-color-meta';
-      document.head.appendChild(meta);
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement('meta');
+      metaThemeColor.setAttribute('name', 'theme-color');
+      document.head.appendChild(metaThemeColor);
     }
+    metaThemeColor.setAttribute('content', themeColor);
 
     // Update Apple mobile status bar style
     let appleStatusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
