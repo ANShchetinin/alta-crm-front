@@ -2195,7 +2195,7 @@ const Kanban = () => {
             </div>
           )}
 
-          <div className="search-input-wrapper" style={{ minWidth: '260px', maxWidth: '360px', position: 'relative' }}>
+          <div className="search-input-wrapper kanban-search-wrapper">
             <Search className="search-icon" size={18} />
             <input 
               type="text" 

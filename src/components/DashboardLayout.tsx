@@ -672,7 +672,7 @@ const DashboardLayout = () => {
             {!isStandalone && (
               <button 
                 type="button" 
-                className="btn-icon" 
+                className="btn-icon topbar-pwa-btn" 
                 onClick={handleInstallPwa}
                 title="Установить приложение на телефон"
                 style={{ color: 'var(--accent-primary)' }}
@@ -680,7 +680,7 @@ const DashboardLayout = () => {
                 <Download size={18} />
               </button>
             )}
-            <button className="btn-icon" onClick={toggleLanguage} title="Change Language">
+            <button className="btn-icon topbar-lang-btn" onClick={toggleLanguage} title="Change Language">
               <Globe size={18} /> 
               <span style={{marginLeft: '2px', fontSize: '0.72rem', fontWeight: 'bold'}}>{language.toUpperCase()}</span>
             </button>

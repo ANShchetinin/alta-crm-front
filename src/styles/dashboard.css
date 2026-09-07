@@ -21,6 +21,11 @@
   display: none !important;
 }
 
+/* Mobile Bottom Nav Hidden on Desktop */
+.mobile-bottom-nav {
+  display: none;
+}
+
 /* Sidebar */
 .sidebar {
   width: 220px;
@@ -499,9 +504,32 @@ body.light-theme .nav-item.active {
     box-sizing: border-box;
   }
 
+  .topbar-search,
   .topbar-date,
-  .topbar-divider {
-    display: none;
+  .topbar-divider,
+  .topbar-time {
+    display: none !important;
+  }
+
+  .topbar-new-order-btn {
+    display: none !important;
+  }
+
+  .topbar-pwa-btn {
+    display: none !important;
+  }
+
+  .topbar-lang-btn span {
+    display: none !important;
+  }
+
+  .topbar-actions {
+    gap: 4px;
+  }
+
+  .topbar-actions .btn-icon {
+    width: 32px;
+    height: 32px;
   }
 
   .user-name-text {
