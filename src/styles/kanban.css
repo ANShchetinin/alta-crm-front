@@ -647,18 +647,45 @@
   display: none;
 }
 
+@keyframes sheetSlideInDesktop {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheetSlideUpMobile {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheetFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Order Slide-Over Drawer */
 .order-drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: flex;
   justify-content: flex-end;
   align-items: stretch;
   z-index: 10005;
-  animation: fadeIn 0.2s ease-out forwards;
+  animation: sheetFadeIn 0.22s ease-out forwards;
 }
 
 .order-drawer-content {
@@ -670,10 +697,27 @@
   max-height: 100vh;
   display: flex;
   flex-direction: column;
-  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.2);
-  animation: sheetSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.25);
+  animation: sheetSlideInDesktop 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+.order-drawer-drag-handle-wrapper {
+  display: none;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 0 4px 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.order-drawer-drag-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--text-muted, #94a3b8);
+  opacity: 0.5;
 }
 
 /* DaData dark theme overrides */
@@ -754,6 +798,32 @@
     scroll-snap-align: center;
     box-sizing: border-box;
   }
+
+  /* Order Slide-Over Drawer as Bottom Sheet on Mobile / PWA */
+  .order-drawer-overlay {
+    align-items: flex-end !important;
+    justify-content: center !important;
+    padding: 0 !important;
+  }
+
+  .order-drawer-content {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 92vh !important;
+    max-height: 92dvh !important;
+    border-left: none !important;
+    border-top: 1px solid var(--glass-border, #e2e8f0) !important;
+    border-radius: 16px 16px 0 0 !important;
+    animation: sheetSlideUpMobile 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.25) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  }
+
+  .order-drawer-drag-handle-wrapper {
+    display: flex !important;
+  }
+
   /* Native Fullscreen Modal on mobile */
   .modal-overlay {
     padding: 0 !important;

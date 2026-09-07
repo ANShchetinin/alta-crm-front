@@ -41,6 +41,7 @@ import {
   type OrderStatus,
   type OrderAttachment
 } from '../api/kanban';
+import { Sheet } from '../components/ui/Sheet';
 import { getClients, type Client } from '../api/clients';
 import { getEmployees, type Employee } from '../api/employees';
 import { getMeasurementByOrderId, type MeasurementDto } from '../api/measurements';
@@ -1316,38 +1317,21 @@ export const Archive = () => {
         </>
       )}
 
-      {/* Detail & Quick View Modal */}
-      {isDetailModalOpen && selectedOrder && createPortal(
-        <div className="modal-overlay" onClick={handleCloseDetail}>
-          <div 
-            className="modal-content animate-scale-up" 
-            style={{ 
-              maxWidth: '720px', 
-              maxHeight: '90vh', 
-              overflowY: 'auto',
-              background: 'var(--modal-bg, var(--bg-secondary, #1e293b))',
-              border: '1px solid var(--glass-border)',
-              boxShadow: 'var(--glass-shadow, 0 25px 50px -12px rgba(0, 0, 0, 0.35))',
-              borderRadius: 'var(--radius-lg, 16px)'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="modal-header" style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '14px' }}>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-                  <ArchiveIcon size={20} style={{ color: 'var(--accent-primary)' }} />
-                  Заявка {selectedOrder.orderNumber || `#${selectedOrder.id}`}
-                </h2>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  Архивная завершенная заявка от {selectedOrder.createdAt ? formatDateInTimezone(selectedOrder.createdAt, tenantSettings?.timezone) : ''}
-                </div>
-              </div>
-              <button type="button" className="btn-icon" onClick={handleCloseDetail}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '18px 0' }}>
+      {/* Detail & Quick View Slide-over Sheet */}
+      <Sheet
+        isOpen={isDetailModalOpen && !!selectedOrder}
+        onClose={handleCloseDetail}
+        title={selectedOrder ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ArchiveIcon size={20} style={{ color: 'var(--accent-primary)' }} />
+            Заявка {selectedOrder.orderNumber || `#${selectedOrder.id}`}
+          </span>
+        ) : ''}
+        description={selectedOrder ? `Архивная завершенная заявка от ${selectedOrder.createdAt ? formatDateInTimezone(selectedOrder.createdAt, tenantSettings?.timezone) : ''}` : ''}
+        size="lg"
+      >
+        {selectedOrder && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Status & Date */}
               <div style={{
                 display: 'flex',
@@ -1851,17 +1835,14 @@ export const Archive = () => {
                   </div>
                 </div>
               )}
-            </div>
-
-            <div className="modal-actions" style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--glass-border)' }}>
               <button type="button" className="btn btn-primary" onClick={handleCloseDetail}>
                 Закрыть
               </button>
             </div>
           </div>
-        </div>,
-        document.body
-      )}
+        )}
+      </Sheet>
 
       {/* In-App File Preview Modal (works 100% in iOS PWA / Android / Web without popup blocker) */}
       {previewAttachment && createPortal(

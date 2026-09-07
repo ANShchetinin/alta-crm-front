@@ -2651,6 +2651,10 @@ const Kanban = () => {
       {isModalOpen && createPortal(
         <div className="order-drawer-overlay" onClick={handleRequestCloseModal}>
           <div className="order-drawer-content" onClick={e => e.stopPropagation()} style={{ maxWidth: orderModalTab === 'MEASUREMENT' || orderModalTab === 'CONTRACT' ? '920px' : '720px' }}>
+            {/* Mobile Bottom Sheet Drag Handle */}
+            <div className="order-drawer-drag-handle-wrapper" onClick={handleRequestCloseModal}>
+              <div className="order-drawer-drag-handle" />
+            </div>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1, minWidth: 0, paddingRight: '8px' }}>
                 <h2 style={{ margin: 0, whiteSpace: 'nowrap' }}>
