@@ -27,15 +27,16 @@
 .clients-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 12px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .search-input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
-  width: 100%;
+  width: 320px;
   max-width: 380px;
 }
 
@@ -286,18 +287,30 @@ select.search-input option {
   }
 
   .clients-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
     width: 100%;
     max-width: 100%;
   }
 
-  .search-input-wrapper,
+  .search-input-wrapper {
+    flex: 1;
+    min-width: 0;
+    width: auto !important;
+    max-width: none !important;
+  }
+
   .search-input {
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box;
+  }
+
+  .clients-actions .btn {
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .clients-table-container {
