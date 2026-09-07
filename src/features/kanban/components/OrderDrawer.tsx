@@ -2333,7 +2333,7 @@ export const OrderDrawer: React.FC = () => {
                 }}>
                   <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Tag size={15} style={{ color: 'var(--accent-primary)' }} />
-                    1. Сводные параметры потолка (Стр. 1 и Стр. 5 договора)
+                    1. Сводные параметры потолка
                   </h4>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '12px' }}>
@@ -2429,7 +2429,7 @@ export const OrderDrawer: React.FC = () => {
                       />
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.78rem' }}>Дата сдачи объекта (Приложение №1)</label>
+                      <label style={{ fontSize: '0.78rem' }}>Дата сдачи объекта</label>
                       <input
                         type="text"
                         placeholder="« 20 » августа 2026г."
@@ -2451,7 +2451,7 @@ export const OrderDrawer: React.FC = () => {
                 }}>
                   <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <FileCheck size={15} style={{ color: '#60a5fa' }} />
-                    2. Чек-лист выполненных работ для Акта (Приложение №3)
+                    2. Чек-лист выполненных работ для Акта
                   </h4>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
@@ -2517,7 +2517,7 @@ export const OrderDrawer: React.FC = () => {
                           <FileCheck size={20} style={{ color: hasAct ? '#4ade80' : '#fbbf24', flexShrink: 0 }} />
                           <div>
                             <div style={{ fontSize: '0.95rem', fontWeight: 600, color: hasAct ? '#4ade80' : '#fbbf24' }}>
-                              Акт выполненных работ (Приложение №3)
+                              Акт выполненных работ
                             </div>
                             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                               {hasAct ? 'Подписанный Акт прикреплен к заявке' : 'Обязателен для возможности завершения монтажа'}
