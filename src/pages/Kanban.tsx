@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Plus,
-  MoreVertical,
   ChevronDown,
   ChevronsDown,
   ChevronsUp,
@@ -13,12 +12,16 @@ import {
   Building2,
   Ruler,
   Wrench,
-  FileCheck,
   CheckCircle2,
   CalendarDays,
   Bell,
   Eye,
-  EyeOff
+  EyeOff,
+  Edit2,
+  Trash2,
+  MessageCircle,
+  Send,
+  FileText
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -28,6 +31,7 @@ import {
   completeOrder,
   createOrderStatus,
   updateOrderStatus,
+  deleteOrderStatus,
   reorderOrderStatuses,
   type OrderStatus,
   type Order
@@ -43,6 +47,7 @@ import { getMyReminders, type OrderReminderDto } from '../api/reminders';
 import { useTouchKanbanDrag } from '../hooks/useTouchKanbanDrag';
 import { useTouchColumnReorder } from '../hooks/useTouchColumnReorder';
 import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
+import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import { MoveRestrictionModal } from '../features/kanban/components/MoveRestrictionModal';
 import { ColumnModal } from '../features/kanban/components/ColumnModal';
 import { isActFile } from '../features/kanban/constants';
@@ -390,6 +395,17 @@ const Kanban = () => {
     setIsColumnModalOpen(true);
   };
 
+  const handleDeleteColumn = async (columnId: number) => {
+    if (confirm(t('kanban.deleteColumnConfirm') || 'Вы уверены, что хотите удалить этот этап?')) {
+      try {
+        await deleteOrderStatus(columnId);
+        fetchData();
+      } catch (err: any) {
+        alert(t('kanban.deleteColumnError') || 'Нельзя удалить этап, в котором есть заявки.');
+      }
+    }
+  };
+
   const filteredCards = useMemo(() => {
     let result = cards.filter(c => !c.isArchived);
 
@@ -491,9 +507,10 @@ const Kanban = () => {
           }
         }}
       >
-        {/* Header: Client Avatar + #ID + Client Name */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px', gap: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', minWidth: 0, flex: 1 }}>
+        {/* 1. Header: Client Info (Left) + Phone & Assignee (Right) */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', minWidth: 0, flex: 1 }}>
+            {/* Client Avatar */}
             <div 
               className="card-client-avatar"
               style={{
@@ -518,6 +535,7 @@ const Kanban = () => {
               )}
             </div>
 
+            {/* Client Info Column */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', flexWrap: 'wrap' }}>
                 <span className="card-order-id" style={{ flexShrink: 0 }}>
@@ -528,6 +546,7 @@ const Kanban = () => {
                 </span>
               </div>
 
+              {/* Badges row under name: Contract number & Reminders */}
               {(card.orderNumber || pendingReminders.length > 0) && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
                   {card.orderNumber && (
@@ -535,15 +554,19 @@ const Kanban = () => {
                       style={{
                         fontSize: '0.68rem',
                         fontFamily: 'monospace',
+                        fontWeight: 700,
+                        background: 'rgba(34, 197, 94, 0.15)',
+                        color: '#16a34a',
                         padding: '1px 5px',
-                        background: 'rgba(59, 130, 246, 0.12)',
-                        border: '1px solid rgba(59, 130, 246, 0.25)',
-                        borderRadius: '4px',
-                        color: 'var(--accent-primary)',
-                        fontWeight: 600
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid rgba(34, 197, 94, 0.3)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px'
                       }}
                       title="Номер договора"
                     >
+                      <FileText size={9} />
                       № {card.orderNumber}
                     </span>
                   )}
@@ -551,20 +574,22 @@ const Kanban = () => {
                   {pendingReminders.length > 0 && (
                     <span
                       style={{
-                        fontSize: '0.68rem',
-                        fontWeight: 700,
-                        padding: '1px 6px',
-                        borderRadius: '10px',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '3px',
-                        background: isOverdue ? 'rgba(239, 68, 68, 0.2)' : (isToday ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.15)'),
-                        color: isOverdue ? '#ef4444' : (isToday ? '#f59e0b' : '#3b82f6'),
-                        border: `1px solid ${isOverdue ? 'rgba(239, 68, 68, 0.4)' : (isToday ? 'rgba(245, 158, 11, 0.4)' : 'rgba(59, 130, 246, 0.3)')}`
+                        gap: '2px',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '1px 5px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: isOverdue ? 'rgba(239, 68, 68, 0.18)' : (isToday ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.15)'),
+                        color: isOverdue ? '#ef4444' : (isToday ? '#f59e0b' : '#60a5fa'),
+                        border: isOverdue ? '1px solid rgba(239, 68, 68, 0.35)' : (isToday ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(59, 130, 246, 0.3)'),
+                        cursor: 'default'
                       }}
+                      title={`Напоминание: ${nearestReminder.comment || 'Звонок'} (${reminderTimeStr})`}
                     >
                       <Bell size={10} />
-                      {isOverdue ? 'Просрочено' : (isToday ? `Сегодня ${reminderTimeStr}` : `Напоминание (${pendingReminders.length})`)}
+                      {pendingReminders.length > 1 ? pendingReminders.length : ''}
                     </span>
                   )}
                 </div>
@@ -572,37 +597,85 @@ const Kanban = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+          {/* Right Header: Phone button + Messenger buttons + Assignee Avatar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, marginTop: '1px' }}>
             {cPhone && (
-              <a 
-                href={`tel:${cPhone}`}
+              <a
+                href={`tel:${cPhone.replace(/[^\d+]/g, '')}`}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
-                className="btn-icon"
-                style={{ padding: '3px', color: 'var(--accent-primary)', background: 'var(--accent-glow)', borderRadius: '50%' }}
-                title={`Позвонить ${cPhone}`}
+                title={`Позвонить клиенту: ${cPhone}`}
+                className="card-phone-btn"
+                style={{
+                  borderRadius: '50%',
+                  background: 'rgba(34, 197, 94, 0.15)',
+                  border: '1px solid rgba(34, 197, 94, 0.35)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#22c55e',
+                  textDecoration: 'none',
+                  flexShrink: 0,
+                  width: '28px',
+                  height: '28px',
+                  transition: 'background 0.15s ease'
+                }}
               >
-                <Phone size={13} />
+                <Phone size={14} />
               </a>
             )}
+
+            {client?.whatsapp && (
+              <a
+                href={getWhatsAppLink(client.whatsapp)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                title={`Написать в WhatsApp: ${client.whatsapp}`}
+                className="card-messenger-btn whatsapp-btn"
+              >
+                <MessageCircle size={14} />
+              </a>
+            )}
+
+            {client?.telegram && (
+              <a
+                href={getTelegramLink(client.telegram)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                title={`Написать в Telegram: ${client.telegram}`}
+                className="card-messenger-btn telegram-btn"
+              >
+                <Send size={14} />
+              </a>
+            )}
+
             {assignee && (
               <div 
                 className="card-assignee-avatar"
-                style={{ 
+                style={{
+                  borderRadius: '50%',
                   overflow: 'hidden',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  fontWeight: 700,
                   color: '#fff',
-                  background: (card.assigneeAvatarUrl || assignee.avatarUrl) ? 'transparent' : '#3b82f6'
+                  background: assignee.avatarUrl ? 'transparent' : '#0891b2',
+                  flexShrink: 0,
+                  width: '28px',
+                  height: '28px'
                 }}
                 title={`Ответственный: ${assignee.name}`}
               >
-                {(card.assigneeAvatarUrl || assignee.avatarUrl) ? (
-                  <img 
-                    src={(card.assigneeAvatarUrl || assignee.avatarUrl) || ''} 
-                    alt={assignee.name} 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                  />
+                {assignee.avatarUrl ? (
+                  <img src={assignee.avatarUrl} alt={assignee.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   getEmployeeInitials(assignee.name)
                 )}
@@ -611,144 +684,216 @@ const Kanban = () => {
           </div>
         </div>
 
-        {/* Messengers Row */}
-        {(client?.whatsapp || client?.telegram) && (
-          <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }} onClick={(e) => e.stopPropagation()}>
-            {client.whatsapp && (
-              <a
-                href={getWhatsAppLink(client.whatsapp, `Здравствуйте, ${cName}! По поводу заявки #${card.id}`)}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  fontSize: '0.72rem',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  background: 'rgba(37, 211, 102, 0.15)',
-                  color: '#25D366',
-                  border: '1px solid rgba(37, 211, 102, 0.3)',
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                WhatsApp
-              </a>
-            )}
-            {client.telegram && (
-              <a
-                href={getTelegramLink(client.telegram)}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  fontSize: '0.72rem',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  background: 'rgba(0, 136, 204, 0.15)',
-                  color: '#0088cc',
-                  border: '1px solid rgba(0, 136, 204, 0.3)',
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                Telegram
-              </a>
-            )}
-          </div>
-        )}
-
-        {/* Address */}
+        {/* 2. Address Row + Maps Buttons */}
         {card.address && (
-          <div className="card-address" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '5px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-            <MapPin size={13} style={{ flexShrink: 0, color: 'var(--accent-primary)' }} />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-              {card.address}
-              {(card.entrance || card.floor) && (
-                <span style={{ opacity: 0.8, marginLeft: '4px' }}>
-                  ({[card.entrance && `под. ${card.entrance}`, card.floor && `эт. ${card.floor}`].filter(Boolean).join(', ')})
+          <div style={{ marginBottom: '6px' }}>
+            <div className="card-address-row">
+              <MapPin size={14} style={{ flexShrink: 0, opacity: 0.8, color: 'var(--accent-primary)' }} />
+              <span style={{ fontWeight: 500 }}>
+                {card.address}
+                {card.entrance ? `, п.${card.entrance}` : ''}
+                {card.floor ? `, эт.${card.floor}` : ''}
+              </span>
+            </div>
+
+            {/* Map Buttons: Яндекс & 2ГИС */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
+              <a
+                href={getYandexMapsUrl(card.address, card.entrance, card.floor)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                title="Маршрут в Яндекс.Картах / Навигаторе"
+                className="kanban-map-pill"
+                style={{
+                  color: '#fc3f1d',
+                  borderColor: 'rgba(252, 63, 29, 0.35)',
+                  background: 'rgba(252, 63, 29, 0.08)'
+                }}
+              >
+                <span style={{
+                  width: '16px',
+                  height: '16px',
+                  borderRadius: '50%',
+                  background: '#fc3f1d',
+                  color: '#fff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '9px',
+                  fontWeight: 800
+                }}>
+                  Я
                 </span>
-              )}
-            </span>
+                <span style={{ fontWeight: 600 }}>Яндекс</span>
+              </a>
+
+              <a
+                href={get2GisUrl(card.address, card.entrance, card.floor)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                title="Маршрут в 2ГИС"
+                className="kanban-map-pill"
+                style={{
+                  color: '#22c55e',
+                  borderColor: 'rgba(34, 197, 94, 0.35)',
+                  background: 'rgba(34, 197, 94, 0.08)'
+                }}
+              >
+                <span style={{
+                  width: '16px',
+                  height: '16px',
+                  borderRadius: '50%',
+                  background: '#22c55e',
+                  color: '#fff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '9px',
+                  fontWeight: 800
+                }}>
+                  2Г
+                </span>
+                <span style={{ fontWeight: 600 }}>2ГИС</span>
+              </a>
+            </div>
           </div>
         )}
 
-        {/* Description */}
+        {/* 3. Description */}
         {card.description && (
-          <div className="card-description" style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px', lineHeight: '1.3' }}>
+          <div className="card-desc" title={card.description}>
             {card.description}
           </div>
         )}
 
-        {/* Measurer & Installer tags */}
-        {(card.measurerName || instName) && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
-            {card.measurerName && (
-              <span className="card-role-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.72rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-primary)' }}>
-                <Ruler size={11} /> {card.measurerName}
-              </span>
-            )}
-            {instName && (
-              <span className="card-role-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.72rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
-                <Wrench size={11} /> {instName}
-              </span>
-            )}
+        {/* 4. Measurement & Installation Badges */}
+        {card.measurementDate && (
+          <div className="card-schedule-badge measurement">
+            <Ruler size={11} />
+            <span>Замер: {formatDateTimeInTimezone(card.measurementDate)}</span>
           </div>
         )}
 
-        {/* Dates row */}
-        {(card.measurementDate || card.installationDate) && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '6px', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-            {card.measurementDate && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                <CalendarDays size={11} style={{ color: 'var(--accent-primary)' }} />
-                <span>Замер: {formatDateTimeInTimezone(card.measurementDate)}</span>
-              </div>
-            )}
-            {card.installationDate && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                <CalendarDays size={11} style={{ color: '#10b981' }} />
-                <span>Монтаж: {formatDateOnly(card.installationDate)}</span>
-              </div>
-            )}
+        {card.installationDate && (
+          <div className="card-schedule-badge installation">
+            <Wrench size={11} />
+            <span>Монтаж: {formatDateOnly(card.installationDate)}</span>
           </div>
         )}
 
-        {/* Footer: Price & Attachments */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '6px', borderTop: '1px solid var(--glass-border)', marginTop: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {(card.totalPrice || 0).toLocaleString('ru-RU')} ₽
-            </span>
-            {card.prepayment != null && card.prepayment > 0 && (
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                (аванс {card.prepayment.toLocaleString('ru-RU')})
-              </span>
-            )}
+        {/* 5. Finance / Price Block */}
+        <div className="kanban-finance-box">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="card-price-main">
+              {(card.totalPrice != null && card.totalPrice > 0) ? `${card.totalPrice.toLocaleString('ru-RU')} ₽` : '0 ₽'}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {card.attachments && card.attachments.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  <Paperclip size={12} /> {card.attachments.length}
+                </div>
+              )}
+              {card.profitMargin != null && card.profitMargin > 0 && (
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#16a34a' }}>
+                  +{card.profitMargin.toFixed(1)}%
+                </span>
+              )}
+            </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {(card.attachments?.length || 0) > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '0.72rem', color: hasAct ? '#22c55e' : 'var(--text-secondary)', fontWeight: hasAct ? 600 : 400 }}>
-                {hasAct ? <FileCheck size={13} /> : <Paperclip size={13} />}
-                {card.attachments?.length}
-              </span>
-            )}
-
-            {!isCardCompleted && (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ padding: '2px 6px', fontSize: '0.7rem', height: '22px', gap: '3px', color: canComplete ? '#10b981' : undefined }}
-                onClick={(e) => handleCompleteInstallation(e, card.id)}
-                title={canComplete ? 'Завершить монтаж и закрыть заявку' : 'Прикрепите Акт для завершения'}
-              >
-                <CheckCircle2 size={12} /> Завершить
-              </button>
-            )}
+          <div className="card-finance-sub">
+            <span>Аванс: <strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
+            <span style={{ margin: '0 8px', opacity: 0.35 }}>|</span>
+            <span>Остаток: <strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{((card.remainder != null ? card.remainder : card.totalPrice) || 0).toLocaleString('ru-RU')} ₽</strong></span>
           </div>
         </div>
+
+        {/* 6. Installer Row */}
+        {instName && (
+          <div className="card-installer-row">
+            <div style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              color: '#fff',
+              background: installer?.avatarUrl ? 'transparent' : '#065f46',
+              flexShrink: 0
+            }}>
+              {installer?.avatarUrl ? (
+                <img src={installer.avatarUrl} alt={instName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                getEmployeeInitials(instName)
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Wrench size={14} style={{ color: '#16a34a' }} />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                {instName}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* 7. Complete Installation Button / Status */}
+        {isCardCompleted ? (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            background: 'rgba(34, 197, 94, 0.12)',
+            border: '1px solid rgba(34, 197, 94, 0.3)',
+            borderRadius: '8px',
+            color: '#16a34a',
+            fontSize: '0.82rem',
+            fontWeight: 600,
+            width: '100%',
+            boxSizing: 'border-box'
+          }}>
+            <CheckCircle2 size={14} /> Монтаж завершен {card.installedAt ? `(${formatDateOnly(card.installedAt)})` : ''}
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={!canComplete}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            onClick={(e) => handleCompleteInstallation(e, card.id)}
+            className="card-complete-btn"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              background: canComplete ? '#16a34a' : 'rgba(255, 255, 255, 0.08)',
+              border: canComplete ? 'none' : '1px solid var(--glass-border)',
+              color: canComplete ? '#ffffff' : 'var(--text-secondary)',
+              fontWeight: 600,
+              width: '100%',
+              cursor: canComplete ? 'pointer' : 'not-allowed',
+              opacity: canComplete ? 1 : 0.55,
+              transition: 'all 0.15s ease',
+              boxSizing: 'border-box'
+            }}
+            title={!instName ? 'Назначьте монтажника в карточке' : (!hasAct ? 'Прикрепите Акт выполненных работ' : 'Завершить монтаж')}
+          >
+            <CheckCircle2 size={15} /> Завершить монтаж
+          </button>
+        )}
       </div>
     );
   };
@@ -975,34 +1120,109 @@ const Kanban = () => {
           className="kanban-board" 
           ref={boardRef}
           onDragOver={handleDragOver}
+          onWheel={(e) => {
+            if (e.deltaY !== 0 && !e.shiftKey) {
+              const target = e.target as HTMLElement;
+              const columnContent = target.closest('.column-content');
+              if (columnContent) {
+                const canScrollUp = e.deltaY < 0 && columnContent.scrollTop > 0;
+                const canScrollDown = e.deltaY > 0 && columnContent.scrollTop + columnContent.clientHeight < columnContent.scrollHeight - 1;
+                if (canScrollUp || canScrollDown) {
+                  return;
+                }
+              }
+              if (boardRef.current) {
+                boardRef.current.scrollLeft += e.deltaY;
+              }
+            }
+          }}
         >
-          {displayedColumns.map(column => {
-            const columnCards = filteredCards.filter(c => c.statusId === column.id);
-            const columnTotal = columnCards.reduce((acc, c) => acc + (c.totalPrice || 0), 0);
-            const isTouchTarget = touchTargetStatusId === column.id;
-            const isDesktopTarget = desktopDragOverColId === column.id;
-            const isColDragging = draggingColId === column.id;
-            const isColReorderTarget = touchTargetColId === column.id && draggingColId !== column.id;
+          {displayedColumns.map(col => {
+            const isCompleted = isCompletedColumn(col);
+            let colCards = filteredCards.filter(c => c.statusId === col.id && (!isCompleted || !c.isArchived));
+            if (isCompleted) {
+              colCards = [...colCards].sort((a, b) => {
+                const timeA = a.installedAt ? new Date(a.installedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+                const timeB = b.installedAt ? new Date(b.installedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+                return timeB - timeA;
+              });
+            }
+            const totalInCol = isCompleted
+              ? cards.filter(c => c.statusId === col.id && !c.isArchived).length
+              : cards.filter(c => c.statusId === col.id).length;
+            const isFilterActive = Boolean(searchQuery.trim()) || reminderFilter !== 'all';
+            const countBadgeText = isFilterActive && (colCards.length !== totalInCol || colCards.length === 0)
+              ? `${colCards.length}/${totalInCol}`
+              : totalInCol;
+
+            const isTouchTarget = touchTargetStatusId === col.id;
+            const isDesktopTarget = desktopDragOverColId === col.id;
+            const isColDragging = draggingColId === col.id;
+            const isColReorderTarget = touchTargetColId === col.id && draggingColId !== col.id;
 
             return (
               <div 
-                key={column.id} 
-                className={`kanban-column ${isTouchTarget || isDesktopTarget ? 'is-drag-over' : ''} ${isColDragging ? 'is-col-dragging-placeholder' : ''} ${isColReorderTarget ? 'is-col-reorder-target' : ''}`}
-                data-column-id={column.id}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDesktopDragOverColId(column.id);
+                key={col.id} 
+                data-column-id={col.id}
+                className={`kanban-column glass-panel ${isTouchTarget || isDesktopTarget ? 'is-drop-target' : ''} ${isColDragging ? 'is-col-dragging-placeholder' : ''} ${isColReorderTarget ? 'is-col-reorder-target' : ''}`}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('columnId', col.id.toString());
                 }}
-                onDragLeave={() => {
-                  if (desktopDragOverColId === column.id) {
-                    setDesktopDragOverColId(null);
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  setDesktopDragOverColId(null);
+                  setDesktopDraggingCardId(null);
+                  const cardId = e.dataTransfer.getData('cardId');
+                  if (cardId) {
+                    handleDrop(e, col.id);
+                    return;
+                  }
+                  const sourceColumnIdStr = e.dataTransfer.getData('columnId');
+                  if (sourceColumnIdStr) {
+                    const sourceId = parseInt(sourceColumnIdStr);
+                    const targetId = col.id;
+                    if (sourceId !== targetId) {
+                      const sourceIndex = columns.findIndex(c => c.id === sourceId);
+                      const targetIndex = columns.findIndex(c => c.id === targetId);
+                      if (sourceIndex > -1 && targetIndex > -1) {
+                        const newColumns = [...columns];
+                        const [removed] = newColumns.splice(sourceIndex, 1);
+                        newColumns.splice(targetIndex, 0, removed);
+                        
+                        newColumns.forEach((c, index) => {
+                          c.sortOrder = index + 1;
+                        });
+                        setColumns(newColumns);
+                        
+                        const firstStatus = newColumns.find(s => s.sortOrder === 1);
+                        if (firstStatus) {
+                          setNewOrdersCount(cards.filter(o => o.statusId === firstStatus.id).length);
+                        }
+                        
+                        try {
+                          await reorderOrderStatuses(newColumns.map(c => c.id));
+                        } catch (err) {
+                          console.error("Failed to reorder columns", err);
+                        }
+                      }
+                    }
                   }
                 }}
-                onDrop={(e) => handleDrop(e, column.id)}
+                onDragOver={(e) => {
+                  handleDragOver(e);
+                  if (desktopDragOverColId !== col.id) {
+                    setDesktopDragOverColId(col.id);
+                  }
+                }}
+                onDragLeave={(e) => {
+                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                  setDesktopDragOverColId(null);
+                }}
               >
                 <div 
-                  className="kanban-column-header"
-                  onTouchStart={(e) => handleHandleTouchStart(e, column.id)}
+                  className="column-header"
+                  onTouchStart={(e) => handleHandleTouchStart(e, col.id)}
                   onTouchMove={handleHandleTouchMove}
                   onTouchEnd={handleHandleTouchEnd}
                   onTouchCancel={handleHandleTouchCancel}
@@ -1010,32 +1230,47 @@ const Kanban = () => {
                   <div className="column-title">
                     <span 
                       className="dot" 
-                      style={{ backgroundColor: column.color || '#3b82f6' }} 
+                      style={{ backgroundColor: col.color || '#3b82f6' }} 
                     />
-                    <span>{column.name}</span>
-                    <span className="count-badge">{columnCards.length}</span>
+                    <h3>{col.name}</h3>
+                    <span 
+                      className="count"
+                      style={
+                        reminderFilter === 'today' && colCards.length > 0
+                          ? { background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', fontWeight: 700 }
+                          : reminderFilter === 'overdue' && colCards.length > 0
+                          ? { background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', fontWeight: 700 }
+                          : undefined
+                      }
+                    >
+                      {countBadgeText}
+                    </span>
                   </div>
 
-                  <div className="column-header-actions">
-                    <span className="column-total-price">
-                      {columnTotal.toLocaleString('ru-RU')} ₽
-                    </span>
-                    {!isWorker && (
-                      <div className="dropdown" style={{ position: 'relative' }}>
+                  {!isWorker && (
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      <button 
+                        className="btn-icon" 
+                        onClick={() => openColumnEditModal(col)}
+                        title="Редактировать колонку"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      {totalInCol === 0 && (
                         <button 
                           className="btn-icon" 
-                          onClick={() => openColumnEditModal(column)}
-                          title="Редактировать колонку"
+                          onClick={() => handleDeleteColumn(col.id)}
+                          title="Удалить колонку"
                         >
-                          <MoreVertical size={16} />
+                          <Trash2 size={16} />
                         </button>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div className="kanban-cards">
-                  {columnCards.map(card => renderCard(card))}
+                <div className="column-content">
+                  {colCards.map(card => renderCard(card))}
                 </div>
               </div>
             );
