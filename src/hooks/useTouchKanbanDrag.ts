@@ -19,15 +19,15 @@ export interface UseTouchKanbanDragProps {
 }
 
 // Distance in pixels beyond which a touch gesture is classified as scroll rather than tap/hold
-const MOVE_THRESHOLD = 14;
-// Suppression time for synthetic click events after touch interactions
-const CLICK_SUPPRESSION_MS = 800;
+const MOVE_THRESHOLD = 12;
+// Suppression time for synthetic click events after touch/drag interactions
+const CLICK_SUPPRESSION_MS = 600;
 
 export const useTouchKanbanDrag = ({
   boardRef,
   onDropCard,
   onCardClick,
-  longPressDelay = 220
+  longPressDelay = 260
 }: UseTouchKanbanDragProps) => {
   const [draggingCard, setDraggingCard] = useState<Order | null>(null);
   const [pressingCardId, setPressingCardId] = useState<number | null>(null);
@@ -49,6 +49,7 @@ export const useTouchKanbanDrag = ({
     cardElement: HTMLElement | null;
     autoScrollTimer: number | null;
     targetStatusId: number | null;
+    activePointerId: number | null;
   }>({
     startX: 0,
     startY: 0,
@@ -62,8 +63,11 @@ export const useTouchKanbanDrag = ({
     suppressClickUntil: 0,
     cardElement: null,
     autoScrollTimer: null,
-    targetStatusId: null
+    targetStatusId: null,
+    activePointerId: null
   });
+
+  const cleanupListeners = useRef<() => void>(() => {});
 
   const stopAutoScroll = useCallback(() => {
     if (stateRef.current.autoScrollTimer) {
@@ -131,18 +135,38 @@ export const useTouchKanbanDrag = ({
     stateRef.current.targetStatusId = null;
   }, []);
 
-  const cleanupListeners = useRef<() => void>(() => {});
+  const triggerVibration = (pattern: number | number[]) => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(pattern);
+      }
+    } catch {}
+  };
 
-  const handleNativeTouchMove = useCallback((e: TouchEvent) => {
-    const touch = e.touches[0];
-    if (!touch) return;
+  const lockBodyStyles = () => {
+    if (typeof document !== 'undefined') {
+      document.body.style.userSelect = 'none';
+      (document.body.style as any).webkitUserSelect = 'none';
+      (document.body.style as any).touchAction = 'none';
+    }
+  };
 
+  const unlockBodyStyles = () => {
+    if (typeof document !== 'undefined') {
+      document.body.style.userSelect = '';
+      (document.body.style as any).webkitUserSelect = '';
+      (document.body.style as any).touchAction = '';
+    }
+  };
+
+  // Move processor (used by both native touchmove and pointermove)
+  const processMove = useCallback((clientX: number, clientY: number) => {
     const { startX, startY, isDragging, timer } = stateRef.current;
-    stateRef.current.currentX = touch.clientX;
-    stateRef.current.currentY = touch.clientY;
+    stateRef.current.currentX = clientX;
+    stateRef.current.currentY = clientY;
 
     if (!isDragging) {
-      const dist = Math.hypot(touch.clientX - startX, touch.clientY - startY);
+      const dist = Math.hypot(clientX - startX, clientY - startY);
       if (dist > MOVE_THRESHOLD) {
         stateRef.current.hasMoved = true;
         stateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
@@ -155,20 +179,13 @@ export const useTouchKanbanDrag = ({
       return;
     }
 
-    // While dragging, prevent native page scrolling!
-    if (e.cancelable && e.preventDefault) {
-      e.preventDefault();
-    }
-    if (e.stopPropagation) {
-      e.stopPropagation();
-    }
-
-    setDragPosition({ x: touch.clientX, y: touch.clientY });
-    handleAutoScroll(touch.clientX, touch.clientY);
-    updateTargetColumn(touch.clientX, touch.clientY);
+    setDragPosition({ x: clientX, y: clientY });
+    handleAutoScroll(clientX, clientY);
+    updateTargetColumn(clientX, clientY);
   }, [handleAutoScroll, updateTargetColumn]);
 
-  const handleNativeTouchEnd = useCallback((e: TouchEvent) => {
+  // End processor (used by both native touchend and pointerup)
+  const processEnd = useCallback((clientX: number, clientY: number) => {
     cleanupListeners.current();
 
     const { timer, isDragging, card, startTime, startX, startY } = stateRef.current;
@@ -178,24 +195,12 @@ export const useTouchKanbanDrag = ({
     }
     setPressingCardId(null);
     stopAutoScroll();
-
-    if (typeof document !== 'undefined') {
-      document.body.style.userSelect = '';
-      (document.body.style as any).webkitUserSelect = '';
-      (document.body.style as any).touchAction = '';
-    }
+    unlockBodyStyles();
 
     if (isDragging && card) {
-      if (e.cancelable) {
-        e.preventDefault();
-      }
-
       let finalTargetId: number | null = null;
       if (typeof document !== 'undefined' && typeof document.elementFromPoint === 'function') {
-        const element = document.elementFromPoint(
-          stateRef.current.currentX,
-          stateRef.current.currentY
-        );
+        const element = document.elementFromPoint(clientX, clientY);
         const columnEl = element?.closest('[data-column-id]');
         const colIdStr = columnEl?.getAttribute('data-column-id');
         if (colIdStr) {
@@ -208,11 +213,7 @@ export const useTouchKanbanDrag = ({
 
       if (finalTargetId && finalTargetId !== card.statusId) {
         onDropCard(card.id, finalTargetId);
-        try {
-          if (typeof navigator !== 'undefined' && navigator.vibrate) {
-            navigator.vibrate([30, 40]);
-          }
-        } catch {}
+        triggerVibration([30, 40]);
       }
 
       stateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
@@ -223,17 +224,13 @@ export const useTouchKanbanDrag = ({
       stateRef.current.isDragging = false;
       stateRef.current.card = null;
     } else if (card) {
-      const touch = e.changedTouches?.[0];
-      const endDist = touch ? Math.hypot(touch.clientX - startX, touch.clientY - startY) : 0;
+      const endDist = Math.hypot(clientX - startX, clientY - startY);
       if (endDist > MOVE_THRESHOLD) {
         stateRef.current.hasMoved = true;
       }
 
-      const target = e.target as HTMLElement | null;
-      const isInteractive = target && !!target.closest('a, button, input, select, textarea, [data-no-card-click], .kanban-map-pill, .card-phone-btn, .card-messenger-btn, .card-complete-btn');
       const duration = Date.now() - startTime;
-
-      if (!stateRef.current.hasMoved && endDist <= MOVE_THRESHOLD && !isInteractive && duration >= 30 && duration < 500) {
+      if (!stateRef.current.hasMoved && endDist <= MOVE_THRESHOLD && duration >= 30 && duration < 500) {
         stateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
         stateRef.current.hasMoved = true;
         onCardClick(card);
@@ -245,7 +242,8 @@ export const useTouchKanbanDrag = ({
     }
   }, [onDropCard, onCardClick, stopAutoScroll]);
 
-  const handleNativeTouchCancel = useCallback(() => {
+  // Cancel processor
+  const processCancel = useCallback(() => {
     cleanupListeners.current();
 
     if (stateRef.current.timer) {
@@ -254,12 +252,7 @@ export const useTouchKanbanDrag = ({
     }
     setPressingCardId(null);
     stopAutoScroll();
-
-    if (typeof document !== 'undefined') {
-      document.body.style.userSelect = '';
-      (document.body.style as any).webkitUserSelect = '';
-      (document.body.style as any).touchAction = '';
-    }
+    unlockBodyStyles();
 
     stateRef.current.hasMoved = true;
     stateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
@@ -271,9 +264,98 @@ export const useTouchKanbanDrag = ({
     stateRef.current.card = null;
   }, [stopAutoScroll]);
 
+  // Native touch listeners
+  const handleNativeTouchMove = useCallback((e: TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    if (stateRef.current.isDragging) {
+      if (e.cancelable && e.preventDefault) {
+        e.preventDefault();
+      }
+      if (e.stopPropagation) {
+        e.stopPropagation();
+      }
+    }
+
+    processMove(touch.clientX, touch.clientY);
+  }, [processMove]);
+
+  const handleNativeTouchEnd = useCallback((e: TouchEvent) => {
+    const touch = e.changedTouches?.[0] || e.touches[0];
+    const clientX = touch ? touch.clientX : stateRef.current.currentX;
+    const clientY = touch ? touch.clientY : stateRef.current.currentY;
+
+    if (stateRef.current.isDragging && e.cancelable && e.preventDefault) {
+      e.preventDefault();
+    }
+
+    processEnd(clientX, clientY);
+  }, [processEnd]);
+
+  const handleNativeTouchCancel = useCallback(() => {
+    processCancel();
+  }, [processCancel]);
+
+  // Pointer event listeners
+  const handleNativePointerMove = useCallback((e: PointerEvent) => {
+    if (stateRef.current.activePointerId !== null && e.pointerId !== stateRef.current.activePointerId) return;
+
+    if (stateRef.current.isDragging) {
+      if (e.cancelable && e.preventDefault) {
+        e.preventDefault();
+      }
+    }
+
+    processMove(e.clientX, e.clientY);
+  }, [processMove]);
+
+  const handleNativePointerUp = useCallback((e: PointerEvent) => {
+    if (stateRef.current.activePointerId !== null && e.pointerId !== stateRef.current.activePointerId) return;
+    stateRef.current.activePointerId = null;
+
+    if (stateRef.current.isDragging && e.cancelable && e.preventDefault) {
+      e.preventDefault();
+    }
+
+    processEnd(e.clientX, e.clientY);
+  }, [processEnd]);
+
+  const handleNativePointerCancel = useCallback((e: PointerEvent) => {
+    if (stateRef.current.activePointerId !== null && e.pointerId !== stateRef.current.activePointerId) return;
+    stateRef.current.activePointerId = null;
+    processCancel();
+  }, [processCancel]);
+
+  // Attach global listeners
+  const attachGlobalListeners = useCallback((pointerId?: number) => {
+    cleanupListeners.current();
+
+    if (pointerId !== undefined) {
+      stateRef.current.activePointerId = pointerId;
+      window.addEventListener('pointermove', handleNativePointerMove, { passive: false });
+      window.addEventListener('pointerup', handleNativePointerUp, { passive: false });
+      window.addEventListener('pointercancel', handleNativePointerCancel, { passive: false });
+    }
+
+    window.addEventListener('touchmove', handleNativeTouchMove, { passive: false });
+    window.addEventListener('touchend', handleNativeTouchEnd, { passive: false });
+    window.addEventListener('touchcancel', handleNativeTouchCancel, { passive: false });
+
+    cleanupListeners.current = () => {
+      window.removeEventListener('pointermove', handleNativePointerMove);
+      window.removeEventListener('pointerup', handleNativePointerUp);
+      window.removeEventListener('pointercancel', handleNativePointerCancel);
+      window.removeEventListener('touchmove', handleNativeTouchMove);
+      window.removeEventListener('touchend', handleNativeTouchEnd);
+      window.removeEventListener('touchcancel', handleNativeTouchCancel);
+    };
+  }, [handleNativePointerMove, handleNativePointerUp, handleNativePointerCancel, handleNativeTouchMove, handleNativeTouchEnd, handleNativeTouchCancel]);
+
+  // Card Body Touch Start (for tap or long-press drag)
   const handleTouchStart = useCallback((e: React.TouchEvent, card: Order) => {
     const target = e.target as HTMLElement | null;
-    if (target && target.closest('a, button, input, select, textarea, [data-no-card-click], .kanban-map-pill, .card-phone-btn, .card-messenger-btn, .card-complete-btn')) {
+    if (target && target.closest('a, button, input, select, textarea, [data-no-card-click], .kanban-map-pill, .card-phone-btn, .card-messenger-btn, .card-complete-btn, .card-grip-handle')) {
       return;
     }
 
@@ -305,19 +387,11 @@ export const useTouchKanbanDrag = ({
       suppressClickUntil: stateRef.current.suppressClickUntil,
       cardElement: cardEl,
       autoScrollTimer: null,
-      targetStatusId: card.statusId
+      targetStatusId: card.statusId,
+      activePointerId: null
     };
 
-    // Attach native non-passive listeners to window to guarantee e.preventDefault() blocks browser scroll!
-    window.addEventListener('touchmove', handleNativeTouchMove, { passive: false });
-    window.addEventListener('touchend', handleNativeTouchEnd, { passive: false });
-    window.addEventListener('touchcancel', handleNativeTouchCancel, { passive: false });
-
-    cleanupListeners.current = () => {
-      window.removeEventListener('touchmove', handleNativeTouchMove);
-      window.removeEventListener('touchend', handleNativeTouchEnd);
-      window.removeEventListener('touchcancel', handleNativeTouchCancel);
-    };
+    attachGlobalListeners();
 
     const timer = setTimeout(() => {
       if (stateRef.current.hasMoved || stateRef.current.card?.id !== card.id) {
@@ -330,12 +404,7 @@ export const useTouchKanbanDrag = ({
       stateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
       setPressingCardId(null);
 
-      // Lock body scrolling and text selection while dragging
-      if (typeof document !== 'undefined') {
-        document.body.style.userSelect = 'none';
-        (document.body.style as any).webkitUserSelect = 'none';
-        (document.body.style as any).touchAction = 'none';
-      }
+      lockBodyStyles();
 
       setDraggingCard(card);
       setDragPosition({ x: startX, y: startY });
@@ -350,17 +419,73 @@ export const useTouchKanbanDrag = ({
       });
       setTargetStatusId(card.statusId);
 
-      try {
-        if (typeof navigator !== 'undefined' && navigator.vibrate) {
-          navigator.vibrate(50);
-        }
-      } catch {}
+      triggerVibration(50);
     }, longPressDelay);
 
     stateRef.current.timer = timer;
-  }, [longPressDelay, handleNativeTouchMove, handleNativeTouchEnd, handleNativeTouchCancel]);
+  }, [longPressDelay, attachGlobalListeners]);
 
-  // Direct grip handle drag start with immediate activation (no timer delay!)
+  // Immediate Drag on Grip Handle via PointerDown (Standard for modern touch & desktop)
+  const handleGripPointerDown = useCallback((e: React.PointerEvent, card: Order) => {
+    e.stopPropagation();
+    if (e.cancelable && e.preventDefault) {
+      e.preventDefault();
+    }
+
+    const cardEl = ((e.currentTarget as HTMLElement).closest('.kanban-card') || e.currentTarget) as HTMLElement;
+    const rect = cardEl.getBoundingClientRect();
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const offsetX = startX - rect.left;
+    const offsetY = startY - rect.top;
+
+    if (stateRef.current.timer) {
+      clearTimeout(stateRef.current.timer);
+      stateRef.current.timer = null;
+    }
+
+    stateRef.current = {
+      startX,
+      startY,
+      currentX: startX,
+      currentY: startY,
+      card,
+      timer: null,
+      isDragging: true,
+      hasMoved: true,
+      startTime: Date.now(),
+      suppressClickUntil: Date.now() + CLICK_SUPPRESSION_MS,
+      cardElement: cardEl,
+      autoScrollTimer: null,
+      targetStatusId: card.statusId,
+      activePointerId: e.pointerId
+    };
+
+    lockBodyStyles();
+
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+
+    setDraggingCard(card);
+    setDragPosition({ x: startX, y: startY });
+    setGhostData({
+      card,
+      width: rect.width,
+      height: rect.height,
+      offsetX,
+      offsetY,
+      initialX: rect.left,
+      initialY: rect.top
+    });
+    setTargetStatusId(card.statusId);
+
+    attachGlobalListeners(e.pointerId);
+    triggerVibration(50);
+  }, [attachGlobalListeners]);
+
+  // Immediate Drag on Grip Handle via TouchStart (Fallback & iOS WebKit support)
   const handleGripTouchStart = useCallback((e: React.TouchEvent, card: Order) => {
     e.stopPropagation();
     if (e.cancelable && e.preventDefault) {
@@ -368,6 +493,8 @@ export const useTouchKanbanDrag = ({
     }
 
     const touch = e.touches[0];
+    if (!touch) return;
+
     const cardEl = ((e.currentTarget as HTMLElement).closest('.kanban-card') || e.currentTarget) as HTMLElement;
     const rect = cardEl.getBoundingClientRect();
 
@@ -394,14 +521,11 @@ export const useTouchKanbanDrag = ({
       suppressClickUntil: Date.now() + CLICK_SUPPRESSION_MS,
       cardElement: cardEl,
       autoScrollTimer: null,
-      targetStatusId: card.statusId
+      targetStatusId: card.statusId,
+      activePointerId: null
     };
 
-    if (typeof document !== 'undefined') {
-      document.body.style.userSelect = 'none';
-      (document.body.style as any).webkitUserSelect = 'none';
-      (document.body.style as any).touchAction = 'none';
-    }
+    lockBodyStyles();
 
     setDraggingCard(card);
     setDragPosition({ x: startX, y: startY });
@@ -416,22 +540,9 @@ export const useTouchKanbanDrag = ({
     });
     setTargetStatusId(card.statusId);
 
-    window.addEventListener('touchmove', handleNativeTouchMove, { passive: false });
-    window.addEventListener('touchend', handleNativeTouchEnd, { passive: false });
-    window.addEventListener('touchcancel', handleNativeTouchCancel, { passive: false });
-
-    cleanupListeners.current = () => {
-      window.removeEventListener('touchmove', handleNativeTouchMove);
-      window.removeEventListener('touchend', handleNativeTouchEnd);
-      window.removeEventListener('touchcancel', handleNativeTouchCancel);
-    };
-
-    try {
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-    } catch {}
-  }, [handleNativeTouchMove, handleNativeTouchEnd, handleNativeTouchCancel]);
+    attachGlobalListeners();
+    triggerVibration(50);
+  }, [attachGlobalListeners]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     handleNativeTouchMove(e.nativeEvent || (e as any));
@@ -456,11 +567,7 @@ export const useTouchKanbanDrag = ({
         clearTimeout(stateRef.current.timer);
       }
       stopAutoScroll();
-      if (typeof document !== 'undefined') {
-        document.body.style.userSelect = '';
-        (document.body.style as any).webkitUserSelect = '';
-        (document.body.style as any).touchAction = '';
-      }
+      unlockBodyStyles();
     };
   }, [stopAutoScroll]);
 
@@ -471,6 +578,7 @@ export const useTouchKanbanDrag = ({
     targetStatusId,
     ghostData,
     handleTouchStart,
+    handleGripPointerDown,
     handleGripTouchStart,
     handleTouchMove,
     handleTouchEnd,
@@ -478,3 +586,4 @@ export const useTouchKanbanDrag = ({
     isClickAllowed
   };
 };
+
