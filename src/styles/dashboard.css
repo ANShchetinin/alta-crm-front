@@ -581,8 +581,15 @@ body.light-theme .nav-item.active {
     top: 0;
     left: 0;
     bottom: 0;
-    width: 280px !important;
-    max-width: 85vw;
+    width: 290px !important;
+    max-width: 86vw;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding-top: max(16px, calc(env(safe-area-inset-top, 0px) + 12px)) !important;
+    padding-bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + 12px)) !important;
+    padding-left: max(12px, calc(env(safe-area-inset-left, 0px) + 12px)) !important;
+    padding-right: 12px !important;
+    box-sizing: border-box !important;
     z-index: 10001;
     border-radius: 0;
     border-right: 1px solid var(--glass-border, #e2e8f0);
