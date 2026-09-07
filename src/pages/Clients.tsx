@@ -1482,100 +1482,203 @@ export const Clients = () => {
               {loadingHistory ? (
                 <div style={{ textAlign: 'center', padding: '2rem' }}>Загрузка истории...</div>
               ) : (
-                <div className="clients-table-container glass-panel" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                  <table className="clients-table">
-                    <thead>
-                      <tr>
-                        <th>№ Заявки / Договора</th>
-                        <th>Статус</th>
-                        <th>Адрес</th>
-                        <th>Стоимость</th>
-                        <th>Дата</th>
-                        <th style={{textAlign: 'right'}}>Действия</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {clientHistory.length === 0 ? (
+                <>
+                  {/* Desktop Table View */}
+                  <div className="clients-table-container glass-panel desktop-table-view" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    <table className="clients-table">
+                      <thead>
                         <tr>
-                          <td colSpan={6} style={{ textAlign: 'center', opacity: 0.5 }}>У клиента нет заявок.</td>
+                          <th>№ Заявки / Договора</th>
+                          <th>Статус</th>
+                          <th>Адрес</th>
+                          <th>Стоимость</th>
+                          <th>Дата</th>
+                          <th style={{textAlign: 'right'}}>Действия</th>
                         </tr>
-                      ) : (
-                        clientHistory.map(order => {
-                          const currentStatus = statuses.find(s => s.id === order.statusId);
-                          return (
-                            <tr key={order.id}>
-                              <td>
-                                <strong style={{ fontFamily: 'monospace', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
-                                  № {order.orderNumber || order.id}
-                                </strong>
-                              </td>
-                              <td>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                  <span 
-                                    style={{ 
-                                      width: '8px', 
-                                      height: '8px', 
-                                      borderRadius: '50%', 
-                                      backgroundColor: currentStatus?.color || '#3b82f6',
-                                      flexShrink: 0
-                                    }} 
-                                  />
-                                  <select
-                                    value={order.statusId}
-                                    onChange={async (e) => {
-                                      const newStatusId = Number(e.target.value);
-                                      try {
-                                        await moveOrder(order.id, newStatusId);
-                                        setClientHistory(prev => prev.map(o => o.id === order.id ? { ...o, statusId: newStatusId } : o));
-                                      } catch (err) {
-                                        console.error(err);
-                                      }
+                      </thead>
+                      <tbody>
+                        {clientHistory.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} style={{ textAlign: 'center', opacity: 0.5 }}>У клиента нет заявок.</td>
+                          </tr>
+                        ) : (
+                          clientHistory.map(order => {
+                            const currentStatus = statuses.find(s => s.id === order.statusId);
+                            return (
+                              <tr key={order.id}>
+                                <td>
+                                  <strong style={{ fontFamily: 'monospace', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
+                                    № {order.orderNumber || order.id}
+                                  </strong>
+                                </td>
+                                <td>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                    <span 
+                                      style={{ 
+                                        width: '8px', 
+                                        height: '8px', 
+                                        borderRadius: '50%', 
+                                        backgroundColor: currentStatus?.color || '#3b82f6',
+                                        flexShrink: 0
+                                      }} 
+                                    />
+                                    <select
+                                      value={order.statusId}
+                                      onChange={async (e) => {
+                                        const newStatusId = Number(e.target.value);
+                                        try {
+                                          await moveOrder(order.id, newStatusId);
+                                          setClientHistory(prev => prev.map(o => o.id === order.id ? { ...o, statusId: newStatusId } : o));
+                                        } catch (err) {
+                                          console.error(err);
+                                        }
+                                      }}
+                                      style={{
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        color: 'var(--text-primary)',
+                                        borderRadius: '4px',
+                                        padding: '3px 6px',
+                                        fontSize: '0.8rem',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      {statuses.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </td>
+                                <td>{order.address || '-'}</td>
+                                <td>
+                                  <div>{(order.totalPrice || 0).toLocaleString('ru-RU')} ₽</div>
+                                  {(order.prepayment != null || order.remainder != null) && (
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                      Ав: {(order.prepayment || 0).toLocaleString('ru-RU')} • Ост: {((order.remainder != null ? order.remainder : order.totalPrice) || 0).toLocaleString('ru-RU')} ₽
+                                    </div>
+                                  )}
+                                </td>
+                                <td>{order.createdAt ? formatDateInTimezone(order.createdAt, tenantSettings?.timezone) : '-'}</td>
+                                <td style={{textAlign: 'right'}}>
+                                  <button 
+                                    type="button"
+                                    onClick={() => {
+                                      setIsHistoryModalOpen(false);
+                                      navigate(`/kanban?orderId=${order.id}`);
                                     }}
-                                    style={{
-                                      background: 'rgba(255, 255, 255, 0.05)',
-                                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                                      color: 'var(--text-primary)',
-                                      borderRadius: '4px',
-                                      padding: '3px 6px',
-                                      fontSize: '0.8rem',
-                                      cursor: 'pointer'
-                                    }}
+                                    className="action-btn"
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '0.8rem' }}
                                   >
-                                    {statuses.map(s => (
-                                      <option key={s.id} value={s.id}>{s.name}</option>
-                                    ))}
-                                  </select>
+                                    Перейти <ArrowRight size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Cards View */}
+                  <div className="mobile-card-view" style={{ maxHeight: '420px', overflowY: 'auto', gap: '8px', paddingRight: '2px' }}>
+                    {clientHistory.length === 0 ? (
+                      <div style={{ textAlign: 'center', opacity: 0.5, padding: '24px' }}>У клиента нет заявок.</div>
+                    ) : (
+                      clientHistory.map(order => {
+                        const currentStatus = statuses.find(s => s.id === order.statusId);
+                        return (
+                          <div 
+                            key={order.id} 
+                            className="mobile-data-card"
+                            style={{ padding: '10px 12px', gap: '8px' }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                              <strong style={{ fontFamily: 'monospace', color: 'var(--accent-primary)', fontSize: '0.9rem' }}>
+                                № {order.orderNumber || order.id}
+                              </strong>
+                              
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                <span 
+                                  style={{ 
+                                    width: '8px', 
+                                    height: '8px', 
+                                    borderRadius: '50%', 
+                                    backgroundColor: currentStatus?.color || '#3b82f6',
+                                    flexShrink: 0
+                                  }} 
+                                />
+                                <select
+                                  value={order.statusId}
+                                  onChange={async (e) => {
+                                    const newStatusId = Number(e.target.value);
+                                    try {
+                                      await moveOrder(order.id, newStatusId);
+                                      setClientHistory(prev => prev.map(o => o.id === order.id ? { ...o, statusId: newStatusId } : o));
+                                    } catch (err) {
+                                      console.error(err);
+                                    }
+                                  }}
+                                  style={{
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    color: 'var(--text-primary)',
+                                    borderRadius: '4px',
+                                    padding: '2px 6px',
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  {statuses.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {order.address && (
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <MapPin size={12} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{order.address}</span>
+                              </div>
+                            )}
+
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8rem', background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '6px' }}>
+                              <div>
+                                <div style={{ fontWeight: 700, color: '#4ade80' }}>
+                                  {(order.totalPrice || 0).toLocaleString('ru-RU')} ₽
                                 </div>
-                              </td>
-                              <td>{order.address || '-'}</td>
-                              <td>
-                                <div>{(order.totalPrice || 0).toLocaleString('ru-RU')} ₽</div>
                                 {(order.prepayment != null || order.remainder != null) && (
-                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                    Ав: {(order.prepayment || 0).toLocaleString('ru-RU')} • Ост: {((order.remainder != null ? order.remainder : order.totalPrice) || 0).toLocaleString('ru-RU')} ₽
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                    Аванс: {(order.prepayment || 0).toLocaleString('ru-RU')} • Ост: {((order.remainder != null ? order.remainder : order.totalPrice) || 0).toLocaleString('ru-RU')} ₽
                                   </div>
                                 )}
-                              </td>
-                              <td>{order.createdAt ? formatDateInTimezone(order.createdAt, tenantSettings?.timezone) : '-'}</td>
-                              <td style={{textAlign: 'right'}}>
-                                <button 
-                                  onClick={() => {
-                                    setIsHistoryModalOpen(false);
-                                    navigate(`/?orderId=${order.id}`);
-                                  }}
-                                  className="action-btn"
-                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '0.8rem' }}
-                                >
-                                  Перейти <ArrowRight size={14} />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                              </div>
+
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                                {order.createdAt ? formatDateInTimezone(order.createdAt, tenantSettings?.timezone) : '-'}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '4px' }}>
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  setIsHistoryModalOpen(false);
+                                  navigate(`/kanban?orderId=${order.id}`);
+                                }}
+                                className="btn btn-primary btn-sm"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', fontSize: '0.78rem', height: '28px' }}
+                              >
+                                Открыть сделку <ArrowRight size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
               )}
             </div>
             <div className="modal-actions">

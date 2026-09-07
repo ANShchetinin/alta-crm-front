@@ -264,57 +264,13 @@ select.search-input option {
   gap: 10px;
 }
 
-/* Responsive styles for clients / tables */
-@media (max-width: 768px) {
-  .clients-wrapper {
-    padding: 0;
-    width: 100%;
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  .clients-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    margin-bottom: 16px;
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .clients-header h1 {
-    font-size: 1.25rem;
-  }
-
-  .clients-actions {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .search-input-wrapper {
-    flex: 1;
-    min-width: 0;
-    width: auto !important;
-    max-width: none !important;
-  }
-
-  .search-input {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box;
-  }
-
-/* Desktop / Mobile Switcher */
+/* Desktop / Mobile Switcher Defaults */
 .desktop-table-view {
-  display: block;
+  display: block !important;
 }
 
 .mobile-card-view {
-  display: none;
+  display: none !important;
 }
 
 .mobile-cards-list {
@@ -366,6 +322,50 @@ select.search-input option {
   padding-top: 8px;
   margin-top: 2px;
 }
+
+/* Responsive styles for clients / tables */
+@media (max-width: 768px) {
+  .clients-wrapper {
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .clients-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .clients-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .clients-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .search-input-wrapper {
+    flex: 1;
+    min-width: 0;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  .search-input {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
 
   .clients-actions .btn {
     flex-shrink: 0;
