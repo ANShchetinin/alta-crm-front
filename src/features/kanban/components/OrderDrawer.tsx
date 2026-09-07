@@ -875,9 +875,21 @@ export const OrderDrawer: React.FC = () => {
         isPdf,
         attachment: att
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to open attachment", err);
-      alert("Не удалось открыть файл");
+      let message = "Не удалось открыть файл";
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          if (json.message) message = json.message;
+        } catch {
+          // ignore
+        }
+      } else if (err.response?.data?.message) {
+        message = err.response.data.message;
+      }
+      alert(message);
     } finally {
       setOpeningAttachmentId(null);
     }
@@ -900,10 +912,22 @@ export const OrderDrawer: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err) {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err: any) {
       console.error("Failed to download attachment", err);
-      alert("Не удалось скачать файл");
+      let message = "Не удалось скачать файл";
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          if (json.message) message = json.message;
+        } catch {
+          // ignore
+        }
+      } else if (err.response?.data?.message) {
+        message = err.response.data.message;
+      }
+      alert(message);
     }
   };
 
@@ -1194,15 +1218,17 @@ export const OrderDrawer: React.FC = () => {
 
   if (!isOpen) return null;
 
-  return createPortal(
-    <div
-      className="order-drawer-overlay"
-      style={{
-        opacity: isSheetClosing ? 0 : 1,
-        transition: 'opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
-      }}
-      onClick={handleRequestCloseModal}
-    >
+  return (
+    <>
+      {createPortal(
+        <div
+          className="order-drawer-overlay"
+          style={{
+            opacity: isSheetClosing ? 0 : 1,
+            transition: 'opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}
+          onClick={handleRequestCloseModal}
+        >
       <div 
         className={`order-drawer-content ${orderModalTab === 'MEASUREMENT' || orderModalTab === 'CONTRACT' ? 'is-wide' : ''}`} 
         style={sheetTranslateY > 0 || isSheetClosing ? {
@@ -2557,7 +2583,11 @@ export const OrderDrawer: React.FC = () => {
                               {isViewableInBrowser(actAttachment.fileName, actAttachment.contentType) && (
                                 <button
                                   type="button"
-                                  onClick={() => handleOpenAttachment(actAttachment)}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleOpenAttachment(actAttachment);
+                                  }}
                                   className="btn btn-ghost"
                                   style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                   title="Посмотреть вложение"
@@ -2572,7 +2602,11 @@ export const OrderDrawer: React.FC = () => {
                               )}
                               <button
                                 type="button"
-                                onClick={() => handleDownloadAttachment(actAttachment)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDownloadAttachment(actAttachment);
+                                }}
                                 className="btn btn-ghost"
                                 style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                 title="Скачать файл"
@@ -2754,7 +2788,11 @@ export const OrderDrawer: React.FC = () => {
                                 {canPreview && (
                                   <button 
                                     type="button" 
-                                    onClick={() => handleOpenAttachment(att)} 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleOpenAttachment(att);
+                                    }} 
                                     className="btn btn-ghost" 
                                     style={{padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
                                     title="Посмотреть вложение"
@@ -2769,7 +2807,11 @@ export const OrderDrawer: React.FC = () => {
                                 )}
                                 <button 
                                   type="button" 
-                                  onClick={() => handleDownloadAttachment(att)} 
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleDownloadAttachment(att);
+                                  }} 
                                   className="btn btn-ghost" 
                                   style={{padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
                                   title="Скачать файл"
@@ -3971,13 +4013,16 @@ export const OrderDrawer: React.FC = () => {
         </div>
       )}
 
+        </div>,
+        document.body
+      )}
+
       {/* In-App Attachment Preview Modal (Works 100% in iOS PWA / Android / Desktop) */}
       <AttachmentPreviewModal
         preview={previewAttachment}
         onClose={handleClosePreviewAttachment}
         onDownload={handleDownloadAttachment}
       />
-    </div>,
-    document.body
+    </>
   );
 };
