@@ -363,8 +363,8 @@ export const Clients = () => {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="clients-table-container glass-panel">
+      {/* Table (Desktop) */}
+      <div className="clients-table-container glass-panel desktop-table-view">
         <table className="clients-table">
           <thead>
             <tr>
@@ -608,6 +608,200 @@ export const Clients = () => {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards List */}
+      <div className="mobile-card-view">
+        {filteredClients.length === 0 ? (
+          <div className="glass-panel" style={{ textAlign: 'center', opacity: 0.6, padding: '32px 16px', borderRadius: 'var(--radius-md)' }}>
+            Клиенты не найдены.
+          </div>
+        ) : (
+          <div className="mobile-cards-list">
+            {filteredClients.map(client => {
+              const isLegal = client.clientType === 'LEGAL_ENTITY';
+              return (
+                <div 
+                  key={client.id}
+                  onClick={() => openEditModal(client)}
+                  className="mobile-data-card"
+                >
+                  <div className="mobile-data-card-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        color: '#fff',
+                        background: client.avatarUrl ? 'transparent' : getAvatarGradient(client.name || (isLegal ? 'Компания' : 'Клиент')),
+                        border: '1.5px solid rgba(255, 255, 255, 0.15)',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                        flexShrink: 0
+                      }}>
+                        {client.avatarUrl ? (
+                          <img 
+                            src={client.avatarUrl} 
+                            alt={client.name} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          />
+                        ) : (
+                          isLegal ? <Building2 size={18} /> : getClientInitials(client.name)
+                        )}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {client.name}
+                        </div>
+                        {isLegal && client.legalName && client.legalName !== client.name && (
+                          <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {client.legalName}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: '0.7rem',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                      color: isLegal ? '#60a5fa' : 'var(--text-secondary)',
+                      fontWeight: 600,
+                      flexShrink: 0
+                    }}>
+                      {isLegal ? 'ЮРЛИЦО' : 'ФИЗЛИЦО'}
+                    </span>
+                  </div>
+
+                  <div className="mobile-data-card-body">
+                    {/* Contacts & Messengers */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                      {client.phone ? (
+                        <a 
+                          href={`tel:${client.phone.replace(/[^\d+]/g, '')}`} 
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            color: 'var(--success, #22c55e)',
+                            textDecoration: 'none',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            background: 'rgba(34, 197, 94, 0.1)',
+                            border: '1px solid rgba(34, 197, 94, 0.25)',
+                            fontWeight: 600,
+                            fontSize: '0.82rem'
+                          }}
+                        >
+                          <Phone size={13} />
+                          <span>{client.phone}</span>
+                        </a>
+                      ) : (
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Без телефона</span>
+                      )}
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {client.whatsapp && (
+                          <a
+                            href={getWhatsAppLink(client.whatsapp)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="messenger-link whatsapp-link"
+                            title="WhatsApp"
+                          >
+                            <MessageCircle size={14} />
+                          </a>
+                        )}
+                        {client.telegram && (
+                          <a
+                            href={getTelegramLink(client.telegram)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="messenger-link telegram-link"
+                            title="Telegram"
+                          >
+                            <Send size={14} />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Legal Contacts / INN */}
+                    {isLegal && (
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px', background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '6px' }}>
+                        {client.contactPerson && (
+                          <div>ЛПР: <strong>{client.contactPerson}</strong>{client.contactPosition ? ` (${client.contactPosition})` : ''}</div>
+                        )}
+                        {client.inn && (
+                          <div>ИНН: <span style={{ fontFamily: 'monospace' }}>{client.inn}</span>{client.kpp ? ` • КПП: ${client.kpp}` : ''}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Metadata: Lead source & Date */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {client.leadSource ? (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: 'rgba(59, 130, 246, 0.1)',
+                          color: '#60a5fa',
+                          fontWeight: 500
+                        }}>
+                          <Tag size={11} /> {client.leadSource}
+                        </span>
+                      ) : (
+                        <span />
+                      )}
+                      <span>{formatDateInTimezone(client.createdAt, tenantSettings?.timezone)}</span>
+                    </div>
+                  </div>
+
+                  <div className="mobile-data-card-actions" onClick={(e) => e.stopPropagation()}>
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); openHistoryModal(client); }}
+                      className="btn btn-ghost"
+                      style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <FileText size={13} /> История
+                    </button>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openEditModal(client); }}
+                        className="btn btn-ghost"
+                        style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Edit2 size={13} /> Изменить
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleDelete(client.id); }}
+                        className="btn btn-ghost text-danger"
+                        style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', color: '#ef4444' }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Modal Overlay */}

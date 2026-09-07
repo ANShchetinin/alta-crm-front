@@ -274,8 +274,8 @@ export const Storage = () => {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="table-responsive glass-panel" style={{ borderRadius: 'var(--radius-lg)', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 220px)', width: '100%' }}>
+      {/* Table (Desktop) */}
+      <div className="table-responsive glass-panel desktop-table-view" style={{ borderRadius: 'var(--radius-lg)', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 220px)', width: '100%' }}>
         <table className="clients-table" style={{ width: '100%', minWidth: '850px' }}>
           <thead>
             <tr>
@@ -399,6 +399,135 @@ export const Storage = () => {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards List */}
+      <div className="mobile-card-view">
+        {filteredMaterials.length === 0 ? (
+          <div className="glass-panel" style={{ textAlign: 'center', opacity: 0.6, padding: '32px 16px', borderRadius: 'var(--radius-md)' }}>
+            Позиции не найдены.
+          </div>
+        ) : (
+          <div className="mobile-cards-list">
+            {filteredMaterials.map(material => {
+              const isService = material.type === 'SERVICE';
+              const isLow = !isService && material.quantityInStock <= (material.minQuantity || 0);
+              const sPrice = material.salePrice != null ? material.salePrice : material.costPrice;
+
+              return (
+                <div 
+                  key={material.id}
+                  onClick={() => openEditModal(material)}
+                  className="mobile-data-card"
+                >
+                  <div className="mobile-data-card-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        width: '34px',
+                        height: '34px',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: isService ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                        color: isService ? '#c084fc' : '#60a5fa',
+                        flexShrink: 0
+                      }}>
+                        {isService ? <Wrench size={16} /> : <Package size={16} />}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {material.name}
+                        </div>
+                        {material.category && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '1px' }}>
+                            <Tag size={11} style={{ opacity: 0.7 }} />
+                            <span>{material.category}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <span style={{
+                      fontSize: '0.7rem',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      background: isService ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                      color: isService ? '#c084fc' : '#60a5fa',
+                      fontWeight: 600,
+                      flexShrink: 0
+                    }}>
+                      {isService ? 'УСЛУГА' : 'МАТЕРИАЛ'}
+                    </span>
+                  </div>
+
+                  <div className="mobile-data-card-body">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '8px 10px', borderRadius: '6px' }}>
+                      {!isService ? (
+                        <div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Остаток на складе</div>
+                          <div style={{
+                            fontWeight: 700,
+                            fontSize: '0.88rem',
+                            color: isLow ? '#ef4444' : 'var(--text-primary)'
+                          }}>
+                            {material.quantityInStock} {material.unit}
+                            {isLow && <span style={{ fontSize: '0.7rem', color: '#ef4444', marginLeft: '4px' }}>(мало!)</span>}
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Единица расчета</div>
+                          <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                            {material.unit}
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                          Себест.: {(material.costPrice || 0).toLocaleString('ru-RU')} ₽
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#4ade80' }}>
+                          {(sPrice || 0).toLocaleString('ru-RU')} ₽
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mobile-data-card-actions" onClick={(e) => e.stopPropagation()}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                      {material.isDefault ? (
+                        <span style={{ color: '#4ade80', fontWeight: 600 }}>● По умолчанию</span>
+                      ) : (
+                        <span>Ед. изм.: {material.unit}</span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openEditModal(material); }}
+                        className="btn btn-ghost"
+                        style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px' }}
+                      >
+                        Изменить
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteMaterial(material.id, material.name); }}
+                        className="btn btn-ghost text-danger"
+                        style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', color: '#ef4444' }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Modal Overlay */}
