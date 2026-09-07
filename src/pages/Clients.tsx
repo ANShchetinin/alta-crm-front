@@ -3,12 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { 
   Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone, 
   ChevronDown, Tag, Building2, User, MapPin, CreditCard, Users, PlusCircle,
-  MessageCircle, Send
+  MessageCircle, Send, CheckSquare, Square
 } from 'lucide-react';
 import type { Client, ClientContact } from '../api/clients';
 import { getClients, createClient, updateClient, deleteClient } from '../api/clients';
 import type { Order, OrderStatus } from '../api/kanban';
 import { getOrdersByClient, getOrderStatuses, moveOrder } from '../api/kanban';
+import { getMyTenants, type UserTenant } from '../api/auth';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useFeature } from '../hooks/useFeatureToggle';
@@ -28,6 +29,8 @@ export const Clients = () => {
   const isPassportOcrEnabled = useFeature('PASSPORT_OCR');
   const [clients, setClients] = useState<Client[]>([]);
   const [statuses, setStatuses] = useState<OrderStatus[]>([]);
+  const [myTenants, setMyTenants] = useState<UserTenant[]>([]);
+  const [currentTenantId, setCurrentTenantId] = useState<number>(1);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [clientTypeFilter, setClientTypeFilter] = useState<'ALL' | 'INDIVIDUAL' | 'LEGAL_ENTITY'>('ALL');
@@ -71,7 +74,8 @@ export const Clients = () => {
     leadSource: '',
     customLeadSource: '',
     whatsapp: '',
-    telegram: ''
+    telegram: '',
+    allowedTenantIds: [] as number[]
   });
 
 
@@ -83,12 +87,17 @@ export const Clients = () => {
   const fetchClients = async () => {
     try {
       setLoading(true);
-      const [data, statusesData] = await Promise.all([
+      const [data, statusesData, tenantsResp] = await Promise.all([
         getClients(),
-        getOrderStatuses()
+        getOrderStatuses().catch(() => [] as OrderStatus[]),
+        getMyTenants().catch(() => null)
       ]);
       setClients(Array.isArray(data) ? data : []);
       setStatuses(Array.isArray(statusesData) ? statusesData.sort((a, b) => a.sortOrder - b.sortOrder) : []);
+      if (tenantsResp) {
+        setMyTenants(Array.isArray(tenantsResp.tenants) ? tenantsResp.tenants : []);
+        setCurrentTenantId(tenantsResp.currentTenantId || 1);
+      }
     } catch (err) {
       console.error(err);
       setClients([]);
@@ -153,7 +162,8 @@ export const Clients = () => {
       leadSource: '',
       customLeadSource: '',
       whatsapp: '',
-      telegram: ''
+      telegram: '',
+      allowedTenantIds: [currentTenantId]
     });
     setIsModalOpen(true);
   };
@@ -191,7 +201,8 @@ export const Clients = () => {
       leadSource: isPreset || !source ? source : 'custom',
       customLeadSource: !isPreset && source ? source : '',
       whatsapp: client.whatsapp || '',
-      telegram: client.telegram || ''
+      telegram: client.telegram || '',
+      allowedTenantIds: (client.allowedTenantIds && client.allowedTenantIds.length > 0) ? client.allowedTenantIds : [currentTenantId]
     });
     setIsModalOpen(true);
   };
@@ -284,7 +295,8 @@ export const Clients = () => {
         contacts: validContacts.length > 0 ? validContacts : [],
         leadSource: finalLeadSource || null,
         whatsapp: formData.whatsapp.trim() || null,
-        telegram: formData.telegram.trim() || null
+        telegram: formData.telegram.trim() || null,
+        allowedTenantIds: (formData.allowedTenantIds && formData.allowedTenantIds.length > 0) ? formData.allowedTenantIds : [currentTenantId]
       };
 
       if (editingClient) {
@@ -441,6 +453,31 @@ export const Clients = () => {
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                               ИНН: <span style={{ fontFamily: 'monospace' }}>{client.inn}</span>
                               {client.kpp ? ` • КПП: ${client.kpp}` : ''}
+                            </div>
+                          )}
+                          {myTenants.length > 1 && client.allowedTenantIds && client.allowedTenantIds.length > 0 && (
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
+                              {client.allowedTenantIds.map(tid => {
+                                const t = myTenants.find(x => x.tenantId === tid);
+                                if (!t) return null;
+                                const isCurrent = t.tenantId === currentTenantId;
+                                return (
+                                  <span 
+                                    key={tid}
+                                    style={{
+                                      fontSize: '0.68rem',
+                                      padding: '1px 6px',
+                                      borderRadius: '4px',
+                                      background: isCurrent ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                      border: `1px solid ${isCurrent ? 'rgba(59, 130, 246, 0.3)' : 'var(--glass-border)'}`,
+                                      color: isCurrent ? '#60a5fa' : 'var(--text-secondary)',
+                                      fontWeight: 500
+                                    }}
+                                  >
+                                    {t.name}
+                                  </span>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -743,6 +780,33 @@ export const Clients = () => {
                         {client.inn && (
                           <div>ИНН: <span style={{ fontFamily: 'monospace' }}>{client.inn}</span>{client.kpp ? ` • КПП: ${client.kpp}` : ''}</div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Multitenants tags */}
+                    {myTenants.length > 1 && client.allowedTenantIds && client.allowedTenantIds.length > 0 && (
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
+                        {client.allowedTenantIds.map(tid => {
+                          const t = myTenants.find(x => x.tenantId === tid);
+                          if (!t) return null;
+                          const isCurrent = t.tenantId === currentTenantId;
+                          return (
+                            <span 
+                              key={tid}
+                              style={{
+                                fontSize: '0.68rem',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                background: isCurrent ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                border: `1px solid ${isCurrent ? 'rgba(59, 130, 246, 0.3)' : 'var(--glass-border)'}`,
+                                color: isCurrent ? '#60a5fa' : 'var(--text-secondary)',
+                                fontWeight: 500
+                              }}
+                            >
+                              {t.name}
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
 
@@ -1405,6 +1469,65 @@ export const Clients = () => {
                     />
                   )}
                 </div>
+
+                {/* Блок Выбора компаний/филиалов клиента */}
+                {myTenants.length > 1 && (
+                  <div style={{
+                    marginTop: '16px',
+                    padding: '16px',
+                    background: 'rgba(59, 130, 246, 0.05)',
+                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                    borderRadius: 'var(--radius-md)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <Building2 size={18} style={{ color: '#60a5fa' }} />
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Привязка к компаниям / филиалам</div>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                      Клиент будет доступен в выбранных компаниях владельца
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      {myTenants.map(t => {
+                        const isChecked = formData.allowedTenantIds.includes(t.tenantId);
+                        return (
+                          <div
+                            key={t.tenantId}
+                            onClick={() => {
+                              const next = isChecked
+                                ? formData.allowedTenantIds.filter(id => id !== t.tenantId)
+                                : [...formData.allowedTenantIds, t.tenantId];
+                              setFormData({
+                                ...formData,
+                                allowedTenantIds: next.length ? next : [t.tenantId]
+                              });
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              background: isChecked ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                              border: isChecked ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {isChecked ? (
+                              <CheckSquare size={16} style={{ color: '#60a5fa', flexShrink: 0 }} />
+                            ) : (
+                              <Square size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                            )}
+                            <span style={{ fontSize: '0.82rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {t.name}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--glass-border)' }}>

@@ -41,6 +41,7 @@ export interface Client {
   createdAt: string;
   whatsapp?: string;
   telegram?: string;
+  allowedTenantIds?: number[];
 }
 
 export interface ClientCreateRequest {
@@ -72,6 +73,7 @@ export interface ClientCreateRequest {
   leadSource?: string | null;
   whatsapp?: string | null;
   telegram?: string | null;
+  allowedTenantIds?: number[];
 }
 
 export const getClients = async (): Promise<Client[]> => {
