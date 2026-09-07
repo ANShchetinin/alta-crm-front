@@ -48,6 +48,8 @@
   padding: 14px 8px;
 }
 
+.sidebar.sidebar-collapsed .sidebar-header > div:first-child,
+.sidebar.sidebar-collapsed .company-switcher-trigger,
 .sidebar.sidebar-collapsed .sidebar-header h2,
 .sidebar.sidebar-collapsed .sidebar-tenant-selector,
 .sidebar.sidebar-collapsed .nav-item span,
@@ -64,10 +66,15 @@
 
 .sidebar.sidebar-collapsed .sidebar-header {
   justify-content: center;
+  margin-bottom: 12px;
 }
 
 .sidebar.sidebar-collapsed .sidebar-toggle-btn {
   margin: 0 auto;
+  width: 36px;
+  height: 36px;
+  background: var(--input-bg, rgba(0, 0, 0, 0.04));
+  border-radius: 8px;
 }
 
 .sidebar.sidebar-collapsed .logout-btn {
