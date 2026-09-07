@@ -57,14 +57,15 @@ export const Employees = () => {
         getOrderStatuses().catch(() => [] as OrderStatus[]),
         getMyTenants().catch(() => null)
       ]);
-      setEmployees(empData);
-      setStatuses(statusData);
+      setEmployees(Array.isArray(empData) ? empData : []);
+      setStatuses(Array.isArray(statusData) ? statusData : []);
       if (tenantsResp) {
-        setMyTenants(tenantsResp.tenants || []);
+        setMyTenants(Array.isArray(tenantsResp.tenants) ? tenantsResp.tenants : []);
         setCurrentTenantId(tenantsResp.currentTenantId || 1);
       }
     } catch (err) {
       console.error('Failed to load initial data', err);
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
@@ -73,20 +74,25 @@ export const Employees = () => {
   const fetchEmployeesList = async () => {
     try {
       const data = await getEmployees();
-      setEmployees(data);
+      setEmployees(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const filteredEmployees = employees.filter(c => 
-    c.name.toLowerCase().includes(search.toLowerCase()) || 
-    (c.phone && c.phone.includes(search)) ||
-    (c.position && c.position.toLowerCase().includes(search.toLowerCase())) ||
-    (c.email && c.email.toLowerCase().includes(search.toLowerCase())) ||
-    (c.passportSeriesNumber && c.passportSeriesNumber.includes(search)) ||
-    (c.registrationAddress && c.registrationAddress.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filteredEmployees = (Array.isArray(employees) ? employees : []).filter(c => {
+    if (!c) return false;
+    const q = (search || '').toLowerCase().trim();
+    if (!q) return true;
+    return (
+      (c.name && typeof c.name === 'string' && c.name.toLowerCase().includes(q)) || 
+      (c.phone && typeof c.phone === 'string' && c.phone.includes(q)) ||
+      (c.position && typeof c.position === 'string' && c.position.toLowerCase().includes(q)) ||
+      (c.email && typeof c.email === 'string' && c.email.toLowerCase().includes(q)) ||
+      (c.passportSeriesNumber && typeof c.passportSeriesNumber === 'string' && c.passportSeriesNumber.includes(q)) ||
+      (c.registrationAddress && typeof c.registrationAddress === 'string' && c.registrationAddress.toLowerCase().includes(q))
+    );
+  });
 
   const openAddModal = () => {
     setEditingEmployee(null);

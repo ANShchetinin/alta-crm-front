@@ -38,7 +38,7 @@ const RoleRoute = ({ children, allowedRoles }: { children: React.ReactNode; allo
   if (!role || !allowedRoles.includes(role)) {
     return <Navigate to={role === 'SUPERADMIN' ? "/tenants" : "/kanban"} replace />;
   }
-  return <>{children}</>;
+  return <ErrorBoundary>{children}</ErrorBoundary>;
 };
 
 const FeatureRoute = ({ children, feature }: { children: React.ReactNode; feature: FeatureKey }) => {

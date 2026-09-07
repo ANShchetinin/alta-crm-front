@@ -87,36 +87,38 @@ export const Clients = () => {
         getClients(),
         getOrderStatuses()
       ]);
-      setClients(data);
-      setStatuses(statusesData.sort((a, b) => a.sortOrder - b.sortOrder));
+      setClients(Array.isArray(data) ? data : []);
+      setStatuses(Array.isArray(statusesData) ? statusesData.sort((a, b) => a.sortOrder - b.sortOrder) : []);
     } catch (err) {
       console.error(err);
+      setClients([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredClients = clients.filter(c => {
+  const filteredClients = (Array.isArray(clients) ? clients : []).filter(c => {
+    if (!c) return false;
     const type = c.clientType || 'INDIVIDUAL';
     if (clientTypeFilter !== 'ALL' && type !== clientTypeFilter) {
       return false;
     }
     
-    if (!search.trim()) return true;
+    if (!search || !search.trim()) return true;
     const q = search.toLowerCase().trim();
 
     return (
-      c.name.toLowerCase().includes(q) ||
-      (c.legalName && c.legalName.toLowerCase().includes(q)) ||
-      c.phone.includes(q) ||
-      (c.inn && c.inn.includes(q)) ||
-      (c.email && c.email.toLowerCase().includes(q)) ||
-      (c.contactPerson && c.contactPerson.toLowerCase().includes(q)) ||
-      (c.leadSource && c.leadSource.toLowerCase().includes(q)) ||
-      (c.passportSeriesNumber && c.passportSeriesNumber.includes(q)) ||
-      (c.whatsapp && c.whatsapp.toLowerCase().includes(q)) ||
-      (c.telegram && c.telegram.toLowerCase().includes(q)) ||
-      (c.contacts && c.contacts.some(cnt => cnt.name.toLowerCase().includes(q) || (cnt.phone && cnt.phone.includes(q))))
+      (c.name && typeof c.name === 'string' && c.name.toLowerCase().includes(q)) ||
+      (c.legalName && typeof c.legalName === 'string' && c.legalName.toLowerCase().includes(q)) ||
+      (c.phone && typeof c.phone === 'string' && c.phone.includes(q)) ||
+      (c.inn && typeof c.inn === 'string' && c.inn.includes(q)) ||
+      (c.email && typeof c.email === 'string' && c.email.toLowerCase().includes(q)) ||
+      (c.contactPerson && typeof c.contactPerson === 'string' && c.contactPerson.toLowerCase().includes(q)) ||
+      (c.leadSource && typeof c.leadSource === 'string' && c.leadSource.toLowerCase().includes(q)) ||
+      (c.passportSeriesNumber && typeof c.passportSeriesNumber === 'string' && c.passportSeriesNumber.includes(q)) ||
+      (c.whatsapp && typeof c.whatsapp === 'string' && c.whatsapp.toLowerCase().includes(q)) ||
+      (c.telegram && typeof c.telegram === 'string' && c.telegram.toLowerCase().includes(q)) ||
+      (Array.isArray(c.contacts) && c.contacts.some(cnt => (cnt?.name && cnt.name.toLowerCase().includes(q)) || (cnt?.phone && cnt.phone.includes(q))))
     );
   });
 

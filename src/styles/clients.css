@@ -13,17 +13,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .clients-header h1 {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
 }
 
 .clients-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .search-input-wrapper {

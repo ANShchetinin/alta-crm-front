@@ -128,12 +128,15 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border-radius: var(--radius-md);
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm, 8px);
   font-family: var(--font-main);
-  font-weight: 500;
-  font-size: 0.95rem;
+  font-weight: 600;
+  font-size: 0.84rem;
+  white-space: nowrap;
+  box-sizing: border-box;
   cursor: pointer;
   border: none;
   transition: all var(--transition-normal);
@@ -141,15 +144,15 @@ button {
 }
 
 .btn-primary {
-  background: var(--accent-primary);
+  background: var(--accent-primary, #2563eb);
   color: #fff;
-  box-shadow: 0 4px 14px 0 var(--accent-glow);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
 .btn-primary:hover {
-  background: var(--accent-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px 0 var(--accent-glow);
+  background: var(--accent-hover, #1d4ed8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
 }
 
 .btn-primary:active {

@@ -653,16 +653,6 @@ const DashboardLayout = () => {
                   }
                 }}
                 title="Создать новую заявку"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0 12px',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  borderRadius: 'var(--radius-sm, 6px)',
-                  height: '32px'
-                }}
               >
                 <Plus size={15} />
                 <span className="hidden sm:inline">Новая заявка</span>
