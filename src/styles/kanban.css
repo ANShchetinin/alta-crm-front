@@ -2173,6 +2173,35 @@ body.light-theme .kanban-mobile-accordion-body {
   background: rgba(59, 130, 246, 0.15);
 }
 
+.card-grip-handle {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: grab;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 2px;
+  margin-top: 2px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.kanban-card:hover .card-grip-handle,
+.card-grip-handle:active {
+  opacity: 1;
+}
+
+.card-grip-handle:active {
+  cursor: grabbing;
+  color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.18);
+}
+
 .kanban-mobile-accordion-column.is-col-dragging-placeholder {
   opacity: 0.35 !important;
   border: 2px dashed var(--accent-primary) !important;

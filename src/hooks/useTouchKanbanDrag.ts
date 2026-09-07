@@ -360,6 +360,79 @@ export const useTouchKanbanDrag = ({
     stateRef.current.timer = timer;
   }, [longPressDelay, handleNativeTouchMove, handleNativeTouchEnd, handleNativeTouchCancel]);
 
+  // Direct grip handle drag start with immediate activation (no timer delay!)
+  const handleGripTouchStart = useCallback((e: React.TouchEvent, card: Order) => {
+    e.stopPropagation();
+    if (e.cancelable && e.preventDefault) {
+      e.preventDefault();
+    }
+
+    const touch = e.touches[0];
+    const cardEl = ((e.currentTarget as HTMLElement).closest('.kanban-card') || e.currentTarget) as HTMLElement;
+    const rect = cardEl.getBoundingClientRect();
+
+    const startX = touch.clientX;
+    const startY = touch.clientY;
+    const offsetX = startX - rect.left;
+    const offsetY = startY - rect.top;
+
+    if (stateRef.current.timer) {
+      clearTimeout(stateRef.current.timer);
+      stateRef.current.timer = null;
+    }
+
+    stateRef.current = {
+      startX,
+      startY,
+      currentX: startX,
+      currentY: startY,
+      card,
+      timer: null,
+      isDragging: true,
+      hasMoved: true,
+      startTime: Date.now(),
+      suppressClickUntil: Date.now() + CLICK_SUPPRESSION_MS,
+      cardElement: cardEl,
+      autoScrollTimer: null,
+      targetStatusId: card.statusId
+    };
+
+    if (typeof document !== 'undefined') {
+      document.body.style.userSelect = 'none';
+      (document.body.style as any).webkitUserSelect = 'none';
+      (document.body.style as any).touchAction = 'none';
+    }
+
+    setDraggingCard(card);
+    setDragPosition({ x: startX, y: startY });
+    setGhostData({
+      card,
+      width: rect.width,
+      height: rect.height,
+      offsetX,
+      offsetY,
+      initialX: rect.left,
+      initialY: rect.top
+    });
+    setTargetStatusId(card.statusId);
+
+    window.addEventListener('touchmove', handleNativeTouchMove, { passive: false });
+    window.addEventListener('touchend', handleNativeTouchEnd, { passive: false });
+    window.addEventListener('touchcancel', handleNativeTouchCancel, { passive: false });
+
+    cleanupListeners.current = () => {
+      window.removeEventListener('touchmove', handleNativeTouchMove);
+      window.removeEventListener('touchend', handleNativeTouchEnd);
+      window.removeEventListener('touchcancel', handleNativeTouchCancel);
+    };
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    } catch {}
+  }, [handleNativeTouchMove, handleNativeTouchEnd, handleNativeTouchCancel]);
+
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     handleNativeTouchMove(e.nativeEvent || (e as any));
   }, [handleNativeTouchMove]);
@@ -398,6 +471,7 @@ export const useTouchKanbanDrag = ({
     targetStatusId,
     ghostData,
     handleTouchStart,
+    handleGripTouchStart,
     handleTouchMove,
     handleTouchEnd,
     handleTouchCancel,

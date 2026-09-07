@@ -265,6 +265,7 @@ const Kanban = () => {
     ghostData: touchGhostData,
     targetStatusId: touchTargetStatusId,
     handleTouchStart,
+    handleGripTouchStart,
     handleTouchMove,
     handleTouchEnd,
     handleTouchCancel,
@@ -516,7 +517,17 @@ const Kanban = () => {
       >
         {/* 1. Header: Client Info (Left) + Phone & Assignee (Right) */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', minWidth: 0, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', minWidth: 0, flex: 1 }}>
+            {/* Card Drag Grip Handle */}
+            <div 
+              className="card-grip-handle"
+              onTouchStart={(e) => handleGripTouchStart(e, card)}
+              onClick={(e) => e.stopPropagation()}
+              title="Перетащить заявку"
+            >
+              <GripVertical size={16} />
+            </div>
+
             {/* Client Avatar */}
             <div 
               className="card-client-avatar"
