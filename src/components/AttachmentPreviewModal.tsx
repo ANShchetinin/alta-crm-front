@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, FileCheck, Download, X, ZoomIn, ZoomOut, RotateCw, RotateCcw, FileText } from 'lucide-react';
 import type { OrderAttachment } from '../api/kanban';
+import '../styles/attachmentPreview.css';
 
 export interface PreviewAttachmentData {
   url: string;
