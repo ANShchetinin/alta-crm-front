@@ -82,6 +82,7 @@ import { DocumentScannerModal } from '../../../components/DocumentScannerModal';
 import { PassportScannerModal, type PassportApplyResult } from '../../../components/PassportScannerModal';
 import { ActUploadActionSheet } from '../../../components/ActUploadActionSheet';
 import { MeasurementWizard } from '../../../components/MeasurementWizard';
+import { AttachmentPreviewModal, type PreviewAttachmentData } from '../../../components/AttachmentPreviewModal';
 import { ClientSearchSelect } from './ClientSearchSelect';
 import { EmployeeSearchSelect } from './EmployeeSearchSelect';
 import { QuickClientModal } from './QuickClientModal';
@@ -198,6 +199,8 @@ export const OrderDrawer: React.FC = () => {
   const [editingAttachmentId, setEditingAttachmentId] = useState<number | null>(null);
   const [editingAttachmentName, setEditingAttachmentName] = useState('');
   const [renamingAttachment, setRenamingAttachment] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<PreviewAttachmentData | null>(null);
+  const [openingAttachmentId, setOpeningAttachmentId] = useState<number | null>(null);
 
   const [isActActionSheetOpen, setIsActActionSheetOpen] = useState(false);
   const [actionSheetMode, setActionSheetMode] = useState<'ACT' | 'GENERAL'>('ACT');
@@ -846,25 +849,45 @@ export const OrderDrawer: React.FC = () => {
   };
 
   const isViewableInBrowser = (name: string, contentType?: string): boolean => {
-    if (contentType) {
-      if (contentType.startsWith('image/')) return true;
-      if (contentType === 'application/pdf') return true;
-      if (contentType.startsWith('text/')) return true;
-      if (contentType.startsWith('audio/')) return true;
-      if (contentType.startsWith('video/')) return true;
+    const n = (name || '').toLowerCase();
+    const type = (contentType || '').toLowerCase();
+    if (type.startsWith('image/') || type.startsWith('audio/') || type.startsWith('video/') || type.startsWith('text/') || type.includes('pdf')) {
+      return true;
     }
-    return /\\.(pdf|png|jpe?g|gif|webp|svg|bmp|txt|csv|log|mp3|wav|ogg|mp4|webm)$/i.test(name);
+    return /\.(pdf|png|jpe?g|gif|webp|svg|bmp|txt|csv|log|mp3|wav|ogg|mp4|webm)$/i.test(n);
   };
 
   const handleOpenAttachment = async (att: OrderAttachment) => {
     try {
+      setOpeningAttachmentId(att.id);
       const blob = await fetchAttachmentBlob(att.id, false);
       const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      const name = (att.fileName || '').toLowerCase();
+      const type = (att.contentType || blob.type || '').toLowerCase();
+      const isImage = type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(name);
+      const isPdf = type.includes('pdf') || /\.pdf$/i.test(name);
+
+      setPreviewAttachment({
+        url,
+        fileName: att.fileName,
+        contentType: att.contentType || blob.type,
+        isImage,
+        isPdf,
+        attachment: att
+      });
     } catch (err) {
       console.error("Failed to open attachment", err);
       alert("Не удалось открыть файл");
+    } finally {
+      setOpeningAttachmentId(null);
     }
+  };
+
+  const handleClosePreviewAttachment = () => {
+    if (previewAttachment?.url) {
+      URL.revokeObjectURL(previewAttachment.url);
+    }
+    setPreviewAttachment(null);
   };
 
   const handleDownloadAttachment = async (att: OrderAttachment) => {
@@ -2537,9 +2560,14 @@ export const OrderDrawer: React.FC = () => {
                                   onClick={() => handleOpenAttachment(actAttachment)}
                                   className="btn btn-ghost"
                                   style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                  title="Посмотреть в браузере"
+                                  title="Посмотреть вложение"
+                                  disabled={openingAttachmentId === actAttachment.id}
                                 >
-                                  <Eye size={16} />
+                                  {openingAttachmentId === actAttachment.id ? (
+                                    <RefreshCw size={16} className="animate-spin" />
+                                  ) : (
+                                    <Eye size={16} />
+                                  )}
                                 </button>
                               )}
                               <button
@@ -2729,9 +2757,14 @@ export const OrderDrawer: React.FC = () => {
                                     onClick={() => handleOpenAttachment(att)} 
                                     className="btn btn-ghost" 
                                     style={{padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
-                                    title="Посмотреть в браузере"
+                                    title="Посмотреть вложение"
+                                    disabled={openingAttachmentId === att.id}
                                   >
-                                    <Eye size={16} />
+                                    {openingAttachmentId === att.id ? (
+                                      <RefreshCw size={16} className="animate-spin" />
+                                    ) : (
+                                      <Eye size={16} />
+                                    )}
                                   </button>
                                 )}
                                 <button 
@@ -3937,6 +3970,13 @@ export const OrderDrawer: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* In-App Attachment Preview Modal (Works 100% in iOS PWA / Android / Desktop) */}
+      <AttachmentPreviewModal
+        preview={previewAttachment}
+        onClose={handleClosePreviewAttachment}
+        onDownload={handleDownloadAttachment}
+      />
     </div>,
     document.body
   );
