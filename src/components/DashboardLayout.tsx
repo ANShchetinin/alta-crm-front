@@ -340,6 +340,86 @@ const DashboardLayout = () => {
   const { isOpen: isOrderDrawerOpen, activeTab: orderDrawerActiveTab } = useOrderDrawerStore();
   const isWideDrawer = isOrderDrawerOpen && (orderDrawerActiveTab === 'MEASUREMENT' || orderDrawerActiveTab === 'CONTRACT');
 
+  const renderCompanyDropdown = (isMobile = false) => {
+    if (!isCompanyDropdownOpen) return null;
+    return (
+      <div 
+        ref={companyDropdownRef}
+        className="company-dropdown-menu"
+        style={!isMobile ? {
+          position: 'absolute',
+          top: 'calc(100% + 8px)',
+          left: 0,
+          minWidth: '260px',
+          zIndex: 100050
+        } : undefined}
+      >
+        <div style={{ padding: '6px 8px 4px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Ваши компании
+        </div>
+        <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          {myTenantsData?.tenants.map(item => {
+            const isActive = item.tenantId === myTenantsData.currentTenantId;
+            return (
+              <button
+                key={item.tenantId}
+                type="button"
+                onClick={() => handleSwitchCompany(item.tenantId)}
+                disabled={isSwitchingCompany || isActive}
+                className={`company-dropdown-item ${isActive ? 'active' : ''}`}
+              >
+                {item.logoUrl ? (
+                  <img src={item.logoUrl} alt="" style={{ width: 22, height: 22, objectFit: 'contain', borderRadius: '4px' }} />
+                ) : (
+                  <div style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: '4px',
+                    background: item.primaryColor || '#3b82f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontSize: '11px',
+                    fontWeight: 700
+                  }}>
+                    {item.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span style={{ flex: 1, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {item.name}
+                </span>
+                {isActive && <Check size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />}
+              </button>
+            );
+          })}
+        </div>
+
+        {myTenantsData?.canCreateCompany && (
+          <>
+            <div style={{ height: '1px', background: 'var(--glass-border)', margin: '4px 0' }} />
+            <FeatureGate feature="OWNER_CREATE_COMPANY">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCompanyDropdownOpen(false);
+                  setIsCreateCompanyModalOpen(true);
+                }}
+                className="company-create-btn"
+              >
+                <Plus size={16} />
+                <span>Создать компанию</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                  {myTenantsData.currentCompaniesCount} из {myTenantsData.maxCompaniesLimit}
+                </span>
+              </button>
+            </FeatureGate>
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className={`dashboard-container ${isOrderDrawerOpen ? 'order-drawer-open' : ''} ${isWideDrawer ? 'order-drawer-wide' : ''}`}>
       {/* Mobile Drawer Backdrop */}
@@ -353,156 +433,98 @@ const DashboardLayout = () => {
       {/* Sidebar / Mobile Drawer */}
       <aside className={`sidebar ${isSidebarCollapsed ? 'sidebar-collapsed' : ''} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header" style={{ position: 'relative' }}>
-          {role === 'SUPERADMIN' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 8px', flex: 1 }}>
-              <img src="/logo.png" alt="Alta CRM" style={{ width: 30, height: 30, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h2 style={{ fontSize: '1.05rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  AltaCRM
-                </h2>
-                <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
-                  Панель SuperAdmin
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div 
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '10px', 
-                flex: 1, 
-                cursor: ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) ? 'pointer' : 'default',
-                padding: '4px 6px',
-                borderRadius: 'var(--radius-sm, 8px)',
-                transition: 'background 0.15s ease',
-                userSelect: 'none',
-                background: isCompanyDropdownOpen ? 'var(--row-hover-bg, rgba(0, 0, 0, 0.05))' : 'transparent',
-                minWidth: 0
-              }}
-              onClick={() => {
-                if ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) {
-                  setIsCompanyDropdownOpen(prev => !prev);
-                }
-              }}
-              className="company-switcher-trigger"
-            >
-              {tenantSettings?.logoUrl ? (
-                <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 30, height: 30, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
-              ) : (
+          {/* Mobile sidebar brand / company header (Visible only on mobile <=768px) */}
+          <div className="mobile-sidebar-brand-wrapper">
+            {role === 'SUPERADMIN' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 8px', flex: 1 }}>
                 <img src="/logo.png" alt="Alta CRM" style={{ width: 30, height: 30, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
-              )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h2 style={{ fontSize: '0.98rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {tenantSettings?.name || t('app.name')}
-                </h2>
-                {myTenantsData?.tenants && myTenantsData.tenants.length > 1 && (
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                    {myTenantsData.tenants.length} {myTenantsData.tenants.length === 1 ? 'компания' : myTenantsData.tenants.length < 5 ? 'компании' : 'компаний'}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h2 style={{ fontSize: '1.05rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    AltaCRM
+                  </h2>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                    Панель SuperAdmin
                   </span>
+                </div>
+              </div>
+            ) : (
+              <div 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '10px', 
+                  flex: 1, 
+                  cursor: ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) ? 'pointer' : 'default',
+                  padding: '4px 6px',
+                  borderRadius: 'var(--radius-sm, 8px)',
+                  transition: 'background 0.15s ease',
+                  userSelect: 'none',
+                  background: isCompanyDropdownOpen ? 'var(--row-hover-bg, rgba(0, 0, 0, 0.05))' : 'transparent',
+                  minWidth: 0
+                }}
+                onClick={() => {
+                  if ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) {
+                    setIsCompanyDropdownOpen(prev => !prev);
+                  }
+                }}
+                className="company-switcher-trigger mobile-company-trigger"
+              >
+                {tenantSettings?.logoUrl ? (
+                  <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 30, height: 30, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
+                ) : (
+                  <img src="/logo.png" alt="Alta CRM" style={{ width: 30, height: 30, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h2 style={{ fontSize: '0.98rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {tenantSettings?.name || t('app.name')}
+                  </h2>
+                  {myTenantsData?.tenants && myTenantsData.tenants.length > 1 && (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                      {myTenantsData.tenants.length} {myTenantsData.tenants.length === 1 ? 'компания' : myTenantsData.tenants.length < 5 ? 'компании' : 'компаний'}
+                    </span>
+                  )}
+                </div>
+                {((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) && (
+                  <ChevronDown 
+                    size={15} 
+                    style={{ 
+                      color: 'var(--text-secondary)', 
+                      transition: 'transform 0.2s ease', 
+                      transform: isCompanyDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      flexShrink: 0
+                    }} 
+                  />
                 )}
               </div>
-              {((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) && (
-                <ChevronDown 
-                  size={15} 
-                  style={{ 
-                    color: 'var(--text-secondary)', 
-                    transition: 'transform 0.2s ease', 
-                    transform: isCompanyDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                    flexShrink: 0
-                  }} 
-                />
-              )}
-            </div>
-          )}
+            )}
 
-          <button
-            type="button"
-            className="sidebar-toggle-btn"
-            onClick={toggleSidebar}
-            title={isSidebarCollapsed ? 'Развернуть меню' : 'Свернуть меню'}
-          >
-            {isSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
-          </button>
-
-          <button 
-            className="btn-icon mobile-close-btn" 
-            onClick={() => setIsMobileMenuOpen(false)}
-            aria-label="Close menu"
-          >
-            <X size={20} />
-          </button>
-
-          {/* Company Switcher Dropdown */}
-          {isCompanyDropdownOpen && (
-            <div 
-              ref={companyDropdownRef}
-              className="company-dropdown-menu"
+            <button 
+              className="btn-icon mobile-close-btn" 
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="Close menu"
             >
-              <div style={{ padding: '6px 8px 4px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Ваши компании
-              </div>
-              <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                {myTenantsData?.tenants.map(item => {
-                  const isActive = item.tenantId === myTenantsData.currentTenantId;
-                  return (
-                    <button
-                      key={item.tenantId}
-                      type="button"
-                      onClick={() => handleSwitchCompany(item.tenantId)}
-                      disabled={isSwitchingCompany || isActive}
-                      className={`company-dropdown-item ${isActive ? 'active' : ''}`}
-                    >
-                      {item.logoUrl ? (
-                        <img src={item.logoUrl} alt="" style={{ width: 22, height: 22, objectFit: 'contain', borderRadius: '4px' }} />
-                      ) : (
-                        <div style={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: '4px',
-                          background: item.primaryColor || '#3b82f6',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#fff',
-                          fontSize: '11px',
-                          fontWeight: 700
-                        }}>
-                          {item.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <span style={{ flex: 1, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.name}
-                      </span>
-                      {isActive && <Check size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />}
-                    </button>
-                  );
-                })}
-              </div>
+              <X size={20} />
+            </button>
 
-              {myTenantsData?.canCreateCompany && (
-                <>
-                  <div style={{ height: '1px', background: 'var(--glass-border)', margin: '4px 0' }} />
-                  <FeatureGate feature="OWNER_CREATE_COMPANY">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCompanyDropdownOpen(false);
-                        setIsCreateCompanyModalOpen(true);
-                      }}
-                      className="company-create-btn"
-                    >
-                      <Plus size={16} />
-                      <span>Создать компанию</span>
-                      <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                        {myTenantsData.currentCompaniesCount} из {myTenantsData.maxCompaniesLimit}
-                      </span>
-                    </button>
-                  </FeatureGate>
-                </>
-              )}
+            {isMobileMenuOpen && renderCompanyDropdown(true)}
+          </div>
+
+          {/* Desktop-only clean sidebar header */}
+          <div className="desktop-sidebar-brand-wrapper">
+            <div className="sidebar-brand">
+              <img src="/logo.png" alt="Alta CRM" style={{ width: 28, height: 28, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
+              <span className="sidebar-brand-title">AltaCRM</span>
             </div>
-          )}
+
+            <button
+              type="button"
+              className="sidebar-toggle-btn"
+              onClick={toggleSidebar}
+              title={isSidebarCollapsed ? 'Развернуть меню' : 'Свернуть меню'}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+            </button>
+          </div>
         </div>
 
         <nav className="sidebar-nav">
@@ -690,6 +712,56 @@ const DashboardLayout = () => {
                 })}
               </span>
             </div>
+
+            {/* Desktop Company Switcher next to Clock */}
+            {role !== 'SUPERADMIN' && (
+              <div className="topbar-company-wrapper" style={{ position: 'relative' }}>
+                <span className="topbar-divider">|</span>
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    cursor: ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) ? 'pointer' : 'default',
+                    padding: '4px 8px',
+                    borderRadius: 'var(--radius-sm, 8px)',
+                    transition: 'background 0.15s ease',
+                    userSelect: 'none',
+                    background: isCompanyDropdownOpen ? 'var(--row-hover-bg, rgba(0, 0, 0, 0.05))' : 'transparent',
+                    maxWidth: '380px'
+                  }}
+                  onClick={() => {
+                    if ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) {
+                      setIsCompanyDropdownOpen(prev => !prev);
+                    }
+                  }}
+                  className="company-switcher-trigger topbar-company-trigger"
+                  title={tenantSettings?.name || t('app.name')}
+                >
+                  {tenantSettings?.logoUrl ? (
+                    <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 22, height: 22, objectFit: 'contain', background: 'transparent', flexShrink: 0, borderRadius: '4px' }} />
+                  ) : (
+                    <Building2 size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                  )}
+                  <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {tenantSettings?.name || t('app.name')}
+                  </span>
+                  {((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) && (
+                    <ChevronDown 
+                      size={14} 
+                      style={{ 
+                        color: 'var(--text-secondary)', 
+                        transition: 'transform 0.2s ease', 
+                        transform: isCompanyDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        flexShrink: 0
+                      }} 
+                    />
+                  )}
+                </div>
+
+                {!isMobileMenuOpen && renderCompanyDropdown(false)}
+              </div>
+            )}
           </div>
           
           <div className="topbar-actions">

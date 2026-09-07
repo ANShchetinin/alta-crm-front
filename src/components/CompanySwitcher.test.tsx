@@ -67,14 +67,14 @@ describe('DashboardLayout Company Switcher', () => {
     );
 
     // Initial render
-    expect(screen.getByText('Компания 1')).toBeDefined();
+    expect(screen.getAllByText('Компания 1').length).toBeGreaterThan(0);
 
     await waitFor(() => {
       expect(mockGetMyTenants).toHaveBeenCalled();
     });
 
     // Click trigger to open dropdown
-    const trigger = screen.getByText('Компания 1').closest('.company-switcher-trigger');
+    const trigger = screen.getAllByText('Компания 1')[0].closest('.company-switcher-trigger');
     expect(trigger).toBeDefined();
     if (trigger) {
       fireEvent.click(trigger);
