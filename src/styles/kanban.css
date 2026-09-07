@@ -1600,12 +1600,116 @@ body.light-theme .kanban-column.is-touch-drop-target {
   color: var(--text-secondary);
 }
 
+/* Modern Kanban Toolbar */
+.kanban-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.kanban-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.kanban-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--glass-border, #e2e8f0);
+  background: var(--bg-secondary, #ffffff);
+  color: var(--text-primary, #0f172a);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.kanban-toolbar-btn:hover {
+  background: var(--row-hover-bg, rgba(0, 0, 0, 0.04));
+  border-color: var(--accent-primary, #2563eb);
+}
+
+.kanban-toolbar-btn.active {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: var(--accent-primary, #2563eb);
+  color: var(--accent-primary, #2563eb);
+}
+
+/* Reminder Filter Segmented Control */
+.kanban-reminder-segmented {
+  display: inline-flex;
+  align-items: center;
+  background: var(--input-bg, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--glass-border, #e2e8f0);
+  border-radius: var(--radius-sm, 8px);
+  padding: 2px;
+  gap: 2px;
+  height: 34px;
+  box-sizing: border-box;
+}
+
+.kanban-reminder-tab {
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+}
+
+.kanban-reminder-tab:hover {
+  color: var(--text-primary, #0f172a);
+}
+
+.kanban-reminder-tab.active {
+  background: var(--accent-primary, #2563eb);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
+}
+
+.kanban-reminder-tab.active-today {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.kanban-reminder-tab.active-overdue {
+  background: #ef4444;
+  color: #ffffff;
+}
+
 /* Responsive Search and Header in Kanban */
 .kanban-search-wrapper {
-  min-width: 320px;
-  max-width: 440px;
-  width: 100%;
+  min-width: 260px;
+  max-width: 380px;
+  width: auto;
+  flex: 1;
   position: relative;
+}
+
+.kanban-search-wrapper .search-input {
+  height: 34px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 0.84rem;
 }
 
 @media (max-width: 768px) {
@@ -1616,18 +1720,30 @@ body.light-theme .kanban-column.is-touch-drop-target {
   .kanban-header {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
-    margin-bottom: 12px;
+    gap: 8px;
+    margin-bottom: 10px;
   }
 
-  .kanban-header h1 {
-    display: none;
+  .kanban-toolbar-left {
+    width: 100%;
+    gap: 8px;
   }
 
   .kanban-search-wrapper {
     min-width: 100% !important;
     max-width: 100% !important;
     width: 100% !important;
+    order: 1;
+  }
+
+  .kanban-mobile-create-btn {
+    width: 100%;
+    height: 40px;
+    font-weight: 600;
+    justify-content: center;
+    border-radius: var(--radius-sm, 8px);
+    margin-top: 2px;
   }
 }
+
 

@@ -299,7 +299,7 @@ const DashboardLayout = () => {
       {/* Mobile Drawer Backdrop */}
       {isMobileMenuOpen && (
         <div 
-          className="mobile-backdrop" 
+          className="mobile-backdrop open" 
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
@@ -462,21 +462,21 @@ const DashboardLayout = () => {
         <nav className="sidebar-nav">
           {role === 'WORKER' && (
             <>
-              <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/kanban" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <LayoutDashboard size={20} />
                 <span style={{ flex: 1 }}>{t('nav.orders') || 'Мои заявки'}</span>
               </NavLink>
               {hasCalendar && (
-                <NavLink to="/calendar" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/calendar" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <CalendarDays size={20} />
                   <span style={{ flex: 1 }}>Календарь</span>
                 </NavLink>
               )}
-              <NavLink to="/earnings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/earnings" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Wallet size={20} />
                 <span style={{ flex: 1 }}>Мой заработок</span>
               </NavLink>
-              <NavLink to="/archive" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/archive" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Archive size={20} />
                 <span style={{ flex: 1 }}>{t('nav.archive') || 'Архив'}</span>
               </NavLink>
@@ -484,7 +484,7 @@ const DashboardLayout = () => {
           )}
           {role !== 'SUPERADMIN' && role !== 'WORKER' && (
             <>
-              <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/kanban" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <LayoutDashboard size={20} />
                 <span style={{ flex: 1 }}>{t('nav.orders')}</span>
                 {newOrdersCount > 0 && (
@@ -494,60 +494,60 @@ const DashboardLayout = () => {
                 )}
               </NavLink>
               {hasCalendar && (
-                <NavLink to="/calendar" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/calendar" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <CalendarDays size={20} />
                   <span>{t('nav.calendar') || 'Календарь'}</span>
                 </NavLink>
               )}
               {hasMeasurementCalculator && (
-                <NavLink to="/measurements" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/measurements" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <Ruler size={20} />
                   <span>Замеры</span>
                 </NavLink>
               )}
-              <NavLink to="/clients" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/clients" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Users size={20} />
                 <span>{t('nav.clients')}</span>
               </NavLink>
-              <NavLink to="/employees" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/employees" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <UserCircle size={20} />
                 <span>{t('nav.employees') || 'Сотрудники'}</span>
               </NavLink>
               {hasStorage && (
-                <NavLink to="/storage" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/storage" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <Box size={20} />
                   <span>{t('nav.storage')}</span>
                 </NavLink>
               )}
-              <NavLink to="/archive" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/archive" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Archive size={20} />
                 <span>{t('nav.archive') || 'Архив'}</span>
               </NavLink>
               {hasFinances && (role === 'OWNER' || role === 'SUPERADMIN' || (role === 'MANAGER' && canViewFinances)) && (
-                <NavLink to="/finances" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/finances" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <Wallet size={20} />
                   <span>{t('nav.finances') || 'Финансы'}</span>
                 </NavLink>
               )}
               {hasReports && (
-                <NavLink to="/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/reports" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <PieChart size={20} />
                   <span>{t('nav.reports') || 'Отчеты'}</span>
                 </NavLink>
               )}
               {hasExitIntent && (
-                <NavLink to="/site-analytics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/site-analytics" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <TrendingUp size={20} />
                   <span>{t('nav.siteAnalytics') || 'Аналитика сайта'}</span>
                 </NavLink>
               )}
               {hasContractTemplates && (
-                <NavLink to="/contract-templates" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/contract-templates" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <FileText size={20} />
                   <span>Шаблоны договоров</span>
                 </NavLink>
               )}
-              <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/settings" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Settings size={20} />
                 <span>{t('nav.settings')}</span>
               </NavLink>
@@ -555,11 +555,11 @@ const DashboardLayout = () => {
           )}
           {role === 'SUPERADMIN' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <NavLink to="/tenants" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/tenants" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Building2 size={20} />
                 <span>Компании</span>
               </NavLink>
-              <NavLink to="/feature-flags" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/feature-flags" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Sliders size={20} />
                 <span>Feature Flags</span>
               </NavLink>
@@ -835,14 +835,14 @@ const DashboardLayout = () => {
       {/* Mobile Bottom Navigation Bar */}
       {role === 'WORKER' && (
         <nav className="mobile-bottom-nav">
-          <NavLink to="/kanban" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+          <NavLink to="/kanban" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <LayoutDashboard size={20} />
             </div>
             <span>{t('nav.orders') || 'Заявки'}</span>
           </NavLink>
           {hasMeasurementCalculator && (
-            <NavLink to="/measurements" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <NavLink to="/measurements" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
               <div className="bottom-nav-icon-wrapper">
                 <Ruler size={20} />
               </div>
@@ -850,20 +850,20 @@ const DashboardLayout = () => {
             </NavLink>
           )}
           {hasCalendar && !hasMeasurementCalculator && (
-            <NavLink to="/calendar" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <NavLink to="/calendar" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
               <div className="bottom-nav-icon-wrapper">
                 <CalendarDays size={20} />
               </div>
               <span>Календарь</span>
             </NavLink>
           )}
-          <NavLink to="/earnings" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+          <NavLink to="/earnings" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <Wallet size={20} />
             </div>
             <span>Заработок</span>
           </NavLink>
-          <NavLink to="/archive" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+          <NavLink to="/archive" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <Archive size={20} />
             </div>
@@ -884,28 +884,28 @@ const DashboardLayout = () => {
 
       {role !== 'SUPERADMIN' && role !== 'WORKER' && (
         <nav className="mobile-bottom-nav">
-          <NavLink to="/kanban" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+          <NavLink to="/kanban" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <LayoutDashboard size={20} />
               {newOrdersCount > 0 && <span className="bottom-nav-badge">{newOrdersCount}</span>}
             </div>
             <span>{t('nav.orders')}</span>
           </NavLink>
-          <NavLink to="/clients" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+          <NavLink to="/clients" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <Users size={20} />
             </div>
             <span>{t('nav.clients')}</span>
           </NavLink>
           {hasFinances && (role === 'OWNER' || (role === 'MANAGER' && canViewFinances)) ? (
-            <NavLink to="/finances" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <NavLink to="/finances" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
               <div className="bottom-nav-icon-wrapper">
                 <Wallet size={20} />
               </div>
               <span>Финансы</span>
             </NavLink>
           ) : hasStorage ? (
-            <NavLink to="/storage" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <NavLink to="/storage" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
               <div className="bottom-nav-icon-wrapper">
                 <Box size={20} />
               </div>
@@ -913,14 +913,14 @@ const DashboardLayout = () => {
             </NavLink>
           ) : null}
           {hasCalendar ? (
-            <NavLink to="/calendar" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <NavLink to="/calendar" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
               <div className="bottom-nav-icon-wrapper">
                 <CalendarDays size={20} />
               </div>
               <span>{t('nav.calendar') || 'Календарь'}</span>
             </NavLink>
           ) : hasReports ? (
-            <NavLink to="/reports" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <NavLink to="/reports" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
               <div className="bottom-nav-icon-wrapper">
                 <PieChart size={20} />
               </div>
@@ -942,13 +942,13 @@ const DashboardLayout = () => {
 
       {role === 'SUPERADMIN' && (
         <nav className="mobile-bottom-nav">
-          <NavLink to="/tenants" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+          <NavLink to="/tenants" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <Building2 size={20} />
             </div>
             <span>Компании</span>
           </NavLink>
-          <NavLink to="/feature-flags" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+          <NavLink to="/feature-flags" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <Sliders size={20} />
             </div>

@@ -367,6 +367,24 @@ const Kanban = () => {
     fetchData();
   }, []);
 
+  // Listen for global create order event from Topbar button
+  useEffect(() => {
+    const handleOpenCreateEvent = () => {
+      openCreateModal();
+    };
+    window.addEventListener('alta:open-create-order', handleOpenCreateEvent);
+    return () => window.removeEventListener('alta:open-create-order', handleOpenCreateEvent);
+  }, [columns]);
+
+  // Handle URL query parameter ?create=true
+  useEffect(() => {
+    if (searchParams.get('create') === 'true') {
+      openCreateModal();
+      searchParams.delete('create');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, columns]);
+
   // Reactive listener for opening order modal from notifications or external navigation
   useEffect(() => {
     const orderIdParam = searchParams.get('orderId');
@@ -2119,27 +2137,16 @@ const Kanban = () => {
   return (
     <div className="kanban-wrapper">
       <div className="kanban-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          <h1 style={{ margin: 0 }}>{t('kanban.title')}</h1>
-          
+        <div className="kanban-toolbar-left">
+          {/* Quick Toolbar Buttons */}
           <button
             type="button"
             onClick={() => navigate('/calendar')}
-            className="btn btn-ghost"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              border: '1px solid var(--glass-border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '6px 12px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)'
-            }}
+            className="kanban-toolbar-btn"
+            title="Открыть календарь монтажей и замеров"
           >
-            <CalendarDays size={16} style={{ color: 'var(--accent-primary)' }} />
-            Календарь
+            <CalendarDays size={15} style={{ color: 'var(--accent-primary)' }} />
+            <span>Календарь</span>
           </button>
 
           <button
@@ -2149,27 +2156,14 @@ const Kanban = () => {
               setHideEmptyColumns(next);
               localStorage.setItem('kanban_hide_empty_columns', String(next));
             }}
-            className="btn btn-ghost"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              border: hideEmptyColumns ? '1px solid var(--accent-primary)' : '1px solid var(--glass-border)',
-              background: hideEmptyColumns ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-              color: hideEmptyColumns ? 'var(--accent-primary)' : 'var(--text-secondary)',
-              borderRadius: 'var(--radius-md)',
-              padding: '6px 12px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
+            className={`kanban-toolbar-btn ${hideEmptyColumns ? 'active' : ''}`}
             title={hideEmptyColumns ? 'Показать все колонки статусов' : 'Скрыть колонки, в которых нет заявок'}
           >
-            {hideEmptyColumns ? <Eye size={16} /> : <EyeOff size={16} />}
+            {hideEmptyColumns ? <Eye size={15} /> : <EyeOff size={15} />}
             <span>{hideEmptyColumns ? 'Показать все' : 'Скрыть пустые'}</span>
           </button>
 
-          {/* Mobile View Toggle: Список | Доска (только на мобильных экранах) */}
+          {/* Mobile View Toggle: Список | Доска */}
           {isMobile && (
             <div className="kanban-mobile-view-toggle">
               <button
@@ -2195,8 +2189,9 @@ const Kanban = () => {
             </div>
           )}
 
+          {/* Search Input */}
           <div className="search-input-wrapper kanban-search-wrapper">
-            <Search className="search-icon" size={18} />
+            <Search className="search-icon" size={15} />
             <input 
               type="text" 
               placeholder="Поиск по клиенту, адресу, № договора..."
@@ -2218,53 +2213,27 @@ const Kanban = () => {
             )}
           </div>
 
+          {/* Reminder Filter Segmented Control */}
           {!isWorker && (
-            <div style={{ display: 'flex', gap: '4px', background: 'rgba(255, 255, 255, 0.03)', padding: '3px', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
+            <div className="kanban-reminder-segmented">
               <button
                 type="button"
                 onClick={() => setReminderFilter('all')}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  background: reminderFilter === 'all' ? 'var(--accent-primary)' : 'transparent',
-                  color: reminderFilter === 'all' ? '#fff' : 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: 'pointer'
-                }}
+                className={`kanban-reminder-tab ${reminderFilter === 'all' ? 'active' : ''}`}
               >
                 Все
               </button>
               <button
                 type="button"
                 onClick={() => setReminderFilter('today')}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  background: reminderFilter === 'today' ? 'rgba(245, 158, 11, 0.9)' : 'transparent',
-                  color: reminderFilter === 'today' ? '#fff' : 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: 'pointer'
-                }}
+                className={`kanban-reminder-tab ${reminderFilter === 'today' ? 'active-today' : ''}`}
               >
                 ⏰ Сегодня
               </button>
               <button
                 type="button"
                 onClick={() => setReminderFilter('overdue')}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  background: reminderFilter === 'overdue' ? 'rgba(239, 68, 68, 0.9)' : 'transparent',
-                  color: reminderFilter === 'overdue' ? '#fff' : 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: 'pointer'
-                }}
+                className={`kanban-reminder-tab ${reminderFilter === 'overdue' ? 'active-overdue' : ''}`}
               >
                 🔥 Просроченные
               </button>
@@ -2272,9 +2241,10 @@ const Kanban = () => {
           )}
         </div>
 
-        {!isWorker && (
-          <button className="btn btn-primary" onClick={openCreateModal}>
-            <Plus size={18} /> {t('kanban.addOrder')}
+        {/* Mobile-only Create Order Button */}
+        {!isWorker && isMobile && (
+          <button className="btn btn-primary kanban-mobile-create-btn" onClick={openCreateModal}>
+            <Plus size={17} /> {t('kanban.addOrder')}
           </button>
         )}
       </div>
