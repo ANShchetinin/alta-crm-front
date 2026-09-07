@@ -13,7 +13,7 @@ export interface TouchDragGhostData {
 
 export interface UseTouchKanbanDragProps {
   boardRef: React.RefObject<HTMLDivElement | null>;
-  onDropCard: (cardId: number, targetStatusId: number) => void;
+  onDropCard: (cardId: number, targetStatusId: number, targetCardId?: number | null, position?: 'before' | 'after') => void;
   onCardClick: (card: Order) => void;
   longPressDelay?: number;
 }
@@ -33,6 +33,8 @@ export const useTouchKanbanDrag = ({
   const [pressingCardId, setPressingCardId] = useState<number | null>(null);
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
   const [targetStatusId, setTargetStatusId] = useState<number | null>(null);
+  const [targetCardId, setTargetCardId] = useState<number | null>(null);
+  const [targetCardPosition, setTargetCardPosition] = useState<'before' | 'after' | null>(null);
   const [ghostData, setGhostData] = useState<TouchDragGhostData | null>(null);
 
   const stateRef = useRef<{
@@ -49,6 +51,8 @@ export const useTouchKanbanDrag = ({
     cardElement: HTMLElement | null;
     autoScrollTimer: number | null;
     targetStatusId: number | null;
+    targetCardId: number | null;
+    targetCardPosition: 'before' | 'after' | null;
     activePointerId: number | null;
   }>({
     startX: 0,
@@ -64,6 +68,8 @@ export const useTouchKanbanDrag = ({
     cardElement: null,
     autoScrollTimer: null,
     targetStatusId: null,
+    targetCardId: null,
+    targetCardPosition: null,
     activePointerId: null
   });
 
@@ -118,9 +124,44 @@ export const useTouchKanbanDrag = ({
     const element = document.elementFromPoint(x, y);
     if (!element) {
       setTargetStatusId(null);
+      setTargetCardId(null);
+      setTargetCardPosition(null);
       stateRef.current.targetStatusId = null;
+      stateRef.current.targetCardId = null;
+      stateRef.current.targetCardPosition = null;
       return;
     }
+
+    // Check if dragging over a specific card
+    const cardEl = element.closest('[data-card-id]');
+    if (cardEl) {
+      const cardIdStr = cardEl.getAttribute('data-card-id');
+      const cardColStr = cardEl.getAttribute('data-card-status-id');
+      if (cardIdStr) {
+        const id = parseInt(cardIdStr, 10);
+        const colId = cardColStr ? parseInt(cardColStr, 10) : null;
+        const rect = cardEl.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const pos: 'before' | 'after' = y < midY ? 'before' : 'after';
+
+        setTargetCardId(id);
+        setTargetCardPosition(pos);
+        stateRef.current.targetCardId = id;
+        stateRef.current.targetCardPosition = pos;
+
+        if (colId) {
+          setTargetStatusId(colId);
+          stateRef.current.targetStatusId = colId;
+          return;
+        }
+      }
+    } else {
+      setTargetCardId(null);
+      setTargetCardPosition(null);
+      stateRef.current.targetCardId = null;
+      stateRef.current.targetCardPosition = null;
+    }
+
     const columnEl = element.closest('[data-column-id]');
     if (columnEl) {
       const colIdStr = columnEl.getAttribute('data-column-id');
@@ -198,21 +239,39 @@ export const useTouchKanbanDrag = ({
     unlockBodyStyles();
 
     if (isDragging && card) {
-      let finalTargetId: number | null = null;
+      let finalTargetColId: number | null = null;
+      let finalTargetCardId: number | null = stateRef.current.targetCardId;
+      let finalTargetPos: 'before' | 'after' | null = stateRef.current.targetCardPosition;
+
       if (typeof document !== 'undefined' && typeof document.elementFromPoint === 'function') {
         const element = document.elementFromPoint(clientX, clientY);
-        const columnEl = element?.closest('[data-column-id]');
-        const colIdStr = columnEl?.getAttribute('data-column-id');
-        if (colIdStr) {
-          finalTargetId = parseInt(colIdStr, 10);
+        const cardEl = element?.closest('[data-card-id]');
+        if (cardEl) {
+          const cardIdStr = cardEl.getAttribute('data-card-id');
+          const cardColStr = cardEl.getAttribute('data-card-status-id');
+          if (cardIdStr) {
+            finalTargetCardId = parseInt(cardIdStr, 10);
+            const rect = cardEl.getBoundingClientRect();
+            finalTargetPos = clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+          }
+          if (cardColStr) {
+            finalTargetColId = parseInt(cardColStr, 10);
+          }
+        }
+        if (!finalTargetColId) {
+          const columnEl = element?.closest('[data-column-id]');
+          const colIdStr = columnEl?.getAttribute('data-column-id');
+          if (colIdStr) {
+            finalTargetColId = parseInt(colIdStr, 10);
+          }
         }
       }
-      if (!finalTargetId) {
-        finalTargetId = stateRef.current.targetStatusId;
+      if (!finalTargetColId) {
+        finalTargetColId = stateRef.current.targetStatusId || card.statusId;
       }
 
-      if (finalTargetId && finalTargetId !== card.statusId) {
-        onDropCard(card.id, finalTargetId);
+      if (finalTargetColId) {
+        onDropCard(card.id, finalTargetColId, finalTargetCardId, finalTargetPos || undefined);
         triggerVibration([30, 40]);
       }
 
@@ -220,9 +279,13 @@ export const useTouchKanbanDrag = ({
       setDraggingCard(null);
       setDragPosition(null);
       setTargetStatusId(null);
+      setTargetCardId(null);
+      setTargetCardPosition(null);
       setGhostData(null);
       stateRef.current.isDragging = false;
       stateRef.current.card = null;
+      stateRef.current.targetCardId = null;
+      stateRef.current.targetCardPosition = null;
     } else if (card) {
       const endDist = Math.hypot(clientX - startX, clientY - startY);
       if (endDist > MOVE_THRESHOLD) {
@@ -259,9 +322,13 @@ export const useTouchKanbanDrag = ({
     setDraggingCard(null);
     setDragPosition(null);
     setTargetStatusId(null);
+    setTargetCardId(null);
+    setTargetCardPosition(null);
     setGhostData(null);
     stateRef.current.isDragging = false;
     stateRef.current.card = null;
+    stateRef.current.targetCardId = null;
+    stateRef.current.targetCardPosition = null;
   }, [stopAutoScroll]);
 
   // Native touch listeners
@@ -388,6 +455,8 @@ export const useTouchKanbanDrag = ({
       cardElement: cardEl,
       autoScrollTimer: null,
       targetStatusId: card.statusId,
+      targetCardId: null,
+      targetCardPosition: null,
       activePointerId: null
     };
 
@@ -459,6 +528,8 @@ export const useTouchKanbanDrag = ({
       cardElement: cardEl,
       autoScrollTimer: null,
       targetStatusId: card.statusId,
+      targetCardId: null,
+      targetCardPosition: null,
       activePointerId: e.pointerId
     };
 
@@ -522,6 +593,8 @@ export const useTouchKanbanDrag = ({
       cardElement: cardEl,
       autoScrollTimer: null,
       targetStatusId: card.statusId,
+      targetCardId: null,
+      targetCardPosition: null,
       activePointerId: null
     };
 
@@ -576,6 +649,8 @@ export const useTouchKanbanDrag = ({
     pressingCardId,
     dragPosition,
     targetStatusId,
+    targetCardId,
+    targetCardPosition,
     ghostData,
     handleTouchStart,
     handleGripPointerDown,

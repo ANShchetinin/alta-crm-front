@@ -23,7 +23,8 @@ import {
   MessageCircle,
   Send,
   FileText,
-  GripVertical
+  GripVertical,
+  ArrowDownCircle
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -55,6 +56,30 @@ import { ColumnModal } from '../features/kanban/components/ColumnModal';
 import { isActFile } from '../features/kanban/constants';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import '../styles/kanban.css';
+
+const sortCardsByStoredOrder = (cardList: Order[]): Order[] => {
+  try {
+    const savedOrderJson = localStorage.getItem('kanban_cards_custom_order');
+    if (!savedOrderJson) return cardList;
+    const orderMap: Record<number, number> = JSON.parse(savedOrderJson);
+    return [...cardList].sort((a, b) => {
+      const orderA = orderMap[a.id] !== undefined ? orderMap[a.id] : 999999;
+      const orderB = orderMap[b.id] !== undefined ? orderMap[b.id] : 999999;
+      if (orderA !== orderB) return orderA - orderB;
+      return b.id - a.id;
+    });
+  } catch {
+    return cardList;
+  }
+};
+
+const saveCardsOrder = (updatedCards: Order[]) => {
+  const orderMap: Record<number, number> = {};
+  updatedCards.forEach((c, index) => {
+    orderMap[c.id] = index;
+  });
+  localStorage.setItem('kanban_cards_custom_order', JSON.stringify(orderMap));
+};
 
 const Kanban = () => {
   const { t } = useTranslation();
@@ -162,7 +187,7 @@ const Kanban = () => {
       const activeOrders = (orders || []).filter(o => !o.isArchived);
       const sortedColumns = statuses.sort((a, b) => a.sortOrder - b.sortOrder);
       setColumns(sortedColumns);
-      setCards(activeOrders);
+      setCards(sortCardsByStoredOrder(activeOrders));
       setClients(clientsData);
       setEmployees(employeesData);
 
@@ -264,6 +289,8 @@ const Kanban = () => {
     dragPosition: touchDragPosition,
     ghostData: touchGhostData,
     targetStatusId: touchTargetStatusId,
+    targetCardId: touchTargetCardId,
+    targetCardPosition: touchTargetCardPosition,
     handleTouchStart,
     handleGripPointerDown,
     handleGripTouchStart,
@@ -273,28 +300,52 @@ const Kanban = () => {
     isClickAllowed
   } = useTouchKanbanDrag({
     boardRef,
-    onDropCard: async (cardId, targetId) => {
-      const card = cards.find(c => c.id === cardId);
-      if (!card || card.statusId === targetId) return;
+    onDropCard: async (cardId, targetStatusId, targetCardId, position) => {
+      const sourceCard = cards.find(c => c.id === cardId);
+      if (!sourceCard) return;
 
-      if (!checkCanMoveOrder(cardId, targetId)) {
+      const isSameStatus = sourceCard.statusId === targetStatusId;
+      const isSameCard = targetCardId === cardId;
+      if (isSameStatus && (isSameCard || !targetCardId)) return;
+
+      if (!isSameStatus && !checkCanMoveOrder(cardId, targetStatusId)) {
         return;
       }
 
-      const updatedCards = cards.map(c => c.id === cardId ? { ...c, statusId: targetId } : c);
-      setCards(updatedCards);
-      const firstStatus = columns.find(s => s.sortOrder === 1);
-      if (firstStatus) {
-        setNewOrdersCount(updatedCards.filter(o => o.statusId === firstStatus.id).length);
+      const remaining = cards.filter(c => c.id !== cardId);
+      const updatedSourceCard = { ...sourceCard, statusId: targetStatusId };
+
+      let insertIdx = remaining.length;
+      if (targetCardId && targetCardId !== cardId) {
+        const targetIdx = remaining.findIndex(c => c.id === targetCardId);
+        if (targetIdx !== -1) {
+          insertIdx = position === 'after' ? targetIdx + 1 : targetIdx;
+        }
+      } else {
+        const lastInStatusIdx = remaining.reduce((acc, c, idx) => (c.statusId === targetStatusId ? idx : acc), -1);
+        if (lastInStatusIdx !== -1) {
+          insertIdx = lastInStatusIdx + 1;
+        }
       }
-      try {
-        await moveOrder(cardId, targetId);
-        window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'move', orderId: cardId } }));
-      } catch (err: any) {
-        console.error("Failed to move order via touch drag", err);
-        const errorMsg = err.response?.data?.message || err.message || 'Ошибка перемещения карточки';
-        alert(errorMsg);
-        fetchData();
+
+      remaining.splice(insertIdx, 0, updatedSourceCard);
+      setCards(remaining);
+      saveCardsOrder(remaining);
+
+      if (!isSameStatus) {
+        const firstStatus = columns.find(s => s.sortOrder === 1);
+        if (firstStatus) {
+          setNewOrdersCount(remaining.filter(o => o.statusId === firstStatus.id).length);
+        }
+        try {
+          await moveOrder(cardId, targetStatusId);
+          window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'move', orderId: cardId } }));
+        } catch (err: any) {
+          console.error("Failed to move order via touch drag", err);
+          const errorMsg = err.response?.data?.message || err.message || 'Ошибка перемещения карточки';
+          alert(errorMsg);
+          fetchData();
+        }
       }
     },
     onCardClick: (card) => {
@@ -326,6 +377,17 @@ const Kanban = () => {
       }
     }
   });
+
+  // Auto-expand collapsed column during touch drag if hovering over it for 350ms
+  useEffect(() => {
+    if (!touchDraggingCard || !touchTargetStatusId) return;
+    if (collapsedColumns[touchTargetStatusId] === true) {
+      const timer = setTimeout(() => {
+        setCollapsedColumns(prev => ({ ...prev, [touchTargetStatusId]: false }));
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [touchDraggingCard, touchTargetStatusId, collapsedColumns]);
 
   const handleCompleteInstallation = async (e: React.MouseEvent, orderId: number) => {
     e.stopPropagation();
@@ -491,31 +553,38 @@ const Kanban = () => {
 
     const hasAct = (card.attachments || []).some(a => isActFile(a.fileName, a.isAct));
     const canComplete = Boolean(instName) && hasAct;
+    const isTargetedCard = touchTargetCardId === card.id && touchDraggingCard?.id !== card.id;
 
     return (
-      <div 
-        key={card.id} 
-        className={`kanban-card ${isOrderDrawerOpen && activeOrderId === card.id ? 'is-active-card' : ''} ${touchPressingCardId === card.id ? 'is-pressing' : ''} ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''} ${desktopDraggingCardId === card.id ? 'is-card-dragging' : ''}`}
-        draggable={!isMobile}
-        onDragStart={(e) => {
-          if (isMobile) return;
-          e.stopPropagation();
-          handleDragStart(e, card.id);
-        }}
-        onDragEnd={() => {
-          setDesktopDraggingCardId(null);
-          setDesktopDragOverColId(null);
-        }}
-        onTouchStart={(e) => handleTouchStart(e, card)}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchCancel}
-        onClick={() => {
-          if (isClickAllowed()) {
-            openOrder(card.id);
-          }
-        }}
-      >
+      <div key={card.id} className="kanban-card-item-wrapper">
+        {isTargetedCard && touchTargetCardPosition === 'before' && (
+          <div className="kanban-card-insert-indicator top" />
+        )}
+
+        <div 
+          className={`kanban-card ${isOrderDrawerOpen && activeOrderId === card.id ? 'is-active-card' : ''} ${touchPressingCardId === card.id ? 'is-pressing' : ''} ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''} ${desktopDraggingCardId === card.id ? 'is-card-dragging' : ''}`}
+          data-card-id={card.id}
+          data-card-status-id={card.statusId}
+          draggable={!isMobile}
+          onDragStart={(e) => {
+            if (isMobile) return;
+            e.stopPropagation();
+            handleDragStart(e, card.id);
+          }}
+          onDragEnd={() => {
+            setDesktopDraggingCardId(null);
+            setDesktopDragOverColId(null);
+          }}
+          onTouchStart={(e) => handleTouchStart(e, card)}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
+          onClick={() => {
+            if (isClickAllowed()) {
+              openOrder(card.id);
+            }
+          }}
+        >
         {/* 1. Header: Client Info (Left) + Phone & Assignee (Right) */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', minWidth: 0, flex: 1 }}>
@@ -917,6 +986,11 @@ const Kanban = () => {
             <CheckCircle2 size={15} /> Завершить монтаж
           </button>
         )}
+        </div>
+
+        {isTargetedCard && touchTargetCardPosition === 'after' && (
+          <div className="kanban-card-insert-indicator bottom" />
+        )}
       </div>
     );
   };
@@ -1128,6 +1202,11 @@ const Kanban = () => {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    {touchDraggingCard && touchTargetStatusId === column.id && touchDraggingCard.statusId !== column.id && isCollapsed && (
+                      <span className="kanban-header-drop-badge">
+                        <ArrowDownCircle size={13} /> Вставить сюда
+                      </span>
+                    )}
                     {columnTotal > 0 && (
                       <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
                         {columnTotal.toLocaleString('ru-RU')} ₽
@@ -1141,7 +1220,13 @@ const Kanban = () => {
 
                 {!isCollapsed && (
                   <div className="kanban-mobile-accordion-body">
-                    {columnCards.length === 0 ? (
+                    {touchDraggingCard && touchTargetStatusId === column.id && (!touchTargetCardId || columnCards.length === 0) && touchDraggingCard.statusId !== column.id && (
+                      <div className="kanban-touch-drop-slot">
+                        <ArrowDownCircle size={17} />
+                        <span>Переместить заявку #{touchDraggingCard.id} в «{column.name}»</span>
+                      </div>
+                    )}
+                    {columnCards.length === 0 && (!touchDraggingCard || touchTargetStatusId !== column.id) ? (
                       <div className="kanban-empty-column-placeholder">
                         Нет заявок в этом статусе
                       </div>
@@ -1312,6 +1397,12 @@ const Kanban = () => {
                 </div>
 
                 <div className="column-content">
+                  {touchDraggingCard && touchTargetStatusId === col.id && (!touchTargetCardId || colCards.length === 0) && touchDraggingCard.statusId !== col.id && (
+                    <div className="kanban-touch-drop-slot">
+                      <ArrowDownCircle size={17} />
+                      <span>Переместить в «{col.name}»</span>
+                    </div>
+                  )}
                   {colCards.map(card => renderCard(card))}
                 </div>
               </div>

@@ -2264,3 +2264,75 @@ body.light-theme .kanban-column-drag-ghost {
   background: #ffffff;
   box-shadow: 0 16px 32px rgba(0, 0, 0, 0.18);
 }
+
+/* Touch Card Drop Target and Drop Slot styles */
+.kanban-mobile-accordion-column.is-touch-drag-over,
+.kanban-column.is-drop-target {
+  border-color: var(--accent-primary) !important;
+  background: rgba(59, 130, 246, 0.08) !important;
+  box-shadow: 0 0 0 2px var(--accent-primary), 0 8px 24px rgba(59, 130, 246, 0.18) !important;
+}
+
+.kanban-touch-drop-slot {
+  border: 2px dashed var(--accent-primary);
+  background: rgba(59, 130, 246, 0.14);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--accent-primary);
+  font-weight: 600;
+  font-size: 0.88rem;
+  animation: pulse-drop-slot 1.2s infinite ease-in-out;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.25);
+}
+
+@keyframes pulse-drop-slot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.92;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 1;
+    background: rgba(59, 130, 246, 0.22);
+  }
+}
+
+.kanban-header-drop-badge {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  animation: pulse-drop-slot 1s infinite ease-in-out;
+}
+
+body.light-theme .kanban-touch-drop-slot {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.kanban-card-item-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.kanban-card-insert-indicator {
+  height: 5px;
+  background: var(--accent-primary);
+  border-radius: 4px;
+  margin: 4px 0;
+  box-shadow: 0 0 12px var(--accent-primary);
+  animation: pulse-drop-slot 0.8s infinite ease-in-out;
+  pointer-events: none;
+}
