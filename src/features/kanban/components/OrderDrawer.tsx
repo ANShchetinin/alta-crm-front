@@ -1036,7 +1036,7 @@ export const OrderDrawer: React.FC = () => {
         <div className="order-drawer-drag-handle-wrapper" onClick={handleRequestCloseModal}>
           <div className="order-drawer-drag-handle" />
         </div>
-        <div className="modal-header">
+        <div className="order-drawer-header modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1, minWidth: 0, paddingRight: '8px' }}>
             <h2 style={{ margin: 0, whiteSpace: 'nowrap' }}>
               {editingOrderId ? `Заявка #${editingOrderId}` : 'Новая заявка'}
@@ -1079,56 +1079,18 @@ export const OrderDrawer: React.FC = () => {
         </div>
         <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           {/* Tabs Navigation */}
-          <div style={{
-            display: 'flex',
-            borderBottom: '1px solid var(--glass-border)',
-            padding: '0 12px',
-            gap: '4px',
-            background: 'rgba(255, 255, 255, 0.02)',
-            overflowX: 'auto',
-            WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'none',
-            flexShrink: 0
-          }}>
+          <div className="order-drawer-tabs">
             <button
               type="button"
               onClick={() => setOrderModalTab('MAIN')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                borderBottom: orderModalTab === 'MAIN' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                color: orderModalTab === 'MAIN' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                fontWeight: orderModalTab === 'MAIN' ? 600 : 400,
-                padding: '10px 14px',
-                cursor: 'pointer',
-                fontSize: '0.9rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
+              className={`order-drawer-tab-btn ${orderModalTab === 'MAIN' ? 'active' : ''}`}
             >
               <User size={15} /> Основное
             </button>
             <button
               type="button"
               onClick={() => setOrderModalTab('MEASUREMENT')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                borderBottom: orderModalTab === 'MEASUREMENT' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                color: orderModalTab === 'MEASUREMENT' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                fontWeight: orderModalTab === 'MEASUREMENT' ? 600 : 400,
-                padding: '10px 14px',
-                cursor: 'pointer',
-                fontSize: '0.9rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
+              className={`order-drawer-tab-btn ${orderModalTab === 'MEASUREMENT' ? 'active' : ''}`}
             >
               <Ruler size={15} /> Замер
             </button>
@@ -1136,21 +1098,7 @@ export const OrderDrawer: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setOrderModalTab('CONTRACT')}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: orderModalTab === 'CONTRACT' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                  color: orderModalTab === 'CONTRACT' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                  fontWeight: orderModalTab === 'CONTRACT' ? 600 : 400,
-                  padding: '10px 14px',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0
-                }}
+                className={`order-drawer-tab-btn ${orderModalTab === 'CONTRACT' ? 'active' : ''}`}
               >
                 <FileText size={15} /> Договор
               </button>
@@ -1158,71 +1106,29 @@ export const OrderDrawer: React.FC = () => {
             <button
               type="button"
               onClick={() => setOrderModalTab('MATERIALS')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                borderBottom: orderModalTab === 'MATERIALS' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                color: orderModalTab === 'MATERIALS' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                fontWeight: orderModalTab === 'MATERIALS' ? 600 : 400,
-                padding: '10px 14px',
-                cursor: 'pointer',
-                fontSize: '0.9rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
+              className={`order-drawer-tab-btn ${orderModalTab === 'MATERIALS' ? 'active' : ''}`}
             >
-              <Tag size={15} /> Материалы {formData.materials.length > 0 && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent-primary)', borderRadius: '10px', padding: '1px 6px', fontSize: '0.72rem', fontWeight: 600 }}>{formData.materials.length}</span>}
+              <Tag size={15} /> Материалы {formData.materials.length > 0 && <span className="order-drawer-tab-badge">{formData.materials.length}</span>}
             </button>
             <button
               type="button"
               onClick={() => setOrderModalTab('FILES')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                borderBottom: orderModalTab === 'FILES' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                color: orderModalTab === 'FILES' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                fontWeight: orderModalTab === 'FILES' ? 600 : 400,
-                padding: '10px 14px',
-                cursor: 'pointer',
-                fontSize: '0.9rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
+              className={`order-drawer-tab-btn ${orderModalTab === 'FILES' ? 'active' : ''}`}
             >
-              <Paperclip size={15} /> Файлы {(formData.attachments.length > 0 || pendingFiles.length > 0) && <span style={{ background: 'var(--accent-glow)', color: 'var(--accent-primary)', borderRadius: '10px', padding: '1px 6px', fontSize: '0.72rem', fontWeight: 600 }}>{formData.attachments.length + pendingFiles.length}</span>}
+              <Paperclip size={15} /> Файлы {(formData.attachments.length > 0 || pendingFiles.length > 0) && <span className="order-drawer-tab-badge">{formData.attachments.length + pendingFiles.length}</span>}
             </button>
             {hasAiSummary && editingOrderId && (
               <button
                 type="button"
                 onClick={() => setOrderModalTab('AI')}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: orderModalTab === 'AI' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                  color: orderModalTab === 'AI' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                  fontWeight: orderModalTab === 'AI' ? 600 : 400,
-                  padding: '10px 14px',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0
-                }}
+                className={`order-drawer-tab-btn ${orderModalTab === 'AI' ? 'active' : ''}`}
               >
                 <Sparkles size={15} /> AI-Ассистент
               </button>
             )}
           </div>
 
-          <div className="modal-body" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          <div className="order-drawer-body modal-body">
             {/* MAIN TAB */}
             {orderModalTab === 'MAIN' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1311,7 +1217,7 @@ export const OrderDrawer: React.FC = () => {
                 </div>
 
                 {/* Entrance & Floor */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-grid-2">
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>{t('kanban.modal.entrance') || 'Подъезд'}</label>
                     <input
@@ -1335,7 +1241,7 @@ export const OrderDrawer: React.FC = () => {
                 </div>
 
                 {/* Order Number & Description */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
+                <div className="form-grid-1-2">
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>{t('kanban.modal.orderNumber') || 'Номер договора/заявки'}</label>
                     <input
@@ -1359,7 +1265,7 @@ export const OrderDrawer: React.FC = () => {
                 </div>
 
                 {/* Assignees / Roles */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                <div className="form-grid-3">
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>{t('kanban.modal.assignee') || 'Ответственный менеджер'}</label>
                     <EmployeeSearchSelect
@@ -1393,7 +1299,7 @@ export const OrderDrawer: React.FC = () => {
                 </div>
 
                 {/* Dates: Measurement & Installation */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-grid-2">
                   <div className="form-group" style={{ margin: 0 }}>
                     <label>{t('kanban.modal.measurementDate') || 'Дата и время замера'}</label>
                     <input
@@ -1415,33 +1321,25 @@ export const OrderDrawer: React.FC = () => {
                 </div>
 
                 {/* Finances: Total, Prepayment, Remainder */}
-                <div style={{ 
-                  background: 'var(--glass-bg)', 
-                  border: '1px solid var(--glass-border)', 
-                  borderRadius: '12px', 
-                  padding: '14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Финансовые расчеты</span>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
+                <div className="order-finance-container">
+                  <div className="order-finance-header">
+                    <span className="order-finance-title">Финансовые расчеты</span>
+                    <span className="order-finance-total">
                       Итого: {currentTotalPrice.toLocaleString('ru-RU')} ₽
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <label style={{ margin: 0, fontSize: '0.8rem' }}>Предоплата (₽)</label>
-                        <label style={{ margin: 0, fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                  <div className="order-finance-grid">
+                    <div className="order-finance-col">
+                      <div className="order-finance-label-row">
+                        <label className="order-finance-label">Предоплата (₽)</label>
+                        <label className="order-finance-checkbox-label">
                           <input
                             type="checkbox"
                             checked={formData.prepaymentPaid}
                             onChange={(e) => setFormData({ ...formData, prepaymentPaid: e.target.checked })}
                           />
-                          Оплачено
+                          <span>Оплачено</span>
                         </label>
                       </div>
                       <input
@@ -1453,16 +1351,16 @@ export const OrderDrawer: React.FC = () => {
                       />
                     </div>
 
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <label style={{ margin: 0, fontSize: '0.8rem' }}>Остаток (₽)</label>
-                        <label style={{ margin: 0, fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <div className="order-finance-col">
+                      <div className="order-finance-label-row">
+                        <label className="order-finance-label">Остаток (₽)</label>
+                        <label className="order-finance-checkbox-label">
                           <input
                             type="checkbox"
                             checked={formData.remainderPaid}
                             onChange={(e) => setFormData({ ...formData, remainderPaid: e.target.checked })}
                           />
-                          Оплачено
+                          <span>Оплачено</span>
                         </label>
                       </div>
                       <input
@@ -1474,8 +1372,10 @@ export const OrderDrawer: React.FC = () => {
                       />
                     </div>
 
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label style={{ fontSize: '0.8rem', marginBottom: '4px' }}>Оплата монтажнику (₽)</label>
+                    <div className="order-finance-col">
+                      <div className="order-finance-label-row">
+                        <label className="order-finance-label">Оплата монтажнику (₽)</label>
+                      </div>
                       <input
                         type="number"
                         className="input"
@@ -2136,15 +2036,7 @@ export const OrderDrawer: React.FC = () => {
           </div>
 
           {/* Modal Footer */}
-          <div className="modal-actions" style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '14px 20px',
-            borderTop: '1px solid var(--glass-border)',
-            background: 'var(--glass-bg)',
-            flexShrink: 0
-          }}>
+          <div className="order-drawer-footer modal-actions">
             <div>
               {editingOrderId && (
                 <button

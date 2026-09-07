@@ -215,27 +215,114 @@ body.light-theme .btn-secondary:hover {
   transform: scale(0.95);
 }
 
-/* Inputs */
-.input-field {
+/* Inputs & Forms */
+.input,
+.select,
+.input-field,
+.form-group input,
+.form-group select,
+.form-group textarea {
   width: 100%;
-  padding: 12px 16px;
+  height: 40px;
+  padding: 8px 12px;
   border-radius: var(--radius-md);
   background: var(--input-bg, rgba(15, 23, 42, 0.6));
   border: 1px solid var(--glass-border);
   color: var(--text-primary);
   font-family: var(--font-main);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+  box-sizing: border-box;
+  outline: none;
 }
 
-.input-field:focus {
+.input:focus,
+.select:focus,
+.input-field:focus,
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--accent-glow);
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.input-field::placeholder {
+body.light-theme .input,
+body.light-theme .select,
+body.light-theme .input-field,
+body.light-theme .form-group input,
+body.light-theme .form-group select,
+body.light-theme .form-group textarea {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+body.light-theme .input:focus,
+body.light-theme .select:focus,
+body.light-theme .input-field:focus,
+body.light-theme .form-group input:focus,
+body.light-theme .form-group select:focus,
+body.light-theme .form-group textarea:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  background: #ffffff;
+}
+
+textarea.input,
+.form-group textarea {
+  height: auto;
+  min-height: 80px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.input::placeholder,
+.input-field::placeholder,
+.form-group input::placeholder,
+.form-group textarea::placeholder {
   color: var(--text-secondary);
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+/* Responsive Form Grids */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-grid-1-2 {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 12px;
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .form-grid-2,
+  .form-grid-1-2,
+  .form-grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
 }
 
 /* Global Native Date, Datetime-local and Time input fixes for iOS & WebKit */
