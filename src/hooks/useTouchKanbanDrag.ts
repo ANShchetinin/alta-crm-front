@@ -18,18 +18,19 @@ export interface UseTouchKanbanDragProps {
   longPressDelay?: number;
 }
 
-// Distance in pixels beyond which a touch gesture is classified as scroll/move rather than tap/hold
-const MOVE_THRESHOLD = 8;
+// Distance in pixels beyond which a touch gesture is classified as scroll rather than tap/hold
+const MOVE_THRESHOLD = 14;
 // Suppression time for synthetic click events after touch interactions
-const CLICK_SUPPRESSION_MS = 1000;
+const CLICK_SUPPRESSION_MS = 800;
 
 export const useTouchKanbanDrag = ({
   boardRef,
   onDropCard,
   onCardClick,
-  longPressDelay = 500
+  longPressDelay = 260
 }: UseTouchKanbanDragProps) => {
   const [draggingCard, setDraggingCard] = useState<Order | null>(null);
+  const [pressingCardId, setPressingCardId] = useState<number | null>(null);
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
   const [targetStatusId, setTargetStatusId] = useState<number | null>(null);
   const [ghostData, setGhostData] = useState<TouchDragGhostData | null>(null);
@@ -69,27 +70,39 @@ export const useTouchKanbanDrag = ({
     }
   }, []);
 
-  const handleAutoScroll = useCallback((x: number) => {
+  const handleAutoScroll = useCallback((x: number, y: number) => {
     stopAutoScroll();
-    if (!boardRef.current) return;
 
     const EDGE_THRESHOLD = 70;
     const SCROLL_SPEED = 10;
     const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 400;
+    const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
 
     const scrollLoop = () => {
-      if (!boardRef.current || !touchStateRef.current.isDragging) return;
+      if (!touchStateRef.current.isDragging) return;
 
-      if (touchStateRef.current.currentX < EDGE_THRESHOLD) {
-        boardRef.current.scrollLeft -= SCROLL_SPEED;
-        touchStateRef.current.autoScrollTimer = requestAnimationFrame(scrollLoop);
-      } else if (touchStateRef.current.currentX > screenWidth - EDGE_THRESHOLD) {
-        boardRef.current.scrollLeft += SCROLL_SPEED;
-        touchStateRef.current.autoScrollTimer = requestAnimationFrame(scrollLoop);
+      // Horizontal board scroll
+      if (boardRef.current) {
+        if (touchStateRef.current.currentX < EDGE_THRESHOLD) {
+          boardRef.current.scrollLeft -= SCROLL_SPEED;
+        } else if (touchStateRef.current.currentX > screenWidth - EDGE_THRESHOLD) {
+          boardRef.current.scrollLeft += SCROLL_SPEED;
+        }
       }
+
+      // Vertical window scroll (for list view)
+      if (typeof window !== 'undefined') {
+        if (touchStateRef.current.currentY < EDGE_THRESHOLD) {
+          window.scrollBy({ top: -SCROLL_SPEED, behavior: 'instant' as any });
+        } else if (touchStateRef.current.currentY > screenHeight - EDGE_THRESHOLD) {
+          window.scrollBy({ top: SCROLL_SPEED, behavior: 'instant' as any });
+        }
+      }
+
+      touchStateRef.current.autoScrollTimer = requestAnimationFrame(scrollLoop);
     };
 
-    if (x < EDGE_THRESHOLD || x > screenWidth - EDGE_THRESHOLD) {
+    if (x < EDGE_THRESHOLD || x > screenWidth - EDGE_THRESHOLD || y < EDGE_THRESHOLD || y > screenHeight - EDGE_THRESHOLD) {
       touchStateRef.current.autoScrollTimer = requestAnimationFrame(scrollLoop);
     }
   }, [boardRef, stopAutoScroll]);
@@ -133,6 +146,8 @@ export const useTouchKanbanDrag = ({
       clearTimeout(touchStateRef.current.timer);
     }
 
+    setPressingCardId(card.id);
+
     touchStateRef.current = {
       startX,
       startY,
@@ -151,12 +166,14 @@ export const useTouchKanbanDrag = ({
     const timer = setTimeout(() => {
       // Long press activated ONLY if finger hasn't moved beyond threshold
       if (touchStateRef.current.hasMoved || touchStateRef.current.card?.id !== card.id) {
+        setPressingCardId(null);
         return;
       }
 
       touchStateRef.current.isDragging = true;
       touchStateRef.current.hasMoved = true;
       touchStateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
+      setPressingCardId(null);
 
       setDraggingCard(card);
       setDragPosition({ x: startX, y: startY });
@@ -196,6 +213,7 @@ export const useTouchKanbanDrag = ({
       if (dist > MOVE_THRESHOLD) {
         touchStateRef.current.hasMoved = true;
         touchStateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
+        setPressingCardId(null);
         if (timer) {
           clearTimeout(timer);
           touchStateRef.current.timer = null;
@@ -209,7 +227,7 @@ export const useTouchKanbanDrag = ({
       e.preventDefault();
     }
     setDragPosition({ x: touch.clientX, y: touch.clientY });
-    handleAutoScroll(touch.clientX);
+    handleAutoScroll(touch.clientX, touch.clientY);
     updateTargetColumn(touch.clientX, touch.clientY);
   }, [handleAutoScroll, updateTargetColumn]);
 
@@ -219,6 +237,7 @@ export const useTouchKanbanDrag = ({
       clearTimeout(timer);
       touchStateRef.current.timer = null;
     }
+    setPressingCardId(null);
     stopAutoScroll();
 
     if (isDragging && card) {
@@ -270,7 +289,7 @@ export const useTouchKanbanDrag = ({
       const duration = Date.now() - startTime;
 
       // Only trigger click if it was an intentional stationary TAP (not a scroll gesture) and NOT on an interactive button/link
-      if (!touchStateRef.current.hasMoved && endDist <= MOVE_THRESHOLD && !isInteractive && duration >= 30 && duration < 450) {
+      if (!touchStateRef.current.hasMoved && endDist <= MOVE_THRESHOLD && !isInteractive && duration >= 30 && duration < 500) {
         if (e.cancelable) {
           e.preventDefault();
         }
@@ -290,6 +309,7 @@ export const useTouchKanbanDrag = ({
       clearTimeout(touchStateRef.current.timer);
       touchStateRef.current.timer = null;
     }
+    setPressingCardId(null);
     stopAutoScroll();
     touchStateRef.current.hasMoved = true;
     touchStateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
@@ -318,6 +338,7 @@ export const useTouchKanbanDrag = ({
 
   return {
     draggingCard,
+    pressingCardId,
     dragPosition,
     targetStatusId,
     ghostData,

@@ -61,6 +61,16 @@ export const useTouchColumnReorder = ({
     stateRef.current.hasMoved = true;
     setDragPosition({ x: touch.clientX, y: touch.clientY });
 
+    // Auto-scroll window in list mode
+    if (typeof window !== 'undefined') {
+      const screenHeight = window.innerHeight;
+      if (touch.clientY < 70) {
+        window.scrollBy({ top: -10, behavior: 'instant' as any });
+      } else if (touch.clientY > screenHeight - 70) {
+        window.scrollBy({ top: 10, behavior: 'instant' as any });
+      }
+    }
+
     // Find column under touch coordinates
     if (typeof document !== 'undefined' && typeof document.elementFromPoint === 'function') {
       const element = document.elementFromPoint(touch.clientX, touch.clientY);

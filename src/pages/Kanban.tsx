@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus,
   ChevronDown,
@@ -259,6 +260,9 @@ const Kanban = () => {
 
   const {
     draggingCard: touchDraggingCard,
+    pressingCardId: touchPressingCardId,
+    dragPosition: touchDragPosition,
+    ghostData: touchGhostData,
     targetStatusId: touchTargetStatusId,
     handleTouchStart,
     handleTouchMove,
@@ -294,12 +298,13 @@ const Kanban = () => {
     onCardClick: (card) => {
       openOrder(card.id);
     },
-    longPressDelay: 500
+    longPressDelay: 260
   });
 
   const {
     draggingColId,
     targetColId: touchTargetColId,
+    dragPosition: colDragPosition,
     handleHandleTouchStart,
     handleHandleTouchMove,
     handleHandleTouchEnd,
@@ -488,9 +493,10 @@ const Kanban = () => {
     return (
       <div 
         key={card.id} 
-        className={`kanban-card ${isOrderDrawerOpen && activeOrderId === card.id ? 'is-active-card' : ''} ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''} ${desktopDraggingCardId === card.id ? 'is-card-dragging' : ''}`}
-        draggable
+        className={`kanban-card ${isOrderDrawerOpen && activeOrderId === card.id ? 'is-active-card' : ''} ${touchPressingCardId === card.id ? 'is-pressing' : ''} ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''} ${desktopDraggingCardId === card.id ? 'is-card-dragging' : ''}`}
+        draggable={!isMobile}
         onDragStart={(e) => {
+          if (isMobile) return;
           e.stopPropagation();
           handleDragStart(e, card.id);
         }}
@@ -1336,6 +1342,59 @@ const Kanban = () => {
           openOrder(orderIdToOpen, 'FILES');
         }}
       />
+
+      {/* Touch Card Drag Ghost Portal */}
+      {touchDraggingCard && touchDragPosition && touchGhostData && createPortal(
+        <div 
+          className="kanban-touch-drag-ghost"
+          style={{
+            left: `${touchDragPosition.x - touchGhostData.offsetX}px`,
+            top: `${touchDragPosition.y - touchGhostData.offsetY}px`,
+            width: `${touchGhostData.width}px`
+          }}
+        >
+          <div style={{ padding: '12px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="card-order-id">#{touchDraggingCard.id}</span>
+                <span className="card-client-name">{touchDraggingCard.clientName || 'Заявка'}</span>
+              </div>
+            </div>
+            {touchDraggingCard.address && (
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {touchDraggingCard.address}
+              </div>
+            )}
+            {touchDraggingCard.totalPrice && (
+              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#16a34a' }}>
+                {touchDraggingCard.totalPrice.toLocaleString('ru-RU')} ₽
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Touch Column Drag Ghost Portal */}
+      {draggingColId && colDragPosition && (() => {
+        const draggingCol = columns.find(c => c.id === draggingColId);
+        if (!draggingCol) return null;
+        return createPortal(
+          <div
+            className="kanban-column-drag-ghost"
+            style={{
+              left: `${colDragPosition.x - 60}px`,
+              top: `${colDragPosition.y - 25}px`,
+              minWidth: '220px'
+            }}
+          >
+            <GripVertical size={18} style={{ color: 'var(--accent-primary)' }} />
+            <span className="dot" style={{ backgroundColor: draggingCol.color || '#3b82f6' }} />
+            <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>{draggingCol.name}</span>
+          </div>,
+          document.body
+        );
+      })()}
     </div>
   );
 };
