@@ -1257,13 +1257,15 @@ export const OrderDrawer: React.FC = () => {
             >
               <User size={15} /> Основное
             </button>
-            <button
-              type="button"
-              onClick={() => setOrderModalTab('MEASUREMENT')}
-              className={`order-drawer-tab-btn ${orderModalTab === 'MEASUREMENT' ? 'active' : ''}`}
-            >
-              <Ruler size={15} /> Замер и смета
-            </button>
+            {(!isWorker || tenantSettings?.allowWorkerMeasurements) && (
+              <button
+                type="button"
+                onClick={() => setOrderModalTab('MEASUREMENT')}
+                className={`order-drawer-tab-btn ${orderModalTab === 'MEASUREMENT' ? 'active' : ''}`}
+              >
+                <Ruler size={15} /> Замер и смета
+              </button>
+            )}
             {!isWorker && hasContractTemplates && (
               <button
                 type="button"

@@ -513,6 +513,12 @@ const DashboardLayout = () => {
                   <span style={{ flex: 1 }}>Календарь</span>
                 </NavLink>
               )}
+              {hasMeasurementCalculator && tenantSettings?.allowWorkerMeasurements && (
+                <NavLink to="/measurements" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <Ruler size={20} />
+                  <span style={{ flex: 1 }}>Замеры</span>
+                </NavLink>
+              )}
               <NavLink to="/earnings" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Wallet size={20} />
                 <span style={{ flex: 1 }}>Мой заработок</span>
@@ -868,7 +874,7 @@ const DashboardLayout = () => {
             </div>
             <span>{t('nav.orders') || 'Заявки'}</span>
           </NavLink>
-          {hasMeasurementCalculator && (
+          {hasMeasurementCalculator && tenantSettings?.allowWorkerMeasurements && (
             <NavLink to="/measurements" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
               <div className="bottom-nav-icon-wrapper">
                 <Ruler size={20} />
@@ -876,7 +882,7 @@ const DashboardLayout = () => {
               <span>Замеры</span>
             </NavLink>
           )}
-          {hasCalendar && !hasMeasurementCalculator && (
+          {hasCalendar && (!hasMeasurementCalculator || !tenantSettings?.allowWorkerMeasurements) && (
             <NavLink to="/calendar" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
               <div className="bottom-nav-icon-wrapper">
                 <CalendarDays size={20} />

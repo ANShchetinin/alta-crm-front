@@ -50,6 +50,21 @@ const FeatureRoute = ({ children, feature }: { children: React.ReactNode; featur
   return <ErrorBoundary featureName={feature}>{children}</ErrorBoundary>;
 };
 
+const MeasurementRoute = ({ children }: { children: React.ReactNode }) => {
+  const role = useAuthStore(state => state.role);
+  const tenantSettings = useAppStore(state => state.tenantSettings);
+  if (role === 'WORKER' && !tenantSettings?.allowWorkerMeasurements) {
+    return <Navigate to="/kanban" replace />;
+  }
+  return (
+    <RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}>
+      <FeatureRoute feature="MEASUREMENT_CALCULATOR">
+        {children}
+      </FeatureRoute>
+    </RoleRoute>
+  );
+};
+
 const IndexRedirect = () => {
   const role = useAuthStore(state => state.role);
   return <Navigate to={role === 'SUPERADMIN' ? "/tenants" : "/kanban"} replace />;
@@ -165,7 +180,7 @@ function App() {
 
               <Route path="kanban" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><Kanban /></RoleRoute>} />
               <Route path="calendar" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><FeatureRoute feature="CALENDAR"><Calendar /></FeatureRoute></RoleRoute>} />
-              <Route path="measurements" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><FeatureRoute feature="MEASUREMENT_CALCULATOR"><Measurements /></FeatureRoute></RoleRoute>} />
+              <Route path="measurements" element={<MeasurementRoute><Measurements /></MeasurementRoute>} />
               <Route path="earnings" element={<RoleRoute allowedRoles={['WORKER', 'OWNER', 'MANAGER']}><Earnings /></RoleRoute>} />
               <Route path="clients" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><Clients /></RoleRoute>} />
               <Route path="employees" element={<RoleRoute allowedRoles={['OWNER']}><Employees /></RoleRoute>} />

@@ -49,6 +49,7 @@ export interface UpdateTenantSettingsRequest {
   requisites?: TenantRequisites;
   orderNumberFormat?: string;
   timezone?: string;
+  allowWorkerMeasurements?: boolean;
 }
 
 export interface TenantDto {
@@ -60,6 +61,7 @@ export interface TenantDto {
   requisites?: TenantRequisites;
   orderNumberFormat?: string;
   timezone?: string;
+  allowWorkerMeasurements?: boolean;
   activeFeatures?: string[];
   createdAt: string;
 }
