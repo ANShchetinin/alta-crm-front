@@ -1,9 +1,10 @@
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Users, UserCircle, Box, Archive, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { useFeature } from '../hooks/useFeatureToggle';
 import { getOrders, getOrderStatuses } from '../api/kanban';
 import { getProfile } from '../api/settings';
@@ -12,6 +13,7 @@ import { getRecentNotifications, markNotificationAsRead, markAllNotificationsAsR
 import { PushNotificationSettings } from './PushNotificationSettings';
 import { FeatureGate } from './FeatureGate';
 import { CreateCompanyModal } from './CreateCompanyModal';
+import { OrderDrawer } from '../features/kanban/components/OrderDrawer';
 import { formatTimeAgo } from '../utils/dateUtils';
 import '../styles/dashboard.css';
 
@@ -19,6 +21,7 @@ const DashboardLayout = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings, fetchTenantSettings } = useAppStore();
   const { logout, role, token, setToken } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -33,6 +36,41 @@ const DashboardLayout = () => {
   const [userEmail, setUserEmail] = useState<string>('');
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Global order drawer listeners and query param handlers
+  useEffect(() => {
+    const orderIdParam = searchParams.get('orderId');
+    if (orderIdParam) {
+      const targetId = parseInt(orderIdParam);
+      if (!isNaN(targetId)) {
+        useOrderDrawerStore.getState().openOrder(targetId);
+        searchParams.delete('orderId');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+    if (searchParams.get('create') === 'true') {
+      useOrderDrawerStore.getState().openCreateOrder();
+      searchParams.delete('create');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const handleCreateEvent = () => {
+      useOrderDrawerStore.getState().openCreateOrder();
+    };
+    const handleOpenOrderEvent = (e: any) => {
+      if (e.detail?.orderId) {
+        useOrderDrawerStore.getState().openOrder(e.detail.orderId);
+      }
+    };
+    window.addEventListener('alta:open-create-order', handleCreateEvent);
+    window.addEventListener('alta:open-order', handleOpenOrderEvent);
+    return () => {
+      window.removeEventListener('alta:open-create-order', handleCreateEvent);
+      window.removeEventListener('alta:open-order', handleOpenOrderEvent);
+    };
+  }, []);
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed(prev => {
@@ -261,7 +299,7 @@ const DashboardLayout = () => {
     }
     setShowNotifications(false);
     if (notif.orderId) {
-      navigate(`/kanban?orderId=${notif.orderId}`);
+      useOrderDrawerStore.getState().openOrder(notif.orderId);
     } else if (notif.url) {
       navigate(notif.url);
     } else {
@@ -646,11 +684,7 @@ const DashboardLayout = () => {
                 type="button" 
                 className="topbar-new-order-btn"
                 onClick={() => {
-                  if (location.pathname === '/kanban') {
-                    window.dispatchEvent(new CustomEvent('alta:open-create-order'));
-                  } else {
-                    navigate('/kanban?create=true');
-                  }
+                  useOrderDrawerStore.getState().openCreateOrder();
                 }}
                 title="Создать новую заявку"
               >
@@ -1071,6 +1105,9 @@ const DashboardLayout = () => {
           </div>
         </div>
       )}
+
+      {/* Global Order Slide-Over Drawer / Inspector */}
+      <OrderDrawer />
 
       {/* Modal for Owner to create a new company */}
       <CreateCompanyModal 
