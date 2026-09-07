@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { OrderStatus } from '../api/kanban';
 
 export interface UseTouchColumnReorderProps {
@@ -19,47 +19,44 @@ export const useTouchColumnReorder = ({
     currentX: number;
     currentY: number;
     hasMoved: boolean;
+    targetColId: number | null;
   }>({
     draggingId: null,
     currentX: 0,
     currentY: 0,
-    hasMoved: false
+    hasMoved: false,
+    targetColId: null
   });
 
-  const handleHandleTouchStart = useCallback((e: React.TouchEvent, colId: number) => {
-    e.stopPropagation();
-    if (e.cancelable) {
-      e.preventDefault();
-    }
-    const touch = e.touches[0];
-    stateRef.current = {
-      draggingId: colId,
-      currentX: touch.clientX,
-      currentY: touch.clientY,
-      hasMoved: false
-    };
+  const cleanupListeners = useRef<() => void>(() => {});
 
-    setDraggingColId(colId);
-    setTargetColId(colId);
-    setDragPosition({ x: touch.clientX, y: touch.clientY });
-
-    try {
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-    } catch {}
-  }, []);
-
-  const handleHandleTouchMove = useCallback((e: React.TouchEvent) => {
+  const handleNativeTouchMove = useCallback((e: TouchEvent) => {
     if (!stateRef.current.draggingId) return;
-    if (e.cancelable) {
+
+    if (e.cancelable && e.preventDefault) {
       e.preventDefault();
     }
+    if (e.stopPropagation) {
+      e.stopPropagation();
+    }
+
     const touch = e.touches[0];
+    if (!touch) return;
+
     stateRef.current.currentX = touch.clientX;
     stateRef.current.currentY = touch.clientY;
     stateRef.current.hasMoved = true;
     setDragPosition({ x: touch.clientX, y: touch.clientY });
+
+    // Auto-scroll window in list mode
+    if (typeof window !== 'undefined') {
+      const screenHeight = window.innerHeight;
+      if (touch.clientY < 80) {
+        window.scrollBy(0, -12);
+      } else if (touch.clientY > screenHeight - 80) {
+        window.scrollBy(0, 12);
+      }
+    }
 
     // Find column under touch coordinates
     if (typeof document !== 'undefined' && typeof document.elementFromPoint === 'function') {
@@ -69,11 +66,14 @@ export const useTouchColumnReorder = ({
       if (colIdStr) {
         const id = parseInt(colIdStr, 10);
         setTargetColId(id);
+        stateRef.current.targetColId = id;
       }
     }
   }, []);
 
-  const handleHandleTouchEnd = useCallback((e: React.TouchEvent) => {
+  const handleNativeTouchEnd = useCallback((e: TouchEvent) => {
+    cleanupListeners.current();
+
     const { draggingId, hasMoved } = stateRef.current;
     if (!draggingId) return;
 
@@ -81,9 +81,15 @@ export const useTouchColumnReorder = ({
       e.preventDefault();
     }
 
-    let finalTargetId = targetColId;
+    if (typeof document !== 'undefined') {
+      document.body.style.userSelect = '';
+      (document.body.style as any).webkitUserSelect = '';
+      (document.body.style as any).touchAction = '';
+    }
+
+    let finalTargetId = stateRef.current.targetColId;
     if (typeof document !== 'undefined' && typeof document.elementFromPoint === 'function') {
-      const touch = e.changedTouches[0];
+      const touch = e.changedTouches?.[0];
       if (touch) {
         const element = document.elementFromPoint(touch.clientX, touch.clientY);
         const colEl = element?.closest('[data-column-id]');
@@ -117,23 +123,98 @@ export const useTouchColumnReorder = ({
       draggingId: null,
       currentX: 0,
       currentY: 0,
-      hasMoved: false
+      hasMoved: false,
+      targetColId: null
     };
     setDraggingColId(null);
     setTargetColId(null);
     setDragPosition(null);
-  }, [columns, onReorder, targetColId]);
+  }, [columns, onReorder]);
 
-  const handleHandleTouchCancel = useCallback(() => {
+  const handleNativeTouchCancel = useCallback(() => {
+    cleanupListeners.current();
+
+    if (typeof document !== 'undefined') {
+      document.body.style.userSelect = '';
+      (document.body.style as any).webkitUserSelect = '';
+      (document.body.style as any).touchAction = '';
+    }
+
     stateRef.current = {
       draggingId: null,
       currentX: 0,
       currentY: 0,
-      hasMoved: false
+      hasMoved: false,
+      targetColId: null
     };
     setDraggingColId(null);
     setTargetColId(null);
     setDragPosition(null);
+  }, []);
+
+  const handleHandleTouchStart = useCallback((e: React.TouchEvent, colId: number) => {
+    e.stopPropagation();
+    if (e.cancelable) {
+      e.preventDefault();
+    }
+    const touch = e.touches[0];
+    stateRef.current = {
+      draggingId: colId,
+      currentX: touch.clientX,
+      currentY: touch.clientY,
+      hasMoved: false,
+      targetColId: colId
+    };
+
+    setDraggingColId(colId);
+    setTargetColId(colId);
+    setDragPosition({ x: touch.clientX, y: touch.clientY });
+
+    if (typeof document !== 'undefined') {
+      document.body.style.userSelect = 'none';
+      (document.body.style as any).webkitUserSelect = 'none';
+      (document.body.style as any).touchAction = 'none';
+    }
+
+    // Attach native non-passive listeners
+    window.addEventListener('touchmove', handleNativeTouchMove, { passive: false });
+    window.addEventListener('touchend', handleNativeTouchEnd, { passive: false });
+    window.addEventListener('touchcancel', handleNativeTouchCancel, { passive: false });
+
+    cleanupListeners.current = () => {
+      window.removeEventListener('touchmove', handleNativeTouchMove);
+      window.removeEventListener('touchend', handleNativeTouchEnd);
+      window.removeEventListener('touchcancel', handleNativeTouchCancel);
+    };
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    } catch {}
+  }, [handleNativeTouchMove, handleNativeTouchEnd, handleNativeTouchCancel]);
+
+  const handleHandleTouchMove = useCallback((e: React.TouchEvent) => {
+    handleNativeTouchMove(e.nativeEvent || (e as any));
+  }, [handleNativeTouchMove]);
+
+  const handleHandleTouchEnd = useCallback((e: React.TouchEvent) => {
+    handleNativeTouchEnd(e.nativeEvent || (e as any));
+  }, [handleNativeTouchEnd]);
+
+  const handleHandleTouchCancel = useCallback(() => {
+    handleNativeTouchCancel();
+  }, [handleNativeTouchCancel]);
+
+  useEffect(() => {
+    return () => {
+      cleanupListeners.current();
+      if (typeof document !== 'undefined') {
+        document.body.style.userSelect = '';
+        (document.body.style as any).webkitUserSelect = '';
+        (document.body.style as any).touchAction = '';
+      }
+    };
   }, []);
 
   return {

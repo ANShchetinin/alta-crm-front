@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Edit2, Trash2, User, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText, Wallet, Building2 } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, User, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText, Wallet, Ruler, Building2, Phone } from 'lucide-react';
 import type { Employee } from '../api/employees';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../api/employees';
 import { getOrderStatuses } from '../api/kanban';
@@ -9,6 +8,7 @@ import type { OrderStatus } from '../api/kanban';
 import { getMyTenants, type UserTenant } from '../api/auth';
 import { AvatarUpload } from '../components/AvatarUpload';
 import { getEmployeeInitials, getAvatarGradient } from '../utils/avatarUtils';
+import { Sheet } from '../components/ui/Sheet';
 import '../styles/clients.css';
 
 export const Employees = () => {
@@ -40,7 +40,8 @@ export const Employees = () => {
     password: '',
     allowedStatusIds: [] as number[],
     allowedTenantIds: [] as number[],
-    canViewFinances: false
+    canViewFinances: false,
+    canAccessMeasurements: false
   });
 
 
@@ -57,14 +58,15 @@ export const Employees = () => {
         getOrderStatuses().catch(() => [] as OrderStatus[]),
         getMyTenants().catch(() => null)
       ]);
-      setEmployees(empData);
-      setStatuses(statusData);
+      setEmployees(Array.isArray(empData) ? empData : []);
+      setStatuses(Array.isArray(statusData) ? statusData : []);
       if (tenantsResp) {
-        setMyTenants(tenantsResp.tenants || []);
+        setMyTenants(Array.isArray(tenantsResp.tenants) ? tenantsResp.tenants : []);
         setCurrentTenantId(tenantsResp.currentTenantId || 1);
       }
     } catch (err) {
       console.error('Failed to load initial data', err);
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
@@ -73,20 +75,25 @@ export const Employees = () => {
   const fetchEmployeesList = async () => {
     try {
       const data = await getEmployees();
-      setEmployees(data);
+      setEmployees(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const filteredEmployees = employees.filter(c => 
-    c.name.toLowerCase().includes(search.toLowerCase()) || 
-    (c.phone && c.phone.includes(search)) ||
-    (c.position && c.position.toLowerCase().includes(search.toLowerCase())) ||
-    (c.email && c.email.toLowerCase().includes(search.toLowerCase())) ||
-    (c.passportSeriesNumber && c.passportSeriesNumber.includes(search)) ||
-    (c.registrationAddress && c.registrationAddress.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filteredEmployees = (Array.isArray(employees) ? employees : []).filter(c => {
+    if (!c) return false;
+    const q = (search || '').toLowerCase().trim();
+    if (!q) return true;
+    return (
+      (c.name && typeof c.name === 'string' && c.name.toLowerCase().includes(q)) || 
+      (c.phone && typeof c.phone === 'string' && c.phone.includes(q)) ||
+      (c.position && typeof c.position === 'string' && c.position.toLowerCase().includes(q)) ||
+      (c.email && typeof c.email === 'string' && c.email.toLowerCase().includes(q)) ||
+      (c.passportSeriesNumber && typeof c.passportSeriesNumber === 'string' && c.passportSeriesNumber.includes(q)) ||
+      (c.registrationAddress && typeof c.registrationAddress === 'string' && c.registrationAddress.toLowerCase().includes(q))
+    );
+  });
 
   const openAddModal = () => {
     setEditingEmployee(null);
@@ -107,7 +114,8 @@ export const Employees = () => {
       password: '',
       allowedStatusIds: [],
       allowedTenantIds: [currentTenantId],
-      canViewFinances: false
+      canViewFinances: false,
+      canAccessMeasurements: false
     });
     setIsModalOpen(true);
   };
@@ -131,7 +139,8 @@ export const Employees = () => {
       password: '',
       allowedStatusIds: employee.allowedStatusIds || [],
       allowedTenantIds: (employee.allowedTenantIds && employee.allowedTenantIds.length > 0) ? employee.allowedTenantIds : [currentTenantId],
-      canViewFinances: !!employee.canViewFinances
+      canViewFinances: !!employee.canViewFinances,
+      canAccessMeasurements: !!employee.canAccessMeasurements
     });
     setIsModalOpen(true);
   };
@@ -166,7 +175,8 @@ export const Employees = () => {
         registrationAddress: formData.registrationAddress.trim() || undefined,
         allowedStatusIds: formData.allowedStatusIds,
         allowedTenantIds: formData.allowedTenantIds,
-        canViewFinances: formData.canViewFinances
+        canViewFinances: formData.canViewFinances,
+        canAccessMeasurements: formData.canAccessMeasurements
       };
 
       if (formData.hasAccount) {
@@ -241,7 +251,8 @@ export const Employees = () => {
         </div>
       </div>
 
-      <div className="clients-table-container glass-panel">
+      {/* Table (Desktop) */}
+      <div className="clients-table-container glass-panel desktop-table-view">
         <table className="clients-table">
           <thead>
             <tr>
@@ -316,7 +327,7 @@ export const Employees = () => {
                                   background: 'rgba(56, 189, 248, 0.12)', 
                                   border: '1px solid rgba(56, 189, 248, 0.25)', 
                                   padding: '1px 6px', 
-                                  borderRadius: '6px',
+                                  borderRadius: '6px', 
                                   cursor: 'default'
                                 }}
                               >
@@ -408,23 +419,199 @@ export const Employees = () => {
         </table>
       </div>
 
-      {/* Modal Overlay */}
-      {isModalOpen && createPortal(
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '540px', maxHeight: '90vh' }}>
-            <div className="modal-header">
-              <h2>{editingEmployee ? (t('employees.modal.editTitle') || 'Редактировать сотрудника') : (t('employees.modal.addTitle') || 'Добавить сотрудника')}</h2>
-              <button 
-                type="button" 
-                onClick={() => setIsModalOpen(false)}
-                className="btn-icon"
-                aria-label="Close"
-              >
-                &times;
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              <div className="modal-body" style={{ overflowY: 'auto', paddingRight: '6px' }}>
+      {/* Mobile Cards List */}
+      <div className="mobile-card-view">
+        {filteredEmployees.length === 0 ? (
+          <div className="glass-panel" style={{ textAlign: 'center', opacity: 0.6, padding: '32px 16px', borderRadius: 'var(--radius-md)' }}>
+            Сотрудники не найдены.
+          </div>
+        ) : (
+          <div className="mobile-cards-list">
+            {filteredEmployees.map(employee => {
+              const allowedStatusNames = statuses
+                .filter(s => employee.allowedStatusIds?.includes(s.id))
+                .map(s => s.name);
+
+              return (
+                <div 
+                  key={employee.id}
+                  onClick={() => openEditModal(employee)}
+                  className="mobile-data-card"
+                >
+                  <div className="mobile-data-card-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        color: '#fff',
+                        background: employee.avatarUrl ? 'transparent' : getAvatarGradient(employee.name),
+                        border: '2px solid rgba(255, 255, 255, 0.12)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                        flexShrink: 0
+                      }}>
+                        {employee.avatarUrl ? (
+                          <img 
+                            src={employee.avatarUrl} 
+                            alt={employee.name} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          />
+                        ) : (
+                          getEmployeeInitials(employee.name)
+                        )}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {employee.name}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '1px' }}>
+                          {employee.position || 'Без должности'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {employee.hasAccount ? (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '0.7rem',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(34, 197, 94, 0.15)',
+                        border: '1px solid rgba(34, 197, 94, 0.3)',
+                        color: '#4ade80',
+                        fontWeight: 600,
+                        flexShrink: 0
+                      }}>
+                        <Key size={11} /> В сети
+                      </span>
+                    ) : (
+                      <span style={{
+                        fontSize: '0.7rem',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        color: 'var(--text-muted)',
+                        fontWeight: 500,
+                        flexShrink: 0
+                      }}>
+                        Нет доступа
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mobile-data-card-body">
+                    {/* Phone call row */}
+                    {employee.phone ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <a 
+                          href={`tel:${employee.phone.replace(/[^\d+]/g, '')}`} 
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            color: 'var(--success, #22c55e)',
+                            textDecoration: 'none',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            background: 'rgba(34, 197, 94, 0.1)',
+                            border: '1px solid rgba(34, 197, 94, 0.25)',
+                            fontWeight: 600,
+                            fontSize: '0.82rem'
+                          }}
+                        >
+                          <Phone size={13} />
+                          <span>{employee.phone}</span>
+                        </a>
+                      </div>
+                    ) : null}
+
+                    {/* Multitenants tags */}
+                    {myTenants.length > 1 && employee.allowedTenantIds && employee.allowedTenantIds.length > 0 && (
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                        {employee.allowedTenantIds.map(tid => {
+                          const t = myTenants.find(x => x.tenantId === tid);
+                          if (!t) return null;
+                          const isCurrent = t.tenantId === currentTenantId;
+                          return (
+                            <span 
+                              key={tid}
+                              style={{
+                                fontSize: '0.68rem',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                background: isCurrent ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                border: `1px solid ${isCurrent ? 'rgba(59, 130, 246, 0.3)' : 'var(--glass-border)'}`,
+                                color: isCurrent ? '#60a5fa' : 'var(--text-secondary)'
+                              }}
+                            >
+                              {t.name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Allowed statuses */}
+                    {allowedStatusNames.length > 0 && (
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '2px' }}>
+                        {allowedStatusNames.map((name, idx) => (
+                          <span key={idx} style={{ fontSize: '0.72rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.25)', color: '#a5b4fc', fontWeight: 500 }}>
+                            {name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mobile-data-card-actions" onClick={(e) => e.stopPropagation()}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {employee.email || 'Без email'}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openEditModal(employee); }}
+                        className="btn btn-ghost"
+                        style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Edit2 size={13} /> Редактировать
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleDelete(employee.id); }}
+                        className="btn btn-ghost text-danger"
+                        style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', color: '#ef4444' }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Employee Drawer / Bottom Sheet */}
+      <Sheet
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingEmployee ? (t('employees.modal.editTitle') || 'Редактировать сотрудника') : (t('employees.modal.addTitle') || 'Добавить сотрудника')}
+        description={editingEmployee ? 'Редактирование профиля и прав доступа' : 'Создание нового сотрудника и настройка доступа'}
+        size="md"
+      >
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 
                 {/* Аватарка */}
                 <AvatarUpload
@@ -720,6 +907,33 @@ export const Employees = () => {
                   </div>
                 </div>
 
+                {/* Блок Доступа к разделу Замеры */}
+                <div style={{
+                  marginTop: '16px',
+                  padding: '16px',
+                  background: 'rgba(99, 102, 241, 0.05)',
+                  border: '1px solid rgba(99, 102, 241, 0.2)',
+                  borderRadius: 'var(--radius-md)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Ruler size={18} style={{ color: '#818cf8', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Доступ к разделу «Замеры»</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Разрешить сотруднику (монтажнику) доступ к модулю замеров и расчету сметы</div>
+                      </div>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={formData.canAccessMeasurements} 
+                        onChange={(e) => setFormData({ ...formData, canAccessMeasurements: e.target.checked })}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
                 {/* Блок Выбора компаний/филиалов сотрудника */}
                 {myTenants.length > 1 && (
                   <div style={{
@@ -779,8 +993,7 @@ export const Employees = () => {
                   </div>
                 )}
 
-              </div>
-              <div className="modal-actions" style={{ padding: '16px', borderTop: '1px solid var(--glass-border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--glass-border)' }}>
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
@@ -793,10 +1006,7 @@ export const Employees = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>,
-        document.body
-      )}
+      </Sheet>
     </div>
   );
 };

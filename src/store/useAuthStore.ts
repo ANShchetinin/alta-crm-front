@@ -6,7 +6,10 @@ interface AuthState {
   email: string | null;
   userId: number | null;
   tenantId: number | null;
+  canViewFinances: boolean;
+  canAccessMeasurements: boolean;
   setToken: (token: string | null) => void;
+  setPermissions: (perms: { canViewFinances?: boolean; canAccessMeasurements?: boolean }) => void;
   logout: () => void;
 }
 
@@ -56,30 +59,53 @@ const getTenantIdFromToken = (token: string | null): number | null => {
 
 const initialToken = localStorage.getItem('altacrm_token');
 
-export const useAuthStore = create<AuthState>((set) => ({
-  token: initialToken,
-  role: getRoleFromToken(initialToken),
-  email: getEmailFromToken(initialToken),
-  userId: getUserIdFromToken(initialToken),
-  tenantId: getTenantIdFromToken(initialToken),
-  
-  setToken: (token) => {
-    if (token) {
-      localStorage.setItem('altacrm_token', token);
-    } else {
-      localStorage.removeItem('altacrm_token');
-    }
-    set({
-      token,
-      role: getRoleFromToken(token),
-      email: getEmailFromToken(token),
-      userId: getUserIdFromToken(token),
-      tenantId: getTenantIdFromToken(token)
-    });
-  },
+export const useAuthStore = create<AuthState>((set) => {
+  const initialRole = getRoleFromToken(initialToken);
+  return {
+    token: initialToken,
+    role: initialRole,
+    email: getEmailFromToken(initialToken),
+    userId: getUserIdFromToken(initialToken),
+    tenantId: getTenantIdFromToken(initialToken),
+    canViewFinances: initialRole === 'OWNER' || initialRole === 'SUPERADMIN',
+    canAccessMeasurements: initialRole !== 'WORKER',
+    
+    setToken: (token) => {
+      if (token) {
+        localStorage.setItem('altacrm_token', token);
+      } else {
+        localStorage.removeItem('altacrm_token');
+      }
+      const role = getRoleFromToken(token);
+      set({
+        token,
+        role,
+        email: getEmailFromToken(token),
+        userId: getUserIdFromToken(token),
+        tenantId: getTenantIdFromToken(token),
+        canViewFinances: role === 'OWNER' || role === 'SUPERADMIN',
+        canAccessMeasurements: role !== 'WORKER'
+      });
+    },
 
-  logout: () => {
-    localStorage.removeItem('altacrm_token');
-    set({ token: null, role: null, email: null, userId: null, tenantId: null });
-  }
-}));
+    setPermissions: (perms) => {
+      set((state) => ({
+        canViewFinances: perms.canViewFinances !== undefined ? perms.canViewFinances : state.canViewFinances,
+        canAccessMeasurements: perms.canAccessMeasurements !== undefined ? perms.canAccessMeasurements : state.canAccessMeasurements
+      }));
+    },
+
+    logout: () => {
+      localStorage.removeItem('altacrm_token');
+      set({ 
+        token: null, 
+        role: null, 
+        email: null, 
+        userId: null, 
+        tenantId: null,
+        canViewFinances: false,
+        canAccessMeasurements: false
+      });
+    }
+  };
+});

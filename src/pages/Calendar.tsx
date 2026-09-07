@@ -12,10 +12,23 @@ import {
 import { type CalendarEventDto, getCalendarEvents } from '../api/calendar';
 import { getEmployees, type Employee } from '../api/employees';
 import { useAuthStore } from '../store/useAuthStore';
+import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { parseUtcDate } from '../utils/dateUtils';
 import '../styles/calendar.css';
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+const getSafeDate = (dateStr?: string): Date => {
+  if (!dateStr) return new Date();
+  try {
+    const parsed = parseUtcDate(dateStr);
+    if (parsed && !isNaN(parsed.getTime())) return parsed;
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? new Date() : d;
+  } catch {
+    return new Date();
+  }
+};
 
 export const Calendar: React.FC = () => {
   const navigate = useNavigate();
@@ -46,7 +59,7 @@ export const Calendar: React.FC = () => {
 
   useEffect(() => {
     if (!isWorker) {
-      getEmployees().then(setEmployees).catch(console.error);
+      getEmployees().then(data => setEmployees(Array.isArray(data) ? data : [])).catch(console.error);
     }
   }, [isWorker]);
 
@@ -108,15 +121,17 @@ export const Calendar: React.FC = () => {
         types: activeTypes,
         employeeId: selectedEmployeeId
       });
-      setEvents(data);
+      setEvents(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch calendar events', err);
+      setEvents([]);
     }
   };
 
   useEffect(() => {
     fetchEvents();
   }, [rangeStart, rangeEnd, activeTypes, selectedEmployeeId]);
+
 
   // Navigation handlers
   const handlePrev = () => {
@@ -179,8 +194,8 @@ export const Calendar: React.FC = () => {
                          curr.getFullYear() === selectedDate.getFullYear();
 
       // Events on this day
-      const dayEvents = events.filter(e => {
-        const eDate = parseUtcDate(e.start) || new Date(e.start);
+      const dayEvents = (events || []).filter(e => {
+        const eDate = getSafeDate(e.start);
         return eDate.getFullYear() === curr.getFullYear() &&
                eDate.getMonth() === curr.getMonth() &&
                eDate.getDate() === curr.getDate();
@@ -206,14 +221,14 @@ export const Calendar: React.FC = () => {
 
   // Selected Day Events list
   const selectedDayEvents = useMemo(() => {
-    return events.filter(e => {
-      const eDate = parseUtcDate(e.start) || new Date(e.start);
+    return (events || []).filter(e => {
+      const eDate = getSafeDate(e.start);
       return eDate.getFullYear() === selectedDate.getFullYear() &&
              eDate.getMonth() === selectedDate.getMonth() &&
              eDate.getDate() === selectedDate.getDate();
     }).sort((a, b) => {
-      const aTime = (parseUtcDate(a.start) || new Date(a.start)).getTime();
-      const bTime = (parseUtcDate(b.start) || new Date(b.start)).getTime();
+      const aTime = getSafeDate(a.start).getTime();
+      const bTime = getSafeDate(b.start).getTime();
       return aTime - bTime;
     });
   }, [events, selectedDate]);
@@ -234,8 +249,8 @@ export const Calendar: React.FC = () => {
                          curr.getMonth() === selectedDate.getMonth() &&
                          curr.getFullYear() === selectedDate.getFullYear();
 
-      const dayEvents = events.filter(e => {
-        const eDate = parseUtcDate(e.start) || new Date(e.start);
+      const dayEvents = (events || []).filter(e => {
+        const eDate = getSafeDate(e.start);
         return eDate.getFullYear() === curr.getFullYear() &&
                eDate.getMonth() === curr.getMonth() &&
                eDate.getDate() === curr.getDate();
@@ -266,8 +281,8 @@ export const Calendar: React.FC = () => {
     const today = new Date();
     const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-    events.forEach(e => {
-      const eDate = parseUtcDate(e.start) || new Date(e.start);
+    (events || []).forEach(e => {
+      const eDate = getSafeDate(e.start);
       const key = `${eDate.getFullYear()}-${String(eDate.getMonth() + 1).padStart(2, '0')}-${String(eDate.getDate()).padStart(2, '0')}`;
       if (!groups[key]) {
         groups[key] = {
@@ -284,7 +299,7 @@ export const Calendar: React.FC = () => {
 
   const handleEventClick = (event: CalendarEventDto) => {
     if (event.orderId) {
-      navigate(`/kanban?orderId=${event.orderId}`);
+      useOrderDrawerStore.getState().openOrder(event.orderId);
     }
   };
 
@@ -296,12 +311,12 @@ export const Calendar: React.FC = () => {
   };
 
   const renderEventCard = (ev: CalendarEventDto) => {
-    const startDate = parseUtcDate(ev.start) || new Date(ev.start);
+    const startDate = getSafeDate(ev.start);
     const timeStr = !ev.allDay
       ? startDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
       : 'В течение дня';
     const isOverdue = ev.isOverdue || (ev.status !== 'COMPLETED' && startDate.getTime() < Date.now());
-    const typeClass = ev.type.toLowerCase();
+    const typeClass = (ev.type || 'reminder').toLowerCase();
 
     return (
       <div
@@ -574,12 +589,15 @@ export const Calendar: React.FC = () => {
                     {/* На мобильных устройствах — аккуратные цветные точки событий */}
                     {isMobile ? (
                       <div className="calendar-day-dots">
-                        {d.events.slice(0, 3).map((ev, i) => (
-                          <span 
-                            key={i} 
-                            className={`calendar-event-dot ${ev.type.toLowerCase()} ${ev.isOverdue ? 'overdue' : ''}`}
-                          />
-                        ))}
+                        {d.events.slice(0, 3).map((ev, i) => {
+                          const typeClass = (ev.type || 'reminder').toLowerCase();
+                          return (
+                            <span 
+                              key={i} 
+                              className={`calendar-event-dot ${typeClass} ${ev.isOverdue ? 'overdue' : ''}`}
+                            />
+                          );
+                        })}
                         {d.events.length > 3 && (
                           <span className="calendar-event-dot-more">+{d.events.length - 3}</span>
                         )}
@@ -589,9 +607,9 @@ export const Calendar: React.FC = () => {
                       <div className="calendar-day-events-list">
                         {d.events.map(ev => {
                           const timeStr = !ev.allDay
-                            ? new Date(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                            ? getSafeDate(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
                             : '';
-                          const typeClass = ev.type.toLowerCase();
+                          const typeClass = (ev.type || 'reminder').toLowerCase();
                           const overdueClass = ev.isOverdue ? 'overdue' : '';
 
                           return (
@@ -599,11 +617,11 @@ export const Calendar: React.FC = () => {
                               key={ev.id}
                               onClick={(e) => { e.stopPropagation(); handleEventClick(ev); }}
                               className={`calendar-event-item ${typeClass} ${overdueClass}`}
-                              title={`${ev.title}\nКлиент: ${ev.clientName}${ev.clientPhone ? ` (${ev.clientPhone})` : ''}\nАдрес: ${ev.address || '—'}`}
+                              title={`${ev.title || ''}\nКлиент: ${ev.clientName || ''}${ev.clientPhone ? ` (${ev.clientPhone})` : ''}\nАдрес: ${ev.address || '—'}`}
                             >
                               <span>{ev.type === 'MEASUREMENT' ? '📏' : (ev.type === 'INSTALLATION' ? '🔨' : '⏰')}</span>
                               {timeStr && <span style={{ opacity: 0.9 }}>{timeStr}</span>}
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.clientName}</span>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.clientName || ev.title || 'Событие'}</span>
                             </div>
                           );
                         })}
@@ -683,9 +701,9 @@ export const Calendar: React.FC = () => {
               >
                 {d.events.map(ev => {
                   const timeStr = !ev.allDay
-                    ? new Date(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                    ? getSafeDate(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
                     : 'Весь день';
-                  const typeClass = ev.type.toLowerCase();
+                  const typeClass = (ev.type || 'reminder').toLowerCase();
 
                   return (
                     <div
@@ -698,7 +716,7 @@ export const Calendar: React.FC = () => {
                         <span>{ev.type === 'MEASUREMENT' ? '📏 Замер' : (ev.type === 'INSTALLATION' ? '🔨 Монтаж' : '⏰ Звонок')}</span>
                         <span style={{ opacity: 0.8 }}>({timeStr})</span>
                       </div>
-                      <div style={{ fontWeight: 600, marginTop: '2px' }}>{ev.clientName}</div>
+                      <div style={{ fontWeight: 600, marginTop: '2px' }}>{ev.clientName || ev.title || 'Событие'}</div>
                       {ev.address && (
                         <div style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                           <MapPin size={11} /> {ev.address}

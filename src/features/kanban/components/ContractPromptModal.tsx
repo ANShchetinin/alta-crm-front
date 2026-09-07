@@ -1,6 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import { FileCheck, X, AlertCircle, FileText } from 'lucide-react';
+import { AddressSuggestions } from 'react-dadata';
+import 'react-dadata/dist/react-dadata.css';
 
 export interface ContractPromptData {
   clientId: number;
@@ -223,15 +225,30 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
 
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Адрес установки (монтажа) *</label>
-              <input
-                type="text"
-                required
-                placeholder="г. Саратов, 1-й проезд Степана Разина, 3/7 кв. 222"
-                value={contractPromptData.installationAddress}
-                onChange={(e) => setContractPromptData(prev => ({ ...prev, installationAddress: e.target.value }))}
-                className="search-input"
-                style={{ width: '100%', paddingLeft: '12px' }}
-              />
+              {import.meta.env.VITE_DADATA_API_KEY ? (
+                <AddressSuggestions
+                  token={import.meta.env.VITE_DADATA_API_KEY}
+                  defaultQuery={contractPromptData.installationAddress}
+                  onChange={(suggestion) => setContractPromptData(prev => ({ ...prev, installationAddress: suggestion?.value || prev.installationAddress }))}
+                  inputProps={{
+                    required: true,
+                    placeholder: "г. Саратов, 1-й проезд Степана Разина, 3/7 кв. 222",
+                    className: "search-input",
+                    style: { width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box' },
+                    onChange: (e: any) => setContractPromptData(prev => ({ ...prev, installationAddress: e.target.value }))
+                  }}
+                />
+              ) : (
+                <input
+                  type="text"
+                  required
+                  placeholder="г. Саратов, 1-й проезд Степана Разина, 3/7 кв. 222"
+                  value={contractPromptData.installationAddress}
+                  onChange={(e) => setContractPromptData(prev => ({ ...prev, installationAddress: e.target.value }))}
+                  className="search-input"
+                  style={{ width: '100%', paddingLeft: '12px' }}
+                />
+              )}
             </div>
           </div>
           <div className="modal-actions">

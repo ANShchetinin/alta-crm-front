@@ -139,10 +139,6 @@ export const Settings = () => {
     try {
       await updateProfile({ email: newEmail, firstName, lastName, currentPassword, password: newPassword });
       alert('Профиль обновлен (чтобы изменения email вступили в силу, перезайдите в систему)');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setIsEditingPassword(false);
     } catch (err: any) {
       if (err.response?.data?.message) {
         alert('Ошибка при обновлении профиля: ' + err.response.data.message);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Building2, Globe, Palette, Loader2 } from 'lucide-react';
+import { Building2, Globe, Palette, Loader2 } from 'lucide-react';
 import { tenantsApi, type CreateTenantByOwnerRequest } from '../api/tenants';
+import { Sheet } from './ui/Sheet';
 
 interface CreateCompanyModalProps {
   isOpen: boolean;
@@ -66,137 +67,127 @@ export const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1100 }}>
-      <div 
-        className="modal-content glass-panel" 
-        onClick={e => e.stopPropagation()} 
-        style={{ maxWidth: '520px', width: '92%' }}
-      >
-        <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: 'rgba(59, 130, 246, 0.15)',
-              color: '#3b82f6',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Building2 size={20} />
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600 }}>Новая компания</h3>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Создание дополнительного филиала или направления бизнеса
-              </p>
-            </div>
+    <Sheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            background: 'rgba(59, 130, 246, 0.15)',
+            color: '#3b82f6',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Building2 size={18} />
           </div>
-          <button className="btn-icon" onClick={onClose} aria-label="Закрыть">
-            <X size={20} />
-          </button>
+          <span>Новая компания</span>
+        </div>
+      }
+      description="Создание дополнительного филиала или направления бизнеса"
+      size="md"
+    >
+      {error && (
+        <div style={{
+          marginBottom: '16px',
+          padding: '10px 14px',
+          background: 'rgba(239, 68, 68, 0.15)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          borderRadius: 'var(--radius-md)',
+          color: '#f87171',
+          fontSize: '0.88rem'
+        }}>
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div>
+          <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Название компании <span style={{ color: 'var(--danger)' }}>*</span>
+          </label>
+          <input
+            type="text"
+            className="search-input"
+            style={{ width: '100%', boxSizing: 'border-box' }}
+            placeholder="Например: Потолки Премиум Екатеринбург"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            required
+            autoFocus
+          />
         </div>
 
-        {error && (
-          <div style={{
-            margin: '16px 0 0',
-            padding: '10px 14px',
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: 'var(--radius-md)',
-            color: '#f87171',
-            fontSize: '0.88rem'
-          }}>
-            {error}
-          </div>
-        )}
+        <div>
+          <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            <Globe size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+            Часовой пояс
+          </label>
+          <select
+            className="search-input"
+            style={{ width: '100%', boxSizing: 'border-box', background: 'var(--card-bg)' }}
+            value={timezone}
+            onChange={e => setTimezone(e.target.value)}
+          >
+            {TIMEZONES.map(tz => (
+              <option key={tz.value} value={tz.value}>{tz.label}</option>
+            ))}
+          </select>
+        </div>
 
-        <form onSubmit={handleSubmit} style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Название компании <span style={{ color: 'var(--danger)' }}>*</span>
-            </label>
+        <div>
+          <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            <Palette size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+            Фирменный цвет
+          </label>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <input
+              type="color"
+              value={primaryColor}
+              onChange={e => setPrimaryColor(e.target.value)}
+              style={{ width: '38px', height: '38px', border: 'none', borderRadius: '8px', cursor: 'pointer', background: 'transparent' }}
+            />
             <input
               type="text"
               className="search-input"
-              style={{ width: '100%', boxSizing: 'border-box' }}
-              placeholder="Например: Потолки Премиум Екатеринбург"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              required
-              autoFocus
+              style={{ flex: 1 }}
+              value={primaryColor}
+              onChange={e => setPrimaryColor(e.target.value)}
             />
           </div>
+        </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              <Globe size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
-              Часовой пояс
-            </label>
-            <select
-              className="search-input"
-              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--card-bg)' }}
-              value={timezone}
-              onChange={e => setTimezone(e.target.value)}
-            >
-              {TIMEZONES.map(tz => (
-                <option key={tz.value} value={tz.value}>{tz.label}</option>
-              ))}
-            </select>
-          </div>
+        <div style={{
+          padding: '12px',
+          background: 'rgba(59, 130, 246, 0.08)',
+          border: '1px solid rgba(59, 130, 246, 0.2)',
+          borderRadius: 'var(--radius-md)',
+          fontSize: '0.82rem',
+          color: 'var(--text-secondary)',
+          lineHeight: 1.4
+        }}>
+          ℹ️ Для новой компании будут автоматически созданы стандартные статусы воронки («Новый», «Замер», «В работе», «Завершен», «Отказ»). База клиентов и сотрудники останутся доступными.
+        </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              <Palette size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
-              Фирменный цвет
-            </label>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <input
-                type="color"
-                value={primaryColor}
-                onChange={e => setPrimaryColor(e.target.value)}
-                style={{ width: '38px', height: '38px', border: 'none', borderRadius: '8px', cursor: 'pointer', background: 'transparent' }}
-              />
-              <input
-                type="text"
-                className="search-input"
-                style={{ flex: 1 }}
-                value={primaryColor}
-                onChange={e => setPrimaryColor(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div style={{
-            padding: '12px',
-            background: 'rgba(59, 130, 246, 0.08)',
-            border: '1px solid rgba(59, 130, 246, 0.2)',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.82rem',
-            color: 'var(--text-secondary)',
-            lineHeight: 1.4
-          }}>
-            ℹ️ Для новой компании будут автоматически созданы стандартные статусы воронки («Новый», «Замер», «В работе», «Завершен», «Отказ»). База клиентов и сотрудники останутся доступными.
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={loading}>
-              Отмена
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={loading || !name.trim()}>
-              {loading ? (
-                <>
-                  <Loader2 size={16} className="spinner" style={{ marginRight: '6px' }} />
-                  Создание...
-                </>
-              ) : (
-                'Создать компанию'
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', paddingTop: '14px', borderTop: '1px solid var(--glass-border)' }}>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={loading}>
+            Отмена
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={loading || !name.trim()}>
+            {loading ? (
+              <>
+                <Loader2 size={16} className="spinner" style={{ marginRight: '6px' }} />
+                Создание...
+              </>
+            ) : (
+              'Создать компанию'
+            )}
+          </button>
+        </div>
+      </form>
+    </Sheet>
   );
 };

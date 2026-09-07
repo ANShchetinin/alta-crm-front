@@ -1,4 +1,4 @@
-﻿import type { ActChecklistItem } from '../../api/kanban';
+import type { ActChecklistItem } from '../../api/kanban';
 
 export const DEFAULT_ACT_CHECKLIST: ActChecklistItem[] = [
   { id: '1', name: 'Установка багета (Ал.)', checked: false },
@@ -41,3 +41,22 @@ export const mergeActChecklist = (savedList?: ActChecklistItem[]): ActChecklistI
 
   return merged;
 };
+
+export const isActFile = (fileName?: string, isActFlag?: boolean): boolean => {
+  if (isActFlag) return true;
+  if (!fileName) return false;
+  const name = fileName.trim().toLowerCase();
+
+  // Exclude common false positives containing 'act' or 'акт' inside other words
+  if (/контракт|contract|contact|контакт|фактур|factur|react|action|abstract|fraction|impact|practice|практик/i.test(name)) {
+    if (!/^(акт|act)[\s_\-.]/i.test(name) && !/акт\s+выполнен/i.test(name) && !/акт\s+при[её]м/i.test(name)) {
+      return false;
+    }
+  }
+
+  return /(^|[\s_\-–—(])(акт|act)($|[\s_\-–—).])/i.test(name)
+    || /акт\s*выполнен/i.test(name)
+    || /акт\s*при[её]м/i.test(name)
+    || /completion\s*act/i.test(name);
+};
+

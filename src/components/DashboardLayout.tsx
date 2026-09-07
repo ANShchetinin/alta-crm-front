@@ -1,9 +1,10 @@
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, Archive, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp } from 'lucide-react';
+import { Outlet, NavLink, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { LayoutDashboard, Users, UserCircle, Box, Archive, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { useFeature } from '../hooks/useFeatureToggle';
 import { getOrders, getOrderStatuses } from '../api/kanban';
 import { getProfile } from '../api/settings';
@@ -12,6 +13,7 @@ import { getRecentNotifications, markNotificationAsRead, markAllNotificationsAsR
 import { PushNotificationSettings } from './PushNotificationSettings';
 import { FeatureGate } from './FeatureGate';
 import { CreateCompanyModal } from './CreateCompanyModal';
+import { OrderDrawer } from '../features/kanban/components/OrderDrawer';
 import { formatTimeAgo } from '../utils/dateUtils';
 import '../styles/dashboard.css';
 
@@ -19,17 +21,85 @@ const DashboardLayout = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings, fetchTenantSettings } = useAppStore();
   const { logout, role, token, setToken } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('altacrm_sidebar_collapsed') === 'true';
+  });
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [canViewFinances, setCanViewFinances] = useState<boolean>(false);
+  const canAccessMeasurements = useAuthStore(state => state.canAccessMeasurements);
   const [userName, setUserName] = useState<string>('User');
   const [userEmail, setUserEmail] = useState<string>('');
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Global order drawer listeners and query param handlers
+  useEffect(() => {
+    const orderIdParam = searchParams.get('orderId');
+    if (orderIdParam) {
+      const targetId = parseInt(orderIdParam);
+      if (!isNaN(targetId)) {
+        useOrderDrawerStore.getState().openOrder(targetId);
+        searchParams.delete('orderId');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+    if (searchParams.get('create') === 'true') {
+      useOrderDrawerStore.getState().openCreateOrder();
+      searchParams.delete('create');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const handleCreateEvent = () => {
+      useOrderDrawerStore.getState().openCreateOrder();
+    };
+    const handleOpenOrderEvent = (e: any) => {
+      if (e.detail?.orderId) {
+        useOrderDrawerStore.getState().openOrder(e.detail.orderId);
+      }
+    };
+    window.addEventListener('alta:open-create-order', handleCreateEvent);
+    window.addEventListener('alta:open-order', handleOpenOrderEvent);
+    return () => {
+      window.removeEventListener('alta:open-create-order', handleCreateEvent);
+      window.removeEventListener('alta:open-order', handleOpenOrderEvent);
+    };
+  }, []);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('altacrm_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
+
+  const getRouteTitle = () => {
+    const path = location.pathname;
+    if (path.startsWith('/kanban')) return { title: t('nav.orders') || 'Заявки', icon: LayoutDashboard };
+    if (path.startsWith('/calendar')) return { title: t('nav.calendar') || 'Календарь', icon: CalendarDays };
+    if (path.startsWith('/measurements')) return { title: 'Замеры', icon: Ruler };
+    if (path.startsWith('/earnings')) return { title: 'Мой заработок', icon: Wallet };
+    if (path.startsWith('/clients')) return { title: t('nav.clients') || 'Клиенты', icon: Users };
+    if (path.startsWith('/employees')) return { title: t('nav.employees') || 'Сотрудники', icon: UserCircle };
+    if (path.startsWith('/storage')) return { title: t('nav.storage') || 'Склад', icon: Box };
+    if (path.startsWith('/archive')) return { title: t('nav.archive') || 'Архив', icon: Archive };
+    if (path.startsWith('/finances')) return { title: t('nav.finances') || 'Финансы', icon: Wallet };
+    if (path.startsWith('/reports')) return { title: t('nav.reports') || 'Отчеты', icon: PieChart };
+    if (path.startsWith('/site-analytics')) return { title: t('nav.siteAnalytics') || 'Аналитика сайта', icon: TrendingUp };
+    if (path.startsWith('/contract-templates')) return { title: 'Шаблоны договоров', icon: FileText };
+    if (path.startsWith('/settings')) return { title: t('nav.settings') || 'Настройки', icon: Settings };
+    if (path.startsWith('/tenants')) return { title: 'Компании', icon: Building2 };
+    if (path.startsWith('/feature-flags')) return { title: 'Feature Flags', icon: Sliders };
+    return { title: 'Alta CRM', icon: LayoutDashboard };
+  };
 
   // Multi-Company State
   const [myTenantsData, setMyTenantsData] = useState<MyTenantsResponse | null>(null);
@@ -193,6 +263,10 @@ const DashboardLayout = () => {
         if (profile.canViewFinances !== undefined) {
           setCanViewFinances(Boolean(profile.canViewFinances));
         }
+        useAuthStore.getState().setPermissions({
+          canViewFinances: profile.canViewFinances,
+          canAccessMeasurements: profile.canAccessMeasurements
+        });
       } catch (err) {
         console.error("Failed to fetch user profile", err);
       }
@@ -230,7 +304,7 @@ const DashboardLayout = () => {
     }
     setShowNotifications(false);
     if (notif.orderId) {
-      navigate(`/kanban?orderId=${notif.orderId}`);
+      useOrderDrawerStore.getState().openOrder(notif.orderId);
     } else if (notif.url) {
       navigate(notif.url);
     } else {
@@ -263,178 +337,220 @@ const DashboardLayout = () => {
     setLanguage(language === 'ru' ? 'en' : 'ru');
   };
 
+  const { isOpen: isOrderDrawerOpen, activeTab: orderDrawerActiveTab } = useOrderDrawerStore();
+  const isWideDrawer = isOrderDrawerOpen && (orderDrawerActiveTab === 'MEASUREMENT' || orderDrawerActiveTab === 'CONTRACT');
+
+  const renderCompanyDropdown = (isMobile = false) => {
+    if (!isCompanyDropdownOpen) return null;
+    return (
+      <div 
+        ref={companyDropdownRef}
+        className="company-dropdown-menu"
+        style={!isMobile ? {
+          position: 'absolute',
+          top: 'calc(100% + 8px)',
+          left: 0,
+          minWidth: '260px',
+          zIndex: 100050
+        } : undefined}
+      >
+        <div style={{ padding: '6px 8px 4px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Ваши компании
+        </div>
+        <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          {myTenantsData?.tenants.map(item => {
+            const isActive = item.tenantId === myTenantsData.currentTenantId;
+            return (
+              <button
+                key={item.tenantId}
+                type="button"
+                onClick={() => handleSwitchCompany(item.tenantId)}
+                disabled={isSwitchingCompany || isActive}
+                className={`company-dropdown-item ${isActive ? 'active' : ''}`}
+              >
+                {item.logoUrl ? (
+                  <img src={item.logoUrl} alt="" style={{ width: 22, height: 22, objectFit: 'contain', borderRadius: '4px' }} />
+                ) : (
+                  <div style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: '4px',
+                    background: item.primaryColor || '#3b82f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontSize: '11px',
+                    fontWeight: 700
+                  }}>
+                    {item.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span style={{ flex: 1, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {item.name}
+                </span>
+                {isActive && <Check size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />}
+              </button>
+            );
+          })}
+        </div>
+
+        {myTenantsData?.canCreateCompany && (
+          <>
+            <div style={{ height: '1px', background: 'var(--glass-border)', margin: '4px 0' }} />
+            <FeatureGate feature="OWNER_CREATE_COMPANY">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCompanyDropdownOpen(false);
+                  setIsCreateCompanyModalOpen(true);
+                }}
+                className="company-create-btn"
+              >
+                <Plus size={16} />
+                <span>Создать компанию</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                  {myTenantsData.currentCompaniesCount} из {myTenantsData.maxCompaniesLimit}
+                </span>
+              </button>
+            </FeatureGate>
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="dashboard-container">
+    <div className={`dashboard-container ${isOrderDrawerOpen ? 'order-drawer-open' : ''} ${isWideDrawer ? 'order-drawer-wide' : ''}`}>
       {/* Mobile Drawer Backdrop */}
       {isMobileMenuOpen && (
         <div 
-          className="mobile-backdrop" 
+          className="mobile-backdrop open" 
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
-      {/* Glass Sidebar / Mobile Drawer */}
-      <aside className={`sidebar glass-panel ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
+      {/* Sidebar / Mobile Drawer */}
+      <aside className={`sidebar ${isSidebarCollapsed ? 'sidebar-collapsed' : ''} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header" style={{ position: 'relative' }}>
-          {role === 'SUPERADMIN' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 8px', flex: 1 }}>
-              <img src="/logo.png" alt="Alta CRM" style={{ width: 32, height: 32, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h2 style={{ fontSize: '1.05rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  AltaCRM
-                </h2>
-                <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
-                  Панель SuperAdmin
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div 
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '10px', 
-                flex: 1, 
-                cursor: ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) ? 'pointer' : 'default',
-                padding: '6px 8px',
-                borderRadius: 'var(--radius-md)',
-                transition: 'background 0.2s ease',
-                userSelect: 'none',
-                background: isCompanyDropdownOpen ? 'rgba(255, 255, 255, 0.05)' : 'transparent'
-              }}
-              onClick={() => {
-                if ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) {
-                  setIsCompanyDropdownOpen(prev => !prev);
-                }
-              }}
-              className="company-switcher-trigger"
-            >
-              {tenantSettings?.logoUrl ? (
-                <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
-              ) : (
-                <img src="/logo.png" alt="Alta CRM" style={{ width: 32, height: 32, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
-              )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h2 style={{ fontSize: '1.05rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {tenantSettings?.name || t('app.name')}
-                </h2>
-                {myTenantsData?.tenants && myTenantsData.tenants.length > 1 && (
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                    {myTenantsData.tenants.length} {myTenantsData.tenants.length === 1 ? 'компания' : myTenantsData.tenants.length < 5 ? 'компании' : 'компаний'}
+          {/* Mobile sidebar brand / company header (Visible only on mobile <=768px) */}
+          <div className="mobile-sidebar-brand-wrapper">
+            {role === 'SUPERADMIN' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 8px', flex: 1 }}>
+                <img src="/logo.png" alt="Alta CRM" style={{ width: 30, height: 30, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h2 style={{ fontSize: '1.05rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    AltaCRM
+                  </h2>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                    Панель SuperAdmin
                   </span>
+                </div>
+              </div>
+            ) : (
+              <div 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '10px', 
+                  flex: 1, 
+                  cursor: ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) ? 'pointer' : 'default',
+                  padding: '4px 6px',
+                  borderRadius: 'var(--radius-sm, 8px)',
+                  transition: 'background 0.15s ease',
+                  userSelect: 'none',
+                  background: isCompanyDropdownOpen ? 'var(--row-hover-bg, rgba(0, 0, 0, 0.05))' : 'transparent',
+                  minWidth: 0
+                }}
+                onClick={() => {
+                  if ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) {
+                    setIsCompanyDropdownOpen(prev => !prev);
+                  }
+                }}
+                className="company-switcher-trigger mobile-company-trigger"
+              >
+                {tenantSettings?.logoUrl ? (
+                  <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 30, height: 30, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
+                ) : (
+                  <img src="/logo.png" alt="Alta CRM" style={{ width: 30, height: 30, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h2 style={{ fontSize: '0.98rem', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {tenantSettings?.name || t('app.name')}
+                  </h2>
+                  {myTenantsData?.tenants && myTenantsData.tenants.length > 1 && (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                      {myTenantsData.tenants.length} {myTenantsData.tenants.length === 1 ? 'компания' : myTenantsData.tenants.length < 5 ? 'компании' : 'компаний'}
+                    </span>
+                  )}
+                </div>
+                {((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) && (
+                  <ChevronDown 
+                    size={15} 
+                    style={{ 
+                      color: 'var(--text-secondary)', 
+                      transition: 'transform 0.2s ease', 
+                      transform: isCompanyDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      flexShrink: 0
+                    }} 
+                  />
                 )}
               </div>
-              {((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) && (
-                <ChevronDown 
-                  size={16} 
-                  style={{ 
-                    color: 'var(--text-secondary)', 
-                    transition: 'transform 0.2s ease', 
-                    transform: isCompanyDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                    flexShrink: 0
-                  }} 
-                />
-              )}
-            </div>
-          )}
-          <button 
-            className="btn-icon mobile-close-btn" 
-            onClick={() => setIsMobileMenuOpen(false)}
-            aria-label="Close menu"
-          >
-            <X size={22} />
-          </button>
+            )}
 
-          {/* Company Switcher Dropdown */}
-          {isCompanyDropdownOpen && (
-            <div 
-              ref={companyDropdownRef}
-              className="company-dropdown-menu"
+            <button 
+              className="btn-icon mobile-close-btn" 
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="Close menu"
             >
-              <div style={{ padding: '6px 8px 4px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Ваши компании
-              </div>
-              <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                {myTenantsData?.tenants.map(item => {
-                  const isActive = item.tenantId === myTenantsData.currentTenantId;
-                  return (
-                    <button
-                      key={item.tenantId}
-                      type="button"
-                      onClick={() => handleSwitchCompany(item.tenantId)}
-                      disabled={isSwitchingCompany || isActive}
-                      className={`company-dropdown-item ${isActive ? 'active' : ''}`}
-                    >
-                      {item.logoUrl ? (
-                        <img src={item.logoUrl} alt="" style={{ width: 22, height: 22, objectFit: 'contain', borderRadius: '4px' }} />
-                      ) : (
-                        <div style={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: '4px',
-                          background: item.primaryColor || '#3b82f6',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#fff',
-                          fontSize: '11px',
-                          fontWeight: 700
-                        }}>
-                          {item.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <span style={{ flex: 1, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.name}
-                      </span>
-                      {isActive && <Check size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />}
-                    </button>
-                  );
-                })}
-              </div>
+              <X size={20} />
+            </button>
 
-              {myTenantsData?.canCreateCompany && (
-                <>
-                  <div style={{ height: '1px', background: 'var(--glass-border)', margin: '4px 0' }} />
-                  <FeatureGate feature="OWNER_CREATE_COMPANY">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCompanyDropdownOpen(false);
-                        setIsCreateCompanyModalOpen(true);
-                      }}
-                      className="company-create-btn"
-                    >
-                      <Plus size={16} />
-                      <span>Создать компанию</span>
-                      <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                        {myTenantsData.currentCompaniesCount} из {myTenantsData.maxCompaniesLimit}
-                      </span>
-                    </button>
-                  </FeatureGate>
-                </>
-              )}
+            {isMobileMenuOpen && renderCompanyDropdown(true)}
+          </div>
+
+          {/* Desktop-only clean sidebar header */}
+          <div className="desktop-sidebar-brand-wrapper">
+            <div className="sidebar-brand">
+              <img src="/logo.png" alt="Alta CRM" style={{ width: 28, height: 28, objectFit: 'contain', background: 'transparent', flexShrink: 0 }} />
+              <span className="sidebar-brand-title">AltaCRM</span>
             </div>
-          )}
+
+            <button
+              type="button"
+              className="sidebar-toggle-btn"
+              onClick={toggleSidebar}
+              title={isSidebarCollapsed ? 'Развернуть меню' : 'Свернуть меню'}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+            </button>
+          </div>
         </div>
 
         <nav className="sidebar-nav">
           {role === 'WORKER' && (
             <>
-              <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/kanban" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <LayoutDashboard size={20} />
                 <span style={{ flex: 1 }}>{t('nav.orders') || 'Мои заявки'}</span>
               </NavLink>
               {hasCalendar && (
-                <NavLink to="/calendar" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/calendar" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <CalendarDays size={20} />
                   <span style={{ flex: 1 }}>Календарь</span>
                 </NavLink>
               )}
-              <NavLink to="/earnings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              {hasMeasurementCalculator && canAccessMeasurements && (
+                <NavLink to="/measurements" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <Ruler size={20} />
+                  <span style={{ flex: 1 }}>Замеры</span>
+                </NavLink>
+              )}
+              <NavLink to="/earnings" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Wallet size={20} />
                 <span style={{ flex: 1 }}>Мой заработок</span>
               </NavLink>
-              <NavLink to="/archive" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/archive" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Archive size={20} />
                 <span style={{ flex: 1 }}>{t('nav.archive') || 'Архив'}</span>
               </NavLink>
@@ -442,7 +558,7 @@ const DashboardLayout = () => {
           )}
           {role !== 'SUPERADMIN' && role !== 'WORKER' && (
             <>
-              <NavLink to="/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/kanban" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <LayoutDashboard size={20} />
                 <span style={{ flex: 1 }}>{t('nav.orders')}</span>
                 {newOrdersCount > 0 && (
@@ -452,60 +568,60 @@ const DashboardLayout = () => {
                 )}
               </NavLink>
               {hasCalendar && (
-                <NavLink to="/calendar" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/calendar" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <CalendarDays size={20} />
                   <span>{t('nav.calendar') || 'Календарь'}</span>
                 </NavLink>
               )}
               {hasMeasurementCalculator && (
-                <NavLink to="/measurements" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/measurements" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <Ruler size={20} />
                   <span>Замеры</span>
                 </NavLink>
               )}
-              <NavLink to="/clients" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/clients" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Users size={20} />
                 <span>{t('nav.clients')}</span>
               </NavLink>
-              <NavLink to="/employees" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/employees" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <UserCircle size={20} />
                 <span>{t('nav.employees') || 'Сотрудники'}</span>
               </NavLink>
               {hasStorage && (
-                <NavLink to="/storage" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/storage" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <Box size={20} />
                   <span>{t('nav.storage')}</span>
                 </NavLink>
               )}
-              <NavLink to="/archive" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/archive" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Archive size={20} />
                 <span>{t('nav.archive') || 'Архив'}</span>
               </NavLink>
               {hasFinances && (role === 'OWNER' || role === 'SUPERADMIN' || (role === 'MANAGER' && canViewFinances)) && (
-                <NavLink to="/finances" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/finances" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <Wallet size={20} />
                   <span>{t('nav.finances') || 'Финансы'}</span>
                 </NavLink>
               )}
               {hasReports && (
-                <NavLink to="/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/reports" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <PieChart size={20} />
                   <span>{t('nav.reports') || 'Отчеты'}</span>
                 </NavLink>
               )}
               {hasExitIntent && (
-                <NavLink to="/site-analytics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/site-analytics" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <TrendingUp size={20} />
                   <span>{t('nav.siteAnalytics') || 'Аналитика сайта'}</span>
                 </NavLink>
               )}
               {hasContractTemplates && (
-                <NavLink to="/contract-templates" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <NavLink to="/contract-templates" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <FileText size={20} />
                   <span>Шаблоны договоров</span>
                 </NavLink>
               )}
-              <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/settings" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Settings size={20} />
                 <span>{t('nav.settings')}</span>
               </NavLink>
@@ -513,11 +629,11 @@ const DashboardLayout = () => {
           )}
           {role === 'SUPERADMIN' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <NavLink to="/tenants" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/tenants" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Building2 size={20} />
                 <span>Компании</span>
               </NavLink>
-              <NavLink to="/feature-flags" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <NavLink to="/feature-flags" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <Sliders size={20} />
                 <span>Feature Flags</span>
               </NavLink>
@@ -565,24 +681,28 @@ const DashboardLayout = () => {
 
       {/* Main Content Area */}
       <main className="main-content">
-        <header className="topbar glass-panel">
+        <header className="topbar">
           <div className="topbar-left">
             <button 
               className="btn-icon mobile-menu-btn" 
               onClick={() => setIsMobileMenuOpen(true)}
               aria-label="Open menu"
             >
-              <Menu size={22} />
+              <Menu size={20} />
             </button>
+            <div className="topbar-title-badge">
+              {(() => {
+                const active = getRouteTitle();
+                const Icon = active.icon;
+                return (
+                  <>
+                    <Icon size={18} style={{ color: 'var(--accent-primary, #2563eb)' }} />
+                    <span>{active.title}</span>
+                  </>
+                );
+              })()}
+            </div>
             <div className="topbar-search">
-              <span className="topbar-date">
-                {currentTime.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', {
-                  timeZone: tenantSettings?.timezone || undefined,
-                  weekday: 'short', 
-                  day: 'numeric', 
-                  month: 'short'
-                })}
-              </span>
               <span className="topbar-divider">|</span>
               <span className="topbar-time">
                 {currentTime.toLocaleTimeString(language === 'ru' ? 'ru-RU' : 'en-US', {
@@ -592,13 +712,77 @@ const DashboardLayout = () => {
                 })}
               </span>
             </div>
+
+            {/* Desktop Company Switcher next to Clock */}
+            {role !== 'SUPERADMIN' && (
+              <div className="topbar-company-wrapper" style={{ position: 'relative' }}>
+                <span className="topbar-divider">|</span>
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    cursor: ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) ? 'pointer' : 'default',
+                    padding: '4px 8px',
+                    borderRadius: 'var(--radius-sm, 8px)',
+                    transition: 'background 0.15s ease',
+                    userSelect: 'none',
+                    background: isCompanyDropdownOpen ? 'var(--row-hover-bg, rgba(0, 0, 0, 0.05))' : 'transparent',
+                    maxWidth: '380px'
+                  }}
+                  onClick={() => {
+                    if ((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) {
+                      setIsCompanyDropdownOpen(prev => !prev);
+                    }
+                  }}
+                  className="company-switcher-trigger topbar-company-trigger"
+                  title={tenantSettings?.name || t('app.name')}
+                >
+                  {tenantSettings?.logoUrl ? (
+                    <img src={tenantSettings.logoUrl} alt="Logo" style={{ width: 22, height: 22, objectFit: 'contain', background: 'transparent', flexShrink: 0, borderRadius: '4px' }} />
+                  ) : (
+                    <Building2 size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                  )}
+                  <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {tenantSettings?.name || t('app.name')}
+                  </span>
+                  {((myTenantsData?.tenants && myTenantsData.tenants.length > 1) || myTenantsData?.canCreateCompany) && (
+                    <ChevronDown 
+                      size={14} 
+                      style={{ 
+                        color: 'var(--text-secondary)', 
+                        transition: 'transform 0.2s ease', 
+                        transform: isCompanyDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        flexShrink: 0
+                      }} 
+                    />
+                  )}
+                </div>
+
+                {!isMobileMenuOpen && renderCompanyDropdown(false)}
+              </div>
+            )}
           </div>
           
           <div className="topbar-actions">
+            {role !== 'SUPERADMIN' && (
+              <button 
+                type="button" 
+                className="topbar-new-order-btn"
+                onClick={() => {
+                  useOrderDrawerStore.getState().openCreateOrder();
+                }}
+                title="Создать новую заявку"
+              >
+                <Plus size={15} />
+                <span className="hidden sm:inline">Новая заявка</span>
+              </button>
+            )}
+
             {!isStandalone && (
               <button 
                 type="button" 
-                className="btn-icon" 
+                className="btn-icon topbar-pwa-btn" 
                 onClick={handleInstallPwa}
                 title="Установить приложение на телефон"
                 style={{ color: 'var(--accent-primary)' }}
@@ -606,9 +790,9 @@ const DashboardLayout = () => {
                 <Download size={18} />
               </button>
             )}
-            <button className="btn-icon" onClick={toggleLanguage} title="Change Language">
+            <button className="btn-icon topbar-lang-btn" onClick={toggleLanguage} title="Change Language">
               <Globe size={18} /> 
-              <span style={{marginLeft: '4px', fontSize: '0.75rem', fontWeight: 'bold'}}>{language.toUpperCase()}</span>
+              <span style={{marginLeft: '2px', fontSize: '0.72rem', fontWeight: 'bold'}}>{language.toUpperCase()}</span>
             </button>
             <button className="btn-icon" onClick={toggleTheme} title="Toggle Theme">
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -622,9 +806,7 @@ const DashboardLayout = () => {
               >
                 <Bell size={18} />
                 {totalUnreadBadge > 0 && (
-                  <span className="notification-badge">
-                    {totalUnreadBadge}
-                  </span>
+                  <span className="notification-badge" />
                 )}
               </button>
               {showNotifications && (
@@ -762,73 +944,135 @@ const DashboardLayout = () => {
 
       {/* Mobile Bottom Navigation Bar */}
       {role === 'WORKER' && (
-        <nav className="mobile-bottom-nav glass-panel">
-          <NavLink to="/kanban" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} style={{ flex: 1 }}>
+        <nav className="mobile-bottom-nav">
+          <NavLink to="/kanban" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <LayoutDashboard size={20} />
             </div>
-            <span>{t('nav.orders') || 'Мои заявки'}</span>
+            <span>{t('nav.orders') || 'Заявки'}</span>
           </NavLink>
-          {hasCalendar && (
-            <NavLink to="/calendar" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} style={{ flex: 1 }}>
+          {hasMeasurementCalculator && canAccessMeasurements && (
+            <NavLink to="/measurements" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+              <div className="bottom-nav-icon-wrapper">
+                <Ruler size={20} />
+              </div>
+              <span>Замеры</span>
+            </NavLink>
+          )}
+          {hasCalendar && (!hasMeasurementCalculator || !canAccessMeasurements) && (
+            <NavLink to="/calendar" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
               <div className="bottom-nav-icon-wrapper">
                 <CalendarDays size={20} />
               </div>
               <span>Календарь</span>
             </NavLink>
           )}
-          <NavLink to="/earnings" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`} style={{ flex: 1 }}>
+          <NavLink to="/earnings" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <Wallet size={20} />
             </div>
             <span>Заработок</span>
           </NavLink>
+          <NavLink to="/archive" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <div className="bottom-nav-icon-wrapper">
+              <Archive size={20} />
+            </div>
+            <span>Архив</span>
+          </NavLink>
           <button 
             type="button" 
-            className="bottom-nav-item"
-            style={{ flex: 1 }}
-            onClick={() => setIsProfileModalOpen(true)}
+            className={`bottom-nav-item ${isMobileMenuOpen ? 'active' : ''}`}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             <div className="bottom-nav-icon-wrapper">
-              <Bell size={20} />
+              <Menu size={20} />
             </div>
-            <span>Профиль</span>
+            <span>Меню</span>
           </button>
         </nav>
       )}
 
       {role !== 'SUPERADMIN' && role !== 'WORKER' && (
-        <nav className="mobile-bottom-nav glass-panel">
-          <NavLink to="/kanban" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+        <nav className="mobile-bottom-nav">
+          <NavLink to="/kanban" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
             <div className="bottom-nav-icon-wrapper">
               <LayoutDashboard size={20} />
               {newOrdersCount > 0 && <span className="bottom-nav-badge">{newOrdersCount}</span>}
             </div>
             <span>{t('nav.orders')}</span>
           </NavLink>
-          <NavLink to="/clients" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
-            <Users size={20} />
+          <NavLink to="/clients" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <div className="bottom-nav-icon-wrapper">
+              <Users size={20} />
+            </div>
             <span>{t('nav.clients')}</span>
           </NavLink>
-          {hasStorage && (
-            <NavLink to="/storage" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
-              <Box size={20} />
+          {hasFinances && (role === 'OWNER' || (role === 'MANAGER' && canViewFinances)) ? (
+            <NavLink to="/finances" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+              <div className="bottom-nav-icon-wrapper">
+                <Wallet size={20} />
+              </div>
+              <span>Финансы</span>
+            </NavLink>
+          ) : hasStorage ? (
+            <NavLink to="/storage" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+              <div className="bottom-nav-icon-wrapper">
+                <Box size={20} />
+              </div>
               <span>{t('nav.storage')}</span>
             </NavLink>
-          )}
-          {hasReports && (
-            <NavLink to="/reports" className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
-              <PieChart size={20} />
+          ) : null}
+          {hasCalendar ? (
+            <NavLink to="/calendar" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+              <div className="bottom-nav-icon-wrapper">
+                <CalendarDays size={20} />
+              </div>
+              <span>{t('nav.calendar') || 'Календарь'}</span>
+            </NavLink>
+          ) : hasReports ? (
+            <NavLink to="/reports" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+              <div className="bottom-nav-icon-wrapper">
+                <PieChart size={20} />
+              </div>
               <span>{t('nav.reports') || 'Отчеты'}</span>
             </NavLink>
-          )}
+          ) : null}
           <button 
             type="button" 
             className={`bottom-nav-item ${isMobileMenuOpen ? 'active' : ''}`}
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            <Menu size={20} />
+            <div className="bottom-nav-icon-wrapper">
+              <Menu size={20} />
+            </div>
             <span>{t('nav.more') || 'Еще'}</span>
+          </button>
+        </nav>
+      )}
+
+      {role === 'SUPERADMIN' && (
+        <nav className="mobile-bottom-nav">
+          <NavLink to="/tenants" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <div className="bottom-nav-icon-wrapper">
+              <Building2 size={20} />
+            </div>
+            <span>Компании</span>
+          </NavLink>
+          <NavLink to="/feature-flags" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
+            <div className="bottom-nav-icon-wrapper">
+              <Sliders size={20} />
+            </div>
+            <span>Flags</span>
+          </NavLink>
+          <button 
+            type="button" 
+            className={`bottom-nav-item ${isMobileMenuOpen ? 'active' : ''}`}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            <div className="bottom-nav-icon-wrapper">
+              <Menu size={20} />
+            </div>
+            <span>Меню</span>
           </button>
         </nav>
       )}
@@ -947,6 +1191,9 @@ const DashboardLayout = () => {
           </div>
         </div>
       )}
+
+      {/* Global Order Slide-Over Drawer / Inspector */}
+      <OrderDrawer />
 
       {/* Modal for Owner to create a new company */}
       <CreateCompanyModal 

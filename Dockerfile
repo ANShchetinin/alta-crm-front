@@ -1,7 +1,8 @@
-FROM node:22-alpine AS build
+FROM node:22-slim AS build
 WORKDIR /app
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --prefer-offline --no-audit
 COPY . .
 RUN npm run build
 

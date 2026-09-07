@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { 
-  Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone, X, 
+  Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone, 
   ChevronDown, Tag, Building2, User, MapPin, CreditCard, Users, PlusCircle,
   MessageCircle, Send
 } from 'lucide-react';
@@ -19,6 +18,7 @@ import { AvatarUpload } from '../components/AvatarUpload';
 import { getClientInitials, getAvatarGradient } from '../utils/avatarUtils';
 import { PassportScannerModal, type PassportApplyResult } from '../components/PassportScannerModal';
 import { PRESET_LEAD_SOURCES, PRESET_VAT_STATUSES } from '../constants/clients';
+import { Sheet } from '../components/ui/Sheet';
 import '../styles/clients.css';
 
 export const Clients = () => {
@@ -87,36 +87,38 @@ export const Clients = () => {
         getClients(),
         getOrderStatuses()
       ]);
-      setClients(data);
-      setStatuses(statusesData.sort((a, b) => a.sortOrder - b.sortOrder));
+      setClients(Array.isArray(data) ? data : []);
+      setStatuses(Array.isArray(statusesData) ? statusesData.sort((a, b) => a.sortOrder - b.sortOrder) : []);
     } catch (err) {
       console.error(err);
+      setClients([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredClients = clients.filter(c => {
+  const filteredClients = (Array.isArray(clients) ? clients : []).filter(c => {
+    if (!c) return false;
     const type = c.clientType || 'INDIVIDUAL';
     if (clientTypeFilter !== 'ALL' && type !== clientTypeFilter) {
       return false;
     }
     
-    if (!search.trim()) return true;
+    if (!search || !search.trim()) return true;
     const q = search.toLowerCase().trim();
 
     return (
-      c.name.toLowerCase().includes(q) ||
-      (c.legalName && c.legalName.toLowerCase().includes(q)) ||
-      c.phone.includes(q) ||
-      (c.inn && c.inn.includes(q)) ||
-      (c.email && c.email.toLowerCase().includes(q)) ||
-      (c.contactPerson && c.contactPerson.toLowerCase().includes(q)) ||
-      (c.leadSource && c.leadSource.toLowerCase().includes(q)) ||
-      (c.passportSeriesNumber && c.passportSeriesNumber.includes(q)) ||
-      (c.whatsapp && c.whatsapp.toLowerCase().includes(q)) ||
-      (c.telegram && c.telegram.toLowerCase().includes(q)) ||
-      (c.contacts && c.contacts.some(cnt => cnt.name.toLowerCase().includes(q) || (cnt.phone && cnt.phone.includes(q))))
+      (c.name && typeof c.name === 'string' && c.name.toLowerCase().includes(q)) ||
+      (c.legalName && typeof c.legalName === 'string' && c.legalName.toLowerCase().includes(q)) ||
+      (c.phone && typeof c.phone === 'string' && c.phone.includes(q)) ||
+      (c.inn && typeof c.inn === 'string' && c.inn.includes(q)) ||
+      (c.email && typeof c.email === 'string' && c.email.toLowerCase().includes(q)) ||
+      (c.contactPerson && typeof c.contactPerson === 'string' && c.contactPerson.toLowerCase().includes(q)) ||
+      (c.leadSource && typeof c.leadSource === 'string' && c.leadSource.toLowerCase().includes(q)) ||
+      (c.passportSeriesNumber && typeof c.passportSeriesNumber === 'string' && c.passportSeriesNumber.includes(q)) ||
+      (c.whatsapp && typeof c.whatsapp === 'string' && c.whatsapp.toLowerCase().includes(q)) ||
+      (c.telegram && typeof c.telegram === 'string' && c.telegram.toLowerCase().includes(q)) ||
+      (Array.isArray(c.contacts) && c.contacts.some(cnt => (cnt?.name && cnt.name.toLowerCase().includes(q)) || (cnt?.phone && cnt.phone.includes(q))))
     );
   });
 
@@ -361,8 +363,8 @@ export const Clients = () => {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="clients-table-container glass-panel">
+      {/* Table (Desktop) */}
+      <div className="clients-table-container glass-panel desktop-table-view">
         <table className="clients-table">
           <thead>
             <tr>
@@ -608,24 +610,210 @@ export const Clients = () => {
         </table>
       </div>
 
-      {/* Modal Overlay */}
-      {isModalOpen && createPortal(
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: formData.clientType === 'LEGAL_ENTITY' ? '680px' : '480px', width: '95%' }}>
-            <div className="modal-header">
-              <h2>{editingClient ? t('clients.modal.editTitle') : (formData.clientType === 'LEGAL_ENTITY' ? 'Новая компания / Юрлицо' : t('clients.modal.addTitle'))}</h2>
-              <button 
-                type="button" 
-                onClick={() => setIsModalOpen(false)}
-                className="btn-icon"
-                aria-label="Close"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-              <div className="modal-body">
+      {/* Mobile Cards List */}
+      <div className="mobile-card-view">
+        {filteredClients.length === 0 ? (
+          <div className="glass-panel" style={{ textAlign: 'center', opacity: 0.6, padding: '32px 16px', borderRadius: 'var(--radius-md)' }}>
+            Клиенты не найдены.
+          </div>
+        ) : (
+          <div className="mobile-cards-list">
+            {filteredClients.map(client => {
+              const isLegal = client.clientType === 'LEGAL_ENTITY';
+              return (
+                <div 
+                  key={client.id}
+                  onClick={() => openEditModal(client)}
+                  className="mobile-data-card"
+                >
+                  <div className="mobile-data-card-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        color: '#fff',
+                        background: client.avatarUrl ? 'transparent' : getAvatarGradient(client.name || (isLegal ? 'Компания' : 'Клиент')),
+                        border: '1.5px solid rgba(255, 255, 255, 0.15)',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                        flexShrink: 0
+                      }}>
+                        {client.avatarUrl ? (
+                          <img 
+                            src={client.avatarUrl} 
+                            alt={client.name} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          />
+                        ) : (
+                          isLegal ? <Building2 size={18} /> : getClientInitials(client.name)
+                        )}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {client.name}
+                        </div>
+                        {isLegal && client.legalName && client.legalName !== client.name && (
+                          <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {client.legalName}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: '0.7rem',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                      color: isLegal ? '#60a5fa' : 'var(--text-secondary)',
+                      fontWeight: 600,
+                      flexShrink: 0
+                    }}>
+                      {isLegal ? 'ЮРЛИЦО' : 'ФИЗЛИЦО'}
+                    </span>
+                  </div>
+
+                  <div className="mobile-data-card-body">
+                    {/* Contacts & Messengers */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                      {client.phone ? (
+                        <a 
+                          href={`tel:${client.phone.replace(/[^\d+]/g, '')}`} 
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            color: 'var(--success, #22c55e)',
+                            textDecoration: 'none',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            background: 'rgba(34, 197, 94, 0.1)',
+                            border: '1px solid rgba(34, 197, 94, 0.25)',
+                            fontWeight: 600,
+                            fontSize: '0.82rem'
+                          }}
+                        >
+                          <Phone size={13} />
+                          <span>{client.phone}</span>
+                        </a>
+                      ) : (
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Без телефона</span>
+                      )}
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {client.whatsapp && (
+                          <a
+                            href={getWhatsAppLink(client.whatsapp)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="messenger-link whatsapp-link"
+                            title="WhatsApp"
+                          >
+                            <MessageCircle size={14} />
+                          </a>
+                        )}
+                        {client.telegram && (
+                          <a
+                            href={getTelegramLink(client.telegram)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="messenger-link telegram-link"
+                            title="Telegram"
+                          >
+                            <Send size={14} />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Legal Contacts / INN */}
+                    {isLegal && (
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px', background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '6px' }}>
+                        {client.contactPerson && (
+                          <div>ЛПР: <strong>{client.contactPerson}</strong>{client.contactPosition ? ` (${client.contactPosition})` : ''}</div>
+                        )}
+                        {client.inn && (
+                          <div>ИНН: <span style={{ fontFamily: 'monospace' }}>{client.inn}</span>{client.kpp ? ` • КПП: ${client.kpp}` : ''}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Metadata: Lead source & Date */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {client.leadSource ? (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: 'rgba(59, 130, 246, 0.1)',
+                          color: '#60a5fa',
+                          fontWeight: 500
+                        }}>
+                          <Tag size={11} /> {client.leadSource}
+                        </span>
+                      ) : (
+                        <span />
+                      )}
+                      <span>{formatDateInTimezone(client.createdAt, tenantSettings?.timezone)}</span>
+                    </div>
+                  </div>
+
+                  <div className="mobile-data-card-actions" onClick={(e) => e.stopPropagation()}>
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); openHistoryModal(client); }}
+                      className="btn btn-ghost"
+                      style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <FileText size={13} /> История
+                    </button>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openEditModal(client); }}
+                        className="btn btn-ghost"
+                        style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Edit2 size={13} /> Изменить
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleDelete(client.id); }}
+                        className="btn btn-ghost text-danger"
+                        style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', color: '#ef4444' }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Client Edit/Add Slide-over Sheet */}
+      <Sheet
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingClient ? t('clients.modal.editTitle') : (formData.clientType === 'LEGAL_ENTITY' ? 'Новая компания / Юрлицо' : t('clients.modal.addTitle'))}
+        description={formData.clientType === 'LEGAL_ENTITY' ? 'Карточка юридического лица' : 'Карточка физического лица'}
+        size={formData.clientType === 'LEGAL_ENTITY' ? 'lg' : 'md'}
+      >
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
                 {/* Client Type Selector */}
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
                   <button
@@ -1219,182 +1407,233 @@ export const Clients = () => {
                 </div>
               </div>
 
-              <div className="modal-actions">
-                <div className="modal-action-btns">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsModalOpen(false)}
-                    className="btn btn-ghost"
-                  >
-                    {t('clients.modal.cancel')}
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    {editingClient ? t('clients.modal.save', 'Сохранить') : (formData.clientType === 'LEGAL_ENTITY' ? 'Создать компанию' : t('clients.modal.create', 'Создать клиента'))}
-                  </button>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--glass-border)' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setIsModalOpen(false)}
+                  className="btn btn-ghost"
+                >
+                  {t('clients.modal.cancel')}
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  {editingClient ? t('clients.modal.save', 'Сохранить') : (formData.clientType === 'LEGAL_ENTITY' ? 'Создать компанию' : t('clients.modal.create', 'Создать клиента'))}
+                </button>
               </div>
             </form>
-          </div>
-        </div>,
-        document.body
-      )}
+          </Sheet>
 
-      {/* History Modal Overlay */}
-      {isHistoryModalOpen && historyClient && createPortal(
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '800px', width: '90%' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                  color: '#fff',
-                  background: historyClient.avatarUrl ? 'transparent' : getAvatarGradient(historyClient.name),
-                  border: '1.5px solid rgba(255, 255, 255, 0.18)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                  flexShrink: 0
-                }}>
-                  {historyClient.avatarUrl ? (
-                    <img 
-                      src={historyClient.avatarUrl} 
-                      alt={historyClient.name} 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                    />
-                  ) : (
-                    historyClient.clientType === 'LEGAL_ENTITY' ? <Building2 size={18} /> : getClientInitials(historyClient.name)
-                  )}
-                </div>
-                <h2>История заявок: {historyClient.name}</h2>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setIsHistoryModalOpen(false)}
-                className="btn-icon"
-                aria-label="Close"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="modal-body">
-              {loadingHistory ? (
-                <div style={{ textAlign: 'center', padding: '2rem' }}>Загрузка истории...</div>
-              ) : (
-                <div className="clients-table-container glass-panel" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                  <table className="clients-table">
-                    <thead>
+      {/* History Slide-over Sheet */}
+      <Sheet
+        isOpen={isHistoryModalOpen && !!historyClient}
+        onClose={() => setIsHistoryModalOpen(false)}
+        title={`История заявок: ${historyClient?.name || ''}`}
+        description={historyClient?.clientType === 'LEGAL_ENTITY' ? 'Компания / Юридическое лицо' : 'Физическое лицо'}
+        size="xl"
+      >
+        <div>
+          {loadingHistory ? (
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>Загрузка истории...</div>
+          ) : (
+            <>
+              {/* Desktop Table View */}
+              <div className="clients-table-container glass-panel desktop-table-view" style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+                <table className="clients-table">
+                  <thead>
+                    <tr>
+                      <th>№ Заявки / Договора</th>
+                      <th>Статус</th>
+                      <th>Адрес</th>
+                      <th>Стоимость</th>
+                      <th>Дата</th>
+                      <th style={{textAlign: 'right'}}>Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clientHistory.length === 0 ? (
                       <tr>
-                        <th>№ Заявки / Договора</th>
-                        <th>Статус</th>
-                        <th>Адрес</th>
-                        <th>Стоимость</th>
-                        <th>Дата</th>
-                        <th style={{textAlign: 'right'}}>Действия</th>
+                        <td colSpan={6} style={{ textAlign: 'center', opacity: 0.5 }}>У клиента нет заявок.</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {clientHistory.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} style={{ textAlign: 'center', opacity: 0.5 }}>У клиента нет заявок.</td>
-                        </tr>
-                      ) : (
-                        clientHistory.map(order => {
-                          const currentStatus = statuses.find(s => s.id === order.statusId);
-                          return (
-                            <tr key={order.id}>
-                              <td>
-                                <strong style={{ fontFamily: 'monospace', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
-                                  № {order.orderNumber || order.id}
-                                </strong>
-                              </td>
-                              <td>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                  <span 
-                                    style={{ 
-                                      width: '8px', 
-                                      height: '8px', 
-                                      borderRadius: '50%', 
-                                      backgroundColor: currentStatus?.color || '#3b82f6',
-                                      flexShrink: 0
-                                    }} 
-                                  />
-                                  <select
-                                    value={order.statusId}
-                                    onChange={async (e) => {
-                                      const newStatusId = Number(e.target.value);
-                                      try {
-                                        await moveOrder(order.id, newStatusId);
-                                        setClientHistory(prev => prev.map(o => o.id === order.id ? { ...o, statusId: newStatusId } : o));
-                                      } catch (err) {
-                                        console.error(err);
-                                      }
-                                    }}
-                                    style={{
-                                      background: 'rgba(255, 255, 255, 0.05)',
-                                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                                      color: 'var(--text-primary)',
-                                      borderRadius: '4px',
-                                      padding: '3px 6px',
-                                      fontSize: '0.8rem',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    {statuses.map(s => (
-                                      <option key={s.id} value={s.id}>{s.name}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                              </td>
-                              <td>{order.address || '-'}</td>
-                              <td>
-                                <div>{(order.totalPrice || 0).toLocaleString('ru-RU')} ₽</div>
-                                {(order.prepayment != null || order.remainder != null) && (
-                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                    Ав: {(order.prepayment || 0).toLocaleString('ru-RU')} • Ост: {((order.remainder != null ? order.remainder : order.totalPrice) || 0).toLocaleString('ru-RU')} ₽
-                                  </div>
-                                )}
-                              </td>
-                              <td>{order.createdAt ? formatDateInTimezone(order.createdAt, tenantSettings?.timezone) : '-'}</td>
-                              <td style={{textAlign: 'right'}}>
-                                <button 
-                                  onClick={() => {
-                                    setIsHistoryModalOpen(false);
-                                    navigate(`/?orderId=${order.id}`);
+                    ) : (
+                      clientHistory.map(order => {
+                        const currentStatus = statuses.find(s => s.id === order.statusId);
+                        return (
+                          <tr key={order.id}>
+                            <td>
+                              <strong style={{ fontFamily: 'monospace', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
+                                № {order.orderNumber || order.id}
+                              </strong>
+                            </td>
+                            <td>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <span 
+                                  style={{ 
+                                    width: '8px', 
+                                    height: '8px', 
+                                    borderRadius: '50%', 
+                                    backgroundColor: currentStatus?.color || '#3b82f6',
+                                    flexShrink: 0
+                                  }} 
+                                />
+                                <select
+                                  value={order.statusId}
+                                  onChange={async (e) => {
+                                    const newStatusId = Number(e.target.value);
+                                    try {
+                                      await moveOrder(order.id, newStatusId);
+                                      setClientHistory(prev => prev.map(o => o.id === order.id ? { ...o, statusId: newStatusId } : o));
+                                    } catch (err) {
+                                      console.error(err);
+                                    }
                                   }}
-                                  className="action-btn"
-                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '0.8rem' }}
+                                  style={{
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    color: 'var(--text-primary)',
+                                    borderRadius: '4px',
+                                    padding: '3px 6px',
+                                    fontSize: '0.8rem',
+                                    cursor: 'pointer'
+                                  }}
                                 >
-                                  Перейти <ArrowRight size={14} />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-            <div className="modal-actions">
-              <button 
-                type="button" 
-                onClick={() => setIsHistoryModalOpen(false)}
-                className="btn btn-primary"
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+                                  {statuses.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </td>
+                            <td>{order.address || '-'}</td>
+                            <td>
+                              <div>{(order.totalPrice || 0).toLocaleString('ru-RU')} ₽</div>
+                              {(order.prepayment != null || order.remainder != null) && (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                  Ав: {(order.prepayment || 0).toLocaleString('ru-RU')} • Ост: {((order.remainder != null ? order.remainder : order.totalPrice) || 0).toLocaleString('ru-RU')} ₽
+                                </div>
+                              )}
+                            </td>
+                            <td>{order.createdAt ? formatDateInTimezone(order.createdAt, tenantSettings?.timezone) : '-'}</td>
+                            <td style={{textAlign: 'right'}}>
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  setIsHistoryModalOpen(false);
+                                  navigate(`/kanban?orderId=${order.id}`);
+                                }}
+                                className="action-btn"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '0.8rem' }}
+                              >
+                                Перейти <ArrowRight size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards View */}
+              <div className="mobile-card-view" style={{ maxHeight: 'calc(90vh - 120px)', overflowY: 'auto', gap: '8px', paddingRight: '2px' }}>
+                {clientHistory.length === 0 ? (
+                  <div style={{ textAlign: 'center', opacity: 0.5, padding: '24px' }}>У клиента нет заявок.</div>
+                ) : (
+                  clientHistory.map(order => {
+                    const currentStatus = statuses.find(s => s.id === order.statusId);
+                    return (
+                      <div 
+                        key={order.id} 
+                        className="mobile-data-card"
+                        style={{ padding: '10px 12px', gap: '8px' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <strong style={{ fontFamily: 'monospace', color: 'var(--accent-primary)', fontSize: '0.9rem' }}>
+                            № {order.orderNumber || order.id}
+                          </strong>
+                          
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <span 
+                              style={{ 
+                                width: '8px', 
+                                height: '8px', 
+                                borderRadius: '50%', 
+                                backgroundColor: currentStatus?.color || '#3b82f6',
+                                flexShrink: 0
+                              }} 
+                            />
+                            <select
+                              value={order.statusId}
+                              onChange={async (e) => {
+                                const newStatusId = Number(e.target.value);
+                                try {
+                                  await moveOrder(order.id, newStatusId);
+                                  setClientHistory(prev => prev.map(o => o.id === order.id ? { ...o, statusId: newStatusId } : o));
+                                } catch (err) {
+                                  console.error(err);
+                                }
+                              }}
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                color: 'var(--text-primary)',
+                                borderRadius: '4px',
+                                padding: '2px 6px',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {statuses.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {order.address && (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <MapPin size={12} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{order.address}</span>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8rem', background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '6px' }}>
+                          <div>
+                            <div style={{ fontWeight: 700, color: '#4ade80' }}>
+                              {(order.totalPrice || 0).toLocaleString('ru-RU')} ₽
+                            </div>
+                            {(order.prepayment != null || order.remainder != null) && (
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                Аванс: {(order.prepayment || 0).toLocaleString('ru-RU')} • Ост: {((order.remainder != null ? order.remainder : order.totalPrice) || 0).toLocaleString('ru-RU')} ₽
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                            {order.createdAt ? formatDateInTimezone(order.createdAt, tenantSettings?.timezone) : '-'}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '4px' }}>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setIsHistoryModalOpen(false);
+                              navigate(`/kanban?orderId=${order.id}`);
+                            }}
+                            className="btn btn-primary btn-sm"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', fontSize: '0.78rem', height: '28px' }}
+                          >
+                            Открыть сделку <ArrowRight size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </Sheet>
 
       {/* Local Passport OCR Scanner Modal */}
       <PassportScannerModal

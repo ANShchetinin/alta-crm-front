@@ -23,7 +23,7 @@ export const Earnings: React.FC = () => {
   const { tenantSettings } = useAppStore();
   const [data, setData] = useState<WorkerEarnings | null>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<PeriodFilter>('THIS_MONTH');
+  const [period, setPeriod] = useState<PeriodFilter>('ALL_TIME');
   const [searchQuery, setSearchQuery] = useState('');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -60,48 +60,54 @@ export const Earnings: React.FC = () => {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth(); // 0-indexed
 
-    return data.items.filter((item) => {
-      // Date filtering
-      const itemDateStr = item.installedAt || item.installationDate || item.createdAt;
-      if (itemDateStr) {
-        const itemDate = new Date(itemDateStr);
-        if (period === 'THIS_MONTH') {
-          if (itemDate.getFullYear() !== currentYear || itemDate.getMonth() !== currentMonth) {
-            return false;
+    return data.items
+      .filter((item) => {
+        // Date filtering
+        const itemDateStr = item.installedAt || item.installationDate || item.createdAt;
+        if (itemDateStr) {
+          const itemDate = new Date(itemDateStr);
+          if (period === 'THIS_MONTH') {
+            if (itemDate.getFullYear() !== currentYear || itemDate.getMonth() !== currentMonth) {
+              return false;
+            }
+          } else if (period === 'PREV_MONTH') {
+            const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+            const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+            if (itemDate.getFullYear() !== prevMonthYear || itemDate.getMonth() !== prevMonth) {
+              return false;
+            }
+          } else if (period === 'CUSTOM') {
+            if (customStartDate && new Date(itemDateStr) < new Date(customStartDate)) {
+              return false;
+            }
+            if (customEndDate && new Date(itemDateStr) > new Date(customEndDate + 'T23:59:59')) {
+              return false;
+            }
           }
-        } else if (period === 'PREV_MONTH') {
-          const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-          const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-          if (itemDate.getFullYear() !== prevMonthYear || itemDate.getMonth() !== prevMonth) {
-            return false;
-          }
-        } else if (period === 'CUSTOM') {
-          if (customStartDate && new Date(itemDateStr) < new Date(customStartDate)) {
-            return false;
-          }
-          if (customEndDate && new Date(itemDateStr) > new Date(customEndDate + 'T23:59:59')) {
+        }
+
+        // Search query filtering
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const matchesAddress = item.address?.toLowerCase().includes(q);
+          const matchesClient = item.clientName?.toLowerCase().includes(q);
+          const matchesPhone = item.clientPhone?.toLowerCase().includes(q);
+          const matchesOrderNum = item.orderNumber?.toLowerCase().includes(q);
+          const matchesDesc = item.description?.toLowerCase().includes(q);
+          const matchesId = item.orderId.toString().includes(q);
+
+          if (!matchesAddress && !matchesClient && !matchesPhone && !matchesOrderNum && !matchesDesc && !matchesId) {
             return false;
           }
         }
-      }
 
-      // Search query filtering
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesAddress = item.address?.toLowerCase().includes(q);
-        const matchesClient = item.clientName?.toLowerCase().includes(q);
-        const matchesPhone = item.clientPhone?.toLowerCase().includes(q);
-        const matchesOrderNum = item.orderNumber?.toLowerCase().includes(q);
-        const matchesDesc = item.description?.toLowerCase().includes(q);
-        const matchesId = item.orderId.toString().includes(q);
-
-        if (!matchesAddress && !matchesClient && !matchesPhone && !matchesOrderNum && !matchesDesc && !matchesId) {
-          return false;
-        }
-      }
-
-      return true;
-    });
+        return true;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.installedAt || a.installationDate || a.createdAt || 0).getTime();
+        const dateB = new Date(b.installedAt || b.installationDate || b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
   }, [data, period, searchQuery, customStartDate, customEndDate]);
 
   // Recalculate stats for the filtered list

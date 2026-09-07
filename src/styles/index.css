@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
 
 :root {
   /* Dynamic Glassmorphism Theme (Dark mode default) */
@@ -127,12 +128,15 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border-radius: var(--radius-md);
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm, 8px);
   font-family: var(--font-main);
-  font-weight: 500;
-  font-size: 0.95rem;
+  font-weight: 600;
+  font-size: 0.84rem;
+  white-space: nowrap;
+  box-sizing: border-box;
   cursor: pointer;
   border: none;
   transition: all var(--transition-normal);
@@ -140,15 +144,15 @@ button {
 }
 
 .btn-primary {
-  background: var(--accent-primary);
+  background: var(--accent-primary, #2563eb);
   color: #fff;
-  box-shadow: 0 4px 14px 0 var(--accent-glow);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
 .btn-primary:hover {
-  background: var(--accent-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px 0 var(--accent-glow);
+  background: var(--accent-hover, #1d4ed8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
 }
 
 .btn-primary:active {
@@ -211,27 +215,114 @@ body.light-theme .btn-secondary:hover {
   transform: scale(0.95);
 }
 
-/* Inputs */
-.input-field {
+/* Inputs & Forms */
+.input,
+.select,
+.input-field,
+.form-group input,
+.form-group select,
+.form-group textarea {
   width: 100%;
-  padding: 12px 16px;
+  height: 40px;
+  padding: 8px 12px;
   border-radius: var(--radius-md);
   background: var(--input-bg, rgba(15, 23, 42, 0.6));
   border: 1px solid var(--glass-border);
   color: var(--text-primary);
   font-family: var(--font-main);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+  box-sizing: border-box;
+  outline: none;
 }
 
-.input-field:focus {
+.input:focus,
+.select:focus,
+.input-field:focus,
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--accent-glow);
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.input-field::placeholder {
+body.light-theme .input,
+body.light-theme .select,
+body.light-theme .input-field,
+body.light-theme .form-group input,
+body.light-theme .form-group select,
+body.light-theme .form-group textarea {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+body.light-theme .input:focus,
+body.light-theme .select:focus,
+body.light-theme .input-field:focus,
+body.light-theme .form-group input:focus,
+body.light-theme .form-group select:focus,
+body.light-theme .form-group textarea:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  background: #ffffff;
+}
+
+textarea.input,
+.form-group textarea {
+  height: auto;
+  min-height: 80px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.input::placeholder,
+.input-field::placeholder,
+.form-group input::placeholder,
+.form-group textarea::placeholder {
   color: var(--text-secondary);
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+/* Responsive Form Grids */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-grid-1-2 {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 12px;
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .form-grid-2,
+  .form-grid-1-2,
+  .form-grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
 }
 
 /* Global Native Date, Datetime-local and Time input fixes for iOS & WebKit */
@@ -321,6 +412,11 @@ body.light-theme input[type="time"]::-webkit-calendar-picker-indicator {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .animate-fade-in {
@@ -480,3 +576,118 @@ body.light-theme {
     font-size: 0.95rem !important;
   }
 }
+
+/* Universal Modal Styles */
+.modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 100060 !important;
+  padding: 16px !important;
+  box-sizing: border-box !important;
+}
+
+.modal-content {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: 20px 24px !important;
+  width: 100% !important;
+  max-width: 520px !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.modal-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding-bottom: 12px !important;
+  margin-bottom: 16px !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  flex-shrink: 0 !important;
+}
+
+.modal-header h2 {
+  font-size: 1.25rem !important;
+  margin: 0 !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+.modal-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-right: 4px !important;
+}
+
+.modal-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  margin-top: 20px !important;
+  padding-top: 16px !important;
+  border-top: 1px solid var(--glass-border) !important;
+  flex-shrink: 0 !important;
+}
+
+/* Global DaData Suggestions Styles */
+.react-dadata__container {
+  width: 100% !important;
+  position: relative !important;
+}
+
+.react-dadata__suggestions {
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.5) !important;
+  z-index: 100070 !important;
+}
+
+.react-dadata__suggestion {
+  color: var(--text-primary) !important;
+  padding: 8px 12px !important;
+  font-size: 0.88rem !important;
+  cursor: pointer !important;
+}
+
+.react-dadata__suggestion:hover {
+  background-color: var(--row-hover-bg) !important;
+}
+
+.react-dadata__suggestion--current {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+}
+
+.react-dadata__suggestion-subtitle {
+  color: var(--text-secondary) !important;
+  font-size: 0.78rem !important;
+}
+
+.react-dadata__input {
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--glass-border) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+

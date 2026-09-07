@@ -1,12 +1,10 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Archive as ArchiveIcon, 
   Search, 
   ArrowUpDown, 
   ArrowUp, 
   ArrowDown, 
-  ArrowLeft,
   Building2, 
   Phone, 
   MapPin, 
@@ -14,14 +12,11 @@ import {
   FileText, 
   Download, 
   FileCheck, 
-  RotateCcw, 
-  RotateCw,
-  ZoomIn,
-  ZoomOut,
-  Trash2,
+  RotateCcw,
+  Trash2, 
   X, 
-  MessageCircle,
-  Send,
+  MessageCircle, 
+  Send, 
   Calculator,
   Layers,
   Calendar,
@@ -41,6 +36,7 @@ import {
   type OrderStatus,
   type OrderAttachment
 } from '../api/kanban';
+import { Sheet } from '../components/ui/Sheet';
 import { getClients, type Client } from '../api/clients';
 import { getEmployees, type Employee } from '../api/employees';
 import { getMeasurementByOrderId, type MeasurementDto } from '../api/measurements';
@@ -50,6 +46,7 @@ import { formatDateTimeInTimezone, formatDateInTimezone } from '../utils/dateUti
 import { getAvatarGradient, getClientInitials } from '../utils/avatarUtils';
 import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
+import { AttachmentPreviewModal, type PreviewAttachmentData } from '../components/AttachmentPreviewModal';
 import '../styles/clients.css';
 
 type SortField = 'installedAt' | 'createdAt' | 'orderNumber' | 'totalPrice' | 'clientName';
@@ -85,14 +82,7 @@ export const Archive = () => {
   const [loadingMeasurement, setLoadingMeasurement] = useState(false);
 
   // File In-App Preview State
-  const [previewAttachment, setPreviewAttachment] = useState<{
-    url: string;
-    fileName: string;
-    contentType?: string;
-    isImage: boolean;
-    isPdf: boolean;
-    attachment: OrderAttachment;
-  } | null>(null);
+  const [previewAttachment, setPreviewAttachment] = useState<PreviewAttachmentData | null>(null);
   const [openingAttachmentId, setOpeningAttachmentId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -388,144 +378,11 @@ export const Archive = () => {
     }
   };
 
-  // Zoom & Pan state for Image Preview
-  const [imgZoom, setImgZoom] = useState<number>(1);
-  const [imgPosition, setImgPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [imgRotation, setImgRotation] = useState<number>(0);
-  const [isImgDragging, setIsImgDragging] = useState<boolean>(false);
-  const imgDragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const imgTouchDistRef = useRef<number | null>(null);
-  const imgInitialZoomRef = useRef<number>(1);
-  const lastTapRef = useRef<number>(0);
-
-  const resetImageTransform = useCallback(() => {
-    setImgZoom(1);
-    setImgPosition({ x: 0, y: 0 });
-    setImgRotation(0);
-  }, []);
-
-  const handleZoomIn = () => {
-    setImgZoom(prev => Math.min(+(prev + 0.5).toFixed(2), 5));
-  };
-
-  const handleZoomOut = () => {
-    setImgZoom(prev => {
-      const next = Math.max(+(prev - 0.5).toFixed(2), 1);
-      if (next === 1) {
-        setImgPosition({ x: 0, y: 0 });
-      }
-      return next;
-    });
-  };
-
-  const handleRotate = () => {
-    setImgRotation(prev => (prev + 90) % 360);
-  };
-
-  // Mouse drag handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (imgZoom <= 1 && imgRotation === 0) return;
-    setIsImgDragging(true);
-    imgDragStartRef.current = {
-      x: e.clientX - imgPosition.x,
-      y: e.clientY - imgPosition.y
-    };
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isImgDragging) return;
-    setImgPosition({
-      x: e.clientX - imgDragStartRef.current.x,
-      y: e.clientY - imgDragStartRef.current.y
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsImgDragging(false);
-  };
-
-  // Mouse wheel zoom
-  const handleWheel = (e: React.WheelEvent) => {
-    if (!previewAttachment?.isImage) return;
-    e.preventDefault();
-    const delta = e.deltaY < 0 ? 0.25 : -0.25;
-    setImgZoom(prev => {
-      const next = Math.min(Math.max(1, +(prev + delta).toFixed(2)), 5);
-      if (next === 1) {
-        setImgPosition({ x: 0, y: 0 });
-      }
-      return next;
-    });
-  };
-
-  // Double click / tap toggle zoom
-  const handleToggleZoom = () => {
-    if (imgZoom > 1 || imgRotation !== 0) {
-      resetImageTransform();
-    } else {
-      setImgZoom(2.5);
-    }
-  };
-
-  // Touch handlers for mobile (pinch-to-zoom + 1-finger pan + double tap)
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      imgTouchDistRef.current = dist;
-      imgInitialZoomRef.current = imgZoom;
-    } else if (e.touches.length === 1) {
-      const now = Date.now();
-      if (now - lastTapRef.current < 300) {
-        handleToggleZoom();
-        lastTapRef.current = 0;
-        return;
-      }
-      lastTapRef.current = now;
-
-      if (imgZoom > 1) {
-        setIsImgDragging(true);
-        imgDragStartRef.current = {
-          x: e.touches[0].clientX - imgPosition.x,
-          y: e.touches[0].clientY - imgPosition.y
-        };
-      }
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && imgTouchDistRef.current !== null) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      const ratio = dist / imgTouchDistRef.current;
-      const newZoom = Math.min(Math.max(1, +(imgInitialZoomRef.current * ratio).toFixed(2)), 5);
-      setImgZoom(newZoom);
-      if (newZoom === 1) {
-        setImgPosition({ x: 0, y: 0 });
-      }
-    } else if (e.touches.length === 1 && isImgDragging && imgZoom > 1) {
-      setImgPosition({
-        x: e.touches[0].clientX - imgDragStartRef.current.x,
-        y: e.touches[0].clientY - imgDragStartRef.current.y
-      });
-    }
-  };
-
-  const handleTouchEnd = () => {
-    imgTouchDistRef.current = null;
-    setIsImgDragging(false);
-  };
-
   const handleClosePreviewAttachment = () => {
     if (previewAttachment?.url) {
       URL.revokeObjectURL(previewAttachment.url);
     }
     setPreviewAttachment(null);
-    resetImageTransform();
   };
 
   useEffect(() => {
@@ -1316,38 +1173,21 @@ export const Archive = () => {
         </>
       )}
 
-      {/* Detail & Quick View Modal */}
-      {isDetailModalOpen && selectedOrder && createPortal(
-        <div className="modal-overlay" onClick={handleCloseDetail}>
-          <div 
-            className="modal-content animate-scale-up" 
-            style={{ 
-              maxWidth: '720px', 
-              maxHeight: '90vh', 
-              overflowY: 'auto',
-              background: 'var(--modal-bg, var(--bg-secondary, #1e293b))',
-              border: '1px solid var(--glass-border)',
-              boxShadow: 'var(--glass-shadow, 0 25px 50px -12px rgba(0, 0, 0, 0.35))',
-              borderRadius: 'var(--radius-lg, 16px)'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="modal-header" style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '14px' }}>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-                  <ArchiveIcon size={20} style={{ color: 'var(--accent-primary)' }} />
-                  Заявка {selectedOrder.orderNumber || `#${selectedOrder.id}`}
-                </h2>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  Архивная завершенная заявка от {selectedOrder.createdAt ? formatDateInTimezone(selectedOrder.createdAt, tenantSettings?.timezone) : ''}
-                </div>
-              </div>
-              <button type="button" className="btn-icon" onClick={handleCloseDetail}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '18px 0' }}>
+      {/* Detail & Quick View Slide-over Sheet */}
+      <Sheet
+        isOpen={isDetailModalOpen && !!selectedOrder}
+        onClose={handleCloseDetail}
+        title={selectedOrder ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ArchiveIcon size={20} style={{ color: 'var(--accent-primary)' }} />
+            Заявка {selectedOrder.orderNumber || `#${selectedOrder.id}`}
+          </span>
+        ) : ''}
+        description={selectedOrder ? `Архивная завершенная заявка от ${selectedOrder.createdAt ? formatDateInTimezone(selectedOrder.createdAt, tenantSettings?.timezone) : ''}` : ''}
+        size="lg"
+      >
+        {selectedOrder && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Status & Date */}
               <div style={{
                 display: 'flex',
@@ -1851,266 +1691,21 @@ export const Archive = () => {
                   </div>
                 </div>
               )}
-            </div>
-
-            <div className="modal-actions" style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--glass-border)' }}>
               <button type="button" className="btn btn-primary" onClick={handleCloseDetail}>
                 Закрыть
               </button>
             </div>
           </div>
-        </div>,
-        document.body
-      )}
+        )}
+      </Sheet>
 
       {/* In-App File Preview Modal (works 100% in iOS PWA / Android / Web without popup blocker) */}
-      {previewAttachment && createPortal(
-        <div 
-          className="archive-preview-overlay animate-fade-in" 
-          onClick={handleClosePreviewAttachment}
-        >
-          <div 
-            className="archive-preview-content animate-scale-up" 
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Preview Modal Header */}
-            <div className="archive-preview-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, paddingRight: '12px' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleClosePreviewAttachment}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', fontSize: '0.84rem', flexShrink: 0 }}
-                  title="Вернуться назад в заявку"
-                  aria-label="Вернуться назад в заявку"
-                >
-                  <ArrowLeft size={16} />
-                  <span>Назад</span>
-                </button>
-                <FileCheck size={18} style={{ color: previewAttachment.attachment.isAct ? '#22c55e' : 'var(--accent-primary)', flexShrink: 0, marginLeft: '4px' }} />
-                <span 
-                  style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                  title={previewAttachment.fileName}
-                >
-                  {previewAttachment.fileName}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => handleDownloadAttachment(previewAttachment.attachment)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', fontSize: '0.84rem' }}
-                  title="Скачать файл"
-                  aria-label="Скачать файл"
-                >
-                  <Download size={15} /> <span>Скачать</span>
-                </button>
-                <button 
-                  type="button" 
-                  className="btn-icon" 
-                  onClick={handleClosePreviewAttachment}
-                  title="Закрыть просмотр"
-                  aria-label="Закрыть просмотр"
-                  style={{ width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            {/* Preview Modal Body */}
-            <div 
-              className="archive-preview-body"
-              onWheel={handleWheel}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              style={{ overflow: 'hidden', touchAction: imgZoom > 1 ? 'none' : 'pan-y' }}
-            >
-              {previewAttachment.isImage ? (
-                <div 
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    cursor: imgZoom > 1 ? (isImgDragging ? 'grabbing' : 'grab') : 'zoom-in'
-                  }}
-                  onMouseDown={handleMouseDown}
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
-                  onDoubleClick={handleToggleZoom}
-                >
-                  <img 
-                    src={previewAttachment.url} 
-                    alt={previewAttachment.fileName} 
-                    draggable={false}
-                    style={{
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      objectFit: 'contain',
-                      borderRadius: '8px',
-                      boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
-                      transform: `translate(${imgPosition.x}px, ${imgPosition.y}px) scale(${imgZoom}) rotate(${imgRotation}deg)`,
-                      transition: isImgDragging || imgTouchDistRef.current ? 'none' : 'transform 0.15s ease-out',
-                      userSelect: 'none',
-                      WebkitUserSelect: 'none'
-                    }} 
-                  />
-
-                  {/* Floating Zoom & Rotation Controls Toolbar */}
-                  <div 
-                    className="archive-preview-zoom-toolbar animate-fade-in"
-                    onClick={e => e.stopPropagation()}
-                    style={{
-                      position: 'absolute',
-                      bottom: '16px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      background: 'rgba(15, 23, 42, 0.88)',
-                      backdropFilter: 'blur(10px)',
-                      WebkitBackdropFilter: 'blur(10px)',
-                      border: '1px solid var(--glass-border)',
-                      borderRadius: '9999px',
-                      padding: '4px 10px',
-                      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.5)',
-                      zIndex: 10
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className="btn-icon"
-                      onClick={handleZoomOut}
-                      disabled={imgZoom <= 1}
-                      title="Уменьшить масштаб"
-                      style={{ width: '32px', height: '32px', color: imgZoom <= 1 ? 'rgba(255,255,255,0.3)' : '#fff' }}
-                    >
-                      <ZoomOut size={16} />
-                    </button>
-                    
-                    <button
-                      type="button"
-                      onClick={resetImageTransform}
-                      title="Сбросить масштаб к 100%"
-                      style={{
-                        padding: '2px 8px',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        color: '#fff',
-                        borderRadius: '4px',
-                        minWidth: '46px',
-                        textAlign: 'center',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {Math.round(imgZoom * 100)}%
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn-icon"
-                      onClick={handleZoomIn}
-                      disabled={imgZoom >= 5}
-                      title="Увеличить масштаб"
-                      style={{ width: '32px', height: '32px', color: imgZoom >= 5 ? 'rgba(255,255,255,0.3)' : '#fff' }}
-                    >
-                      <ZoomIn size={16} />
-                    </button>
-
-                    <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
-
-                    <button
-                      type="button"
-                      className="btn-icon"
-                      onClick={handleRotate}
-                      title="Повернуть на 90°"
-                      style={{ width: '32px', height: '32px', color: '#fff' }}
-                    >
-                      <RotateCw size={15} />
-                    </button>
-
-                    {(imgZoom !== 1 || imgRotation !== 0) && (
-                      <button
-                        type="button"
-                        className="btn-icon"
-                        onClick={resetImageTransform}
-                        title="Сбросить все трансформации"
-                        style={{ width: '32px', height: '32px', color: '#fff' }}
-                      >
-                        <RotateCcw size={15} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ) : previewAttachment.isPdf ? (
-                <object 
-                  data={previewAttachment.url} 
-                  type="application/pdf"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    border: 'none',
-                    borderRadius: '8px',
-                    background: '#ffffff'
-                  }}
-                >
-                  <iframe 
-                    src={previewAttachment.url} 
-                    title={previewAttachment.fileName}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      border: 'none',
-                      borderRadius: '8px',
-                      background: '#ffffff'
-                    }}
-                  >
-                    <div style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      <FileCheck size={48} style={{ color: 'var(--accent-primary)', marginBottom: '12px' }} />
-                      <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                        {previewAttachment.fileName}
-                      </div>
-                      <p style={{ fontSize: '0.85rem', marginBottom: '16px' }}>
-                        В вашем мобильном браузере встроенный просмотр PDF ограничен. Нажмите кнопку ниже, чтобы открыть или сохранить файл.
-                      </p>
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => handleDownloadAttachment(previewAttachment.attachment)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                      >
-                        <Download size={16} /> Скачать и открыть PDF
-                      </button>
-                    </div>
-                  </iframe>
-                </object>
-              ) : (
-                <iframe 
-                  src={previewAttachment.url} 
-                  title={previewAttachment.fileName}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    border: 'none',
-                    borderRadius: '8px',
-                    background: 'var(--input-bg, #ffffff)'
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <AttachmentPreviewModal
+        preview={previewAttachment}
+        onClose={handleClosePreviewAttachment}
+        onDownload={handleDownloadAttachment}
+      />
     </div>
   );
 };

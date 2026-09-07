@@ -38,7 +38,7 @@ const RoleRoute = ({ children, allowedRoles }: { children: React.ReactNode; allo
   if (!role || !allowedRoles.includes(role)) {
     return <Navigate to={role === 'SUPERADMIN' ? "/tenants" : "/kanban"} replace />;
   }
-  return <>{children}</>;
+  return <ErrorBoundary>{children}</ErrorBoundary>;
 };
 
 const FeatureRoute = ({ children, feature }: { children: React.ReactNode; feature: FeatureKey }) => {
@@ -48,6 +48,21 @@ const FeatureRoute = ({ children, feature }: { children: React.ReactNode; featur
     return <Navigate to={role === 'SUPERADMIN' ? "/tenants" : "/kanban"} replace />;
   }
   return <ErrorBoundary featureName={feature}>{children}</ErrorBoundary>;
+};
+
+const MeasurementRoute = ({ children }: { children: React.ReactNode }) => {
+  const role = useAuthStore(state => state.role);
+  const canAccessMeasurements = useAuthStore(state => state.canAccessMeasurements);
+  if (role === 'WORKER' && !canAccessMeasurements) {
+    return <Navigate to="/kanban" replace />;
+  }
+  return (
+    <RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}>
+      <FeatureRoute feature="MEASUREMENT_CALCULATOR">
+        {children}
+      </FeatureRoute>
+    </RoleRoute>
+  );
 };
 
 const IndexRedirect = () => {
@@ -165,7 +180,7 @@ function App() {
 
               <Route path="kanban" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><Kanban /></RoleRoute>} />
               <Route path="calendar" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><FeatureRoute feature="CALENDAR"><Calendar /></FeatureRoute></RoleRoute>} />
-              <Route path="measurements" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><FeatureRoute feature="MEASUREMENT_CALCULATOR"><Measurements /></FeatureRoute></RoleRoute>} />
+              <Route path="measurements" element={<MeasurementRoute><Measurements /></MeasurementRoute>} />
               <Route path="earnings" element={<RoleRoute allowedRoles={['WORKER', 'OWNER', 'MANAGER']}><Earnings /></RoleRoute>} />
               <Route path="clients" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><Clients /></RoleRoute>} />
               <Route path="employees" element={<RoleRoute allowedRoles={['OWNER']}><Employees /></RoleRoute>} />
