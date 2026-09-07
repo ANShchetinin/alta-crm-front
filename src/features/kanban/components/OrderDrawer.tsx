@@ -131,6 +131,7 @@ export const OrderDrawer: React.FC = () => {
   const { t } = useTranslation();
   const role = useAuthStore(state => state.role);
   const isWorker = role === 'WORKER';
+  const canAccessMeasurements = useAuthStore(state => state.canAccessMeasurements);
   const hasAiSummary = useFeature('AI_SUMMARY');
   const hasContractTemplates = useFeature('CONTRACT_TEMPLATES');
   const hasDocumentScanner = useFeature('DOCUMENT_SCANNER');
@@ -1257,7 +1258,7 @@ export const OrderDrawer: React.FC = () => {
             >
               <User size={15} /> Основное
             </button>
-            {(!isWorker || tenantSettings?.allowWorkerMeasurements) && (
+            {(!isWorker || canAccessMeasurements) && (
               <button
                 type="button"
                 onClick={() => setOrderModalTab('MEASUREMENT')}

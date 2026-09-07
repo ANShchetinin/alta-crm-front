@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Edit2, Trash2, User, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText, Wallet, Building2, Phone } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, User, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText, Wallet, Ruler, Building2, Phone } from 'lucide-react';
 import type { Employee } from '../api/employees';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../api/employees';
 import { getOrderStatuses } from '../api/kanban';
@@ -40,7 +40,8 @@ export const Employees = () => {
     password: '',
     allowedStatusIds: [] as number[],
     allowedTenantIds: [] as number[],
-    canViewFinances: false
+    canViewFinances: false,
+    canAccessMeasurements: false
   });
 
 
@@ -113,7 +114,8 @@ export const Employees = () => {
       password: '',
       allowedStatusIds: [],
       allowedTenantIds: [currentTenantId],
-      canViewFinances: false
+      canViewFinances: false,
+      canAccessMeasurements: false
     });
     setIsModalOpen(true);
   };
@@ -137,7 +139,8 @@ export const Employees = () => {
       password: '',
       allowedStatusIds: employee.allowedStatusIds || [],
       allowedTenantIds: (employee.allowedTenantIds && employee.allowedTenantIds.length > 0) ? employee.allowedTenantIds : [currentTenantId],
-      canViewFinances: !!employee.canViewFinances
+      canViewFinances: !!employee.canViewFinances,
+      canAccessMeasurements: !!employee.canAccessMeasurements
     });
     setIsModalOpen(true);
   };
@@ -172,7 +175,8 @@ export const Employees = () => {
         registrationAddress: formData.registrationAddress.trim() || undefined,
         allowedStatusIds: formData.allowedStatusIds,
         allowedTenantIds: formData.allowedTenantIds,
-        canViewFinances: formData.canViewFinances
+        canViewFinances: formData.canViewFinances,
+        canAccessMeasurements: formData.canAccessMeasurements
       };
 
       if (formData.hasAccount) {
@@ -897,6 +901,33 @@ export const Employees = () => {
                         type="checkbox" 
                         checked={formData.canViewFinances} 
                         onChange={(e) => setFormData({ ...formData, canViewFinances: e.target.checked })}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Блок Доступа к разделу Замеры */}
+                <div style={{
+                  marginTop: '16px',
+                  padding: '16px',
+                  background: 'rgba(99, 102, 241, 0.05)',
+                  border: '1px solid rgba(99, 102, 241, 0.2)',
+                  borderRadius: 'var(--radius-md)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Ruler size={18} style={{ color: '#818cf8', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Доступ к разделу «Замеры»</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Разрешить сотруднику (монтажнику) доступ к модулю замеров и расчету сметы</div>
+                      </div>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={formData.canAccessMeasurements} 
+                        onChange={(e) => setFormData({ ...formData, canAccessMeasurements: e.target.checked })}
                         style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                       />
                     </label>

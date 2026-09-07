@@ -52,8 +52,8 @@ const FeatureRoute = ({ children, feature }: { children: React.ReactNode; featur
 
 const MeasurementRoute = ({ children }: { children: React.ReactNode }) => {
   const role = useAuthStore(state => state.role);
-  const tenantSettings = useAppStore(state => state.tenantSettings);
-  if (role === 'WORKER' && !tenantSettings?.allowWorkerMeasurements) {
+  const canAccessMeasurements = useAuthStore(state => state.canAccessMeasurements);
+  if (role === 'WORKER' && !canAccessMeasurements) {
     return <Navigate to="/kanban" replace />;
   }
   return (

@@ -19,6 +19,7 @@ export interface Employee {
   allowedStatusIds?: number[];
   allowedTenantIds?: number[];
   canViewFinances?: boolean;
+  canAccessMeasurements?: boolean;
   createdAt?: string;
 }
 

@@ -32,6 +32,7 @@ const DashboardLayout = () => {
   });
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [canViewFinances, setCanViewFinances] = useState<boolean>(false);
+  const canAccessMeasurements = useAuthStore(state => state.canAccessMeasurements);
   const [userName, setUserName] = useState<string>('User');
   const [userEmail, setUserEmail] = useState<string>('');
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
@@ -262,6 +263,10 @@ const DashboardLayout = () => {
         if (profile.canViewFinances !== undefined) {
           setCanViewFinances(Boolean(profile.canViewFinances));
         }
+        useAuthStore.getState().setPermissions({
+          canViewFinances: profile.canViewFinances,
+          canAccessMeasurements: profile.canAccessMeasurements
+        });
       } catch (err) {
         console.error("Failed to fetch user profile", err);
       }
@@ -513,7 +518,7 @@ const DashboardLayout = () => {
                   <span style={{ flex: 1 }}>Календарь</span>
                 </NavLink>
               )}
-              {hasMeasurementCalculator && tenantSettings?.allowWorkerMeasurements && (
+              {hasMeasurementCalculator && canAccessMeasurements && (
                 <NavLink to="/measurements" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <Ruler size={20} />
                   <span style={{ flex: 1 }}>Замеры</span>
@@ -874,7 +879,7 @@ const DashboardLayout = () => {
             </div>
             <span>{t('nav.orders') || 'Заявки'}</span>
           </NavLink>
-          {hasMeasurementCalculator && tenantSettings?.allowWorkerMeasurements && (
+          {hasMeasurementCalculator && canAccessMeasurements && (
             <NavLink to="/measurements" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
               <div className="bottom-nav-icon-wrapper">
                 <Ruler size={20} />
@@ -882,7 +887,7 @@ const DashboardLayout = () => {
               <span>Замеры</span>
             </NavLink>
           )}
-          {hasCalendar && (!hasMeasurementCalculator || !tenantSettings?.allowWorkerMeasurements) && (
+          {hasCalendar && (!hasMeasurementCalculator || !canAccessMeasurements) && (
             <NavLink to="/calendar" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>
               <div className="bottom-nav-icon-wrapper">
                 <CalendarDays size={20} />

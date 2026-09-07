@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Globe, Moon, Sun, User, Building2, Eye, EyeOff, FileText, Hash, Clock, Ruler } from 'lucide-react';
+import { Globe, Moon, Sun, User, Building2, Eye, EyeOff, FileText, Hash, Clock } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { updateProfile, updateTenantSettings, uploadTenantLogo, getProfile } from '../api/settings';
@@ -46,7 +46,6 @@ export const Settings = () => {
   const [primaryColor, setPrimaryColor] = useState(tenantSettings?.primaryColor || '#0ea5e9');
   const [orderNumberFormat, setOrderNumberFormat] = useState(tenantSettings?.orderNumberFormat || 'А{ddMMyy}_{INDEX}');
   const [timezone, setTimezone] = useState(tenantSettings?.timezone || 'Europe/Moscow');
-  const [allowWorkerMeasurements, setAllowWorkerMeasurements] = useState<boolean>(tenantSettings?.allowWorkerMeasurements ?? false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [tenantSaving, setTenantSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,9 +90,6 @@ export const Settings = () => {
     }
     if (tenantSettings?.timezone) {
       setTimezone(tenantSettings.timezone);
-    }
-    if (tenantSettings?.allowWorkerMeasurements !== undefined) {
-      setAllowWorkerMeasurements(tenantSettings.allowWorkerMeasurements);
     }
   }, [tenantSettings]);
 
@@ -143,10 +139,6 @@ export const Settings = () => {
     try {
       await updateProfile({ email: newEmail, firstName, lastName, currentPassword, password: newPassword });
       alert('Профиль обновлен (чтобы изменения email вступили в силу, перезайдите в систему)');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setIsEditingPassword(false);
     } catch (err: any) {
       if (err.response?.data?.message) {
         alert('Ошибка при обновлении профиля: ' + err.response.data.message);
@@ -166,8 +158,7 @@ export const Settings = () => {
         primaryColor, 
         requisites, 
         orderNumberFormat: orderNumberFormat.trim() || 'А{ddMMyy}_{INDEX}',
-        timezone: timezone || 'Europe/Moscow',
-        allowWorkerMeasurements
+        timezone: timezone || 'Europe/Moscow'
       });
       updateTenantSettingsLocally(res);
       alert('Реквизиты и настройки компании успешно сохранены');
@@ -454,41 +445,6 @@ export const Settings = () => {
                 <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '5px' }}>
                   Используется для корректного отображения времени уведомлений, журнала действий и заказов
                 </span>
-              </div>
-
-              {/* Доступ монтажников к замерам */}
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '16px',
-                marginBottom: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '16px',
-                flexWrap: 'wrap'
-              }}>
-                <div style={{ flex: 1, minWidth: '240px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                    <Ruler size={18} style={{ color: 'var(--primary-color, #0ea5e9)' }} />
-                    Доступ монтажников (Worker) к замерам
-                  </div>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
-                    Разрешить сотрудникам с ролью Монтажник просматривать назначенные выезды на замер и заполнять смету (себестоимость материалов и маржа для них будут скрыты).
-                  </p>
-                </div>
-                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '10px' }}>
-                  <input
-                    type="checkbox"
-                    checked={allowWorkerMeasurements}
-                    onChange={e => setAllowWorkerMeasurements(e.target.checked)}
-                    style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--primary-color, #0ea5e9)' }}
-                  />
-                  <span style={{ fontSize: '0.88rem', fontWeight: 500, color: allowWorkerMeasurements ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
-                    {allowWorkerMeasurements ? 'Разрешен' : 'Запрещен'}
-                  </span>
-                </label>
               </div>
 
               {/* Реквизиты для договоров и счетов */}
