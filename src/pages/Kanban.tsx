@@ -1683,6 +1683,17 @@ const Kanban = () => {
     return currentJson !== initialFormDataJson;
   }, [isModalOpen, editingOrderId, formData, pendingFiles.length, initialFormDataJson]);
 
+  // Handle Escape key to close drawer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isModalOpen) {
+        handleRequestCloseModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen, isDirty, handleRequestCloseModal]);
+
   const renderCard = (card: Order) => {
     const client = clients.find(cl => cl.id === card.clientId);
     const cName = card.clientName || client?.name || `Клиент #${card.clientId}`;
@@ -1717,7 +1728,7 @@ const Kanban = () => {
     return (
       <div 
         key={card.id} 
-        className={`kanban-card ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''} ${desktopDraggingCardId === card.id ? 'is-card-dragging' : ''}`}
+        className={`kanban-card ${isModalOpen && editingOrderId === card.id ? 'is-active-card' : ''} ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''} ${desktopDraggingCardId === card.id ? 'is-card-dragging' : ''}`}
         draggable
         onDragStart={(e) => {
           e.stopPropagation();

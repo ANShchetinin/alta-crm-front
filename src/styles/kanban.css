@@ -674,18 +674,18 @@
   }
 }
 
-/* Order Slide-Over Drawer */
+/* Order Split-Screen Slide-Over Drawer (Desktop) */
 .order-drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   display: flex;
   justify-content: flex-end;
   align-items: stretch;
   z-index: 10005;
-  animation: sheetFadeIn 0.22s ease-out forwards;
+  pointer-events: none;
 }
 
 .order-drawer-content {
@@ -697,10 +697,16 @@
   max-height: 100vh;
   display: flex;
   flex-direction: column;
-  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.25);
+  box-shadow: -8px 0 35px rgba(0, 0, 0, 0.35);
   animation: sheetSlideInDesktop 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   box-sizing: border-box;
   overflow: hidden;
+  pointer-events: auto;
+}
+
+.kanban-card.is-active-card {
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 1.5px var(--accent-primary), 0 8px 24px var(--accent-glow, rgba(37, 99, 235, 0.25)) !important;
 }
 
 .order-drawer-drag-handle-wrapper {
@@ -845,6 +851,10 @@
     align-items: flex-end !important;
     justify-content: center !important;
     padding: 0 !important;
+    background: rgba(15, 23, 42, 0.65) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    pointer-events: auto !important;
   }
 
   .order-drawer-content {
