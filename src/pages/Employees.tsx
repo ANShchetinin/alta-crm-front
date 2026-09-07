@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Plus, Edit2, Trash2, User, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText, Wallet, Building2, Phone } from 'lucide-react';
 import type { Employee } from '../api/employees';
@@ -9,6 +8,7 @@ import type { OrderStatus } from '../api/kanban';
 import { getMyTenants, type UserTenant } from '../api/auth';
 import { AvatarUpload } from '../components/AvatarUpload';
 import { getEmployeeInitials, getAvatarGradient } from '../utils/avatarUtils';
+import { Sheet } from '../components/ui/Sheet';
 import '../styles/clients.css';
 
 export const Employees = () => {
@@ -599,23 +599,15 @@ export const Employees = () => {
         )}
       </div>
 
-      {/* Modal Overlay */}
-      {isModalOpen && createPortal(
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '540px', maxHeight: '90vh' }}>
-            <div className="modal-header">
-              <h2>{editingEmployee ? (t('employees.modal.editTitle') || 'Редактировать сотрудника') : (t('employees.modal.addTitle') || 'Добавить сотрудника')}</h2>
-              <button 
-                type="button" 
-                onClick={() => setIsModalOpen(false)}
-                className="btn-icon"
-                aria-label="Close"
-              >
-                &times;
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              <div className="modal-body" style={{ overflowY: 'auto', paddingRight: '6px' }}>
+      {/* Employee Drawer / Bottom Sheet */}
+      <Sheet
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingEmployee ? (t('employees.modal.editTitle') || 'Редактировать сотрудника') : (t('employees.modal.addTitle') || 'Добавить сотрудника')}
+        description={editingEmployee ? 'Редактирование профиля и прав доступа' : 'Создание нового сотрудника и настройка доступа'}
+        size="md"
+      >
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 
                 {/* Аватарка */}
                 <AvatarUpload
@@ -970,8 +962,7 @@ export const Employees = () => {
                   </div>
                 )}
 
-              </div>
-              <div className="modal-actions" style={{ padding: '16px', borderTop: '1px solid var(--glass-border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--glass-border)' }}>
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
@@ -984,10 +975,7 @@ export const Employees = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>,
-        document.body
-      )}
+      </Sheet>
     </div>
   );
 };

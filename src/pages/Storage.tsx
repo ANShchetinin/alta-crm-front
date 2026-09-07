@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Plus, Package, Wrench, Layers, Trash2, Check, Tag } from 'lucide-react';
 import type { Material, MaterialType } from '../api/storage';
 import { getMaterials, createMaterial, updateMaterial, deleteMaterial } from '../api/storage';
 import { getEstimationServices, type EstimationService } from '../api/estimationServices';
 import { useAppStore } from '../store/useAppStore';
+import { Sheet } from '../components/ui/Sheet';
 import '../styles/clients.css';
 
 export const Storage = () => {
@@ -530,23 +530,15 @@ export const Storage = () => {
         )}
       </div>
 
-      {/* Modal Overlay */}
-      {isModalOpen && createPortal(
-        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '560px' }}>
-            <div className="modal-header">
-              <h2>{editingId ? 'Редактировать позицию' : 'Добавить материал или услугу'}</h2>
-              <button 
-                type="button" 
-                onClick={() => setIsModalOpen(false)}
-                className="btn-icon"
-                aria-label="Close"
-              >
-                &times;
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* Storage Drawer / Bottom Sheet */}
+      <Sheet
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingId ? 'Редактировать позицию' : 'Добавить материал или услугу'}
+        description={formData.type === 'SERVICE' ? 'Настройка услуги и расценок' : 'Складской учет и характеристики материала'}
+        size="md"
+      >
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {/* Type Selection */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label>Тип позиции *</label>
@@ -773,8 +765,7 @@ export const Storage = () => {
                     />
                   </div>
                 )}
-              </div>
-              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--glass-border)' }}>
                 {editingId ? (
                   <button 
                     type="button" 
@@ -785,7 +776,7 @@ export const Storage = () => {
                     <Trash2 size={16} /> Удалить позицию
                   </button>
                 ) : <div />}
-                <div className="modal-action-btns">
+                <div style={{ display: 'flex', gap: '10px' }}>
                   <button 
                     type="button" 
                     onClick={() => setIsModalOpen(false)}
@@ -799,10 +790,7 @@ export const Storage = () => {
                 </div>
               </div>
             </form>
-          </div>
-        </div>,
-        document.body
-      )}
+      </Sheet>
     </div>
   );
 };
