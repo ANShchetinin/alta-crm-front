@@ -21,7 +21,8 @@ import {
   Trash2,
   MessageCircle,
   Send,
-  FileText
+  FileText,
+  GripVertical
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -1064,11 +1065,13 @@ const Kanban = () => {
             const columnCards = filteredCards.filter(c => c.statusId === column.id);
             const isCollapsed = collapsedColumns[column.id] !== undefined ? collapsedColumns[column.id] : false;
             const columnTotal = columnCards.reduce((acc, c) => acc + (c.totalPrice || 0), 0);
+            const isColDragging = draggingColId === column.id;
+            const isColReorderTarget = touchTargetColId === column.id && draggingColId !== column.id;
 
             return (
               <div 
                 key={column.id} 
-                className={`kanban-mobile-accordion-column ${isCollapsed ? 'is-collapsed' : ''} ${touchTargetStatusId === column.id ? 'is-touch-drag-over' : ''}`}
+                className={`kanban-mobile-accordion-column ${isCollapsed ? 'is-collapsed' : ''} ${touchTargetStatusId === column.id ? 'is-touch-drag-over' : ''} ${isColDragging ? 'is-col-dragging-placeholder' : ''} ${isColReorderTarget ? 'is-col-reorder-target' : ''}`}
                 data-column-id={column.id}
               >
                 <div 
@@ -1076,6 +1079,20 @@ const Kanban = () => {
                   onClick={() => toggleColumnCollapse(column.id)}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                    {!isWorker && (
+                      <div 
+                        className="kanban-column-grip-handle"
+                        onTouchStart={(e) => handleHandleTouchStart(e, column.id)}
+                        onTouchMove={handleHandleTouchMove}
+                        onTouchEnd={handleHandleTouchEnd}
+                        onTouchCancel={handleHandleTouchCancel}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ padding: '4px 2px', cursor: 'grab', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
+                        title="Перетащить статус"
+                      >
+                        <GripVertical size={16} />
+                      </div>
+                    )}
                     <span 
                       className="dot" 
                       style={{ backgroundColor: column.color || '#3b82f6', flexShrink: 0 }} 
@@ -1165,10 +1182,6 @@ const Kanban = () => {
                 key={col.id} 
                 data-column-id={col.id}
                 className={`kanban-column glass-panel ${isTouchTarget || isDesktopTarget ? 'is-drop-target' : ''} ${isColDragging ? 'is-col-dragging-placeholder' : ''} ${isColReorderTarget ? 'is-col-reorder-target' : ''}`}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('columnId', col.id.toString());
-                }}
                 onDrop={async (e) => {
                   e.preventDefault();
                   setDesktopDragOverColId(null);
@@ -1222,10 +1235,17 @@ const Kanban = () => {
               >
                 <div 
                   className="column-header"
+                  draggable={!isWorker}
+                  onDragStart={(e) => {
+                    e.stopPropagation();
+                    e.dataTransfer.setData('columnId', col.id.toString());
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
                   onTouchStart={(e) => handleHandleTouchStart(e, col.id)}
                   onTouchMove={handleHandleTouchMove}
                   onTouchEnd={handleHandleTouchEnd}
                   onTouchCancel={handleHandleTouchCancel}
+                  style={{ cursor: !isWorker ? 'grab' : 'default' }}
                 >
                   <div className="column-title">
                     <span 

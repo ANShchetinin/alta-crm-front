@@ -2045,4 +2045,97 @@ body.light-theme .kanban-column.is-touch-drop-target {
   }
 }
 
+/* Mobile Accordion List View */
+.kanban-mobile-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding-bottom: 24px;
+}
+
+.kanban-mobile-list-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 2px 8px;
+}
+
+.kanban-mobile-accordion-column {
+  background: var(--bg-secondary, #1e293b);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-md, 12px);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+body.light-theme .kanban-mobile-accordion-column {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.kanban-mobile-accordion-column.is-touch-drag-over,
+.kanban-mobile-accordion-column.is-col-reorder-target {
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 2px var(--accent-primary) !important;
+  transform: scale(1.01);
+}
+
+.kanban-mobile-accordion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--bg-secondary, #1e293b);
+  border-bottom: 1px solid transparent;
+  transition: background 0.15s ease;
+}
+
+body.light-theme .kanban-mobile-accordion-header {
+  background: #ffffff;
+}
+
+.kanban-mobile-accordion-column:not(.is-collapsed) .kanban-mobile-accordion-header {
+  border-bottom-color: var(--glass-border, rgba(255, 255, 255, 0.1));
+}
+
+body.light-theme .kanban-mobile-accordion-column:not(.is-collapsed) .kanban-mobile-accordion-header {
+  border-bottom-color: #e2e8f0;
+}
+
+.kanban-mobile-accordion-count {
+  background: var(--input-bg, rgba(255, 255, 255, 0.08));
+  color: var(--text-secondary);
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border: 1px solid var(--glass-border);
+}
+
+.kanban-mobile-accordion-body {
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+body.light-theme .kanban-mobile-accordion-body {
+  background: #f8fafc;
+}
+
+.kanban-empty-column-placeholder {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+
 

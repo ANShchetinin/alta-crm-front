@@ -8,7 +8,6 @@ import {
   Mic,
   MapPin,
   X,
-  Tag,
   User,
   Ruler,
   FileText,
@@ -1010,16 +1009,7 @@ export const OrderDrawer: React.FC = () => {
     }
   };
 
-  const currentMaterialsCost = useMemo(() => {
-    if (!formData.materials || formData.materials.length === 0) return 0;
-    const rawCost = formData.materials.reduce((sum, m) => {
-      const mat = allMaterials.find(x => x.id === m.materialId);
-      if (!mat || mat.type === 'SERVICE') return sum;
-      const qty = typeof m.quantity === 'string' ? (parseFloat(m.quantity) || 0) : (m.quantity || 0);
-      return sum + (mat.costPrice * qty);
-    }, 0);
-    return Math.round(rawCost);
-  }, [formData.materials, allMaterials]);
+
 
   const currentTotalPrice = useMemo(() => {
     const prep = parseFloat(formData.prepayment || '0') || 0;
@@ -1027,16 +1017,72 @@ export const OrderDrawer: React.FC = () => {
     return Math.round(prep + rem);
   }, [formData.prepayment, formData.remainder]);
 
+  // Mobile swipe-down to dismiss state
+  const [sheetTranslateY, setSheetTranslateY] = useState(0);
+  const [isDraggingSheet, setIsDraggingSheet] = useState(false);
+  const touchSheetStartYRef = useRef<number | null>(null);
+  const currentTranslateYRef = useRef<number>(0);
+
+  const handleSheetTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchSheetStartYRef.current = touch.clientY;
+    currentTranslateYRef.current = 0;
+    setIsDraggingSheet(true);
+  };
+
+  const handleSheetTouchMove = (e: React.TouchEvent) => {
+    if (touchSheetStartYRef.current === null) return;
+    const touch = e.touches[0];
+    const deltaY = touch.clientY - touchSheetStartYRef.current;
+    if (deltaY > 0) {
+      currentTranslateYRef.current = deltaY;
+      setSheetTranslateY(deltaY);
+    }
+  };
+
+  const handleSheetTouchEnd = () => {
+    if (touchSheetStartYRef.current === null) return;
+    const deltaY = currentTranslateYRef.current;
+    touchSheetStartYRef.current = null;
+    setIsDraggingSheet(false);
+    if (deltaY > 90) {
+      setSheetTranslateY(0);
+      handleRequestCloseModal();
+    } else {
+      setSheetTranslateY(0);
+    }
+  };
+
   if (!isOpen) return null;
 
   return createPortal(
     <div className="order-drawer-overlay" onClick={handleRequestCloseModal}>
-      <div className={`order-drawer-content ${orderModalTab === 'MEASUREMENT' || orderModalTab === 'CONTRACT' ? 'is-wide' : ''}`} onClick={e => e.stopPropagation()}>
+      <div 
+        className={`order-drawer-content ${orderModalTab === 'MEASUREMENT' || orderModalTab === 'CONTRACT' ? 'is-wide' : ''}`} 
+        style={sheetTranslateY > 0 ? {
+          transform: `translateY(${sheetTranslateY}px)`,
+          transition: isDraggingSheet ? 'none' : 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)'
+        } : undefined}
+        onClick={e => e.stopPropagation()}
+      >
         {/* Mobile Bottom Sheet Drag Handle */}
-        <div className="order-drawer-drag-handle-wrapper" onClick={handleRequestCloseModal}>
+        <div 
+          className="order-drawer-drag-handle-wrapper" 
+          onTouchStart={handleSheetTouchStart}
+          onTouchMove={handleSheetTouchMove}
+          onTouchEnd={handleSheetTouchEnd}
+          onTouchCancel={handleSheetTouchEnd}
+          onClick={handleRequestCloseModal}
+        >
           <div className="order-drawer-drag-handle" />
         </div>
-        <div className="order-drawer-header modal-header">
+        <div 
+          className="order-drawer-header modal-header"
+          onTouchStart={handleSheetTouchStart}
+          onTouchMove={handleSheetTouchMove}
+          onTouchEnd={handleSheetTouchEnd}
+          onTouchCancel={handleSheetTouchEnd}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1, minWidth: 0, paddingRight: '8px' }}>
             <h2 style={{ margin: 0, whiteSpace: 'nowrap' }}>
               {editingOrderId ? `Заявка #${editingOrderId}` : 'Новая заявка'}
@@ -1103,13 +1149,6 @@ export const OrderDrawer: React.FC = () => {
                 <FileText size={15} /> Договор
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setOrderModalTab('MATERIALS')}
-              className={`order-drawer-tab-btn ${orderModalTab === 'MATERIALS' ? 'active' : ''}`}
-            >
-              <Tag size={15} /> Материалы {formData.materials.length > 0 && <span className="order-drawer-tab-badge">{formData.materials.length}</span>}
-            </button>
             <button
               type="button"
               onClick={() => setOrderModalTab('FILES')}
@@ -1509,109 +1548,7 @@ export const OrderDrawer: React.FC = () => {
               </div>
             )}
 
-            {/* MATERIALS TAB */}
-            {orderModalTab === 'MATERIALS' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Расходные материалы со склада</span>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    Себестоимость: <strong style={{ color: 'var(--text-primary)' }}>{currentMaterialsCost.toLocaleString('ru-RU')} ₽</strong>
-                  </span>
-                </div>
 
-                {/* Materials List */}
-                {formData.materials.length === 0 ? (
-                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                    Материалы пока не добавлены
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {formData.materials.map((m, idx) => {
-                      const mat = allMaterials.find(x => x.id === m.materialId);
-                      const unitPrice = mat?.costPrice || 0;
-                      const qty = typeof m.quantity === 'string' ? (parseFloat(m.quantity) || 0) : (m.quantity || 0);
-                      const rowTotal = Math.round(unitPrice * qty);
-
-                      return (
-                        <div key={idx} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          background: 'var(--glass-bg)',
-                          border: '1px solid var(--glass-border)',
-                          borderRadius: '8px',
-                          padding: '8px 12px'
-                        }}>
-                          <span style={{ flex: 1, minWidth: 0, fontSize: '0.85rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {mat?.name || `Материал #${m.materialId}`}
-                          </span>
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                            {unitPrice.toLocaleString('ru-RU')} ₽/{mat?.unit || 'шт'}
-                          </span>
-                          <input
-                            type="number"
-                            className="input"
-                            style={{ width: '80px', height: '32px', padding: '4px 8px', textAlign: 'center' }}
-                            value={m.quantity}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setFormData(prev => ({
-                                ...prev,
-                                materials: prev.materials.map((item, i) => i === idx ? { ...item, quantity: val as any } : item)
-                              }));
-                            }}
-                          />
-                          <span style={{ width: '80px', textAlign: 'right', fontSize: '0.85rem', fontWeight: 600 }}>
-                            {rowTotal.toLocaleString('ru-RU')} ₽
-                          </span>
-                          <button
-                            type="button"
-                            className="btn-icon"
-                            onClick={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                materials: prev.materials.filter((_, i) => i !== idx)
-                              }));
-                            }}
-                            style={{ color: 'var(--danger)' }}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Add Material Select */}
-                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                  <select
-                    className="select"
-                    style={{ flex: 1 }}
-                    onChange={(e) => {
-                      const matId = parseInt(e.target.value);
-                      if (!matId) return;
-                      const exists = formData.materials.some(m => m.materialId === matId);
-                      if (!exists) {
-                        setFormData(prev => ({
-                          ...prev,
-                          materials: [...prev.materials, { materialId: matId, quantity: 1 }]
-                        }));
-                      }
-                      e.target.value = '';
-                    }}
-                    defaultValue=""
-                  >
-                    <option value="" disabled>+ Добавить материал со склада...</option>
-                    {allMaterials.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({m.quantityInStock} {m.unit} на складе, {m.costPrice} ₽)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
 
             {/* FILES TAB */}
             {orderModalTab === 'FILES' && (
