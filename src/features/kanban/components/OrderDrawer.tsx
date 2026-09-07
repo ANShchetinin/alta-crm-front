@@ -3867,10 +3867,40 @@ export const OrderDrawer: React.FC = () => {
               handoverDate: contractPromptData.handoverDate
             };
 
-            await updateOrder(editingOrderId, {
+            const fullPayload: any = {
+              clientId: formData.clientId ? parseInt(formData.clientId) : (currentOrder?.clientId || undefined),
+              statusId: formData.statusId ? parseInt(formData.statusId) : (currentOrder?.statusId || undefined),
+              assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : (currentOrder?.assigneeId || undefined),
+              measurerId: formData.measurerId ? parseInt(formData.measurerId) : (currentOrder?.measurerId || undefined),
+              installedById: formData.installedById ? parseInt(formData.installedById) : (currentOrder?.installedById || undefined),
+              orderNumber: formData.orderNumber || currentOrder?.orderNumber || undefined,
+              address: contractPromptData.installationAddress || formData.address || currentOrder?.address || undefined,
+              entrance: formData.entrance || currentOrder?.entrance || undefined,
+              floor: formData.floor || currentOrder?.floor || undefined,
+              description: formData.description !== undefined ? formData.description : currentOrder?.description,
+              totalPrice: formData.totalPrice ? parseFloat(formData.totalPrice) : (currentOrder?.totalPrice || undefined),
+              prepayment: formData.prepayment ? parseFloat(formData.prepayment) : (currentOrder?.prepayment || undefined),
+              prepaymentPaid: formData.prepaymentPaid !== undefined ? !!formData.prepaymentPaid : !!currentOrder?.prepaymentPaid,
+              remainder: formData.remainder ? parseFloat(formData.remainder) : (currentOrder?.remainder || undefined),
+              remainderPaid: formData.remainderPaid !== undefined ? !!formData.remainderPaid : !!currentOrder?.remainderPaid,
+              installationPrice: formData.installationPrice ? parseFloat(formData.installationPrice) : (currentOrder?.installationPrice || undefined),
+              installationDate: formData.installationDate ? `${formData.installationDate}T00:00:00` : (currentOrder?.installationDate || undefined),
+              measurementDate: formData.measurementDate ? `${formData.measurementDate}:00` : (currentOrder?.measurementDate || undefined),
               contractParams: updatedParams,
-              address: contractPromptData.installationAddress || undefined
-            });
+              materials: formData.materials?.map(m => ({
+                materialId: m.materialId,
+                quantity: m.quantity,
+                fixedCostPrice: m.fixedCostPrice
+              }))
+            };
+
+            await updateOrder(editingOrderId, fullPayload);
+
+            setFormData(prev => ({
+              ...prev,
+              address: contractPromptData.installationAddress || prev.address,
+              contractParams: updatedParams
+            }));
 
             const blob = await downloadContractDocx(editingOrderId);
             const url = URL.createObjectURL(blob);

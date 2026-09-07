@@ -576,3 +576,75 @@ body.light-theme {
     font-size: 0.95rem !important;
   }
 }
+
+/* Universal Modal Styles */
+.modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 100060 !important;
+  padding: 16px !important;
+  box-sizing: border-box !important;
+}
+
+.modal-content {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: 20px 24px !important;
+  width: 100% !important;
+  max-width: 520px !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.modal-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding-bottom: 12px !important;
+  margin-bottom: 16px !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  flex-shrink: 0 !important;
+}
+
+.modal-header h2 {
+  font-size: 1.25rem !important;
+  margin: 0 !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+.modal-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-right: 4px !important;
+}
+
+.modal-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  margin-top: 20px !important;
+  padding-top: 16px !important;
+  border-top: 1px solid var(--glass-border) !important;
+  flex-shrink: 0 !important;
+}
+
