@@ -121,7 +121,9 @@ const DashboardLayout = () => {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
-      if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target as Node)) {
+      if (companyDropdownRef.current && 
+          !companyDropdownRef.current.contains(event.target as Node) &&
+          !(event.target as HTMLElement).closest?.('.company-switcher-trigger')) {
         setIsCompanyDropdownOpen(false);
       }
     };
@@ -1121,6 +1123,61 @@ const DashboardLayout = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Multi-Company Switcher in Profile Modal */}
+              {role !== 'SUPERADMIN' && myTenantsData?.tenants && myTenantsData.tenants.length > 1 && (
+                <div style={{
+                  background: 'var(--bg-primary, #f8fafc)',
+                  border: '1px solid var(--glass-border, #e2e8f0)',
+                  borderRadius: 'var(--radius-md, 12px)',
+                  padding: '12px'
+                }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    🏢 Ваши компании
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {myTenantsData.tenants.map(item => {
+                      const isActive = item.tenantId === myTenantsData.currentTenantId;
+                      return (
+                        <button
+                          key={item.tenantId}
+                          type="button"
+                          onClick={() => {
+                            setIsProfileModalOpen(false);
+                            handleSwitchCompany(item.tenantId);
+                          }}
+                          disabled={isSwitchingCompany || isActive}
+                          className={`company-dropdown-item ${isActive ? 'active' : ''}`}
+                          style={{ padding: '8px 12px' }}
+                        >
+                          {item.logoUrl ? (
+                            <img src={item.logoUrl} alt="" style={{ width: 24, height: 24, objectFit: 'contain', borderRadius: '4px' }} />
+                          ) : (
+                            <div style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: '4px',
+                              background: item.primaryColor || '#3b82f6',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#fff',
+                              fontSize: '12px',
+                              fontWeight: 700
+                            }}>
+                              {item.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <span style={{ flex: 1, fontSize: '0.9rem', fontWeight: isActive ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item.name}
+                          </span>
+                          {isActive && <Check size={18} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <PushNotificationSettings />
 
               {role !== 'WORKER' && (

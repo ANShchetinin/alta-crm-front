@@ -576,6 +576,19 @@ body.light-theme .nav-item.active {
     display: none !important;
   }
 
+  .desktop-sidebar-brand-wrapper {
+    display: none !important;
+  }
+
+  .mobile-sidebar-brand-wrapper {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    position: relative;
+    gap: 8px;
+  }
+
   .sidebar {
     position: fixed;
     top: 0;
