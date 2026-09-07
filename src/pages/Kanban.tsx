@@ -147,14 +147,15 @@ const Kanban = () => {
       setLoading(true);
       const [statuses, orders, clientsData, employeesData, remindersData] = await Promise.all([
         getOrderStatuses().catch(() => []),
-        getOrders().catch(() => []),
+        getOrders(false).catch(() => []),
         !isWorker ? getClients().catch(() => []) : Promise.resolve([]),
         !isWorker ? getEmployees().catch(() => []) : Promise.resolve([]),
         !isWorker ? getMyReminders('all').catch(() => []) : Promise.resolve([])
       ]);
+      const activeOrders = (orders || []).filter(o => !o.isArchived);
       const sortedColumns = statuses.sort((a, b) => a.sortOrder - b.sortOrder);
       setColumns(sortedColumns);
-      setCards(orders);
+      setCards(activeOrders);
       setClients(clientsData);
       setEmployees(employeesData);
 
@@ -390,7 +391,7 @@ const Kanban = () => {
   };
 
   const filteredCards = useMemo(() => {
-    let result = cards;
+    let result = cards.filter(c => !c.isArchived);
 
     if (reminderFilter !== 'all') {
       result = result.filter(card => {
@@ -432,8 +433,7 @@ const Kanban = () => {
   const displayedColumns = useMemo(() => {
     if (!hideEmptyColumns) return columns;
     return columns.filter(col => {
-      const isCompleted = isCompletedColumn(col);
-      return filteredCards.some(c => c.statusId === col.id && (!isCompleted || !c.isArchived));
+      return filteredCards.some(c => c.statusId === col.id);
     });
   }, [columns, hideEmptyColumns, filteredCards]);
 

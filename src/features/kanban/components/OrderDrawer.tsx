@@ -1031,7 +1031,7 @@ export const OrderDrawer: React.FC = () => {
 
   return createPortal(
     <div className="order-drawer-overlay" onClick={handleRequestCloseModal}>
-      <div className="order-drawer-content" onClick={e => e.stopPropagation()} style={{ maxWidth: orderModalTab === 'MEASUREMENT' || orderModalTab === 'CONTRACT' ? '920px' : '720px' }}>
+      <div className={`order-drawer-content ${orderModalTab === 'MEASUREMENT' || orderModalTab === 'CONTRACT' ? 'is-wide' : ''}`} onClick={e => e.stopPropagation()}>
         {/* Mobile Bottom Sheet Drag Handle */}
         <div className="order-drawer-drag-handle-wrapper" onClick={handleRequestCloseModal}>
           <div className="order-drawer-drag-handle" />

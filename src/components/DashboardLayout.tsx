@@ -332,8 +332,11 @@ const DashboardLayout = () => {
     setLanguage(language === 'ru' ? 'en' : 'ru');
   };
 
+  const { isOpen: isOrderDrawerOpen, activeTab: orderDrawerActiveTab } = useOrderDrawerStore();
+  const isWideDrawer = isOrderDrawerOpen && (orderDrawerActiveTab === 'MEASUREMENT' || orderDrawerActiveTab === 'CONTRACT');
+
   return (
-    <div className="dashboard-container">
+    <div className={`dashboard-container ${isOrderDrawerOpen ? 'order-drawer-open' : ''} ${isWideDrawer ? 'order-drawer-wide' : ''}`}>
       {/* Mobile Drawer Backdrop */}
       {isMobileMenuOpen && (
         <div 

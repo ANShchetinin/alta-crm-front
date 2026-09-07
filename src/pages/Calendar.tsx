@@ -12,6 +12,7 @@ import {
 import { type CalendarEventDto, getCalendarEvents } from '../api/calendar';
 import { getEmployees, type Employee } from '../api/employees';
 import { useAuthStore } from '../store/useAuthStore';
+import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { parseUtcDate } from '../utils/dateUtils';
 import '../styles/calendar.css';
 
@@ -298,7 +299,7 @@ export const Calendar: React.FC = () => {
 
   const handleEventClick = (event: CalendarEventDto) => {
     if (event.orderId) {
-      navigate(`/kanban?orderId=${event.orderId}`);
+      useOrderDrawerStore.getState().openOrder(event.orderId);
     }
   };
 
@@ -588,12 +589,15 @@ export const Calendar: React.FC = () => {
                     {/* На мобильных устройствах — аккуратные цветные точки событий */}
                     {isMobile ? (
                       <div className="calendar-day-dots">
-                        {d.events.slice(0, 3).map((ev, i) => (
-                          <span 
-                            key={i} 
-                            className={`calendar-event-dot ${ev.type.toLowerCase()} ${ev.isOverdue ? 'overdue' : ''}`}
-                          />
-                        ))}
+                        {d.events.slice(0, 3).map((ev, i) => {
+                          const typeClass = (ev.type || 'reminder').toLowerCase();
+                          return (
+                            <span 
+                              key={i} 
+                              className={`calendar-event-dot ${typeClass} ${ev.isOverdue ? 'overdue' : ''}`}
+                            />
+                          );
+                        })}
                         {d.events.length > 3 && (
                           <span className="calendar-event-dot-more">+{d.events.length - 3}</span>
                         )}
@@ -603,9 +607,9 @@ export const Calendar: React.FC = () => {
                       <div className="calendar-day-events-list">
                         {d.events.map(ev => {
                           const timeStr = !ev.allDay
-                            ? new Date(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                            ? getSafeDate(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
                             : '';
-                          const typeClass = ev.type.toLowerCase();
+                          const typeClass = (ev.type || 'reminder').toLowerCase();
                           const overdueClass = ev.isOverdue ? 'overdue' : '';
 
                           return (
@@ -613,11 +617,11 @@ export const Calendar: React.FC = () => {
                               key={ev.id}
                               onClick={(e) => { e.stopPropagation(); handleEventClick(ev); }}
                               className={`calendar-event-item ${typeClass} ${overdueClass}`}
-                              title={`${ev.title}\nКлиент: ${ev.clientName}${ev.clientPhone ? ` (${ev.clientPhone})` : ''}\nАдрес: ${ev.address || '—'}`}
+                              title={`${ev.title || ''}\nКлиент: ${ev.clientName || ''}${ev.clientPhone ? ` (${ev.clientPhone})` : ''}\nАдрес: ${ev.address || '—'}`}
                             >
                               <span>{ev.type === 'MEASUREMENT' ? '📏' : (ev.type === 'INSTALLATION' ? '🔨' : '⏰')}</span>
                               {timeStr && <span style={{ opacity: 0.9 }}>{timeStr}</span>}
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.clientName}</span>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.clientName || ev.title || 'Событие'}</span>
                             </div>
                           );
                         })}
@@ -697,9 +701,9 @@ export const Calendar: React.FC = () => {
               >
                 {d.events.map(ev => {
                   const timeStr = !ev.allDay
-                    ? new Date(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                    ? getSafeDate(ev.start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
                     : 'Весь день';
-                  const typeClass = ev.type.toLowerCase();
+                  const typeClass = (ev.type || 'reminder').toLowerCase();
 
                   return (
                     <div
@@ -712,7 +716,7 @@ export const Calendar: React.FC = () => {
                         <span>{ev.type === 'MEASUREMENT' ? '📏 Замер' : (ev.type === 'INSTALLATION' ? '🔨 Монтаж' : '⏰ Звонок')}</span>
                         <span style={{ opacity: 0.8 }}>({timeStr})</span>
                       </div>
-                      <div style={{ fontWeight: 600, marginTop: '2px' }}>{ev.clientName}</div>
+                      <div style={{ fontWeight: 600, marginTop: '2px' }}>{ev.clientName || ev.title || 'Событие'}</div>
                       {ev.address && (
                         <div style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                           <MapPin size={11} /> {ev.address}

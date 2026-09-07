@@ -1,3 +1,8 @@
+:root {
+  --order-drawer-width: min(720px, 48vw);
+  --order-drawer-wide-width: min(920px, 56vw);
+}
+
 .dashboard-container {
   display: flex;
   height: 100vh;
@@ -9,6 +14,21 @@
   position: relative;
   box-sizing: border-box;
   background-color: var(--bg-primary, #f8fafc);
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), max-width 0.28s cubic-bezier(0.16, 1, 0.3, 1), margin-right 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 769px) {
+  .dashboard-container.order-drawer-open {
+    margin-right: var(--order-drawer-width);
+    width: calc(100% - var(--order-drawer-width));
+    max-width: calc(100% - var(--order-drawer-width));
+  }
+
+  .dashboard-container.order-drawer-open.order-drawer-wide {
+    margin-right: var(--order-drawer-wide-width);
+    width: calc(100% - var(--order-drawer-wide-width));
+    max-width: calc(100% - var(--order-drawer-wide-width));
+  }
 }
 
 /* Mobile Drawer Backdrop */

@@ -52,6 +52,7 @@
 .kanban-column {
   min-width: 320px;
   width: 320px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   max-height: 100%;
@@ -691,8 +692,8 @@
 .order-drawer-content {
   background: var(--bg-secondary, #ffffff);
   border-left: 1px solid var(--glass-border, #e2e8f0);
-  width: 100%;
-  max-width: 720px;
+  width: var(--order-drawer-width, min(720px, 48vw));
+  max-width: var(--order-drawer-width, min(720px, 48vw));
   height: 100vh;
   max-height: 100vh;
   display: flex;
@@ -702,6 +703,11 @@
   box-sizing: border-box;
   overflow: hidden;
   pointer-events: auto;
+}
+
+.order-drawer-content.is-wide {
+  width: var(--order-drawer-wide-width, min(920px, 56vw));
+  max-width: var(--order-drawer-wide-width, min(920px, 56vw));
 }
 
 .kanban-card.is-active-card {
