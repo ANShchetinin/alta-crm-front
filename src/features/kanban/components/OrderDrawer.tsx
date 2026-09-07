@@ -6,21 +6,34 @@ import {
   Download,
   Eye,
   Mic,
-  MapPin,
   X,
+  Tag,
   User,
   Ruler,
   FileText,
   AlertCircle,
+  AlertTriangle,
   FileCheck,
   Check,
+  CheckCircle2,
   Camera,
   Sparkles,
   Send,
   Plus,
   Trash2,
   Edit2,
-  RefreshCw
+  RefreshCw,
+  Building2,
+  Phone,
+  MessageCircle,
+  MessageSquare,
+  Users,
+  Wrench,
+  Bot,
+  RotateCcw,
+  Copy,
+  Coins,
+  FileDown
 } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
@@ -30,6 +43,7 @@ import {
   getOrders,
   createOrder,
   updateOrder,
+  completeOrder,
   uploadAttachment,
   toggleAttachmentIsAct,
   fetchAttachmentBlob,
@@ -42,6 +56,8 @@ import {
   downloadContractDocx,
   analyzeAudioWithPrompt,
   chatWithOrderAi,
+  clearOrderAiChat,
+  getNextOrderNumber,
   type OrderStatus,
   type Order,
   type OrderMaterial,
@@ -50,15 +66,16 @@ import {
   type ContractParams,
   type ChatMessage
 } from '../../../api/kanban';
-import { getOrderAiUsage } from '../../../api/aiUsage';
+import { getOrderAiUsage, type OrderAiCostDto } from '../../../api/aiUsage';
 import { SYSTEM_PROMPT_SUMMARY, SYSTEM_PROMPT_SALES_ADVICE, SYSTEM_PROMPT_CHAT_ASSISTANT } from '../../../constants/aiPrompts';
 import { getClients, createClient, updateClient, type Client } from '../../../api/clients';
+import { getContractTemplateStatus, type ContractTemplateStatus } from '../../../api/settings';
 import { getMaterials, type Material } from '../../../api/storage';
 import { getEmployees, type Employee } from '../../../api/employees';
 import { useAppStore } from '../../../store/useAppStore';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useFeature } from '../../../hooks/useFeatureToggle';
-import { localInputToUtcIso, utcToLocalInput } from '../../../utils/dateUtils';
+import { formatDateTimeInTimezone } from '../../../utils/dateUtils';
 import { getYandexMapsUrl, get2GisUrl } from '../../../utils/navigation';
 import { OrderRemindersSection } from '../../../components/OrderRemindersSection';
 import { DocumentScannerModal } from '../../../components/DocumentScannerModal';
@@ -72,6 +89,44 @@ import { ContractPromptModal } from './ContractPromptModal';
 import { DEFAULT_ACT_CHECKLIST, mergeActChecklist, isActFile } from '../constants';
 import { useOrderDrawerStore } from '../../../store/useOrderDrawerStore';
 
+const getAvatarGradient = (name: string) => {
+  const gradients = [
+    'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+    'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+    'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+    'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
+    'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+    'linear-gradient(135deg, #06b6d4 0%, #0e7490 100%)'
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return gradients[Math.abs(hash) % gradients.length];
+};
+
+const getClientInitials = (name: string) => {
+  if (!name) return 'КЛ';
+  const parts = name.trim().split(/\\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+};
+
+const getWhatsAppLink = (phone: string) => {
+  const digits = phone.replace(/[^\\d]/g, '');
+  return `https://wa.me/${digits}`;
+};
+
+const getTelegramLink = (usernameOrPhone: string) => {
+  const clean = usernameOrPhone.trim().replace(/^@/, '');
+  if (/^\\+?\\d+$/.test(clean)) {
+    return `https://t.me/+${clean.replace(/[^\\d]/g, '')}`;
+  }
+  return `https://t.me/${clean}`;
+};
+
 export const OrderDrawer: React.FC = () => {
   const { t } = useTranslation();
   const role = useAuthStore(state => state.role);
@@ -79,7 +134,7 @@ export const OrderDrawer: React.FC = () => {
   const hasAiSummary = useFeature('AI_SUMMARY');
   const hasContractTemplates = useFeature('CONTRACT_TEMPLATES');
   const hasDocumentScanner = useFeature('DOCUMENT_SCANNER');
-  const { fetchLowStockMaterials } = useAppStore();
+  const { fetchLowStockMaterials, tenantSettings } = useAppStore();
 
   const { isOpen, orderId: editingOrderId, activeTab: orderModalTab, setActiveTab: setOrderModalTab, closeOrder } = useOrderDrawerStore();
 
@@ -87,6 +142,8 @@ export const OrderDrawer: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [allMaterials, setAllMaterials] = useState<Material[]>([]);
+  const [templateStatus, setTemplateStatus] = useState<ContractTemplateStatus | null>(null);
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
 
   const [initialFormDataJson, setInitialFormDataJson] = useState<string>('');
   const [isUnsavedConfirmOpen, setIsUnsavedConfirmOpen] = useState(false);
@@ -136,6 +193,7 @@ export const OrderDrawer: React.FC = () => {
   });
 
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [editingAttachmentId, setEditingAttachmentId] = useState<number | null>(null);
   const [editingAttachmentName, setEditingAttachmentName] = useState('');
   const [renamingAttachment, setRenamingAttachment] = useState(false);
@@ -147,16 +205,19 @@ export const OrderDrawer: React.FC = () => {
   const actFileInputRef = useRef<HTMLInputElement | null>(null);
   const generalFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // AI Assistant & Audio Analysis State
   const [aiSummary, setAiSummary] = useState<OrderAiSummary | null>(null);
+  const [orderAiCost, setOrderAiCost] = useState<OrderAiCostDto | null>(null);
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const audioFileInputRef = useRef<HTMLInputElement | null>(null);
   const [aiSubTab, setAiSubTab] = useState<'ANALYSIS' | 'CHAT'>('ANALYSIS');
   const [aiPromptPreset, setAiPromptPreset] = useState<'SUMMARY' | 'SALES_ADVICE' | 'CUSTOM'>('SUMMARY');
-  const [customSystemPrompt] = useState('');
+  const [customSystemPrompt, setCustomSystemPrompt] = useState('');
   const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInputText, setChatInputText] = useState('');
   const [isChatReplying, setIsChatReplying] = useState(false);
+  const [copyFeedbackText, setCopyFeedbackText] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const orderChatCacheRef = useRef<Record<number, ChatMessage[]>>({});
 
@@ -189,30 +250,43 @@ export const OrderDrawer: React.FC = () => {
     handoverDate: ''
   });
 
+  // Mobile Swipe-Down to Dismiss with Smooth Animation
+  const [sheetTranslateY, setSheetTranslateY] = useState(0);
+  const [isDraggingSheet, setIsDraggingSheet] = useState(false);
+  const [isSheetClosing, setIsSheetClosing] = useState(false);
+  const touchSheetStartYRef = useRef<number | null>(null);
+  const currentTranslateYRef = useRef<number>(0);
+
+  const isMobile = useMemo(() => {
+    return window.innerWidth <= 768 || window.matchMedia('(max-width: 768px)').matches;
+  }, []);
+
   // Load auxiliary data when opening drawer
   useEffect(() => {
     if (!isOpen) return;
 
     const loadAuxData = async () => {
       try {
-        const [statuses, clientsData, materialsData, employeesData] = await Promise.all([
+        const [statuses, clientsData, materialsData, employeesData, templateStatusData] = await Promise.all([
           getOrderStatuses().catch(() => []),
           !isWorker ? getClients().catch(() => []) : Promise.resolve([]),
           !isWorker ? getMaterials().catch(() => []) : Promise.resolve([]),
-          !isWorker ? getEmployees().catch(() => []) : Promise.resolve([])
+          !isWorker ? getEmployees().catch(() => []) : Promise.resolve([]),
+          !isWorker && hasContractTemplates ? getContractTemplateStatus().catch(() => null) : Promise.resolve(null)
         ]);
         const sortedColumns = statuses.sort((a, b) => a.sortOrder - b.sortOrder);
         setColumns(sortedColumns);
         setClients(clientsData);
         setAllMaterials(materialsData);
         setEmployees(employeesData);
+        setTemplateStatus(templateStatusData);
       } catch (err) {
         console.error("Failed to load auxiliary data in OrderDrawer", err);
       }
     };
 
     loadAuxData();
-  }, [isOpen, isWorker]);
+  }, [isOpen, isWorker, hasContractTemplates]);
 
   // Load order data when orderId changes
   useEffect(() => {
@@ -222,12 +296,14 @@ export const OrderDrawer: React.FC = () => {
       getOrders().then(orders => {
         const order = orders.find(o => o.id === editingOrderId);
         if (order) {
+          setCurrentOrder(order);
           populateOrderData(order);
         }
       }).catch(err => {
         console.error("Failed to load order details", err);
       });
     } else {
+      setCurrentOrder(null);
       initNewOrderForm();
     }
   }, [isOpen, editingOrderId]);
@@ -280,6 +356,8 @@ export const OrderDrawer: React.FC = () => {
     setInitialFormDataJson(JSON.stringify({ formData: initialData, pendingFilesCount: 0 }));
     setPendingFiles([]);
     setAiSummary(null);
+    setOrderAiCost(null);
+    setChatMessages([]);
   };
 
   const populateOrderData = (order: Order) => {
@@ -301,7 +379,6 @@ export const OrderDrawer: React.FC = () => {
       lightsCount: '30',
       timberLength: '17',
       canvasArticle: 'Полотно Мат 303',
-      contractDate: new Date().toISOString().slice(0, 10),
       discount: '',
       handoverDate: '',
       specItems: [],
@@ -310,7 +387,7 @@ export const OrderDrawer: React.FC = () => {
 
     const initialData = {
       clientId: order.clientId ? order.clientId.toString() : '',
-      statusId: order.statusId ? order.statusId.toString() : (columns[0]?.id ? columns[0].id.toString() : ''),
+      statusId: order.statusId ? order.statusId.toString() : '',
       assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
       measurerId: order.measurerId ? order.measurerId.toString() : '',
       measurerName: order.measurerName || '',
@@ -324,238 +401,97 @@ export const OrderDrawer: React.FC = () => {
       entrance: order.entrance || '',
       floor: order.floor || '',
       description: order.description || '',
-      totalPrice: (tot != null && tot > 0) ? tot.toString() : '',
-      prepayment: (prep != null && prep > 0) ? prep.toString() : '',
+      totalPrice: tot > 0 ? tot.toString() : '',
+      prepayment: prep > 0 ? prep.toString() : '',
       prepaymentPaid: !!order.prepaymentPaid,
       prepaymentPaidAt: order.prepaymentPaidAt || '',
-      remainder: (rem != null && rem > 0) ? rem.toString() : '',
+      remainder: rem > 0 ? rem.toString() : '',
       remainderPaid: !!order.remainderPaid,
       remainderPaidAt: order.remainderPaidAt || '',
-      installationPrice: (order.installationPrice != null && order.installationPrice > 0) ? order.installationPrice.toString() : '',
+      installationPrice: order.installationPrice ? order.installationPrice.toString() : '',
       installationDate: order.installationDate ? order.installationDate.slice(0, 10) : '',
-      measurementDate: utcToLocalInput(order.measurementDate),
-      materials: order.materials ? [...order.materials] : [],
-      attachments: order.attachments ? [...order.attachments] : [],
-      contractParams: initialContractParams
+      measurementDate: order.measurementDate ? order.measurementDate.slice(0, 16) : '',
+      contractParams: initialContractParams,
+      materials: order.materials || [],
+      attachments: order.attachments || []
     };
 
     setFormData(initialData);
     setInitialFormDataJson(JSON.stringify({ formData: initialData, pendingFilesCount: 0 }));
     setPendingFiles([]);
-    setAiSummary(null);
-    setAiSubTab('ANALYSIS');
-    setAiPromptPreset('SUMMARY');
 
-    const cachedChat = orderChatCacheRef.current[order.id] || [];
-    setChatMessages(cachedChat);
-    setChatInputText('');
+    if (hasAiSummary && order.id) {
+      getAiSummary(order.id).then(summary => {
+        setAiSummary(summary);
+      }).catch(() => {
+        setAiSummary(null);
+      });
 
-    getAiSummary(order.id).then((summary) => {
-      setAiSummary(summary);
-      if (summary?.chatHistory) {
-        try {
-          const parsed = typeof summary.chatHistory === 'string' ? JSON.parse(summary.chatHistory) : summary.chatHistory;
-          if (Array.isArray(parsed)) {
-            setChatMessages(parsed);
-            orderChatCacheRef.current[order.id] = parsed;
-          }
-        } catch (e) {
-          console.error("Failed to parse chatHistory from DB", e);
-        }
+      getOrderAiUsage(order.id).then(cost => {
+        setOrderAiCost(cost);
+      }).catch(() => {
+        setOrderAiCost(null);
+      });
+
+      if (orderChatCacheRef.current[order.id]) {
+        setChatMessages(orderChatCacheRef.current[order.id]);
+      } else {
+        setChatMessages([]);
       }
-    }).catch(() => setAiSummary(null));
-    getOrderAiUsage(order.id).catch(() => {});
-  };
-
-  const isCompletedColumn = (col?: OrderStatus | null) => {
-    if (!col) return false;
-    if (col.isCompleted !== undefined) return Boolean(col.isCompleted);
-    if (!col.name) return false;
-    const name = col.name.trim().toLowerCase();
-    return name.includes('заверш') || name.includes('готов') || name.includes('выполнен') || name.includes('complete');
+    }
   };
 
   const isDirty = useMemo(() => {
-    if (!isOpen) return false;
-    if (!editingOrderId) {
-      return !!(
-        (formData.clientId && formData.clientId !== '') ||
-        (formData.address && formData.address.trim() !== '') ||
-        (formData.description && formData.description.trim() !== '') ||
-        (formData.totalPrice && formData.totalPrice !== '') ||
-        (formData.prepayment && formData.prepayment !== '') ||
-        (formData.remainder && formData.remainder !== '') ||
-        (formData.installationPrice && formData.installationPrice !== '') ||
-        (formData.installationDate && formData.installationDate !== '') ||
-        (formData.measurementDate && formData.measurementDate !== '') ||
-        formData.materials.length > 0 ||
-        pendingFiles.length > 0
-      );
-    }
     if (!initialFormDataJson) return false;
     const currentJson = JSON.stringify({ formData, pendingFilesCount: pendingFiles.length });
     return currentJson !== initialFormDataJson;
-  }, [isOpen, editingOrderId, formData, pendingFiles.length, initialFormDataJson]);
+  }, [formData, pendingFiles.length, initialFormDataJson]);
+
+  const smoothClose = () => {
+    setIsSheetClosing(true);
+    setSheetTranslateY(window.innerHeight || 800);
+    setTimeout(() => {
+      closeOrder();
+      setIsSheetClosing(false);
+      setSheetTranslateY(0);
+    }, 240);
+  };
 
   const handleRequestCloseModal = () => {
     if (isDirty) {
       setIsUnsavedConfirmOpen(true);
     } else {
-      closeOrder();
+      smoothClose();
     }
-  };
-
-  // Escape key handler
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        handleRequestCloseModal();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isDirty]);
-
-  const submitOrderForm = async () => {
-    const prep = parseFloat(formData.prepayment || '0');
-    const rem = parseFloat(formData.remainder || '0');
-    const total = prep + rem;
-
-    const payload = {
-      clientId: parseInt(formData.clientId),
-      assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
-      measurerId: formData.measurerId ? parseInt(formData.measurerId) : undefined,
-      installedById: formData.installedById ? parseInt(formData.installedById) : undefined,
-      installedAt: formData.installedAt || undefined,
-      statusId: formData.statusId ? parseInt(formData.statusId) : (columns[0]?.id || 1),
-      orderNumber: (formData.orderNumber && formData.orderNumber.trim()) ? formData.orderNumber.trim() : null,
-      address: formData.address,
-      entrance: formData.entrance || undefined,
-      floor: formData.floor || undefined,
-      description: formData.description,
-      prepayment: prep,
-      prepaymentPaid: formData.prepaymentPaid,
-      prepaymentPaidAt: formData.prepaymentPaidAt || undefined,
-      remainder: rem,
-      remainderPaid: formData.remainderPaid,
-      remainderPaidAt: formData.remainderPaidAt || undefined,
-      totalPrice: total,
-      installationPrice: parseFloat(formData.installationPrice || '0'),
-      installationDate: formData.installationDate || undefined,
-      measurementDate: localInputToUtcIso(formData.measurementDate),
-      contractParams: formData.contractParams,
-      materials: formData.materials.map(m => ({
-        materialId: m.materialId,
-        quantity: typeof m.quantity === 'string' ? parseFloat(m.quantity) : m.quantity
-      }))
-    };
-
-    const targetStatusId = payload.statusId;
-    const targetCol = columns.find(c => c.id === targetStatusId);
-    if (isCompletedColumn(targetCol)) {
-      const hasActInForm = (formData.attachments || []).some(a => isActFile(a.fileName, a.isAct))
-        || pendingFiles.some(f => isActFile(f.name));
-      if (!hasActInForm) {
-        alert(`Для перевода заявки в статус «${targetCol?.name || 'Завершен'}» необходимо обязательно прикрепить подписанный Акт выполненных работ.`);
-        return;
-      }
-    }
-
-    try {
-      if (editingOrderId) {
-        await updateOrder(editingOrderId, payload);
-      } else {
-        const created = await createOrder(payload);
-        if (pendingFiles.length > 0) {
-          for (const f of pendingFiles) {
-            await uploadAttachment(created.id, f);
-          }
-        }
-      }
-      closeOrder();
-      fetchLowStockMaterials();
-      window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'save', orderId: editingOrderId } }));
-    } catch (err: any) {
-      console.error("Failed to save order", err);
-      alert(err.response?.data?.message || 'Ошибка при сохранении заявки');
-    }
-  };
-
-  const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (orderModalTab === 'AI') {
-      return;
-    }
-    await submitOrderForm();
-  };
-
-  const handleConfirmSaveAndClose = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setIsUnsavedConfirmOpen(false);
-    await submitOrderForm();
   };
 
   const handleConfirmDiscardAndClose = () => {
     setIsUnsavedConfirmOpen(false);
-    closeOrder();
+    smoothClose();
   };
 
-  const handleDeleteOrder = async () => {
-    if (!editingOrderId) return;
-    if (window.confirm("Вы уверены, что хотите удалить эту заявку?")) {
+  const handleCancelChanges = () => {
+    if (initialFormDataJson) {
       try {
-        await deleteOrder(editingOrderId);
-        closeOrder();
-        fetchLowStockMaterials();
-        window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'delete', orderId: editingOrderId } }));
+        const parsed = JSON.parse(initialFormDataJson);
+        if (parsed && parsed.formData) {
+          setFormData(parsed.formData);
+        }
       } catch (err) {
-        console.error("Failed to delete order", err);
+        console.error("Failed to reset form data", err);
       }
     }
+    setPendingFiles([]);
+    smoothClose();
   };
 
-  const handleQuickCreateClient = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newClientName.trim() || !newClientPhone.trim()) return;
-
-    setCreatingClient(true);
-    try {
-      const finalSource = newClientLeadSource === 'custom' ? newClientCustomLeadSource.trim() : newClientLeadSource;
-      const created = await createClient({
-        clientType: newClientType,
-        name: newClientName.trim(),
-        phone: newClientPhone.trim(),
-        inn: newClientType === 'LEGAL_ENTITY' && newClientInn.trim() ? newClientInn.trim() : undefined,
-        contactPerson: newClientType === 'LEGAL_ENTITY' && newClientContactPerson.trim() ? newClientContactPerson.trim() : undefined,
-        leadSource: finalSource || undefined,
-        whatsapp: newClientWhatsapp.trim() || undefined,
-        telegram: newClientTelegram.trim() || undefined
-      });
-      setClients(prev => [created, ...prev]);
-      setFormData(prev => ({ ...prev, clientId: created.id.toString() }));
-      setIsNewClientModalOpen(false);
-      setNewClientType('INDIVIDUAL');
-      setNewClientName('');
-      setNewClientPhone('');
-      setNewClientWhatsapp('');
-      setNewClientTelegram('');
-      setNewClientInn('');
-      setNewClientContactPerson('');
-      setNewClientLeadSource('');
-      setNewClientCustomLeadSource('');
-    } catch (err: any) {
-      console.error("Failed to create client", err);
-      alert(err.response?.data?.message || 'Не удалось создать клиента');
-    } finally {
-      setCreatingClient(false);
-    }
+  const handleConfirmSaveAndClose = async () => {
+    setIsUnsavedConfirmOpen(false);
+    await doSaveOrder(true);
   };
 
   const getContractParams = (): ContractParams => {
-    return formData.contractParams ? {
-      ...formData.contractParams,
-      actChecklist: mergeActChecklist(formData.contractParams.actChecklist)
-    } : {
+    return formData.contractParams || {
       area: '70,3',
       perimeter: '110,5',
       canvasesCount: '5',
@@ -571,160 +507,335 @@ export const OrderDrawer: React.FC = () => {
     };
   };
 
-  const updateContractParam = (key: keyof ContractParams, value: any) => {
-    const current = getContractParams();
+  const updateContractParam = (field: keyof ContractParams, value: any) => {
     setFormData(prev => ({
       ...prev,
       contractParams: {
-        ...current,
-        [key]: value
+        ...getContractParams(),
+        [field]: value
       }
     }));
   };
 
   const toggleActItem = (itemId: string) => {
-    const cp = getContractParams();
-    const list = mergeActChecklist(cp.actChecklist);
-    const updated = list.map(it => it.id === itemId ? { ...it, checked: !it.checked } : it);
-    updateContractParam('actChecklist', updated);
-  };
-
-  const executeContractDownload = async (clientId: number) => {
-    if (!editingOrderId) {
-      alert('Пожалуйста, сохраните заявку перед скачиванием договора');
-      return;
-    }
-
-    const client = clients.find(c => c.id === clientId);
-    const clientName = client?.name || 'Клиент';
-    const contractNum = formData.orderNumber || `${editingOrderId}`;
-
-    try {
-      const blob = await downloadContractDocx(editingOrderId);
-      const fileName = `Договор_№${contractNum}_${clientName}.docx`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err: any) {
-      console.error('Failed to download contract', err);
-      alert('Ошибка при формировании договора: ' + (err.message || err));
-    }
-  };
-
-  const handleStartGenerateContract = async () => {
-    if (!formData.clientId) {
-      alert('Пожалуйста, выберите клиента для формирования договора');
-      return;
-    }
-
-    const client = clients.find(c => c.id === parseInt(formData.clientId));
-    if (!client) return;
-
-    const isLegal = client.clientType === 'LEGAL_ENTITY';
-    const isMissingPassport = !isLegal && (
-      !client.name?.trim() ||
-      !client.phone?.trim() ||
-      !client.birthDate?.trim() ||
-      !client.passportSeriesNumber?.trim() ||
-      !client.passportIssuedBy?.trim() ||
-      !client.passportIssuedDate?.trim() ||
-      !client.registrationAddress?.trim()
-    );
-
-    const cp = getContractParams();
-    setContractPromptData({
-      clientId: client.id,
-      name: client.name || '',
-      phone: client.phone || '',
-      secondPhone: cp.secondPhone || '',
-      birthDate: client.birthDate ? client.birthDate.slice(0, 10) : '',
-      passportSeriesNumber: client.passportSeriesNumber || '',
-      passportIssuedBy: client.passportIssuedBy || '',
-      passportIssuedDate: client.passportIssuedDate ? client.passportIssuedDate.slice(0, 10) : '',
-      passportDepartmentCode: client.passportDepartmentCode || '',
-      registrationAddress: client.registrationAddress || '',
-      installationAddress: formData.address || '',
-      area: cp.area || '70,3',
-      perimeter: cp.perimeter || '110,5',
-      canvasesCount: cp.canvasesCount || '5',
-      insertLength: cp.insertLength || '20',
-      pipeCount: cp.pipeCount || '0',
-      lightsCount: cp.lightsCount || '30',
-      timberLength: cp.timberLength || '17',
-      canvasArticle: cp.canvasArticle || 'Полотно Мат 303',
-      discount: cp.discount || '',
-      handoverDate: cp.handoverDate || ''
+    const curParams = getContractParams();
+    const updatedChecklist = (curParams.actChecklist || DEFAULT_ACT_CHECKLIST).map(item => {
+      if (String(item.id) === String(itemId)) {
+        return { ...item, checked: !item.checked };
+      }
+      return item;
     });
+    updateContractParam('actChecklist', updatedChecklist);
+  };
 
-    if (isMissingPassport) {
-      setIsContractPromptOpen(true);
-    } else {
-      await executeContractDownload(client.id);
+  const currentMaterialsCost = useMemo(() => {
+    return formData.materials.reduce((sum, item) => sum + (item.fixedCostPrice || 0) * item.quantity, 0);
+  }, [formData.materials]);
+
+  const currentInstallationPrice = useMemo(() => {
+    return parseFloat(formData.installationPrice || '0') || 0;
+  }, [formData.installationPrice]);
+
+  const currentProfit = useMemo(() => {
+    const total = parseFloat(formData.totalPrice || '0') || (parseFloat(formData.prepayment || '0') || 0) + (parseFloat(formData.remainder || '0') || 0);
+    return total - currentMaterialsCost - currentInstallationPrice;
+  }, [formData.totalPrice, formData.prepayment, formData.remainder, currentMaterialsCost, currentInstallationPrice]);
+
+  const currentProfitMargin = useMemo(() => {
+    const total = parseFloat(formData.totalPrice || '0') || (parseFloat(formData.prepayment || '0') || 0) + (parseFloat(formData.remainder || '0') || 0);
+    if (total <= 0) return 0;
+    return Math.round((currentProfit / total) * 100);
+  }, [formData.totalPrice, formData.prepayment, formData.remainder, currentProfit]);
+
+  // Submission / Save logic
+  const doSaveOrder = async (shouldClose = false) => {
+    try {
+      const selectedStatus = columns.find(c => c.id.toString() === formData.statusId);
+      const isCompleted = selectedStatus ? (
+        selectedStatus.name.toLowerCase().includes('заверш') ||
+        selectedStatus.name.toLowerCase().includes('готов') ||
+        selectedStatus.name.toLowerCase().includes('выполнен')
+      ) : false;
+
+      const payload: any = {
+        clientId: formData.clientId ? parseInt(formData.clientId) : undefined,
+        statusId: formData.statusId ? parseInt(formData.statusId) : undefined,
+        assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
+        measurerId: formData.measurerId ? parseInt(formData.measurerId) : undefined,
+        installedById: formData.installedById ? parseInt(formData.installedById) : undefined,
+        orderNumber: formData.orderNumber || undefined,
+        address: formData.address || undefined,
+        entrance: formData.entrance || undefined,
+        floor: formData.floor || undefined,
+        description: formData.description,
+        totalPrice: formData.totalPrice ? parseFloat(formData.totalPrice) : undefined,
+        prepayment: formData.prepayment ? parseFloat(formData.prepayment) : undefined,
+        prepaymentPaid: !!formData.prepaymentPaid,
+        remainder: formData.remainder ? parseFloat(formData.remainder) : undefined,
+        remainderPaid: !!formData.remainderPaid,
+        installationPrice: formData.installationPrice ? parseFloat(formData.installationPrice) : undefined,
+        installationDate: formData.installationDate ? `${formData.installationDate}T00:00:00` : undefined,
+        measurementDate: formData.measurementDate ? `${formData.measurementDate}:00` : undefined,
+        contractParams: getContractParams()
+      };
+
+      if (isCompleted && !formData.installedAt) {
+        payload.installedAt = new Date().toISOString();
+      }
+
+      let savedOrder: Order;
+      if (editingOrderId) {
+        savedOrder = await updateOrder(editingOrderId, payload);
+      } else {
+        savedOrder = await createOrder(payload);
+      }
+
+      if (pendingFiles.length > 0 && savedOrder.id) {
+        for (const file of pendingFiles) {
+          try {
+            await uploadAttachment(savedOrder.id, file);
+          } catch (err) {
+            console.error("Failed to upload pending file", file.name, err);
+          }
+        }
+        setPendingFiles([]);
+      }
+
+      setInitialFormDataJson(JSON.stringify({ formData, pendingFilesCount: 0 }));
+      fetchLowStockMaterials();
+
+      window.dispatchEvent(new CustomEvent('alta:orders-changed', {
+        detail: { action: editingOrderId ? 'update' : 'create', orderId: savedOrder.id }
+      }));
+
+      if (shouldClose) {
+        smoothClose();
+      }
+    } catch (err: any) {
+      console.error("Failed to save order", err);
+      alert(err.response?.data?.message || "Ошибка при сохранении заявки");
     }
   };
 
-  const handleSavePromptAndGenerate = async (e: React.FormEvent) => {
+  const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      setContractPromptLoading(true);
-      const client = clients.find(c => c.id === contractPromptData.clientId);
-      if (client) {
-        await updateClient(client.id, {
-          ...client,
-          name: contractPromptData.name.trim(),
-          phone: contractPromptData.phone.trim(),
-          birthDate: contractPromptData.birthDate.trim(),
-          passportSeriesNumber: contractPromptData.passportSeriesNumber.trim(),
-          passportIssuedBy: contractPromptData.passportIssuedBy.trim(),
-          passportIssuedDate: contractPromptData.passportIssuedDate.trim(),
-          passportDepartmentCode: contractPromptData.passportDepartmentCode.trim() || undefined,
-          registrationAddress: contractPromptData.registrationAddress.trim()
-        });
-      }
+    doSaveOrder(true);
+  };
 
-      if (contractPromptData.installationAddress.trim()) {
-        setFormData(prev => ({ ...prev, address: contractPromptData.installationAddress.trim() }));
+  const handleDeleteOrder = async () => {
+    if (!editingOrderId) return;
+    if (window.confirm(t('kanban.modal.confirmDelete') || 'Удалить эту заявку?')) {
+      try {
+        await deleteOrder(editingOrderId);
+        window.dispatchEvent(new CustomEvent('alta:orders-changed', {
+          detail: { action: 'delete', orderId: editingOrderId }
+        }));
+        smoothClose();
+      } catch (err) {
+        console.error("Failed to delete order", err);
+        alert("Не удалось удалить заявку");
       }
+    }
+  };
+
+  const handleCompleteInstallation = async (e: React.MouseEvent, oId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const hasAct = formData.attachments.some(a => isActFile(a.fileName, a.isAct)) || pendingFiles.some(f => isActFile(f.name));
+    if (!hasAct) {
+      alert('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы».');
+      setOrderModalTab('FILES');
+      return;
+    }
+    try {
+      const updated = await completeOrder(oId);
+      if (updated) {
+        populateOrderData(updated);
+        window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'complete', orderId: oId } }));
+        alert('Монтаж успешно завершен!');
+      }
+    } catch (err: any) {
+      console.error('Failed to complete installation', err);
+      alert(err.response?.data?.message || err.message || 'Не удалось перевести заявку в завершенный статус');
+    }
+  };
+
+  const handleStartGenerateContract = () => {
+    if (!editingOrderId) {
+      alert("Сначала сохраните заявку, чтобы сформировать договор");
+      return;
+    }
+    const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
+    const curParams = getContractParams();
+    const cName = currentOrder?.clientName || selectedClient?.name || '';
+    const cPhone = currentOrder?.clientPhone || selectedClient?.phone || '';
+
+    setContractPromptData({
+      clientId: selectedClient?.id || 0,
+      name: cName,
+      phone: cPhone,
+      secondPhone: selectedClient?.whatsapp || '',
+      birthDate: selectedClient?.birthDate || '',
+      passportSeriesNumber: selectedClient?.passportSeriesNumber || '',
+      passportIssuedBy: selectedClient?.passportIssuedBy || '',
+      passportIssuedDate: selectedClient?.passportIssuedDate || '',
+      passportDepartmentCode: selectedClient?.passportDepartmentCode || '',
+      registrationAddress: selectedClient?.registrationAddress || '',
+      installationAddress: formData.address || '',
+      area: curParams.area || '70,3',
+      perimeter: curParams.perimeter || '110,5',
+      canvasesCount: curParams.canvasesCount || '5',
+      insertLength: curParams.insertLength || '20',
+      pipeCount: curParams.pipeCount || '0',
+      lightsCount: curParams.lightsCount || '30',
+      timberLength: curParams.timberLength || '17',
+      canvasArticle: curParams.canvasArticle || 'Полотно Мат 303',
+      discount: curParams.discount || '',
+      handoverDate: curParams.handoverDate || ''
+    });
+    setIsContractPromptOpen(true);
+  };
+
+  const handleApplyPassportToContract = (res: PassportApplyResult) => {
+    setContractPromptData(prev => ({
+      ...prev,
+      name: res.name || prev.name,
+      passportSeriesNumber: res.passportSeriesNumber || prev.passportSeriesNumber,
+      passportIssuedBy: res.passportIssuedBy || prev.passportIssuedBy,
+      passportIssuedDate: res.passportIssuedDate || prev.passportIssuedDate,
+      passportDepartmentCode: res.passportDepartmentCode || prev.passportDepartmentCode,
+      registrationAddress: res.registrationAddress || prev.registrationAddress,
+      birthDate: res.birthDate || prev.birthDate
+    }));
+  };
+
+  const handleApplyPassportToNewClient = (res: PassportApplyResult) => {
+    setNewClientName(res.name || newClientName);
+    setNewClientType('INDIVIDUAL');
+  };
+
+  const handleApplyPassportToOrder = async (res: PassportApplyResult) => {
+    if (formData.clientId) {
+      const existingClient = clients.find(c => c.id.toString() === formData.clientId);
+      if (existingClient) {
+        try {
+          await updateClient(existingClient.id, {
+            name: res.name || existingClient.name,
+            phone: existingClient.phone,
+            passportSeriesNumber: res.passportSeriesNumber || existingClient.passportSeriesNumber,
+            passportIssuedBy: res.passportIssuedBy || existingClient.passportIssuedBy,
+            passportIssuedDate: res.passportIssuedDate || existingClient.passportIssuedDate,
+            passportDepartmentCode: res.passportDepartmentCode || existingClient.passportDepartmentCode,
+            registrationAddress: res.registrationAddress || existingClient.registrationAddress,
+            birthDate: res.birthDate || existingClient.birthDate
+          });
+          const updatedClients = await getClients();
+          setClients(updatedClients);
+          alert('Данные паспорта успешно обновлены в карточке клиента!');
+        } catch (err) {
+          console.error("Failed to update client with passport data", err);
+        }
+      }
+    }
+  };
+
+  const handleCreateQuickClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientName.trim()) return;
+
+    setCreatingClient(true);
+    try {
+      const finalLeadSource = newClientLeadSource === 'CUSTOM'
+        ? (newClientCustomLeadSource.trim() || undefined)
+        : (newClientLeadSource || undefined);
+
+      const created = await createClient({
+        name: newClientName.trim(),
+        clientType: newClientType,
+        phone: newClientPhone.trim() || '',
+        whatsapp: newClientWhatsapp.trim() || undefined,
+        telegram: newClientTelegram.trim() || undefined,
+        inn: newClientType === 'LEGAL_ENTITY' ? (newClientInn.trim() || undefined) : undefined,
+        contactPerson: newClientType === 'LEGAL_ENTITY' ? (newClientContactPerson.trim() || undefined) : undefined,
+        leadSource: finalLeadSource
+      });
 
       const updatedClients = await getClients();
       setClients(updatedClients);
-      setIsContractPromptOpen(false);
+      setFormData(prev => ({ ...prev, clientId: created.id.toString() }));
+      setIsNewClientModalOpen(false);
 
-      await executeContractDownload(contractPromptData.clientId);
+      setNewClientName('');
+      setNewClientPhone('');
+      setNewClientWhatsapp('');
+      setNewClientTelegram('');
+      setNewClientInn('');
+      setNewClientContactPerson('');
+      setNewClientLeadSource('');
+      setNewClientCustomLeadSource('');
     } catch (err: any) {
-      console.error('Failed to save contract data', err);
-      alert('Ошибка при сохранении данных: ' + (err.message || err));
+      console.error("Failed to create client", err);
+      alert(err.response?.data?.message || "Не удалось создать клиента");
     } finally {
-      setContractPromptLoading(false);
+      setCreatingClient(false);
     }
   };
 
+  // Files & Attachments Handlers
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     if (editingOrderId) {
+      setUploadingFile(true);
       try {
-        const isAct = isActFile(file.name);
-        const newAttachment = await uploadAttachment(editingOrderId, file, isAct);
-        setFormData(prev => ({
-          ...prev,
-          attachments: [...prev.attachments, newAttachment]
-        }));
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const newAtt = await uploadAttachment(editingOrderId, file);
+          setFormData(prev => ({
+            ...prev,
+            attachments: [...prev.attachments, newAtt]
+          }));
+        }
         window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
-      } catch (err: any) {
+      } catch (err) {
         console.error("Failed to upload file", err);
-        alert(err.response?.data?.message || "Не удалось загрузить файл");
+        alert("Не удалось загрузить файл");
       } finally {
+        setUploadingFile(false);
         e.target.value = '';
       }
     } else {
-      setPendingFiles(prev => [...prev, file]);
+      const newFiles = Array.from(files);
+      setPendingFiles(prev => [...prev, ...newFiles]);
+      e.target.value = '';
+    }
+  };
+
+  const handleActUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (editingOrderId) {
+      setUploadingFile(true);
+      try {
+        const file = files[0];
+        const newAtt = await uploadAttachment(editingOrderId, file, true);
+        setFormData(prev => ({
+          ...prev,
+          attachments: [...prev.attachments, newAtt]
+        }));
+        window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
+      } catch (err) {
+        console.error("Failed to upload act", err);
+        alert("Не удалось загрузить Акт");
+      } finally {
+        setUploadingFile(false);
+        e.target.value = '';
+      }
+    } else {
+      const newFiles = Array.from(files);
+      setPendingFiles(prev => [...prev, ...newFiles]);
       e.target.value = '';
     }
   };
@@ -733,71 +844,15 @@ export const OrderDrawer: React.FC = () => {
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleUploadDirectActFile = async (originalFile: File) => {
-    let newFileName = originalFile.name;
-    if (!isActFile(newFileName)) {
-      newFileName = `Акт выполненных работ - ${originalFile.name}`;
+  const isViewableInBrowser = (name: string, contentType?: string): boolean => {
+    if (contentType) {
+      if (contentType.startsWith('image/')) return true;
+      if (contentType === 'application/pdf') return true;
+      if (contentType.startsWith('text/')) return true;
+      if (contentType.startsWith('audio/')) return true;
+      if (contentType.startsWith('video/')) return true;
     }
-    const file = new File([originalFile], newFileName, { type: originalFile.type });
-
-    if (editingOrderId) {
-      try {
-        const newAttachment = await uploadAttachment(editingOrderId, file, true);
-        setFormData(prev => ({
-          ...prev,
-          attachments: [...prev.attachments, newAttachment]
-        }));
-        window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
-      } catch (err: any) {
-        console.error("Failed to upload act file", err);
-        alert(err.response?.data?.message || "Не удалось загрузить Акт");
-      }
-    } else {
-      setPendingFiles(prev => [...prev, file]);
-    }
-  };
-
-  const handleUploadDirectGeneralFile = async (file: File) => {
-    if (editingOrderId) {
-      try {
-        const isAct = isActFile(file.name);
-        const newAttachment = await uploadAttachment(editingOrderId, file, isAct);
-        setFormData(prev => ({
-          ...prev,
-          attachments: [...prev.attachments, newAttachment]
-        }));
-        window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
-      } catch (err: any) {
-        console.error("Failed to upload file", err);
-        alert(err.response?.data?.message || "Не удалось загрузить файл");
-      }
-    } else {
-      setPendingFiles(prev => [...prev, file]);
-    }
-  };
-
-  const handleToggleAttachmentIsAct = async (att: OrderAttachment) => {
-    try {
-      const currentIsAct = isActFile(att.fileName, att.isAct);
-      const updated = await toggleAttachmentIsAct(att.id, !currentIsAct);
-      setFormData(prev => ({
-        ...prev,
-        attachments: prev.attachments.map(a => a.id === att.id ? { ...a, isAct: updated.isAct } : a)
-      }));
-      window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
-    } catch (err: any) {
-      console.error("Failed to toggle attachment act flag", err);
-      alert(err.response?.data?.message || "Не удалось изменить статус Акта");
-    }
-  };
-
-  const isViewableInBrowser = (fileName: string, contentType?: string) => {
-    const name = fileName.toLowerCase();
-    const type = (contentType || '').toLowerCase();
-    if (type.startsWith('image/') || type.startsWith('audio/') || type.startsWith('video/') || type.startsWith('text/') || type.includes('pdf')) {
-      return true;
-    }
-    return /.(pdf|png|jpe?g|gif|webp|svg|bmp|txt|csv|log|mp3|wav|ogg|mp4|webm)$/i.test(name);
+    return /\\.(pdf|png|jpe?g|gif|webp|svg|bmp|txt|csv|log|mp3|wav|ogg|mp4|webm)$/i.test(name);
   };
 
   const handleOpenAttachment = async (att: OrderAttachment) => {
@@ -841,9 +896,27 @@ export const OrderDrawer: React.FC = () => {
     }
   };
 
+  const handleToggleAttachmentIsAct = async (att: OrderAttachment) => {
+    try {
+      const updated = await toggleAttachmentIsAct(att.id, !att.isAct);
+      setFormData(prev => ({
+        ...prev,
+        attachments: prev.attachments.map(a => a.id === att.id ? { ...a, isAct: updated.isAct } : a)
+      }));
+      window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
+    } catch (err) {
+      console.error("Failed to toggle act status", err);
+    }
+  };
+
   const handleStartRenameAttachment = (att: OrderAttachment) => {
     setEditingAttachmentId(att.id);
     setEditingAttachmentName(att.fileName);
+  };
+
+  const handleCancelRenameAttachment = () => {
+    setEditingAttachmentId(null);
+    setEditingAttachmentName('');
   };
 
   const handleSaveRenameAttachment = async (attachmentId: number) => {
@@ -869,6 +942,7 @@ export const OrderDrawer: React.FC = () => {
     }
   };
 
+  // AI & Audio Handlers
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingOrderId) return;
@@ -998,31 +1072,72 @@ export const OrderDrawer: React.FC = () => {
       console.error("Failed to chat with AI", err);
       const errorMsg: ChatMessage = {
         role: 'assistant',
-        text: "⚠️ " + (err.response?.data?.message || "Не удалось получить ответ от AI. Попробуйте еще раз."),
+        text: `⚠️ Ошибка: ${err.response?.data?.message || err.message || 'Не удалось получить ответ'}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
-      const finalHistory = [...newHistory, errorMsg];
-      setChatMessages(finalHistory);
-      orderChatCacheRef.current[editingOrderId] = finalHistory;
+      setChatMessages([...newHistory, errorMsg]);
     } finally {
       setIsChatReplying(false);
     }
   };
 
+  const handleCopyTextWithToast = (text: string, label = "Скопировано") => {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyFeedbackText(label);
+      setTimeout(() => setCopyFeedbackText(null), 2200);
+    }).catch(err => {
+      console.error("Failed to copy", err);
+    });
+  };
 
+  const handleExportChatTxt = () => {
+    if (chatMessages.length === 0) return;
+    const lines = [
+      `=== История диалога с AI по заявке #${editingOrderId} ===`,
+      `Дата экспорта: ${new Date().toLocaleString('ru-RU')}`,
+      `--------------------------------------------------\\n`
+    ];
+    chatMessages.forEach(m => {
+      lines.push(`[${m.timestamp}] ${m.role === 'user' ? 'Менеджер' : 'AI-Ассистент'}:`);
+      lines.push(m.text);
+      if (m.tokensUsed) {
+        lines.push(`(Токенов: ${m.tokensUsed})`);
+      }
+      lines.push('');
+    });
+    const blob = new Blob([lines.join('\\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `order-${editingOrderId}-ai-chat.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
-  const currentTotalPrice = useMemo(() => {
-    const prep = parseFloat(formData.prepayment || '0') || 0;
-    const rem = parseFloat(formData.remainder || '0') || 0;
-    return Math.round(prep + rem);
-  }, [formData.prepayment, formData.remainder]);
+  const handleClearChat = async () => {
+    if (!editingOrderId) return;
+    if (!window.confirm('Очистить историю диалога с AI для этой заявки?')) return;
+    try {
+      await clearOrderAiChat(editingOrderId);
+      setChatMessages([]);
+      if (orderChatCacheRef.current) {
+        delete orderChatCacheRef.current[editingOrderId];
+      }
+    } catch (err) {
+      console.error("Failed to clear chat", err);
+      setChatMessages([]);
+    }
+  };
 
-  // Mobile swipe-down to dismiss state
-  const [sheetTranslateY, setSheetTranslateY] = useState(0);
-  const [isDraggingSheet, setIsDraggingSheet] = useState(false);
-  const touchSheetStartYRef = useRef<number | null>(null);
-  const currentTranslateYRef = useRef<number>(0);
+  const refreshAiSummary = () => {
+    if (!editingOrderId) return;
+    getAiSummary(editingOrderId).then(summary => {
+      setAiSummary(summary);
+    }).catch(() => {});
+  };
 
+  // Mobile Bottom Sheet Swipe Down Handler
   const handleSheetTouchStart = (e: React.TouchEvent) => {
     const touch = e.touches[0];
     touchSheetStartYRef.current = touch.clientY;
@@ -1045,8 +1160,8 @@ export const OrderDrawer: React.FC = () => {
     const deltaY = currentTranslateYRef.current;
     touchSheetStartYRef.current = null;
     setIsDraggingSheet(false);
-    if (deltaY > 90) {
-      setSheetTranslateY(0);
+
+    if (deltaY > 80) {
       handleRequestCloseModal();
     } else {
       setSheetTranslateY(0);
@@ -1056,12 +1171,19 @@ export const OrderDrawer: React.FC = () => {
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="order-drawer-overlay" onClick={handleRequestCloseModal}>
+    <div
+      className="order-drawer-overlay"
+      style={{
+        opacity: isSheetClosing ? 0 : 1,
+        transition: 'opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
+      }}
+      onClick={handleRequestCloseModal}
+    >
       <div 
         className={`order-drawer-content ${orderModalTab === 'MEASUREMENT' || orderModalTab === 'CONTRACT' ? 'is-wide' : ''}`} 
-        style={sheetTranslateY > 0 ? {
+        style={sheetTranslateY > 0 || isSheetClosing ? {
           transform: `translateY(${sheetTranslateY}px)`,
-          transition: isDraggingSheet ? 'none' : 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)'
+          transition: isDraggingSheet ? 'none' : 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
         } : undefined}
         onClick={e => e.stopPropagation()}
       >
@@ -1076,6 +1198,7 @@ export const OrderDrawer: React.FC = () => {
         >
           <div className="order-drawer-drag-handle" />
         </div>
+
         <div 
           className="order-drawer-header modal-header"
           onTouchStart={handleSheetTouchStart}
@@ -1123,8 +1246,9 @@ export const OrderDrawer: React.FC = () => {
             <X size={20} />
           </button>
         </div>
+
         <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-          {/* Tabs Navigation */}
+          {/* Tabs Navigation (Exact 1.7.14 Tabs) */}
           <div className="order-drawer-tabs">
             <button
               type="button"
@@ -1138,9 +1262,9 @@ export const OrderDrawer: React.FC = () => {
               onClick={() => setOrderModalTab('MEASUREMENT')}
               className={`order-drawer-tab-btn ${orderModalTab === 'MEASUREMENT' ? 'active' : ''}`}
             >
-              <Ruler size={15} /> Замер
+              <Ruler size={15} /> Замер и смета
             </button>
-            {hasContractTemplates && (
+            {!isWorker && hasContractTemplates && (
               <button
                 type="button"
                 onClick={() => setOrderModalTab('CONTRACT')}
@@ -1154,816 +1278,2344 @@ export const OrderDrawer: React.FC = () => {
               onClick={() => setOrderModalTab('FILES')}
               className={`order-drawer-tab-btn ${orderModalTab === 'FILES' ? 'active' : ''}`}
             >
-              <Paperclip size={15} /> Файлы {(formData.attachments.length > 0 || pendingFiles.length > 0) && <span className="order-drawer-tab-badge">{formData.attachments.length + pendingFiles.length}</span>}
+              <Paperclip size={15} /> Файлы и акты {(formData.attachments.length > 0 || pendingFiles.length > 0) && <span className="order-drawer-tab-badge">{formData.attachments.length + pendingFiles.length}</span>}
             </button>
-            {hasAiSummary && editingOrderId && (
+            {!isWorker && hasAiSummary && editingOrderId && (
               <button
                 type="button"
                 onClick={() => setOrderModalTab('AI')}
                 className={`order-drawer-tab-btn ${orderModalTab === 'AI' ? 'active' : ''}`}
               >
-                <Sparkles size={15} /> AI-Ассистент
+                <Mic size={15} /> AI анализ звонков
               </button>
             )}
           </div>
 
           <div className="order-drawer-body modal-body">
-            {/* MAIN TAB */}
+            {/* 1. ОСНОВНОЕ */}
             {orderModalTab === 'MAIN' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {/* Client Select & Quick Create */}
-                <div className="form-group" style={{ margin: 0 }}>
+              <>
+                <div className="form-group">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <label style={{ margin: 0 }}>{t('kanban.modal.client') || 'Клиент'} *</label>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPassportScannerTarget('ORDER');
-                          setIsPassportScannerOpen(true);
-                        }}
-                        className="btn btn-secondary"
-                        style={{ padding: '3px 8px', fontSize: '0.75rem', height: '26px' }}
-                        title="Сканировать паспорт (OCR)"
-                      >
-                        <Camera size={13} /> Скан паспорта
-                      </button>
-                      <button
-                        type="button"
+                    <label style={{ margin: 0 }}>{t('kanban.modal.client') || 'Клиент'}</label>
+                    {!editingOrderId && !isWorker && (
+                      <button 
+                        type="button" 
                         onClick={() => setIsNewClientModalOpen(true)}
-                        className="btn btn-secondary"
-                        style={{ padding: '3px 8px', fontSize: '0.75rem', height: '26px' }}
+                        className="btn-icon"
+                        style={{ fontSize: '0.8rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 6px' }}
                       >
-                        <Plus size={13} /> {t('kanban.modal.quickClient') || 'Новый клиент'}
+                        <Plus size={14} /> {t('clients.addClient') || 'Новый клиент'}
                       </button>
-                    </div>
+                    )}
                   </div>
-                  <ClientSearchSelect
-                    value={formData.clientId}
-                    clients={clients}
-                    onChange={(clientId) => {
-                      setFormData(prev => ({ ...prev, clientId }));
-                    }}
-                    onAddNewClient={() => setIsNewClientModalOpen(true)}
-                    isWorker={isWorker}
-                  />
+                  {editingOrderId ? (() => {
+                    const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
+                    const cName = currentOrder?.clientName || selectedClient?.name || 'Клиент';
+                    const cPhone = currentOrder?.clientPhone || selectedClient?.phone;
+                    const cType = currentOrder?.clientType || selectedClient?.clientType;
+                    const cAvatar = currentOrder?.clientAvatarUrl || selectedClient?.avatarUrl;
+                    const isLegal = cType === 'LEGAL_ENTITY';
+                    const leadSource = selectedClient?.leadSource;
+
+                    return (
+                      <div style={{
+                        padding: '10px 14px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: 'var(--radius-sm)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '8px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            color: '#fff',
+                            background: cAvatar ? 'transparent' : getAvatarGradient(cName || (isLegal ? 'Компания' : 'Клиент')),
+                            border: '1.5px solid rgba(255, 255, 255, 0.15)',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                            flexShrink: 0
+                          }}>
+                            {cAvatar ? (
+                              <img 
+                                src={cAvatar} 
+                                alt={cName} 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                              />
+                            ) : (
+                              isLegal ? <Building2 size={18} /> : getClientInitials(cName)
+                            )}
+                          </div>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{cName}</span>
+                              <span style={{
+                                fontSize: '0.72rem',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                background: isLegal ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                                color: isLegal ? '#60a5fa' : '#4ade80',
+                                fontWeight: 600,
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                              }}>
+                                {isLegal ? '🏢 Юр. лицо' : '👤 Физ. лицо'}
+                              </span>
+                              {leadSource && (
+                                <span style={{
+                                  padding: '2px 8px',
+                                  fontSize: '0.72rem',
+                                  color: '#60a5fa',
+                                  background: 'rgba(59, 130, 246, 0.1)',
+                                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                                  borderRadius: '4px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  whiteSpace: 'nowrap',
+                                  flexShrink: 0
+                                }}>
+                                  <Tag size={11} style={{ opacity: 0.8 }} />
+                                  {leadSource}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {cPhone && (
+                          <a
+                            href={`tel:${cPhone.replace(/[^\\d+]/g, '')}`}
+                            style={{
+                              color: '#22c55e',
+                              padding: '5px 12px',
+                              background: 'rgba(34, 197, 94, 0.12)',
+                              border: '1px solid rgba(34, 197, 94, 0.3)',
+                              borderRadius: 'var(--radius-sm)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              textDecoration: 'none',
+                              fontSize: '0.85rem',
+                              fontWeight: 600
+                            }}
+                            title={`Позвонить клиенту: ${cPhone}`}
+                          >
+                            <Phone size={14} /> {cPhone}
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })() : (
+                    <>
+                      <ClientSearchSelect
+                        value={formData.clientId}
+                        clients={clients}
+                        onChange={(val) => setFormData({ ...formData, clientId: val })}
+                        onAddNewClient={() => setIsNewClientModalOpen(true)}
+                        isWorker={isWorker}
+                      />
+                      {(() => {
+                        const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
+                        if (selectedClient && (selectedClient.phone || selectedClient.leadSource || selectedClient.whatsapp || selectedClient.telegram)) {
+                          return (
+                            <div style={{
+                              marginTop: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              flexWrap: 'wrap'
+                            }}>
+                              {selectedClient.phone && (
+                                <a
+                                  href={`tel:${selectedClient.phone.replace(/[^\\d+]/g, '')}`}
+                                  style={{
+                                    fontSize: '0.84rem',
+                                    color: '#22c55e',
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '5px 12px',
+                                    background: 'rgba(34, 197, 94, 0.12)',
+                                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontWeight: 600
+                                  }}
+                                  title={`Позвонить клиенту: ${selectedClient.phone}`}
+                                >
+                                  <Phone size={14} /> {selectedClient.phone}
+                                </a>
+                              )}
+                              {selectedClient.whatsapp && (
+                                <a
+                                  href={getWhatsAppLink(selectedClient.whatsapp)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    fontSize: '0.84rem',
+                                    color: '#25D366',
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '5px 12px',
+                                    background: 'rgba(37, 211, 102, 0.12)',
+                                    border: '1px solid rgba(37, 211, 102, 0.3)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontWeight: 600
+                                  }}
+                                  title={`Написать в WhatsApp: ${selectedClient.whatsapp}`}
+                                >
+                                  <MessageCircle size={14} /> WhatsApp
+                                </a>
+                              )}
+                              {selectedClient.telegram && (
+                                <a
+                                  href={getTelegramLink(selectedClient.telegram)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    fontSize: '0.84rem',
+                                    color: '#0088cc',
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '5px 12px',
+                                    background: 'rgba(0, 136, 204, 0.12)',
+                                    border: '1px solid rgba(0, 136, 204, 0.3)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontWeight: 600
+                                  }}
+                                  title={`Написать в Telegram: ${selectedClient.telegram}`}
+                                >
+                                  <Send size={14} /> Telegram
+                                </a>
+                              )}
+                              {selectedClient.leadSource && (
+                                <span style={{
+                                  padding: '4px 10px',
+                                  fontSize: '0.78rem',
+                                  color: '#60a5fa',
+                                  background: 'rgba(59, 130, 246, 0.1)',
+                                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                                  borderRadius: 'var(--radius-sm)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}>
+                                  <Tag size={12} style={{ opacity: 0.8 }} />
+                                  Источник: {selectedClient.leadSource}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </>
+                  )}
                 </div>
 
-                {/* Address & DaData autosuggest */}
-                <div className="form-group" style={{ margin: 0 }}>
+                {/* Назначение сотрудников: Ответственный, Замерщик, Монтажник */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '12px',
+                  marginBottom: '16px',
+                  padding: '14px',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-md)'
+                }}>
+                  {/* 1. Ответственный */}
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      <Users size={15} style={{ color: 'var(--accent-primary)' }} />
+                      {t('kanban.modal.assignee') || 'Ответственный'}
+                    </label>
+                    <EmployeeSearchSelect
+                      value={formData.assigneeId}
+                      employees={employees}
+                      onChange={(val) => setFormData({ ...formData, assigneeId: val })}
+                      placeholder={t('kanban.modal.selectAssignee') || 'Без ответственного'}
+                      icon={<Users size={15} style={{ color: 'var(--accent-primary)' }} />}
+                      accentColor="var(--accent-primary)"
+                      isWorker={isWorker}
+                    />
+                  </div>
+
+                  {/* 2. Замерщик */}
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      <Ruler size={15} style={{ color: '#a855f7' }} />
+                      Замерщик
+                    </label>
+                    <EmployeeSearchSelect
+                      value={formData.measurerId}
+                      employees={employees}
+                      onChange={(val) => setFormData({ ...formData, measurerId: val })}
+                      placeholder="Не назначен"
+                      icon={<Ruler size={15} style={{ color: '#a855f7' }} />}
+                      accentColor="#a855f7"
+                      isWorker={isWorker}
+                    />
+                  </div>
+
+                  {/* 3. Монтажник */}
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      <Wrench size={15} style={{ color: '#22c55e' }} />
+                      Монтажник
+                    </label>
+                    <EmployeeSearchSelect
+                      value={formData.installedById}
+                      employees={employees}
+                      onChange={(val) => setFormData({ ...formData, installedById: val })}
+                      placeholder="Не назначен"
+                      icon={<Wrench size={15} style={{ color: '#22c55e' }} />}
+                      accentColor="#22c55e"
+                      isWorker={isWorker}
+                    />
+                  </div>
+                </div>
+
+                {/* Дополнительная инфо о завершении монтажа */}
+                {(() => {
+                  const statusObj = columns.find(c => c.id.toString() === formData.statusId);
+                  const isCompleted = statusObj ? (
+                    statusObj.name.toLowerCase().includes('заверш') ||
+                    statusObj.name.toLowerCase().includes('готов') ||
+                    statusObj.name.toLowerCase().includes('выполнен')
+                  ) : false;
+                  const installedAt = formData.installedAt || currentOrder?.installedAt;
+                  if (!isCompleted || !installedAt) return null;
+                  return (
+                    <div style={{
+                      marginBottom: '16px',
+                      padding: '8px 12px',
+                      background: 'rgba(34, 197, 94, 0.06)',
+                      border: '1px solid rgba(34, 197, 94, 0.2)',
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '0.8rem',
+                      color: '#4ade80'
+                    }}>
+                      <CheckCircle2 size={15} />
+                      <span>Монтаж завершен: <strong>{formatDateTimeInTimezone(installedAt, tenantSettings?.timezone, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong></span>
+                    </div>
+                  );
+                })()}
+
+                {/* Баннер статуса Акта выполненных работ */}
+                {(() => {
+                  const hasAct = formData.attachments.some(a => isActFile(a.fileName, a.isAct)) || pendingFiles.some(f => isActFile(f.name));
+                  return (
+                    <div style={{
+                      marginBottom: '16px',
+                      padding: '10px 14px',
+                      background: hasAct ? 'rgba(34, 197, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                      border: hasAct ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)',
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '10px',
+                      flexWrap: 'wrap'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                        <FileCheck size={16} style={{ color: hasAct ? '#4ade80' : '#fbbf24' }} />
+                        <span style={{ color: hasAct ? '#4ade80' : '#fbbf24', fontWeight: 600 }}>
+                          {hasAct ? 'Акт выполненных работ прикреплен' : 'Акт выполненных работ не прикреплен'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setOrderModalTab('FILES')}
+                        className="btn btn-ghost"
+                        style={{ padding: '3px 8px', fontSize: '0.78rem', color: 'var(--accent-primary)', textDecoration: 'underline' }}
+                      >
+                        {hasAct ? 'Посмотреть во вкладке «Файлы»' : 'Перейти в «Файлы» для загрузки →'}
+                      </button>
+                    </div>
+                  );
+                })()}
+
+                {/* Адрес с DaData и навигаторами */}
+                <div className="form-group">
                   <label>{t('kanban.modal.address') || 'Адрес монтажа'}</label>
-                  <AddressSuggestions
-                    token={import.meta.env.VITE_DADATA_API_KEY || ''}
-                    value={formData.address ? { value: formData.address, unrestricted_value: formData.address, data: {} as any } : undefined}
-                    onChange={(suggestion) => {
-                      if (suggestion) {
-                        setFormData(prev => ({
-                          ...prev,
-                          address: suggestion.value,
-                          entrance: (suggestion.data as any).entrance || prev.entrance,
-                          floor: (suggestion.data as any).floor || prev.floor
-                        }));
-                      }
-                    }}
-                    inputProps={{
-                      placeholder: t('kanban.modal.addressPlaceholder') || 'Город, улица, дом...',
-                      className: 'input',
-                      onChange: (e: any) => setFormData({ ...formData, address: e.target.value })
-                    }}
-                  />
+                  {import.meta.env.VITE_DADATA_API_KEY ? (
+                    <AddressSuggestions
+                      token={import.meta.env.VITE_DADATA_API_KEY}
+                      defaultQuery={formData.address}
+                      onChange={(suggestion) => setFormData({...formData, address: suggestion?.value || formData.address})}
+                      inputProps={{
+                        placeholder: t('kanban.modal.address') || 'Адрес монтажа',
+                        className: "search-input",
+                        style: {width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box'},
+                        onChange: (e: any) => setFormData({...formData, address: e.target.value})
+                      }}
+                    />
+                  ) : (
+                    <input 
+                      type="text" 
+                      placeholder={t('kanban.modal.address') || 'Адрес монтажа'}
+                      className="search-input"
+                      style={{width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box'}}
+                      value={formData.address}
+                      onChange={(e) => setFormData({...formData, address: e.target.value})}
+                    />
+                  )}
                   {formData.address && (
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                        {t('kanban.modal.route') || 'Навигатор'}:
+                      </span>
                       <a
-                        href={getYandexMapsUrl(formData.address)}
+                        href={getYandexMapsUrl(formData.address, formData.entrance, formData.floor)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn btn-secondary"
-                        style={{ padding: '3px 8px', fontSize: '0.72rem', height: '24px', textDecoration: 'none' }}
+                        style={{
+                          padding: '5px 12px',
+                          fontSize: '0.82rem',
+                          fontWeight: 600,
+                          color: '#fc3f1d',
+                          background: 'rgba(252, 63, 29, 0.1)',
+                          border: '1px solid rgba(252, 63, 29, 0.3)',
+                          borderRadius: 'var(--radius-sm)',
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                        title="Построить маршрут в Яндекс.Картах / Навигаторе"
                       >
-                        <MapPin size={12} /> Яндекс Карты
+                        <span style={{
+                          width: '16px',
+                          height: '16px',
+                          borderRadius: '50%',
+                          background: '#fc3f1d',
+                          color: '#fff',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '9px',
+                          fontWeight: 800
+                        }}>
+                          Я
+                        </span>
+                        Яндекс
                       </a>
                       <a
-                        href={get2GisUrl(formData.address)}
+                        href={get2GisUrl(formData.address, formData.entrance, formData.floor)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn btn-secondary"
-                        style={{ padding: '3px 8px', fontSize: '0.72rem', height: '24px', textDecoration: 'none' }}
+                        style={{
+                          padding: '5px 12px',
+                          fontSize: '0.82rem',
+                          fontWeight: 600,
+                          color: '#22c55e',
+                          background: 'rgba(34, 197, 94, 0.1)',
+                          border: '1px solid rgba(34, 197, 94, 0.3)',
+                          borderRadius: 'var(--radius-sm)',
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                        title="Построить маршрут в 2ГИС"
                       >
-                        <MapPin size={12} /> 2ГИС
+                        <span style={{
+                          width: '16px',
+                          height: '16px',
+                          borderRadius: '50%',
+                          background: '#22c55e',
+                          color: '#fff',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '9px',
+                          fontWeight: 800
+                        }}>
+                          2Г
+                        </span>
+                        2ГИС
                       </a>
                     </div>
                   )}
                 </div>
 
-                {/* Entrance & Floor */}
-                <div className="form-grid-2">
-                  <div className="form-group" style={{ margin: 0 }}>
+                <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                     <label>{t('kanban.modal.entrance') || 'Подъезд'}</label>
-                    <input
-                      type="text"
-                      className="input"
+                    <input 
+                      type="text" 
+                      placeholder="1"
                       value={formData.entrance}
-                      onChange={(e) => setFormData({ ...formData, entrance: e.target.value })}
-                      placeholder="Напр. 2"
+                      onChange={(e) => setFormData({...formData, entrance: e.target.value})}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px' }}
                     />
                   </div>
-                  <div className="form-group" style={{ margin: 0 }}>
+                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                     <label>{t('kanban.modal.floor') || 'Этаж'}</label>
-                    <input
-                      type="text"
-                      className="input"
+                    <input 
+                      type="text" 
+                      placeholder="4"
                       value={formData.floor}
-                      onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
-                      placeholder="Напр. 5"
+                      onChange={(e) => setFormData({...formData, floor: e.target.value})}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px' }}
                     />
                   </div>
                 </div>
 
-                {/* Order Number & Description */}
-                <div className="form-grid-1-2">
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>{t('kanban.modal.orderNumber') || 'Номер договора/заявки'}</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={formData.orderNumber}
-                      onChange={(e) => setFormData({ ...formData, orderNumber: e.target.value })}
-                      placeholder="Напр. 104-М"
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>{t('kanban.modal.description') || 'Описание / Примечание'}</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Комментарий к заказу..."
-                    />
-                  </div>
+                <div className="form-group">
+                  <label>{t('kanban.modal.description') || 'Комментарии к заявке'}</label>
+                  <textarea 
+                    required
+                    rows={3}
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    className="search-input"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      minHeight: '80px',
+                      maxHeight: '300px',
+                      resize: 'vertical',
+                      lineHeight: '1.45',
+                      fontFamily: 'inherit',
+                      fontSize: '0.9rem'
+                    }}
+                    placeholder="Описание или комментарии к заявке..."
+                  />
                 </div>
 
-                {/* Assignees / Roles */}
-                <div className="form-grid-3">
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>{t('kanban.modal.assignee') || 'Ответственный менеджер'}</label>
-                    <EmployeeSearchSelect
-                      value={formData.assigneeId}
-                      employees={employees}
-                      onChange={(id) => setFormData({ ...formData, assigneeId: id })}
-                      placeholder="Выберите менеджера..."
-                      isWorker={isWorker}
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>{t('kanban.modal.measurer') || 'Замерщик'}</label>
-                    <EmployeeSearchSelect
-                      value={formData.measurerId}
-                      employees={employees}
-                      onChange={(id) => setFormData({ ...formData, measurerId: id })}
-                      placeholder="Выберите замерщика..."
-                      isWorker={isWorker}
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>{t('kanban.modal.installer') || 'Монтажник'}</label>
-                    <EmployeeSearchSelect
-                      value={formData.installedById}
-                      employees={employees}
-                      onChange={(id) => setFormData({ ...formData, installedById: id })}
-                      placeholder="Выберите монтажника..."
-                      isWorker={isWorker}
-                    />
-                  </div>
-                </div>
-
-                {/* Dates: Measurement & Installation */}
-                <div className="form-grid-2">
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>{t('kanban.modal.measurementDate') || 'Дата и время замера'}</label>
-                    <input
-                      type="datetime-local"
-                      className="input"
+                <div style={{display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '16px'}}>
+                  <div className="form-group" style={{flex: 1, minWidth: '200px'}}>
+                    <label>Дата и время замера</label>
+                    <input 
+                      type="datetime-local" 
+                      disabled={isWorker}
+                      readOnly={isWorker}
                       value={formData.measurementDate}
-                      onChange={(e) => setFormData({ ...formData, measurementDate: e.target.value })}
+                      onChange={(e) => setFormData({...formData, measurementDate: e.target.value})}
+                      className="custom-date-input"
+                      style={{width: '100%', ...(isWorker ? { opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' } : {})}}
                     />
                   </div>
-                  <div className="form-group" style={{ margin: 0 }}>
+                  <div className="form-group" style={{flex: 1, minWidth: '200px'}}>
                     <label>{t('kanban.modal.installationDate') || 'Дата монтажа'}</label>
-                    <input
-                      type="date"
-                      className="input"
+                    <input 
+                      type="date" 
+                      disabled={isWorker}
+                      readOnly={isWorker}
                       value={formData.installationDate}
-                      onChange={(e) => setFormData({ ...formData, installationDate: e.target.value })}
+                      onChange={(e) => setFormData({...formData, installationDate: e.target.value})}
+                      className="custom-date-input"
+                      style={{width: '100%', ...(isWorker ? { opacity: 0.8, cursor: 'not-allowed', background: 'rgba(255, 255, 255, 0.03)' } : {})}}
                     />
                   </div>
                 </div>
 
-                {/* Finances: Total, Prepayment, Remainder */}
-                <div className="order-finance-container">
-                  <div className="order-finance-header">
-                    <span className="order-finance-title">Финансовые расчеты</span>
-                    <span className="order-finance-total">
-                      Итого: {currentTotalPrice.toLocaleString('ru-RU')} ₽
+                {/* Финансы */}
+                {isWorker ? (
+                  <div style={{
+                    background: 'rgba(59, 130, 246, 0.08)',
+                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '14px 18px',
+                    marginBottom: '16px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                      Остаток к оплате по договору:
+                    </span>
+                    <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
+                      {(parseFloat(formData.remainder || '0') || 0).toLocaleString('ru-RU')} ₽
                     </span>
                   </div>
+                ) : (
+                  <>
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '16px',
+                      marginBottom: '16px'
+                    }}>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                        Финансы и оплата
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>{t('kanban.modal.installationPrice') || 'Стоимость монтажа'}</label>
+                          <input 
+                            type="number" 
+                            min="0" 
+                            step="0.01"
+                            placeholder="0"
+                            value={formData.installationPrice || ''}
+                            onChange={(e) => setFormData({...formData, installationPrice: e.target.value})}
+                            className="custom-number-input"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Аванс (₽)</label>
+                          <input 
+                            type="number" 
+                            min="0" 
+                            step="0.01"
+                            placeholder="0"
+                            value={formData.prepayment || ''}
+                            onChange={(e) => {
+                              const newPrep = e.target.value;
+                              const prepNum = parseFloat(newPrep || '0');
+                              const remNum = parseFloat(formData.remainder || '0');
+                              const sum = prepNum + remNum;
+                              setFormData({
+                                ...formData, 
+                                prepayment: newPrep,
+                                totalPrice: sum > 0 ? sum.toString() : ''
+                              });
+                            }}
+                            className="custom-number-input"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Остаток (₽)</label>
+                          <input 
+                            type="number" 
+                            min="0" 
+                            step="0.01"
+                            placeholder="0"
+                            value={formData.remainder || ''}
+                            onChange={(e) => {
+                              const newRem = e.target.value;
+                              const remNum = parseFloat(newRem || '0');
+                              const prepNum = parseFloat(formData.prepayment || '0');
+                              const sum = prepNum + remNum;
+                              setFormData({
+                                ...formData, 
+                                remainder: newRem,
+                                totalPrice: sum > 0 ? sum.toString() : ''
+                              });
+                            }}
+                            className="custom-number-input"
+                          />
+                        </div>
+                      </div>
 
-                  <div className="order-finance-grid">
-                    <div className="order-finance-col">
-                      <div className="order-finance-label-row">
-                        <label className="order-finance-label">Предоплата (₽)</label>
-                        <label className="order-finance-checkbox-label">
-                          <input
+                      {/* Статусы фактической оплаты */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginBottom: '14px' }}>
+                        <label style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 12px',
+                          background: formData.prepaymentPaid ? 'rgba(34, 197, 94, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                          border: formData.prepaymentPaid ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer'
+                        }}>
+                          <input 
                             type="checkbox"
-                            checked={formData.prepaymentPaid}
+                            checked={!!formData.prepaymentPaid}
                             onChange={(e) => setFormData({ ...formData, prepaymentPaid: e.target.checked })}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                           />
-                          <span>Оплачено</span>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 500, color: formData.prepaymentPaid ? '#4ade80' : 'var(--text-secondary)' }}>
+                            {formData.prepaymentPaid ? '✓ Аванс оплачен (в кассе)' : 'Аванс не оплачен'}
+                          </span>
                         </label>
-                      </div>
-                      <input
-                        type="number"
-                        className="input"
-                        value={formData.prepayment}
-                        onChange={(e) => setFormData({ ...formData, prepayment: e.target.value })}
-                        placeholder="0"
-                      />
-                    </div>
 
-                    <div className="order-finance-col">
-                      <div className="order-finance-label-row">
-                        <label className="order-finance-label">Остаток (₽)</label>
-                        <label className="order-finance-checkbox-label">
-                          <input
+                        <label style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 12px',
+                          background: formData.remainderPaid ? 'rgba(34, 197, 94, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                          border: formData.remainderPaid ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer'
+                        }}>
+                          <input 
                             type="checkbox"
-                            checked={formData.remainderPaid}
+                            checked={!!formData.remainderPaid}
                             onChange={(e) => setFormData({ ...formData, remainderPaid: e.target.checked })}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                           />
-                          <span>Оплачено</span>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 500, color: formData.remainderPaid ? '#4ade80' : 'var(--text-secondary)' }}>
+                            {formData.remainderPaid ? '✓ Остаток оплачен (в кассе)' : 'Остаток не оплачен'}
+                          </span>
                         </label>
                       </div>
-                      <input
-                        type="number"
-                        className="input"
-                        value={formData.remainder}
-                        onChange={(e) => setFormData({ ...formData, remainder: e.target.value })}
-                        placeholder="0"
-                      />
+
+                      <div style={{
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        background: 'rgba(59, 130, 246, 0.08)', 
+                        border: '1px solid rgba(59, 130, 246, 0.2)', 
+                        borderRadius: 'var(--radius-sm)', 
+                        padding: '10px 14px'
+                      }}>
+                        <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>Итого стоимость по договору:</span>
+                        <span style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
+                          {(parseFloat(formData.prepayment || '0') + parseFloat(formData.remainder || '0')).toLocaleString('ru-RU')} ₽
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="order-finance-col">
-                      <div className="order-finance-label-row">
-                        <label className="order-finance-label">Оплата монтажнику (₽)</label>
+                    {/* Финансовые показатели (Себестоимость, монтаж, прибыль, маржинальность) */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                      gap: '10px',
+                      padding: '14px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 'var(--radius-md)',
+                      marginBottom: '16px'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                          Себестоимость материалов
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#f59e0b' }}>
+                          {currentMaterialsCost.toLocaleString('ru-RU')} ₽
+                        </div>
                       </div>
+                      <div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                          Монтаж
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                          {currentInstallationPrice.toLocaleString('ru-RU')} ₽
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                          {t('kanban.modal.profit') || 'Прибыль'}
+                        </div>
+                        <div style={{
+                          fontWeight: 700,
+                          fontSize: '1.05rem',
+                          color: currentProfit >= 0 ? 'var(--success)' : 'var(--danger)'
+                        }}>
+                          {currentProfit >= 0 ? `+${currentProfit.toLocaleString('ru-RU')}` : currentProfit.toLocaleString('ru-RU')} ₽
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                          {t('kanban.modal.margin') || 'Рентабельность'}
+                        </div>
+                        <div style={{
+                          fontWeight: 700,
+                          fontSize: '1.05rem',
+                          color: currentProfitMargin >= 0 ? 'var(--success)' : 'var(--danger)'
+                        }}>
+                          {currentProfitMargin}%
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {editingOrderId && !isWorker && (
+                  <OrderRemindersSection
+                    orderId={editingOrderId}
+                    employees={employees}
+                  />
+                )}
+              </>
+            )}
+
+            {/* 2. ЗАМЕР И СМЕТА */}
+            {orderModalTab === 'MEASUREMENT' && (
+              <MeasurementWizard
+                orderId={editingOrderId || undefined}
+                materials={allMaterials}
+                canViewFinances={role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER'}
+                onDownloadDocx={handleStartGenerateContract}
+                onSaved={(_, calc) => {
+                  setFormData(prev => {
+                    const newTotalPrice = calc.totalSalePrice.toString();
+                    const prepay = parseFloat(prev.prepayment) || 0;
+                    const newRem = Math.max(0, calc.totalSalePrice - prepay).toString();
+
+                    const installSum = calc.items
+                      .filter(it => it.type === 'SERVICE')
+                      .reduce((sum, it) => sum + (it.totalSalePrice || 0), 0);
+
+                    const updatedParams = { ...getContractParams() };
+                    updatedParams.area = calc.totalArea.toString();
+                    updatedParams.perimeter = calc.totalPerimeter.toString();
+                    updatedParams.lightsCount = calc.totalLightsCount.toString();
+                    updatedParams.pipeCount = calc.totalPipesCount.toString();
+                    if (calc.totalCorniceLength > 0) {
+                      updatedParams.timberLength = calc.totalCorniceLength.toString();
+                    }
+
+                    updatedParams.specItems = calc.items.map((it, i) => ({
+                      idx: i + 1,
+                      name: it.name + (it.roomName ? ` (${it.roomName})` : ''),
+                      quantity: it.quantity.toString(),
+                      unit: it.unit || 'шт.',
+                      price: it.unitSalePrice,
+                      total: it.totalSalePrice
+                    }));
+
+                    return {
+                      ...prev,
+                      totalPrice: newTotalPrice,
+                      remainder: newRem,
+                      installationPrice: installSum.toString(),
+                      contractParams: updatedParams
+                    };
+                  });
+
+                  if (editingOrderId) {
+                    window.dispatchEvent(new CustomEvent('alta:orders-changed', {
+                      detail: { action: 'measurement_saved', orderId: editingOrderId }
+                    }));
+                  }
+                  alert('Замер и смета успешно сохранены в заказ!');
+                }}
+              />
+            )}
+
+            {/* 3. ДОГОВОР И СПЕЦИФИКАЦИЯ */}
+            {orderModalTab === 'CONTRACT' && !isWorker && hasContractTemplates && (
+              <>
+                {/* Шапка Договора */}
+                <div style={{
+                  background: 'rgba(59, 130, 246, 0.06)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '14px 16px',
+                  marginBottom: '18px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                    <label style={{ margin: 0, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', color: '#60a5fa', fontSize: '0.9rem' }}>
+                      <FileText size={16} /> Номер и формирование договора
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const num = await getNextOrderNumber();
+                            setFormData(prev => ({ ...prev, orderNumber: num }));
+                          } catch (err) {
+                            console.error("Failed to generate order number", err);
+                          }
+                        }}
+                        className="btn btn-ghost"
+                        style={{ padding: '4px 8px', fontSize: '0.78rem', color: 'var(--accent-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        title="Сгенерировать следующий номер по шаблону"
+                      >
+                        <RefreshCw size={12} /> Сгенерировать
+                      </button>
+                      {formData.orderNumber && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, orderNumber: '' }))}
+                          className="btn btn-ghost"
+                          style={{ padding: '4px 8px', fontSize: '0.78rem', color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          title="Очистить номер"
+                        >
+                          <X size={12} /> Очистить
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Номер договора</label>
+                        <input
+                          type="text"
+                          placeholder="ДОГ-2026/001"
+                          value={formData.orderNumber || ''}
+                          onChange={e => setFormData({ ...formData, orderNumber: e.target.value })}
+                          className="search-input"
+                          style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace', fontWeight: 700, color: '#4ade80', paddingLeft: '12px' }}
+                        />
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Дата создания договора</label>
+                        <input
+                          type="date"
+                          value={getContractParams().contractDate || new Date().toISOString().slice(0, 10)}
+                          onChange={e => updateContractParam('contractDate', e.target.value)}
+                          className="custom-date-input"
+                          style={{ width: '100%', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                    </div>
+                    {(() => {
+                      const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
+                      const isLegal = selectedClient?.clientType === 'LEGAL_ENTITY';
+                      const hasTemplate = isLegal ? !!templateStatus?.legal : !!templateStatus?.individual;
+                      const missingTemplateMsg = `Шаблон договора для ${isLegal ? 'юридических' : 'физических'} лиц не загружен.\\n\\nПожалуйста, перейдите в раздел «Шаблоны договоров» и загрузите .docx файл договора.`;
+
+                      return (
+                        <>
+                          {!hasTemplate && (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '12px',
+                              padding: '10px 14px',
+                              background: 'rgba(245, 158, 11, 0.12)',
+                              border: '1px solid rgba(245, 158, 11, 0.3)',
+                              borderRadius: 'var(--radius-sm)',
+                              color: '#fbbf24',
+                              fontSize: '0.85rem'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                                <span>Шаблон договора для {isLegal ? 'юр. лиц' : 'физ. лиц'} не загружен</span>
+                              </div>
+                              <a 
+                                href="/contract-templates" 
+                                target="_blank" 
+                                rel="noreferrer"
+                                style={{
+                                  fontSize: '0.78rem',
+                                  fontWeight: 600,
+                                  color: '#ffffff',
+                                  background: '#f59e0b',
+                                  padding: '4px 10px',
+                                  borderRadius: '6px',
+                                  textDecoration: 'none',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                Загрузить шаблон
+                              </a>
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                            <button
+                              type="button"
+                              onClick={handleStartGenerateContract}
+                              className="btn btn-primary"
+                              disabled={contractPromptLoading || !hasTemplate}
+                              style={{
+                                flex: 1,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                fontWeight: 600,
+                                height: '44px',
+                                fontSize: '0.92rem',
+                                opacity: !hasTemplate ? 0.55 : 1,
+                                cursor: !hasTemplate ? 'not-allowed' : 'pointer'
+                              }}
+                              title={!hasTemplate ? `Шаблон договора для ${isLegal ? 'юр. лиц' : 'физ. лиц'} не загружен. Перейдите в раздел «Шаблоны договоров».` : 'Сформировать и скачать договор в формате Word (.docx)'}
+                            >
+                              <FileText size={17} /> {contractPromptLoading ? 'Формирование договора...' : 'Сформировать договор (Word)'}
+                            </button>
+
+                            {!hasTemplate && (
+                              <button
+                                type="button"
+                                onClick={() => alert(missingTemplateMsg)}
+                                style={{
+                                  width: '44px',
+                                  height: '44px',
+                                  borderRadius: '8px',
+                                  background: 'rgba(245, 158, 11, 0.15)',
+                                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                                  color: '#fbbf24',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer',
+                                  flexShrink: 0
+                                }}
+                                title="Шаблон не загружен! Нажмите для справки"
+                              >
+                                <AlertTriangle size={18} />
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Блок 1: Сводные параметры потолка */}
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '16px',
+                  marginBottom: '18px'
+                }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Tag size={15} style={{ color: 'var(--accent-primary)' }} />
+                    1. Сводные параметры потолка (Стр. 1 и Стр. 5 договора)
+                  </h4>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.78rem' }}>Площадь (м²)</label>
                       <input
-                        type="number"
-                        className="input"
-                        value={formData.installationPrice}
-                        onChange={(e) => setFormData({ ...formData, installationPrice: e.target.value })}
+                        type="text"
+                        placeholder="70,3"
+                        value={getContractParams().area || ''}
+                        onChange={(e) => updateContractParam('area', e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '10px' }}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.78rem' }}>Периметр (м/п)</label>
+                      <input
+                        type="text"
+                        placeholder="110,5"
+                        value={getContractParams().perimeter || ''}
+                        onChange={(e) => updateContractParam('perimeter', e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '10px' }}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.78rem' }}>Кол-во полотен</label>
+                      <input
+                        type="text"
+                        placeholder="5"
+                        value={getContractParams().canvasesCount || ''}
+                        onChange={(e) => updateContractParam('canvasesCount', e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '10px' }}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.78rem' }}>Вставка (м/п)</label>
+                      <input
+                        type="text"
+                        placeholder="20"
+                        value={getContractParams().insertLength || ''}
+                        onChange={(e) => updateContractParam('insertLength', e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '10px' }}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.78rem' }}>Обвод труб (шт)</label>
+                      <input
+                        type="text"
                         placeholder="0"
+                        value={getContractParams().pipeCount || ''}
+                        onChange={(e) => updateContractParam('pipeCount', e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '10px' }}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.78rem' }}>Свет. пр. (точек)</label>
+                      <input
+                        type="text"
+                        placeholder="30"
+                        value={getContractParams().lightsCount || ''}
+                        onChange={(e) => updateContractParam('lightsCount', e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '10px' }}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.78rem' }}>Брус (м/п)</label>
+                      <input
+                        type="text"
+                        placeholder="17"
+                        value={getContractParams().timberLength || ''}
+                        onChange={(e) => updateContractParam('timberLength', e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '10px' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.78rem' }}>Артикул полотна (фактура)</label>
+                      <input
+                        type="text"
+                        placeholder="Полотно Мат 303"
+                        value={getContractParams().canvasArticle || ''}
+                        onChange={(e) => updateContractParam('canvasArticle', e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '10px' }}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.78rem' }}>Дата сдачи объекта (Приложение №1)</label>
+                      <input
+                        type="text"
+                        placeholder="« 20 » августа 2026г."
+                        value={getContractParams().handoverDate || ''}
+                        onChange={(e) => updateContractParam('handoverDate', e.target.value)}
+                        className="search-input"
+                        style={{ width: '100%', paddingLeft: '10px' }}
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Reminders section for existing order */}
-                {editingOrderId && !isWorker && (
-                  <div style={{ marginTop: '4px' }}>
-                    <OrderRemindersSection orderId={editingOrderId} employees={employees} />
+                {/* Блок 2: Чек-лист выполненных работ для Акта */}
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '16px'
+                }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FileCheck size={15} style={{ color: '#60a5fa' }} />
+                    2. Чек-лист выполненных работ для Акта (Приложение №3)
+                  </h4>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
+                    {(getContractParams().actChecklist || DEFAULT_ACT_CHECKLIST).map((actItem) => (
+                      <div
+                        key={actItem.id}
+                        onClick={() => toggleActItem(actItem.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          background: actItem.checked ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                          border: actItem.checked ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <span style={{ fontSize: '0.8rem', color: actItem.checked ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                          {actItem.name}
+                        </span>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          background: actItem.checked ? '#22c55e' : 'rgba(255,255,255,0.08)',
+                          color: actItem.checked ? '#ffffff' : 'var(--text-secondary)'
+                        }}>
+                          {actItem.checked ? 'ДА' : 'НЕТ'}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
+                </div>
+              </>
             )}
 
-            {/* MEASUREMENT TAB */}
-            {orderModalTab === 'MEASUREMENT' && (
-              <div style={{ padding: '4px 0' }}>
-                <MeasurementWizard
-                  orderId={editingOrderId || undefined}
-                  materials={allMaterials}
-                  canViewFinances={!isWorker}
-                />
-              </div>
-            )}
+            {/* 4. ФАЙЛЫ И АКТЫ */}
+            {orderModalTab === 'FILES' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+                {/* Выделенный блок для Акта выполненных работ */}
+                {(() => {
+                  const actAttachment = formData.attachments.find(a => isActFile(a.fileName, a.isAct));
+                  const pendingActFile = pendingFiles.find(f => isActFile(f.name));
+                  const hasAct = !!(actAttachment || pendingActFile);
 
-            {/* CONTRACT TAB */}
-            {orderModalTab === 'CONTRACT' && hasContractTemplates && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  return (
+                    <div style={{
+                      padding: '14px 16px',
+                      background: hasAct 
+                        ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.04) 100%)' 
+                        : 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.04) 100%)',
+                      border: hasAct ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(245, 158, 11, 0.35)',
+                      borderRadius: 'var(--radius-md)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <FileCheck size={20} style={{ color: hasAct ? '#4ade80' : '#fbbf24', flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: hasAct ? '#4ade80' : '#fbbf24' }}>
+                              Акт выполненных работ (Приложение №3)
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                              {hasAct ? 'Подписанный Акт прикреплен к заявке' : 'Обязателен для возможности завершения монтажа'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            if (hasDocumentScanner) {
+                              setActionSheetMode('ACT');
+                              setIsActActionSheetOpen(true);
+                            } else {
+                              actFileInputRef.current?.click();
+                            }
+                          }}
+                          className="file-upload-btn" 
+                          style={{ 
+                            cursor: 'pointer', 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '6px',
+                            background: hasAct ? 'rgba(34, 197, 94, 0.2)' : 'linear-gradient(135deg, #f59e0b, #d97706)',
+                            border: hasAct ? '1px solid rgba(34, 197, 94, 0.4)' : 'none',
+                            color: '#fff',
+                            fontWeight: 600,
+                            fontSize: '0.82rem',
+                            padding: '6px 12px',
+                            borderRadius: 'var(--radius-sm)'
+                          }}
+                        >
+                          {hasDocumentScanner ? <Camera size={14} /> : <FileCheck size={14} />}
+                          {hasAct 
+                            ? 'Заменить Акт' 
+                            : (hasDocumentScanner ? 'Загрузить / Отсканировать Акт' : 'Загрузить Акт')}
+                        </button>
+                        <input 
+                          ref={actFileInputRef}
+                          type="file" 
+                          style={{ display: 'none' }}
+                          onChange={handleActUpload} 
+                          disabled={uploadingFile} 
+                          accept="image/*,application/pdf"
+                        />
+                      </div>
+
+                      {hasAct && (actAttachment || pendingActFile) && (
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          background: 'rgba(0, 0, 0, 0.25)',
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid rgba(34, 197, 94, 0.25)'
+                        }}>
+                          <span style={{ fontSize: '0.88rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>
+                            📄 {actAttachment ? actAttachment.fileName : `${pendingActFile?.name} (ожидает сохранения)`}
+                          </span>
+                          {actAttachment && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {isViewableInBrowser(actAttachment.fileName, actAttachment.contentType) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAttachment(actAttachment)}
+                                  className="btn btn-ghost"
+                                  style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                  title="Посмотреть в браузере"
+                                >
+                                  <Eye size={16} />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadAttachment(actAttachment)}
+                                className="btn btn-ghost"
+                                style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                title="Скачать файл"
+                              >
+                                <Download size={16} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Генерация договора и акта</h3>
-                    <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      Заполните параметры полотна и работ для автоматического создания DOCX/PDF документов.
+                    <h3 style={{margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)'}}>{t('kanban.modal.attachments') || 'Прикрепленные файлы'}</h3>
+                    <p style={{margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>
+                      Прикрепленные файлы, чертежи, фото и сканы документов
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={handleStartGenerateContract}
-                    className="btn btn-primary"
-                    style={{ height: '38px', gap: '6px' }}
-                  >
-                    <Download size={15} /> Сформировать договор
-                  </button>
-                </div>
-
-                {/* Contract Parameters */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: '0.78rem' }}>Площадь (м²)</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={getContractParams().area || ''}
-                      onChange={(e) => updateContractParam('area', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: '0.78rem' }}>Периметр (м)</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={getContractParams().perimeter || ''}
-                      onChange={(e) => updateContractParam('perimeter', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: '0.78rem' }}>Полотен (шт)</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={getContractParams().canvasesCount || ''}
-                      onChange={(e) => updateContractParam('canvasesCount', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: '0.78rem' }}>Вставка (м)</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={getContractParams().insertLength || ''}
-                      onChange={(e) => updateContractParam('insertLength', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: '0.78rem' }}>Светильники (шт)</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={getContractParams().lightsCount || ''}
-                      onChange={(e) => updateContractParam('lightsCount', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: '0.78rem' }}>Артикул полотна</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={getContractParams().canvasArticle || ''}
-                      onChange={(e) => updateContractParam('canvasArticle', e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* Act Checklist */}
-                <div style={{
-                  background: 'var(--glass-bg)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '12px',
-                  padding: '14px'
-                }}>
-                  <h4 style={{ margin: '0 0 10px', fontSize: '0.88rem', fontWeight: 600 }}>Чек-лист выполненных работ (для Акта)</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '8px' }}>
-                    {getContractParams().actChecklist?.map(item => (
-                      <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={item.checked}
-                          onChange={() => toggleActItem(item.id)}
-                        />
-                        <span>{item.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-
-
-            {/* FILES TAB */}
-            {orderModalTab === 'FILES' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                  <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Прикрепленные файлы и документы</span>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActionSheetMode('ACT');
-                        if (hasDocumentScanner) {
-                          setIsActActionSheetOpen(true);
-                        } else if (actFileInputRef.current) {
-                          actFileInputRef.current.click();
-                        }
-                      }}
-                      className="btn btn-secondary"
-                      style={{ padding: '4px 10px', fontSize: '0.78rem', height: '30px' }}
-                    >
-                      <FileCheck size={14} /> + Загрузить Акт
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
+                    onClick={() => {
+                      if (hasDocumentScanner && isMobile) {
                         setActionSheetMode('GENERAL');
-                        if (hasDocumentScanner) {
-                          setIsActActionSheetOpen(true);
-                        } else if (generalFileInputRef.current) {
-                          generalFileInputRef.current.click();
-                        }
-                      }}
-                      className="btn btn-secondary"
-                      style={{ padding: '4px 10px', fontSize: '0.78rem', height: '30px' }}
-                    >
-                      <Paperclip size={14} /> + Добавить файл
-                    </button>
-                    <input
-                      ref={actFileInputRef}
-                      type="file"
-                      style={{ display: 'none' }}
-                      onChange={handleFileUpload}
-                    />
-                    <input
-                      ref={generalFileInputRef}
-                      type="file"
-                      style={{ display: 'none' }}
-                      onChange={handleFileUpload}
-                    />
-                  </div>
+                        setIsActActionSheetOpen(true);
+                      } else {
+                        generalFileInputRef.current?.click();
+                      }
+                    }}
+                    className="file-upload-btn"
+                    style={{
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                    disabled={uploadingFile}
+                  >
+                    <Paperclip size={14} />
+                    {uploadingFile ? t('kanban.modal.uploading') : t('kanban.modal.attachFile')}
+                  </button>
+                  <input
+                    ref={generalFileInputRef}
+                    type="file"
+                    style={{ display: 'none' }}
+                    onChange={handleFileUpload}
+                    disabled={uploadingFile}
+                  />
                 </div>
-
-                {/* Uploaded attachments list */}
-                {formData.attachments.length === 0 && pendingFiles.length === 0 ? (
-                  <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                    К этой заявке пока не прикреплены файлы
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                
+                {formData.attachments.length > 0 || pendingFiles.length > 0 ? (
+                  <div className="attachments-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {formData.attachments.map(att => {
-                      const isAct = isActFile(att.fileName, att.isAct);
-                      const isEditingThis = editingAttachmentId === att.id;
-
+                      const canPreview = isViewableInBrowser(att.fileName, att.contentType);
+                      const isAttAct = isActFile(att.fileName, att.isAct);
                       return (
-                        <div key={att.id} style={{
+                        <div key={att.id} className="attachment-item" style={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '10px',
-                          background: isAct ? 'rgba(34, 197, 94, 0.08)' : 'var(--glass-bg)',
-                          border: isAct ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)',
-                          borderRadius: '8px',
-                          padding: '8px 12px'
+                          justifyContent: 'space-between',
+                          padding: '10px 14px',
+                          background: isAttAct ? 'rgba(34, 197, 94, 0.04)' : 'rgba(255, 255, 255, 0.02)',
+                          border: isAttAct ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid var(--glass-border)',
+                          borderRadius: 'var(--radius-sm)',
+                          gap: '12px'
                         }}>
-                          <FileText size={18} style={{ color: isAct ? '#22c55e' : 'var(--accent-primary)', flexShrink: 0 }} />
-                          {isEditingThis ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                          {editingAttachmentId === att.id ? (
+                            <div
+                              style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <input
                                 type="text"
-                                className="input"
-                                style={{ height: '30px', padding: '2px 8px', fontSize: '0.85rem' }}
+                                autoFocus
                                 value={editingAttachmentName}
                                 onChange={(e) => setEditingAttachmentName(e.target.value)}
-                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleSaveRenameAttachment(att.id);
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleCancelRenameAttachment();
+                                  }
+                                }}
+                                disabled={renamingAttachment}
+                                className="search-input"
+                                style={{ flex: 1, padding: '4px 10px', fontSize: '0.88rem', height: '32px' }}
                               />
                               <button
                                 type="button"
-                                className="btn btn-primary"
-                                style={{ height: '30px', padding: '0 8px', fontSize: '0.75rem' }}
-                                onClick={() => handleSaveRenameAttachment(att.id)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleSaveRenameAttachment(att.id);
+                                }}
                                 disabled={renamingAttachment}
+                                className="btn btn-primary"
+                                style={{ padding: '4px 10px', fontSize: '0.8rem', height: '32px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                title="Сохранить имя"
                               >
-                                <Check size={14} />
+                                <Check size={14} /> Сохранить
                               </button>
                               <button
                                 type="button"
-                                className="btn btn-secondary"
-                                style={{ height: '30px', padding: '0 8px', fontSize: '0.75rem' }}
-                                onClick={() => setEditingAttachmentId(null)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleCancelRenameAttachment();
+                                }}
+                                disabled={renamingAttachment}
+                                className="btn btn-ghost"
+                                style={{ padding: '4px 8px', height: '32px', display: 'flex', alignItems: 'center' }}
+                                title="Отмена"
                               >
                                 <X size={14} />
                               </button>
                             </div>
                           ) : (
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ fontSize: '0.85rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {att.fileName}
-                                </span>
-                                {isAct && (
-                                  <span style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                                    АКТ
+                            <>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', maxWidth: '55%' }}>
+                                {isAttAct && (
+                                  <span style={{
+                                    fontSize: '0.72rem',
+                                    background: 'rgba(34, 197, 94, 0.18)',
+                                    color: '#4ade80',
+                                    padding: '2px 7px',
+                                    borderRadius: '6px',
+                                    fontWeight: 600,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    flexShrink: 0
+                                  }}>
+                                    <FileCheck size={11} /> Акт
                                   </span>
                                 )}
-                              </div>
-                            </div>
-                          )}
-
-                          {!isEditingThis && (
-                            <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                              {isViewableInBrowser(att.fileName, att.contentType) && (
-                                <button
-                                  type="button"
-                                  className="btn-icon"
-                                  onClick={() => handleOpenAttachment(att)}
-                                  title="Просмотреть"
+                                <span 
+                                  style={{fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}
+                                  title={att.fileName}
                                 >
-                                  <Eye size={15} />
+                                  {att.fileName}
+                                </span>
+                              </div>
+                              <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                {!isWorker && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleAttachmentIsAct(att)}
+                                    className="btn btn-ghost"
+                                    style={{
+                                      padding: '4px 8px',
+                                      fontSize: '0.75rem',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      color: isAttAct ? '#4ade80' : 'var(--text-secondary)'
+                                    }}
+                                    title={isAttAct ? 'Снять отметку Акта выполненных работ' : 'Отметить как Акт выполненных работ'}
+                                  >
+                                    <FileCheck size={13} /> {isAttAct ? 'Акт' : 'Сделать Актом'}
+                                  </button>
+                                )}
+                                {!isWorker && (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleStartRenameAttachment(att)} 
+                                    className="btn btn-ghost" 
+                                    style={{padding: '5px 8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'}}
+                                    title="Переименовать файл"
+                                  >
+                                    <Edit2 size={13} />
+                                  </button>
+                                )}
+                                {canPreview && (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleOpenAttachment(att)} 
+                                    className="btn btn-ghost" 
+                                    style={{padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                                    title="Посмотреть в браузере"
+                                  >
+                                    <Eye size={16} />
+                                  </button>
+                                )}
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleDownloadAttachment(att)} 
+                                  className="btn btn-ghost" 
+                                  style={{padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                                  title="Скачать файл"
+                                >
+                                  <Download size={16} />
                                 </button>
-                              )}
-                              <button
-                                type="button"
-                                className="btn-icon"
-                                onClick={() => handleDownloadAttachment(att)}
-                                title="Скачать"
-                              >
-                                <Download size={15} />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-icon"
-                                onClick={() => handleStartRenameAttachment(att)}
-                                title="Переименовать"
-                              >
-                                <Edit2 size={15} />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-icon"
-                                onClick={() => handleToggleAttachmentIsAct(att)}
-                                title={isAct ? "Снять метку Акта" : "Пометить как Акт"}
-                                style={{ color: isAct ? '#22c55e' : undefined }}
-                              >
-                                <FileCheck size={15} />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-icon"
-                                onClick={() => handleDeleteAttachment(att.id)}
-                                title="Удалить"
-                                style={{ color: 'var(--danger)' }}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </div>
+                                {!isWorker && (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleDeleteAttachment(att.id)} 
+                                    title={t('kanban.modal.delete') || 'Удалить'} 
+                                    style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px'}}
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                )}
+                              </div>
+                            </>
                           )}
                         </div>
                       );
                     })}
-
-                    {/* Pending files */}
-                    {pendingFiles.map((pf, idx) => (
-                      <div key={`pf-${idx}`} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        background: 'var(--glass-bg)',
-                        border: '1px dashed var(--accent-primary)',
-                        borderRadius: '8px',
-                        padding: '8px 12px'
-                      }}>
-                        <FileText size={18} style={{ color: 'var(--accent-primary)' }} />
-                        <span style={{ flex: 1, fontSize: '0.85rem' }}>{pf.name} (будет загружен при сохранении)</span>
-                        <button
-                          type="button"
-                          className="btn-icon"
-                          onClick={() => removePendingFile(idx)}
-                          style={{ color: 'var(--danger)' }}
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    ))}
+                    {pendingFiles.map((pf, index) => {
+                      const isPfAct = isActFile(pf.name);
+                      return (
+                        <div key={`pending-${index}`} className="attachment-item" style={{
+                          borderStyle: 'dashed',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 14px',
+                          background: isPfAct ? 'rgba(34, 197, 94, 0.04)' : 'rgba(255, 255, 255, 0.01)',
+                          borderColor: isPfAct ? 'rgba(34, 197, 94, 0.35)' : 'var(--glass-border)',
+                          borderRadius: 'var(--radius-sm)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                            {isPfAct && (
+                              <span style={{
+                                fontSize: '0.72rem',
+                                background: 'rgba(34, 197, 94, 0.18)',
+                                color: '#4ade80',
+                                padding: '2px 7px',
+                                borderRadius: '6px',
+                                fontWeight: 600,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                flexShrink: 0
+                              }}>
+                                <FileCheck size={11} /> Акт
+                              </span>
+                            )}
+                            <span style={{fontSize: '0.9rem'}}>{pf.name} (ожидает сохранения)</span>
+                          </div>
+                          <button type="button" onClick={() => removePendingFile(index)} style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center'}}>
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px dashed var(--glass-border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '32px 16px',
+                    textAlign: 'center',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.88rem'
+                  }}>
+                    {t('kanban.modal.noAttachments') || 'Нет прикрепленных файлов'}
                   </div>
                 )}
               </div>
             )}
 
-            {/* AI TAB */}
-            {orderModalTab === 'AI' && hasAiSummary && editingOrderId && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
-                {/* Audio Recording Section */}
-                <div style={{
-                  background: 'var(--glass-bg)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '10px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '50%',
-                      background: 'var(--accent-glow)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--accent-primary)'
-                    }}>
-                      <Mic size={18} />
-                    </div>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600 }}>Запись телефонного звонка</h4>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Загрузите MP3/WAV звонка с клиентом
-                      </p>
-                    </div>
+            {/* 5. AI АНАЛИЗ И ИНТЕРАКТИВНЫЙ ЧАТ */}
+            {orderModalTab === 'AI' && editingOrderId && !isWorker && hasAiSummary && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+                {/* Header with audio upload */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Mic size={16} /> AI Анализ звонков и ассистент
+                    </h3>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Расшифровка аудиозаписей, анализ переговоров и умный диалог с AI
+                    </p>
                   </div>
-
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {aiSummary && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteAudio}
+                        className="btn btn-ghost"
+                        style={{
+                          color: '#ef4444',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          padding: '8px 12px',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.85rem',
+                          fontWeight: 500,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                        title="Удалить аудиозапись из S3 и очистить анализ"
+                      >
+                        <Trash2 size={14} />
+                        Удалить звонок
+                      </button>
+                    )}
+                    <button 
                       type="button"
-                      className="btn btn-secondary"
                       onClick={() => audioFileInputRef.current?.click()}
                       disabled={uploadingAudio}
-                      style={{ height: '32px', fontSize: '0.78rem', gap: '4px' }}
+                      className="btn btn-primary" 
+                      style={{ 
+                        backgroundColor: '#3b82f6', 
+                        color: '#ffffff', 
+                        cursor: 'pointer', 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: '6px',
+                        padding: '8px 14px',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        border: 'none',
+                        boxShadow: '0 2px 8px rgba(59, 130, 246, 0.4)'
+                      }}
                     >
-                      <Plus size={14} /> Загрузить аудио
+                      <Mic size={14} color="#ffffff" />
+                      {uploadingAudio ? 'Загрузка аудио...' : (aiSummary ? 'Загрузить другой звонок' : 'Загрузить звонок')}
                     </button>
-                    <button
-                      type="button"
-                      className="btn-icon"
-                      onClick={handleDeleteAudio}
-                      style={{ color: 'var(--danger)' }}
-                      title="Удалить запись"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                    <input
+                    <input 
                       ref={audioFileInputRef}
-                      type="file"
-                      accept="audio/*"
-                      style={{ display: 'none' }}
-                      onChange={handleAudioUpload}
+                      type="file" 
+                      accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac,.webm" 
+                      onChange={handleAudioUpload} 
+                      disabled={uploadingAudio} 
+                      style={{ display: 'none' }} 
                     />
                   </div>
                 </div>
 
-                {/* Sub-tabs: Analysis vs Chat */}
-                <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)', gap: '8px' }}>
+                {/* Sub-tabs: Анализ vs Чат */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'rgba(0, 0, 0, 0.25)',
+                  padding: '4px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--glass-border)'
+                }}>
                   <button
                     type="button"
                     onClick={() => setAiSubTab('ANALYSIS')}
                     style={{
-                      background: 'transparent',
+                      flex: 1,
+                      padding: '8px 14px',
+                      borderRadius: 'var(--radius-sm)',
                       border: 'none',
-                      borderBottom: aiSubTab === 'ANALYSIS' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                      color: aiSubTab === 'ANALYSIS' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                      padding: '8px 12px',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      fontSize: '0.88rem',
+                      fontWeight: aiSubTab === 'ANALYSIS' ? 600 : 500,
+                      background: aiSubTab === 'ANALYSIS' ? 'var(--primary)' : 'transparent',
+                      color: aiSubTab === 'ANALYSIS' ? '#fff' : 'var(--text-secondary)',
+                      transition: 'all 0.15s ease'
                     }}
                   >
-                    Анализ стенограммы
+                    <Sparkles size={15} /> Анализ звонка
                   </button>
                   <button
                     type="button"
                     onClick={() => setAiSubTab('CHAT')}
                     style={{
-                      background: 'transparent',
+                      flex: 1,
+                      padding: '8px 14px',
+                      borderRadius: 'var(--radius-sm)',
                       border: 'none',
-                      borderBottom: aiSubTab === 'CHAT' ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                      color: aiSubTab === 'CHAT' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                      padding: '8px 12px',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      fontSize: '0.88rem',
+                      fontWeight: aiSubTab === 'CHAT' ? 600 : 500,
+                      background: aiSubTab === 'CHAT' ? 'var(--primary)' : 'transparent',
+                      color: aiSubTab === 'CHAT' ? '#fff' : 'var(--text-secondary)',
+                      transition: 'all 0.15s ease'
                     }}
                   >
-                    Чат с AI-ассистентом
+                    <MessageSquare size={15} /> Чат с AI по звонку
+                    {chatMessages.length > 0 && (
+                      <span style={{
+                        background: 'rgba(255,255,255,0.25)',
+                        padding: '1px 6px',
+                        borderRadius: '10px',
+                        fontSize: '0.75rem',
+                        fontWeight: 700
+                      }}>
+                        {chatMessages.length}
+                      </span>
+                    )}
                   </button>
                 </div>
 
-                {/* ANALYSIS SUB-TAB */}
-                {aiSubTab === 'ANALYSIS' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        className={`btn ${aiPromptPreset === 'SUMMARY' ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => handleSelectAiPreset('SUMMARY')}
-                        style={{ fontSize: '0.78rem', height: '30px' }}
-                      >
-                        Сводка и договоренности
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn ${aiPromptPreset === 'SALES_ADVICE' ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => handleSelectAiPreset('SALES_ADVICE')}
-                        style={{ fontSize: '0.78rem', height: '30px' }}
-                      >
-                        Советы по дожиму сделки
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => handleRunAiAnalysis(aiPromptPreset, undefined, true)}
-                        disabled={isAnalyzingAudio}
-                        style={{ fontSize: '0.78rem', height: '30px', gap: '4px' }}
-                      >
-                        <RefreshCw size={13} className={isAnalyzingAudio ? 'animate-spin' : ''} /> Пересчитать
-                      </button>
-                    </div>
-
-                    <div style={{
-                      background: 'var(--glass-bg)',
-                      border: '1px solid var(--glass-border)',
-                      borderRadius: '10px',
-                      padding: '14px',
-                      minHeight: '160px',
-                      fontSize: '0.85rem',
-                      lineHeight: '1.5',
-                      whiteSpace: 'pre-wrap'
-                    }}>
-                      {isAnalyzingAudio ? (
-                        <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
-                          <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 8px', display: 'block' }} />
-                          YandexGPT анализирует диалог...
-                        </div>
-                      ) : (aiSummary?.aiSummary || 'Нет результатов анализа. Выберите пресет для запуска.')}
-                    </div>
+                {/* Feedback Toast */}
+                {copyFeedbackText && (
+                  <div style={{
+                    background: 'rgba(34, 197, 94, 0.2)',
+                    border: '1px solid rgba(34, 197, 94, 0.4)',
+                    color: '#4ade80',
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.82rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <Check size={14} /> {copyFeedbackText}
                   </div>
                 )}
 
-                {/* CHAT SUB-TAB */}
+                {/* Sub-tab 1: АНАЛИЗ ЗВОНКА */}
+                {aiSubTab === 'ANALYSIS' && (
+                  <>
+                    {aiSummary ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        {/* Status and Refresh */}
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '8px 12px',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid var(--glass-border)',
+                          borderRadius: 'var(--radius-sm)'
+                        }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            Статус обработки:{' '}
+                            <strong style={{
+                              color: aiSummary.status === 'COMPLETED' ? 'var(--success)' : (aiSummary.status === 'ERROR' ? 'var(--danger)' : 'var(--warning)')
+                            }}>
+                              {aiSummary.status === 'COMPLETED' ? 'Готово к анализу' : (aiSummary.status === 'ERROR' ? 'Ошибка' : 'Расшифровка аудио...')}
+                            </strong>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={refreshAiSummary}
+                            className="btn btn-ghost"
+                            style={{ padding: '4px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <RefreshCw size={13} /> Обновить статус
+                          </button>
+                        </div>
+
+                        {/* AI Cost Breakdown for this Order */}
+                        {orderAiCost && orderAiCost.totalCostRubles > 0 && (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '8px',
+                            background: 'rgba(234, 179, 8, 0.08)',
+                            border: '1px solid rgba(234, 179, 8, 0.25)',
+                            padding: '8px 12px',
+                            borderRadius: 'var(--radius-sm)'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#facc15', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <Coins size={15} /> Затраты на ИИ по сделке: {Number(orderAiCost.totalCostRubles).toFixed(2)} ₽
+                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                {orderAiCost.speechkitCostRubles > 0 && (
+                                  <span>• Аудио: {Number(orderAiCost.speechkitCostRubles).toFixed(2)} ₽ ({Math.floor(orderAiCost.audioDurationSeconds / 60)}:{String(orderAiCost.audioDurationSeconds % 60).padStart(2, '0')} мин)</span>
+                                )}
+                                {orderAiCost.gptCostRubles > 0 && (
+                                  <span>• GPT: {Number(orderAiCost.gptCostRubles).toFixed(2)} ₽ ({orderAiCost.totalTokens} ток.)</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Prompt Presets Selector */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            Вариант системного анализа:
+                          </label>
+                          {(() => {
+                            const map = getAnalysisResultsMap(aiSummary);
+                            return (
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  disabled={isAnalyzingAudio || !aiSummary.rawTranscript}
+                                  onClick={() => handleSelectAiPreset('SUMMARY')}
+                                  style={{
+                                    padding: '10px 14px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: aiPromptPreset === 'SUMMARY' ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
+                                    background: aiPromptPreset === 'SUMMARY' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                                    color: aiPromptPreset === 'SUMMARY' ? '#fff' : 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                    <span style={{ fontWeight: 600, fontSize: '0.88rem', color: aiPromptPreset === 'SUMMARY' ? '#60a5fa' : 'var(--text-primary)' }}>
+                                      📋 Саммари звонка
+                                    </span>
+                                    {map['SUMMARY'] && (
+                                      <span style={{ fontSize: '0.7rem', color: '#4ade80', display: 'inline-flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}>
+                                        <Check size={11} /> Сохранен
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span style={{ fontSize: '0.74rem', opacity: 0.8 }}>
+                                    Суть, параметры объекта, даты замера и цены
+                                  </span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={isAnalyzingAudio || !aiSummary.rawTranscript}
+                                  onClick={() => handleSelectAiPreset('SALES_ADVICE')}
+                                  style={{
+                                    padding: '10px 14px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: aiPromptPreset === 'SALES_ADVICE' ? '1px solid #10b981' : '1px solid var(--glass-border)',
+                                    background: aiPromptPreset === 'SALES_ADVICE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                                    color: aiPromptPreset === 'SALES_ADVICE' ? '#fff' : 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                    <span style={{ fontWeight: 600, fontSize: '0.88rem', color: aiPromptPreset === 'SALES_ADVICE' ? '#34d399' : 'var(--text-primary)' }}>
+                                      🎯 Скрипт и дожим
+                                    </span>
+                                    {map['SALES_ADVICE'] && (
+                                      <span style={{ fontSize: '0.7rem', color: '#4ade80', display: 'inline-flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}>
+                                        <Check size={11} /> Сохранен
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span style={{ fontSize: '0.74rem', opacity: 0.8 }}>
+                                    Анализ сомнений, готовый скрипт и аргументы
+                                  </span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={isAnalyzingAudio || !aiSummary.rawTranscript}
+                                  onClick={() => handleSelectAiPreset('CUSTOM')}
+                                  style={{
+                                    padding: '10px 14px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: aiPromptPreset === 'CUSTOM' ? '1px solid #f59e0b' : '1px solid var(--glass-border)',
+                                    background: aiPromptPreset === 'CUSTOM' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                                    color: aiPromptPreset === 'CUSTOM' ? '#fff' : 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                    <span style={{ fontWeight: 600, fontSize: '0.88rem', color: aiPromptPreset === 'CUSTOM' ? '#fbbf24' : 'var(--text-primary)' }}>
+                                      ✏️ Свой промпт
+                                    </span>
+                                    {map['CUSTOM'] && (
+                                      <span style={{ fontSize: '0.7rem', color: '#4ade80', display: 'inline-flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}>
+                                        <Check size={11} /> Сохранен
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span style={{ fontSize: '0.74rem', opacity: 0.8 }}>
+                                    Произвольный запрос к стенограмме
+                                  </span>
+                                </button>
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Custom Prompt Box */}
+                        {aiPromptPreset === 'CUSTOM' && (
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                            background: 'rgba(0, 0, 0, 0.2)',
+                            padding: '12px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid rgba(245, 158, 11, 0.3)'
+                          }}>
+                            <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fbbf24' }}>
+                              Введите ваш промпт / инструкцию для анализа стенограммы:
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={customSystemPrompt}
+                              onChange={(e) => setCustomSystemPrompt(e.target.value)}
+                              placeholder="Например: Выдели только перечень освещения и карнизов, либо составь текст коммерческого предложения для клиента..."
+                              style={{
+                                width: '100%',
+                                background: 'var(--bg-primary)',
+                                border: '1px solid var(--glass-border)',
+                                borderRadius: 'var(--radius-sm)',
+                                color: 'var(--text-primary)',
+                                padding: '8px 12px',
+                                fontSize: '0.88rem',
+                                resize: 'vertical'
+                              }}
+                            />
+                            <button
+                              type="button"
+                              disabled={isAnalyzingAudio || !customSystemPrompt.trim()}
+                              onClick={() => handleRunAiAnalysis('CUSTOM', customSystemPrompt, true)}
+                              className="btn btn-primary"
+                              style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+                            >
+                              <Sparkles size={14} />
+                              {isAnalyzingAudio ? 'Генерация анализа...' : '⚡ Запустить анализ'}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Analysis Result Box */}
+                        <div style={{
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          padding: '16px',
+                          borderRadius: 'var(--radius-lg)',
+                          border: '1px solid var(--glass-border)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '12px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '8px' }}>
+                            <span style={{ fontSize: '0.88rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)' }}>
+                              <Bot size={15} color="var(--accent-primary)" /> Результат анализа:
+                              {aiPromptPreset && (
+                                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 400 }}>
+                                  ({aiPromptPreset === 'SUMMARY' ? 'Саммари звонка' : (aiPromptPreset === 'SALES_ADVICE' ? 'Скрипт и дожим' : 'Свой промпт')})
+                                </span>
+                              )}
+                            </span>
+                            {aiSummary.aiSummary && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  disabled={isAnalyzingAudio}
+                                  onClick={() => handleRunAiAnalysis(aiPromptPreset, customSystemPrompt, true)}
+                                  className="btn btn-ghost"
+                                  style={{
+                                    padding: '4px 10px',
+                                    fontSize: '0.78rem',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    color: '#38bdf8',
+                                    background: 'rgba(56, 189, 248, 0.1)',
+                                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                                    borderRadius: 'var(--radius-sm)'
+                                  }}
+                                  title="Принудительно отправить повторный запрос в AI"
+                                >
+                                  <RotateCcw size={13} className={isAnalyzingAudio ? 'spinner' : ''} /> Сгенерировать повторно
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyTextWithToast(aiSummary.aiSummary!, "Результат анализа скопирован")}
+                                  className="btn btn-ghost"
+                                  style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                  title="Скопировать в буфер"
+                                >
+                                  <Copy size={13} /> Копировать
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setAiSubTab('CHAT')}
+                                  className="btn btn-primary"
+                                  style={{ padding: '4px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                  <MessageSquare size={13} /> Обсудить в чате
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {isAnalyzingAudio ? (
+                            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                              <RefreshCw size={20} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                              <span style={{ fontSize: '0.88rem' }}>AI анализирует стенограмму звонка...</span>
+                            </div>
+                          ) : aiSummary.aiSummary ? (
+                            <div style={{ fontSize: '0.92rem', lineHeight: '1.6', whiteSpace: 'pre-wrap', color: 'var(--text-primary)' }}>
+                              {aiSummary.aiSummary}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic', padding: '12px 0' }}>
+                              {aiSummary.status === 'ERROR' ? 'Ошибка при обработке записи.' : 'Расшифровка завершена. Выберите вариант анализа выше.'}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Raw Transcript Collapsible */}
+                        {aiSummary.rawTranscript && (
+                          <details style={{
+                            background: 'rgba(0, 0, 0, 0.15)',
+                            padding: '10px 14px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--glass-border)'
+                          }}>
+                            <summary style={{ cursor: 'pointer', fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                              📝 Стенограмма звонка (полный текст)
+                            </summary>
+                            <div style={{ marginTop: '10px', fontSize: '0.84rem', color: 'var(--text-primary)', lineHeight: '1.5', maxHeight: '180px', overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+                              {aiSummary.rawTranscript}
+                            </div>
+                          </details>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px dashed var(--glass-border)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '40px 16px',
+                        textAlign: 'center',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.88rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}>
+                        <div style={{
+                          width: '56px',
+                          height: '56px',
+                          borderRadius: '50%',
+                          background: 'rgba(59, 130, 246, 0.12)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--accent-primary)'
+                        }}>
+                          <Mic size={26} color="var(--accent-primary)" />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ fontSize: '0.98rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            Нет загруженных записей звонков
+                          </span>
+                          <span style={{ fontSize: '0.8rem', opacity: 0.8, maxWidth: '420px' }}>
+                            Загрузите аудиозапись разговора с клиентом (.mp3, .ogg, .wav, .m4a, .aac), чтобы AI расшифровал разговор, выделил ключевые параметры и подсказал скрипт продажи.
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => audioFileInputRef.current?.click()}
+                          disabled={uploadingAudio}
+                          className="btn btn-primary"
+                          style={{
+                            marginTop: '4px',
+                            padding: '10px 22px',
+                            fontSize: '0.92rem',
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            backgroundColor: '#3b82f6',
+                            color: '#ffffff',
+                            border: 'none',
+                            boxShadow: '0 2px 8px rgba(59, 130, 246, 0.4)'
+                          }}
+                        >
+                          <Mic size={16} color="#ffffff" />
+                          {uploadingAudio ? 'Загрузка аудиозаписи...' : 'Выбрать аудиофайл звонка'}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Sub-tab 2: ИНТЕРАКТИВНЫЙ ЧАТ С AI */}
                 {aiSubTab === 'CHAT' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '300px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {/* Notice & Session Export Bar */}
                     <div style={{
-                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '8px',
+                      background: 'rgba(59, 130, 246, 0.08)',
+                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-sm)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          <Sparkles size={15} style={{ color: '#60a5fa', flexShrink: 0 }} />
+                          <span>История диалога сохраняется в заявке.</span>
+                        </div>
+                        {(() => {
+                          const totalTokens = chatMessages.reduce((sum, m) => sum + (m.tokensUsed || 0), 0);
+                          const totalCost = chatMessages.reduce((sum, m) => sum + (m.costRubles || 0), 0);
+                          if (totalTokens === 0) return null;
+                          return (
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              fontSize: '0.78rem',
+                              fontWeight: 600,
+                              background: 'rgba(234, 179, 8, 0.15)',
+                              border: '1px solid rgba(234, 179, 8, 0.35)',
+                              color: '#facc15',
+                              padding: '2px 8px',
+                              borderRadius: '10px'
+                            }}>
+                              <Coins size={12} />
+                              Расход: {totalTokens} ток. (~{totalCost < 0.01 && totalTokens > 0 ? '<0.01' : totalCost.toFixed(2)} ₽)
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={handleExportChatTxt}
+                          className="btn btn-ghost"
+                          style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.05)' }}
+                          title="Скачать весь диалог в .txt файл"
+                        >
+                          <FileDown size={13} /> Скачать .txt
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const fullChat = chatMessages.map(m => `[${m.role === 'user' ? 'Менеджер' : 'AI'}]: ${m.text}`).join('\\n\\n');
+                            handleCopyTextWithToast(fullChat || "Чат пуст", "История чата скопирована");
+                          }}
+                          className="btn btn-ghost"
+                          style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.05)' }}
+                          title="Скопировать переписку"
+                        >
+                          <Copy size={13} /> Копировать
+                        </button>
+                        {chatMessages.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleClearChat}
+                            className="btn btn-ghost"
+                            style={{ padding: '4px 8px', fontSize: '0.78rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            title="Очистить историю переписки"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quick Prompts Suggestions */}
+                    <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+                      {[
+                        '💬 Напиши сообщение для WhatsApp с итогом звонка',
+                        '🎯 Какие сомнения или возражения остались у клиента?',
+                        '🔥 Какой сильный аргумент использовать для закрытия на замер?',
+                        '📐 Составь список параметров для замерщика'
+                      ].map((suggest, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          disabled={isChatReplying}
+                          onClick={() => handleSendChatMessage(suggest)}
+                          style={{
+                            whiteSpace: 'nowrap',
+                            fontSize: '0.76rem',
+                            padding: '5px 10px',
+                            borderRadius: '12px',
+                            background: 'rgba(255, 255, 255, 0.04)',
+                            border: '1px solid var(--glass-border)',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {suggest}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Chat Messages Stream */}
+                    <div style={{
+                      background: 'rgba(0, 0, 0, 0.25)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '14px',
+                      minHeight: '260px',
+                      maxHeight: '380px',
                       overflowY: 'auto',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '10px',
-                      padding: '10px',
-                      background: 'var(--glass-bg)',
-                      border: '1px solid var(--glass-border)',
-                      borderRadius: '10px',
-                      maxHeight: '340px'
+                      gap: '12px'
                     }}>
                       {chatMessages.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                          Задайте вопрос AI по содержанию этого звонка или заказу
+                        <div style={{
+                          margin: 'auto',
+                          textAlign: 'center',
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.86rem',
+                          padding: '24px 12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}>
+                          <Bot size={32} style={{ opacity: 0.7, color: 'var(--accent-primary)' }} />
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Чат с AI-ассистентом по звонку</span>
+                          <span style={{ fontSize: '0.78rem', maxWidth: '360px', opacity: 0.8 }}>
+                            Задайте любой вопрос по содержанию разговора, попросите сформулировать сообщение клиенту или выделить договоренности.
+                          </span>
                         </div>
                       ) : (
-                        chatMessages.map((msg, idx) => (
+                        chatMessages.map((msg, index) => (
                           <div
-                            key={idx}
+                            key={index}
                             style={{
+                              display: 'flex',
+                              flexDirection: 'column',
                               alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                              maxWidth: '85%',
-                              background: msg.role === 'user' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.06)',
-                              color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
-                              padding: '8px 12px',
-                              borderRadius: '10px',
-                              fontSize: '0.85rem',
-                              lineHeight: '1.4'
+                              maxWidth: '85%'
                             }}
                           >
-                            <div>{msg.text}</div>
-                            <div style={{ fontSize: '0.68rem', opacity: 0.7, textAlign: 'right', marginTop: '2px' }}>
-                              {msg.timestamp}
+                            <div style={{
+                              fontSize: '0.72rem',
+                              color: 'var(--text-secondary)',
+                              marginBottom: '3px',
+                              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              {msg.role === 'user' ? (
+                                <><span>Вы (Менеджер)</span> • <span>{msg.timestamp}</span></>
+                              ) : (
+                                <><Bot size={12} color="var(--accent-primary)" /> <span>AI-Ассистент</span> • <span>{msg.timestamp}</span></>
+                              )}
                             </div>
+                            <div style={{
+                              background: msg.role === 'user' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.05)',
+                              color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
+                              padding: '10px 14px',
+                              borderRadius: msg.role === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                              border: msg.role === 'user' ? 'none' : '1px solid var(--glass-border)',
+                              fontSize: '0.9rem',
+                              lineHeight: '1.5',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                              position: 'relative'
+                            }}>
+                              {msg.text}
+                              {msg.role === 'assistant' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyTextWithToast(msg.text, "Ответ AI скопирован")}
+                                  style={{
+                                    position: 'absolute',
+                                    top: '6px',
+                                    right: '6px',
+                                    background: 'rgba(0,0,0,0.3)',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '3px 6px',
+                                    cursor: 'pointer',
+                                    color: 'var(--text-secondary)',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                  }}
+                                  title="Скопировать сообщение"
+                                >
+                                  <Copy size={11} />
+                                </button>
+                              )}
+                            </div>
+                            {msg.role === 'assistant' && msg.tokensUsed !== undefined && msg.tokensUsed > 0 && (
+                              <div style={{
+                                fontSize: '0.72rem',
+                                color: 'rgba(250, 204, 21, 0.85)',
+                                marginTop: '3px',
+                                alignSelf: 'flex-start',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                paddingLeft: '4px'
+                              }}>
+                                <Coins size={11} /> {msg.tokensUsed} токенов • ~{msg.costRubles !== undefined ? msg.costRubles.toFixed(2) : (msg.tokensUsed * 0.0012).toFixed(2)} ₽
+                              </div>
+                            )}
                           </div>
                         ))
+                      )}
+                      {isChatReplying && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.82rem', padding: '6px 0' }}>
+                          <RefreshCw size={14} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--accent-primary)' }} />
+                          <span>AI формулирует ответ...</span>
+                        </div>
                       )}
                       <div ref={chatBottomRef} />
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    {/* Chat Input Bar */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '8px',
+                        alignItems: 'center'
+                      }}
+                    >
                       <input
                         type="text"
-                        className="input"
-                        placeholder="Напишите вопрос по диалогу с клиентом..."
                         value={chatInputText}
                         onChange={(e) => setChatInputText(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
+                            e.stopPropagation();
                             handleSendChatMessage();
                           }
+                        }}
+                        placeholder="Спросите AI о звонке (напр. «О чем спорили в конце?», «Напиши текст для WhatsApp»)..."
+                        disabled={isChatReplying}
+                        className="search-input"
+                        style={{
+                          flex: 1,
+                          padding: '10px 14px',
+                          fontSize: '0.88rem',
+                          height: '42px',
+                          background: 'var(--bg-primary)'
                         }}
                       />
                       <button
                         type="button"
-                        className="btn btn-primary"
-                        onClick={() => handleSendChatMessage()}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleSendChatMessage();
+                        }}
                         disabled={isChatReplying || !chatInputText.trim()}
-                        style={{ height: '40px', padding: '0 14px' }}
+                        className="btn btn-primary"
+                        style={{
+                          height: '42px',
+                          padding: '0 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          fontWeight: 600
+                        }}
                       >
-                        <Send size={15} />
+                        <Send size={15} /> Отправить
                       </button>
                     </div>
                   </div>
@@ -1972,44 +3624,260 @@ export const OrderDrawer: React.FC = () => {
             )}
           </div>
 
-          {/* Modal Footer */}
           <div className="order-drawer-footer modal-actions">
-            <div>
-              {editingOrderId && (
-                <button
-                  type="button"
-                  onClick={handleDeleteOrder}
-                  className="btn btn-ghost"
-                  style={{ color: 'var(--danger)', gap: '6px' }}
-                >
-                  <Trash2 size={15} /> Удалить
-                </button>
-              )}
-            </div>
+            {editingOrderId && !isWorker ? (
+              <button 
+                type="button" 
+                onClick={handleDeleteOrder}
+                className="btn btn-ghost"
+                style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Trash2 size={16} /> {t('kanban.modal.delete') || 'Удалить'}
+              </button>
+            ) : <div />}
 
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleRequestCloseModal}
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                style={{ gap: '6px' }}
-              >
-                <Check size={16} />
-                {editingOrderId ? (t('kanban.modal.save') || 'Сохранить') : (t('kanban.createOrder') || 'Создать заявку')}
-              </button>
-            </div>
+            {editingOrderId && (() => {
+              const currentStatus = columns.find(c => c.id.toString() === formData.statusId);
+              const isCompleted = currentStatus ? (
+                currentStatus.name.toLowerCase().includes('заверш') ||
+                currentStatus.name.toLowerCase().includes('готов') ||
+                currentStatus.name.toLowerCase().includes('выполнен')
+              ) : false;
+
+              if (!isCompleted) {
+                const hasInstaller = Boolean(formData.installedById || currentOrder?.installedById || currentOrder?.installedByName);
+                const hasAct = formData.attachments.some(a => isActFile(a.fileName, a.isAct)) || pendingFiles.some(f => isActFile(f.name));
+                const canComplete = hasInstaller && hasAct;
+
+                let disabledTitle = 'Завершить монтаж и перевести заявку в статус «Завершен»';
+                if (!hasInstaller) {
+                  disabledTitle = 'Для завершения монтажа необходимо выбрать монтажника';
+                } else if (!hasAct) {
+                  disabledTitle = 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»';
+                }
+
+                return (
+                  <button
+                    type="button"
+                    disabled={!canComplete}
+                    onClick={(e) => handleCompleteInstallation(e, editingOrderId)}
+                    className="btn"
+                    style={{
+                      background: canComplete ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
+                      color: canComplete ? '#fff' : 'var(--text-secondary)',
+                      border: canComplete ? 'none' : '1px solid var(--glass-border)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontWeight: 600,
+                      padding: '8px 14px',
+                      cursor: canComplete ? 'pointer' : 'not-allowed',
+                      opacity: canComplete ? 1 : 0.45
+                    }}
+                    title={disabledTitle}
+                  >
+                    <CheckCircle2 size={16} /> Завершить монтаж
+                  </button>
+                );
+              }
+              return (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: '#4ade80',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  background: 'rgba(34, 197, 94, 0.12)',
+                  padding: '6px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid rgba(34, 197, 94, 0.25)'
+                }}>
+                  <CheckCircle2 size={16} /> Монтаж завершен
+                </div>
+              );
+            })()}
+
+            {(!editingOrderId || isDirty) && (
+              <div className="modal-action-btns animate-fade-in" style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  type="button" 
+                  onClick={handleCancelChanges}
+                  className="btn btn-ghost"
+                >
+                  {t('kanban.modal.cancel') || 'Отмена'}
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Check size={16} />
+                  {editingOrderId ? (t('kanban.modal.save') || 'Сохранить') : (t('kanban.createOrder') || 'Создать заявку')}
+                </button>
+              </div>
+            )}
           </div>
         </form>
       </div>
 
+      {/* Quick Client Modal */}
+      <QuickClientModal
+        isOpen={isNewClientModalOpen}
+        onClose={() => setIsNewClientModalOpen(false)}
+        onSubmit={handleCreateQuickClient}
+        clientType={newClientType}
+        setClientType={setNewClientType}
+        name={newClientName}
+        setName={setNewClientName}
+        phone={newClientPhone}
+        setPhone={setNewClientPhone}
+        whatsapp={newClientWhatsapp}
+        setWhatsapp={setNewClientWhatsapp}
+        telegram={newClientTelegram}
+        setTelegram={setNewClientTelegram}
+        inn={newClientInn}
+        setInn={setNewClientInn}
+        contactPerson={newClientContactPerson}
+        setContactPerson={setNewClientContactPerson}
+        leadSource={newClientLeadSource}
+        setLeadSource={setNewClientLeadSource}
+        customLeadSource={newClientCustomLeadSource}
+        setCustomLeadSource={setNewClientCustomLeadSource}
+        onOpenPassportScanner={() => {
+          setPassportScannerTarget('NEW_CLIENT');
+          setIsPassportScannerOpen(true);
+        }}
+        creatingClient={creatingClient}
+      />
+
+      {/* Contract Prompt Modal */}
+      <ContractPromptModal
+        isOpen={isContractPromptOpen}
+        onClose={() => setIsContractPromptOpen(false)}
+        contractPromptData={contractPromptData}
+        setContractPromptData={setContractPromptData}
+        onOpenPassportScanner={() => {
+          setPassportScannerTarget('CONTRACT');
+          setIsPassportScannerOpen(true);
+        }}
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!editingOrderId) return;
+          setContractPromptLoading(true);
+          try {
+            if (contractPromptData.clientId) {
+              await updateClient(contractPromptData.clientId, {
+                name: contractPromptData.name,
+                phone: contractPromptData.phone,
+                birthDate: contractPromptData.birthDate || undefined,
+                passportSeriesNumber: contractPromptData.passportSeriesNumber || undefined,
+                passportIssuedBy: contractPromptData.passportIssuedBy || undefined,
+                passportIssuedDate: contractPromptData.passportIssuedDate || undefined,
+                passportDepartmentCode: contractPromptData.passportDepartmentCode || undefined,
+                registrationAddress: contractPromptData.registrationAddress || undefined
+              });
+            }
+
+            const updatedParams: ContractParams = {
+              ...getContractParams(),
+              area: contractPromptData.area,
+              perimeter: contractPromptData.perimeter,
+              canvasesCount: contractPromptData.canvasesCount,
+              insertLength: contractPromptData.insertLength,
+              pipeCount: contractPromptData.pipeCount,
+              lightsCount: contractPromptData.lightsCount,
+              timberLength: contractPromptData.timberLength,
+              canvasArticle: contractPromptData.canvasArticle,
+              discount: contractPromptData.discount,
+              handoverDate: contractPromptData.handoverDate
+            };
+
+            await updateOrder(editingOrderId, {
+              contractParams: updatedParams,
+              address: contractPromptData.installationAddress || undefined
+            });
+
+            const blob = await downloadContractDocx(editingOrderId);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Договор_Заявка_${editingOrderId}.docx`;
+            a.click();
+            URL.revokeObjectURL(url);
+            setIsContractPromptOpen(false);
+          } catch (err: any) {
+            console.error("Failed to generate docx", err);
+            alert(err.response?.data?.message || "Ошибка генерации договора");
+          } finally {
+            setContractPromptLoading(false);
+          }
+        }}
+        contractPromptLoading={contractPromptLoading}
+      />
+
+      {/* Passport OCR Scanner Modal */}
+      {isPassportScannerOpen && (
+        <PassportScannerModal
+          isOpen={isPassportScannerOpen}
+          onClose={() => setIsPassportScannerOpen(false)}
+          onApply={(res) => {
+            if (passportScannerTarget === 'CONTRACT') {
+              handleApplyPassportToContract(res);
+            } else if (passportScannerTarget === 'NEW_CLIENT') {
+              handleApplyPassportToNewClient(res);
+            } else if (passportScannerTarget === 'ORDER') {
+              handleApplyPassportToOrder(res);
+            }
+          }}
+        />
+      )}
+
+      {/* Document Scanner Modal */}
+      {isDocScannerOpen && (
+        <DocumentScannerModal
+          isOpen={isDocScannerOpen}
+          onClose={() => setIsDocScannerOpen(false)}
+          onScanComplete={async (file) => {
+            if (editingOrderId) {
+              setUploadingFile(true);
+              try {
+                const newAtt = await uploadAttachment(editingOrderId, file, docScannerIsAct);
+                setFormData(prev => ({
+                  ...prev,
+                  attachments: [...prev.attachments, newAtt]
+                }));
+                window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
+              } catch (err) {
+                console.error("Failed to upload scanned doc", err);
+              } finally {
+                setUploadingFile(false);
+              }
+            } else {
+              setPendingFiles(prev => [...prev, file]);
+            }
+          }}
+          isAct={docScannerIsAct}
+        />
+      )}
+
+      {/* Act Upload Action Sheet for Mobile */}
+      <ActUploadActionSheet
+        isOpen={isActActionSheetOpen}
+        onClose={() => setIsActActionSheetOpen(false)}
+        onSelectScan={() => {
+          setDocScannerIsAct(actionSheetMode === 'ACT');
+          setIsDocScannerOpen(true);
+        }}
+        onSelectFile={() => {
+          if (actionSheetMode === 'ACT') {
+            actFileInputRef.current?.click();
+          } else {
+            generalFileInputRef.current?.click();
+          }
+        }}
+        mode={actionSheetMode}
+        hasAct={formData.attachments.some(a => a.isAct || isActFile(a.fileName))}
+      />
+
       {/* Unsaved Changes Confirmation Modal */}
-      {isUnsavedConfirmOpen && createPortal(
+      {isUnsavedConfirmOpen && (
         <div className="modal-overlay dialog-overlay" style={{ zIndex: 100060 }} onClick={() => setIsUnsavedConfirmOpen(false)}>
           <div className="modal-content dialog-content animate-fade-in" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
@@ -2064,146 +3932,8 @@ export const OrderDrawer: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>,
-        document.body
+        </div>
       )}
-
-      {/* Quick Create Client Modal */}
-      <QuickClientModal
-        isOpen={isNewClientModalOpen}
-        clientType={newClientType}
-        setClientType={setNewClientType}
-        name={newClientName}
-        setName={setNewClientName}
-        phone={newClientPhone}
-        setPhone={setNewClientPhone}
-        whatsapp={newClientWhatsapp}
-        setWhatsapp={setNewClientWhatsapp}
-        telegram={newClientTelegram}
-        setTelegram={setNewClientTelegram}
-        inn={newClientInn}
-        setInn={setNewClientInn}
-        contactPerson={newClientContactPerson}
-        setContactPerson={setNewClientContactPerson}
-        leadSource={newClientLeadSource}
-        setLeadSource={setNewClientLeadSource}
-        customLeadSource={newClientCustomLeadSource}
-        setCustomLeadSource={setNewClientCustomLeadSource}
-        creatingClient={creatingClient}
-        onClose={() => {
-          setIsNewClientModalOpen(false);
-          setNewClientType('INDIVIDUAL');
-          setNewClientName('');
-          setNewClientPhone('');
-          setNewClientInn('');
-          setNewClientContactPerson('');
-          setNewClientLeadSource('');
-          setNewClientCustomLeadSource('');
-        }}
-        onOpenPassportScanner={() => {
-          setPassportScannerTarget('NEW_CLIENT');
-          setIsPassportScannerOpen(true);
-        }}
-        onSubmit={handleQuickCreateClient}
-      />
-
-      {/* Contract Data Prompt Modal */}
-      <ContractPromptModal
-        isOpen={isContractPromptOpen}
-        contractPromptData={contractPromptData}
-        setContractPromptData={setContractPromptData}
-        contractPromptLoading={contractPromptLoading}
-        onClose={() => setIsContractPromptOpen(false)}
-        onOpenPassportScanner={() => {
-          setPassportScannerTarget('CONTRACT');
-          setIsPassportScannerOpen(true);
-        }}
-        onSubmit={handleSavePromptAndGenerate}
-      />
-
-      {/* Act & General Upload Mobile Action Sheet */}
-      {hasDocumentScanner && (
-        <>
-          <ActUploadActionSheet
-            isOpen={isActActionSheetOpen}
-            onClose={() => setIsActActionSheetOpen(false)}
-            mode={actionSheetMode}
-            hasAct={Boolean(formData.attachments.find(a => isActFile(a.fileName, a.isAct)) || pendingFiles.find(f => isActFile(f.name)))}
-            onSelectScan={() => {
-              setDocScannerIsAct(actionSheetMode === 'ACT');
-              setIsDocScannerOpen(true);
-            }}
-            onSelectFile={() => {
-              if (actionSheetMode === 'ACT') {
-                if (actFileInputRef.current) {
-                  actFileInputRef.current.click();
-                }
-              } else {
-                if (generalFileInputRef.current) {
-                  generalFileInputRef.current.click();
-                }
-              }
-            }}
-          />
-
-          <DocumentScannerModal
-            isOpen={isDocScannerOpen}
-            onClose={() => setIsDocScannerOpen(false)}
-            orderId={editingOrderId || undefined}
-            isAct={docScannerIsAct}
-            onScanComplete={(scannedFile) => {
-              if (docScannerIsAct) {
-                handleUploadDirectActFile(scannedFile);
-              } else {
-                handleUploadDirectGeneralFile(scannedFile);
-              }
-            }}
-          />
-        </>
-      )}
-
-      {/* Passport OCR Scanner Modal */}
-      <PassportScannerModal
-        isOpen={isPassportScannerOpen}
-        onClose={() => setIsPassportScannerOpen(false)}
-        showInstallationAddressOption={true}
-        currentInstallationAddress={formData.address || contractPromptData.installationAddress}
-        onApply={async (result: PassportApplyResult) => {
-          if (passportScannerTarget === 'CONTRACT') {
-            setContractPromptData(prev => ({
-              ...prev,
-              name: result.name || prev.name,
-              birthDate: result.birthDate || prev.birthDate,
-              passportSeriesNumber: result.passportSeriesNumber || prev.passportSeriesNumber,
-              passportIssuedBy: result.passportIssuedBy || prev.passportIssuedBy,
-              passportIssuedDate: result.passportIssuedDate || prev.passportIssuedDate,
-              passportDepartmentCode: result.passportDepartmentCode || prev.passportDepartmentCode,
-              registrationAddress: result.registrationAddress || prev.registrationAddress,
-              installationAddress: result.installationAddress || prev.installationAddress
-            }));
-
-            if (result.installationAddress) {
-              setFormData(prev => ({ ...prev, address: result.installationAddress! }));
-            }
-
-            if (result.saveScans && result.scanFiles.length > 0 && editingOrderId) {
-              for (const file of result.scanFiles) {
-                try {
-                  const att = await uploadAttachment(editingOrderId, file);
-                  setFormData(prev => ({ ...prev, attachments: [...prev.attachments, att] }));
-                } catch (attErr) {
-                  console.warn('Failed to attach passport scan file to order', attErr);
-                }
-              }
-            }
-          } else if (passportScannerTarget === 'NEW_CLIENT') {
-            if (result.name) setNewClientName(result.name);
-            if (result.installationAddress || result.registrationAddress) {
-              setFormData(prev => ({ ...prev, address: result.installationAddress || result.registrationAddress }));
-            }
-          }
-        }}
-      />
     </div>,
     document.body
   );
