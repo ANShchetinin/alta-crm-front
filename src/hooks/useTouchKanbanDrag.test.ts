@@ -21,25 +21,33 @@ describe('useTouchKanbanDrag Hook', () => {
 
   const boardRef = { current: document.createElement('div') };
   let onDropCard = vi.fn();
-  let onCardClick = vi.fn();
 
   beforeEach(() => {
     vi.useFakeTimers();
     onDropCard = vi.fn();
-    onCardClick = vi.fn();
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('triggers onCardClick on quick tap (no long press, no significant move)', () => {
+  it('allows click when no dragging occurs', () => {
     const { result } = renderHook(() =>
       useTouchKanbanDrag({
         boardRef,
-        onDropCard,
-        onCardClick,
-        longPressDelay: 500
+        onDropCard
+      })
+    );
+
+    expect(result.current.isClickAllowed()).toBe(true);
+    expect(result.current.draggingCard).toBeNull();
+  });
+
+  it('activates dragging state immediately on grip handle touch', () => {
+    const { result } = renderHook(() =>
+      useTouchKanbanDrag({
+        boardRef,
+        onDropCard
       })
     );
 
@@ -58,71 +66,14 @@ describe('useTouchKanbanDrag Hook', () => {
 
     const startEvent = {
       touches: [{ clientX: 50, clientY: 120 }],
-      currentTarget: mockTarget
-    } as any;
-
-    act(() => {
-      result.current.handleTouchStart(startEvent, mockOrder);
-    });
-
-    // Advance timer by only 50ms (before longPressDelay of 500ms)
-    act(() => {
-      vi.advanceTimersByTime(50);
-    });
-
-    const endEvent = {
-      touches: [],
-      changedTouches: [{ clientX: 50, clientY: 120 }],
+      currentTarget: mockTarget,
+      stopPropagation: vi.fn(),
       cancelable: true,
       preventDefault: vi.fn()
     } as any;
 
     act(() => {
-      result.current.handleTouchEnd(endEvent);
-    });
-
-    expect(onCardClick).toHaveBeenCalledWith(mockOrder);
-    expect(onDropCard).not.toHaveBeenCalled();
-    expect(result.current.draggingCard).toBeNull();
-  });
-
-  it('activates dragging state after long press delay', () => {
-    const { result } = renderHook(() =>
-      useTouchKanbanDrag({
-        boardRef,
-        onDropCard,
-        onCardClick,
-        longPressDelay: 500
-      })
-    );
-
-    const mockTarget = document.createElement('div');
-    vi.spyOn(mockTarget, 'getBoundingClientRect').mockReturnValue({
-      left: 20,
-      top: 100,
-      width: 300,
-      height: 120,
-      right: 320,
-      bottom: 220,
-      x: 20,
-      y: 100,
-      toJSON: () => {}
-    });
-
-    const startEvent = {
-      touches: [{ clientX: 50, clientY: 120 }],
-      currentTarget: mockTarget
-    } as any;
-
-    act(() => {
-      result.current.handleTouchStart(startEvent, mockOrder);
-    });
-
-    expect(result.current.draggingCard).toBeNull();
-
-    // Advance timer past long press threshold
-    act(() => {
-      vi.advanceTimersByTime(510);
+      result.current.handleGripTouchStart(startEvent, mockOrder);
     });
 
     expect(result.current.draggingCard).toEqual(mockOrder);
@@ -131,24 +82,23 @@ describe('useTouchKanbanDrag Hook', () => {
       card: mockOrder,
       width: 300,
       height: 120,
-      offsetX: 30, // 50 - 20
-      offsetY: 20, // 120 - 100
+      offsetX: 30,
+      offsetY: 20,
       initialX: 20,
       initialY: 100
     });
   });
 
-  it('cancels long press and does NOT open card if user moves while scrolling', () => {
+  it('activates dragging state immediately on grip handle pointerdown', () => {
     const { result } = renderHook(() =>
       useTouchKanbanDrag({
         boardRef,
-        onDropCard,
-        onCardClick,
-        longPressDelay: 500
+        onDropCard
       })
     );
 
     const mockTarget = document.createElement('div');
+    mockTarget.setPointerCapture = vi.fn();
     vi.spyOn(mockTarget, 'getBoundingClientRect').mockReturnValue({
       left: 20,
       top: 100,
@@ -161,84 +111,47 @@ describe('useTouchKanbanDrag Hook', () => {
       toJSON: () => {}
     });
 
+    const startEvent = {
+      clientX: 50,
+      clientY: 120,
+      pointerId: 1,
+      currentTarget: mockTarget,
+      stopPropagation: vi.fn(),
+      cancelable: true,
+      preventDefault: vi.fn()
+    } as any;
+
     act(() => {
-      result.current.handleTouchStart(
-        { touches: [{ clientX: 50, clientY: 120 }], currentTarget: mockTarget } as any,
-        mockOrder
-      );
+      result.current.handleGripPointerDown(startEvent, mockOrder);
     });
 
-    // Move finger 15px vertically after 40ms (scrolling gesture)
-    act(() => {
-      vi.advanceTimersByTime(40);
-      result.current.handleTouchMove({
-        touches: [{ clientX: 50, clientY: 135 }],
-        cancelable: true,
-        preventDefault: vi.fn()
-      } as any);
-    });
-
-    // Advance past 500ms
-    act(() => {
-      vi.advanceTimersByTime(500);
-    });
-
-    // Should NOT be dragging
-    expect(result.current.draggingCard).toBeNull();
-
-    // Touch ends after scrolling
-    act(() => {
-      result.current.handleTouchEnd({
-        touches: [],
-        changedTouches: [{ clientX: 50, clientY: 135 }],
-        cancelable: true,
-        preventDefault: vi.fn()
-      } as any);
-    });
-
-    // Should NOT have opened card
-    expect(onCardClick).not.toHaveBeenCalled();
-    // Subsequent mouse click should be suppressed
-    expect(result.current.isClickAllowed()).toBe(false);
+    expect(result.current.draggingCard).toEqual(mockOrder);
+    expect(result.current.dragPosition).toEqual({ x: 50, y: 120 });
   });
 
-  it('cancels drag and suppresses click on touchCancel', () => {
+  it('cancels drag on touchCancel', () => {
     const { result } = renderHook(() =>
       useTouchKanbanDrag({
         boardRef,
-        onDropCard,
-        onCardClick,
-        longPressDelay: 500
+        onDropCard
       })
     );
 
     const mockTarget = document.createElement('div');
     act(() => {
-      result.current.handleTouchStart(
-        { touches: [{ clientX: 50, clientY: 120 }], currentTarget: mockTarget } as any,
+      result.current.handleGripTouchStart(
+        { touches: [{ clientX: 50, clientY: 120 }], currentTarget: mockTarget, stopPropagation: vi.fn() } as any,
         mockOrder
       );
     });
+
+    expect(result.current.draggingCard).not.toBeNull();
 
     act(() => {
       result.current.handleTouchCancel();
     });
 
     expect(result.current.draggingCard).toBeNull();
-    expect(onCardClick).not.toHaveBeenCalled();
     expect(result.current.isClickAllowed()).toBe(false);
-  });
-
-  it('allows desktop mouse click when no touch was performed', () => {
-    const { result } = renderHook(() =>
-      useTouchKanbanDrag({
-        boardRef,
-        onDropCard,
-        onCardClick,
-        longPressDelay: 500
-      })
-    );
-
-    expect(result.current.isClickAllowed()).toBe(true);
   });
 });

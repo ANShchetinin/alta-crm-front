@@ -285,13 +285,11 @@ const Kanban = () => {
 
   const {
     draggingCard: touchDraggingCard,
-    pressingCardId: touchPressingCardId,
     dragPosition: touchDragPosition,
     ghostData: touchGhostData,
     targetStatusId: touchTargetStatusId,
     targetCardId: touchTargetCardId,
     targetCardPosition: touchTargetCardPosition,
-    handleTouchStart,
     handleGripPointerDown,
     handleGripTouchStart,
     handleTouchMove,
@@ -347,11 +345,7 @@ const Kanban = () => {
           fetchData();
         }
       }
-    },
-    onCardClick: (card) => {
-      openOrder(card.id);
-    },
-    longPressDelay: 260
+    }
   });
 
   const {
@@ -562,7 +556,7 @@ const Kanban = () => {
         )}
 
         <div 
-          className={`kanban-card ${isOrderDrawerOpen && activeOrderId === card.id ? 'is-active-card' : ''} ${touchPressingCardId === card.id ? 'is-pressing' : ''} ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''} ${desktopDraggingCardId === card.id ? 'is-card-dragging' : ''}`}
+          className={`kanban-card ${isOrderDrawerOpen && activeOrderId === card.id ? 'is-active-card' : ''} ${touchDraggingCard?.id === card.id ? 'is-touch-dragging-placeholder' : ''} ${desktopDraggingCardId === card.id ? 'is-card-dragging' : ''}`}
           data-card-id={card.id}
           data-card-status-id={card.statusId}
           draggable={!isMobile}
@@ -575,10 +569,6 @@ const Kanban = () => {
             setDesktopDraggingCardId(null);
             setDesktopDragOverColId(null);
           }}
-          onTouchStart={(e) => handleTouchStart(e, card)}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={handleTouchCancel}
           onClick={() => {
             if (isClickAllowed()) {
               openOrder(card.id);

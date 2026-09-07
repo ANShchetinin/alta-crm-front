@@ -14,23 +14,16 @@ export interface TouchDragGhostData {
 export interface UseTouchKanbanDragProps {
   boardRef: React.RefObject<HTMLDivElement | null>;
   onDropCard: (cardId: number, targetStatusId: number, targetCardId?: number | null, position?: 'before' | 'after') => void;
-  onCardClick: (card: Order) => void;
-  longPressDelay?: number;
 }
 
-// Distance in pixels beyond which a touch gesture is classified as scroll rather than tap/hold
-const MOVE_THRESHOLD = 12;
 // Suppression time for synthetic click events after touch/drag interactions
 const CLICK_SUPPRESSION_MS = 600;
 
 export const useTouchKanbanDrag = ({
   boardRef,
-  onDropCard,
-  onCardClick,
-  longPressDelay = 260
+  onDropCard
 }: UseTouchKanbanDragProps) => {
   const [draggingCard, setDraggingCard] = useState<Order | null>(null);
-  const [pressingCardId, setPressingCardId] = useState<number | null>(null);
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
   const [targetStatusId, setTargetStatusId] = useState<number | null>(null);
   const [targetCardId, setTargetCardId] = useState<number | null>(null);
@@ -43,7 +36,6 @@ export const useTouchKanbanDrag = ({
     currentX: number;
     currentY: number;
     card: Order | null;
-    timer: ReturnType<typeof setTimeout> | null;
     isDragging: boolean;
     hasMoved: boolean;
     startTime: number;
@@ -60,7 +52,6 @@ export const useTouchKanbanDrag = ({
     currentX: 0,
     currentY: 0,
     card: null,
-    timer: null,
     isDragging: false,
     hasMoved: false,
     startTime: 0,
@@ -202,23 +193,11 @@ export const useTouchKanbanDrag = ({
 
   // Move processor (used by both native touchmove and pointermove)
   const processMove = useCallback((clientX: number, clientY: number) => {
-    const { startX, startY, isDragging, timer } = stateRef.current;
+    if (!stateRef.current.isDragging) return;
+
     stateRef.current.currentX = clientX;
     stateRef.current.currentY = clientY;
-
-    if (!isDragging) {
-      const dist = Math.hypot(clientX - startX, clientY - startY);
-      if (dist > MOVE_THRESHOLD) {
-        stateRef.current.hasMoved = true;
-        stateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
-        setPressingCardId(null);
-        if (timer) {
-          clearTimeout(timer);
-          stateRef.current.timer = null;
-        }
-      }
-      return;
-    }
+    stateRef.current.hasMoved = true;
 
     setDragPosition({ x: clientX, y: clientY });
     handleAutoScroll(clientX, clientY);
@@ -228,15 +207,10 @@ export const useTouchKanbanDrag = ({
   // End processor (used by both native touchend and pointerup)
   const processEnd = useCallback((clientX: number, clientY: number) => {
     cleanupListeners.current();
-
-    const { timer, isDragging, card, startTime, startX, startY } = stateRef.current;
-    if (timer) {
-      clearTimeout(timer);
-      stateRef.current.timer = null;
-    }
-    setPressingCardId(null);
     stopAutoScroll();
     unlockBodyStyles();
+
+    const { isDragging, card } = stateRef.current;
 
     if (isDragging && card) {
       let finalTargetColId: number | null = null;
@@ -286,34 +260,12 @@ export const useTouchKanbanDrag = ({
       stateRef.current.card = null;
       stateRef.current.targetCardId = null;
       stateRef.current.targetCardPosition = null;
-    } else if (card) {
-      const endDist = Math.hypot(clientX - startX, clientY - startY);
-      if (endDist > MOVE_THRESHOLD) {
-        stateRef.current.hasMoved = true;
-      }
-
-      const duration = Date.now() - startTime;
-      if (!stateRef.current.hasMoved && endDist <= MOVE_THRESHOLD && duration >= 30 && duration < 500) {
-        stateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
-        stateRef.current.hasMoved = true;
-        onCardClick(card);
-      } else {
-        stateRef.current.hasMoved = true;
-        stateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
-      }
-      stateRef.current.card = null;
     }
-  }, [onDropCard, onCardClick, stopAutoScroll]);
+  }, [onDropCard, stopAutoScroll]);
 
   // Cancel processor
   const processCancel = useCallback(() => {
     cleanupListeners.current();
-
-    if (stateRef.current.timer) {
-      clearTimeout(stateRef.current.timer);
-      stateRef.current.timer = null;
-    }
-    setPressingCardId(null);
     stopAutoScroll();
     unlockBodyStyles();
 
@@ -419,81 +371,6 @@ export const useTouchKanbanDrag = ({
     };
   }, [handleNativePointerMove, handleNativePointerUp, handleNativePointerCancel, handleNativeTouchMove, handleNativeTouchEnd, handleNativeTouchCancel]);
 
-  // Card Body Touch Start (for tap or long-press drag)
-  const handleTouchStart = useCallback((e: React.TouchEvent, card: Order) => {
-    const target = e.target as HTMLElement | null;
-    if (target && target.closest('a, button, input, select, textarea, [data-no-card-click], .kanban-map-pill, .card-phone-btn, .card-messenger-btn, .card-complete-btn, .card-grip-handle')) {
-      return;
-    }
-
-    const touch = e.touches[0];
-    const cardEl = e.currentTarget as HTMLElement;
-    const rect = cardEl.getBoundingClientRect();
-
-    const startX = touch.clientX;
-    const startY = touch.clientY;
-    const offsetX = startX - rect.left;
-    const offsetY = startY - rect.top;
-
-    if (stateRef.current.timer) {
-      clearTimeout(stateRef.current.timer);
-    }
-
-    setPressingCardId(card.id);
-
-    stateRef.current = {
-      startX,
-      startY,
-      currentX: startX,
-      currentY: startY,
-      card,
-      timer: null,
-      isDragging: false,
-      hasMoved: false,
-      startTime: Date.now(),
-      suppressClickUntil: stateRef.current.suppressClickUntil,
-      cardElement: cardEl,
-      autoScrollTimer: null,
-      targetStatusId: card.statusId,
-      targetCardId: null,
-      targetCardPosition: null,
-      activePointerId: null
-    };
-
-    attachGlobalListeners();
-
-    const timer = setTimeout(() => {
-      if (stateRef.current.hasMoved || stateRef.current.card?.id !== card.id) {
-        setPressingCardId(null);
-        return;
-      }
-
-      stateRef.current.isDragging = true;
-      stateRef.current.hasMoved = true;
-      stateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
-      setPressingCardId(null);
-
-      lockBodyStyles();
-
-      setDraggingCard(card);
-      setDragPosition({ x: startX, y: startY });
-      setGhostData({
-        card,
-        width: rect.width,
-        height: rect.height,
-        offsetX,
-        offsetY,
-        initialX: rect.left,
-        initialY: rect.top
-      });
-      setTargetStatusId(card.statusId);
-
-      triggerVibration(50);
-    }, longPressDelay);
-
-    stateRef.current.timer = timer;
-  }, [longPressDelay, attachGlobalListeners]);
-
   // Immediate Drag on Grip Handle via PointerDown (Standard for modern touch & desktop)
   const handleGripPointerDown = useCallback((e: React.PointerEvent, card: Order) => {
     e.stopPropagation();
@@ -509,18 +386,12 @@ export const useTouchKanbanDrag = ({
     const offsetX = startX - rect.left;
     const offsetY = startY - rect.top;
 
-    if (stateRef.current.timer) {
-      clearTimeout(stateRef.current.timer);
-      stateRef.current.timer = null;
-    }
-
     stateRef.current = {
       startX,
       startY,
       currentX: startX,
       currentY: startY,
       card,
-      timer: null,
       isDragging: true,
       hasMoved: true,
       startTime: Date.now(),
@@ -574,18 +445,12 @@ export const useTouchKanbanDrag = ({
     const offsetX = startX - rect.left;
     const offsetY = startY - rect.top;
 
-    if (stateRef.current.timer) {
-      clearTimeout(stateRef.current.timer);
-      stateRef.current.timer = null;
-    }
-
     stateRef.current = {
       startX,
       startY,
       currentX: startX,
       currentY: startY,
       card,
-      timer: null,
       isDragging: true,
       hasMoved: true,
       startTime: Date.now(),
@@ -630,15 +495,12 @@ export const useTouchKanbanDrag = ({
   }, [handleNativeTouchCancel]);
 
   const isClickAllowed = useCallback(() => {
-    return Date.now() > stateRef.current.suppressClickUntil && !stateRef.current.hasMoved && !stateRef.current.isDragging;
+    return Date.now() > stateRef.current.suppressClickUntil && !stateRef.current.isDragging;
   }, []);
 
   useEffect(() => {
     return () => {
       cleanupListeners.current();
-      if (stateRef.current.timer) {
-        clearTimeout(stateRef.current.timer);
-      }
       stopAutoScroll();
       unlockBodyStyles();
     };
@@ -646,13 +508,11 @@ export const useTouchKanbanDrag = ({
 
   return {
     draggingCard,
-    pressingCardId,
     dragPosition,
     targetStatusId,
     targetCardId,
     targetCardPosition,
     ghostData,
-    handleTouchStart,
     handleGripPointerDown,
     handleGripTouchStart,
     handleTouchMove,
