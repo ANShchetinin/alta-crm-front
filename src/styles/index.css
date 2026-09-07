@@ -648,3 +648,46 @@ body.light-theme {
   flex-shrink: 0 !important;
 }
 
+/* Global DaData Suggestions Styles */
+.react-dadata__container {
+  width: 100% !important;
+  position: relative !important;
+}
+
+.react-dadata__suggestions {
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.5) !important;
+  z-index: 100070 !important;
+}
+
+.react-dadata__suggestion {
+  color: var(--text-primary) !important;
+  padding: 8px 12px !important;
+  font-size: 0.88rem !important;
+  cursor: pointer !important;
+}
+
+.react-dadata__suggestion:hover {
+  background-color: var(--row-hover-bg) !important;
+}
+
+.react-dadata__suggestion--current {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+}
+
+.react-dadata__suggestion-subtitle {
+  color: var(--text-secondary) !important;
+  font-size: 0.78rem !important;
+}
+
+.react-dadata__input {
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--glass-border) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+
