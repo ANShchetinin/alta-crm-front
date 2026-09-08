@@ -53,7 +53,7 @@ import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import { MoveRestrictionModal } from '../features/kanban/components/MoveRestrictionModal';
 import { ColumnModal } from '../features/kanban/components/ColumnModal';
-import { isActFile } from '../features/kanban/constants';
+import { isActFile, formatClientNameLines } from '../features/kanban/constants';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import '../styles/kanban.css';
 
@@ -310,30 +310,31 @@ const Kanban = () => {
         return;
       }
 
-      const remaining = cards.filter(c => c.id !== cardId);
+      // Extract cards of target status (without current dragged card)
+      const targetColCards = cards.filter(c => c.statusId === targetStatusId && c.id !== cardId);
       const updatedSourceCard = { ...sourceCard, statusId: targetStatusId };
 
-      let insertIdx = remaining.length;
+      let targetColIndex = targetColCards.length;
       if (targetCardId && targetCardId !== cardId) {
-        const targetIdx = remaining.findIndex(c => c.id === targetCardId);
-        if (targetIdx !== -1) {
-          insertIdx = position === 'after' ? targetIdx + 1 : targetIdx;
-        }
-      } else {
-        const lastInStatusIdx = remaining.reduce((acc, c, idx) => (c.statusId === targetStatusId ? idx : acc), -1);
-        if (lastInStatusIdx !== -1) {
-          insertIdx = lastInStatusIdx + 1;
+        const foundIdx = targetColCards.findIndex(c => c.id === targetCardId);
+        if (foundIdx !== -1) {
+          targetColIndex = position === 'after' ? foundIdx + 1 : foundIdx;
         }
       }
 
-      remaining.splice(insertIdx, 0, updatedSourceCard);
-      setCards(remaining);
-      saveCardsOrder(remaining);
+      targetColCards.splice(targetColIndex, 0, updatedSourceCard);
+
+      // Reassemble complete cards array
+      const otherCards = cards.filter(c => c.statusId !== targetStatusId && c.id !== cardId);
+      const newCards = [...otherCards, ...targetColCards];
+
+      setCards(newCards);
+      saveCardsOrder(newCards);
 
       if (!isSameStatus) {
         const firstStatus = columns.find(s => s.sortOrder === 1);
         if (firstStatus) {
-          setNewOrdersCount(remaining.filter(o => o.statusId === firstStatus.id).length);
+          setNewOrdersCount(newCards.filter(o => o.statusId === firstStatus.id).length);
         }
         try {
           await moveOrder(cardId, targetStatusId);
@@ -549,6 +550,8 @@ const Kanban = () => {
     const canComplete = Boolean(instName) && hasAct;
     const isTargetedCard = touchTargetCardId === card.id && touchDraggingCard?.id !== card.id;
 
+    const clientNameLines = formatClientNameLines(cName);
+
     return (
       <div key={card.id} className="kanban-card-item-wrapper">
         {isTargetedCard && touchTargetCardPosition === 'before' && (
@@ -575,9 +578,9 @@ const Kanban = () => {
             }
           }}
         >
-        {/* 1. Header: Client Info (Left) + Phone & Assignee (Right) */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', minWidth: 0, flex: 1 }}>
+        {/* 1. Header: Avatar + Order ID + Contract # + Reminders (Left) | Contacts + Assignee (Right) */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1, flexWrap: 'wrap' }}>
             {/* Card Drag Grip Handle */}
             <div 
               className={`card-grip-handle ${touchDraggingCard?.id === card.id ? 'is-dragging' : ''}`}
@@ -602,8 +605,7 @@ const Kanban = () => {
                 justifyContent: 'center',
                 color: '#fff',
                 background: (card.clientAvatarUrl || client?.avatarUrl) ? 'transparent' : '#0047ab',
-                flexShrink: 0,
-                marginTop: '1px'
+                flexShrink: 0
               }}
             >
               {(card.clientAvatarUrl || client?.avatarUrl) ? (
@@ -617,70 +619,62 @@ const Kanban = () => {
               )}
             </div>
 
-            {/* Client Info Column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', flexWrap: 'wrap' }}>
-                <span className="card-order-id" style={{ flexShrink: 0 }}>
-                  #{card.id}
-                </span>
-                <span className="card-client-name">
-                  {cName}
-                </span>
-              </div>
+            {/* Order ID */}
+            <span className="card-order-id" style={{ flexShrink: 0 }}>
+              #{card.id}
+            </span>
 
-              {/* Badges row under name: Contract number & Reminders */}
-              {(card.orderNumber || pendingReminders.length > 0) && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-                  {card.orderNumber && (
-                    <span 
-                      style={{
-                        fontSize: '0.68rem',
-                        fontFamily: 'monospace',
-                        fontWeight: 700,
-                        background: 'rgba(34, 197, 94, 0.15)',
-                        color: '#16a34a',
-                        padding: '1px 5px',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid rgba(34, 197, 94, 0.3)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '3px'
-                      }}
-                      title="Номер договора"
-                    >
-                      <FileText size={9} />
-                      № {card.orderNumber}
-                    </span>
-                  )}
+            {/* Contract number badge */}
+            {card.orderNumber && (
+              <span 
+                style={{
+                  fontSize: '0.68rem',
+                  fontFamily: 'monospace',
+                  fontWeight: 700,
+                  background: 'rgba(34, 197, 94, 0.15)',
+                  color: '#16a34a',
+                  padding: '1px 5px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  flexShrink: 0
+                }}
+                title="Номер договора"
+              >
+                <FileText size={9} />
+                № {card.orderNumber}
+              </span>
+            )}
 
-                  {pendingReminders.length > 0 && (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '2px',
-                        fontSize: '0.68rem',
-                        fontWeight: 700,
-                        padding: '1px 5px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: isOverdue ? 'rgba(239, 68, 68, 0.18)' : (isToday ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.15)'),
-                        color: isOverdue ? '#ef4444' : (isToday ? '#f59e0b' : '#60a5fa'),
-                        border: isOverdue ? '1px solid rgba(239, 68, 68, 0.35)' : (isToday ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(59, 130, 246, 0.3)'),
-                        cursor: 'default'
-                      }}
-                      title={`Напоминание: ${nearestReminder.comment || 'Звонок'} (${reminderTimeStr})`}
-                    >
-                      <Bell size={10} />
-                      {pendingReminders.length > 1 ? pendingReminders.length : ''}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
+            {/* Reminders badge */}
+            {pendingReminders.length > 0 && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  padding: '1px 5px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: isOverdue ? 'rgba(239, 68, 68, 0.18)' : (isToday ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.15)'),
+                  color: isOverdue ? '#ef4444' : (isToday ? '#f59e0b' : '#60a5fa'),
+                  border: isOverdue ? '1px solid rgba(239, 68, 68, 0.35)' : (isToday ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(59, 130, 246, 0.3)'),
+                  cursor: 'default',
+                  flexShrink: 0
+                }}
+                title={`Напоминание: ${nearestReminder.comment || 'Звонок'} (${reminderTimeStr})`}
+              >
+                <Bell size={10} />
+                {pendingReminders.length > 1 ? pendingReminders.length : ''}
+              </span>
+            )}
           </div>
 
           {/* Right Header: Phone button + Messenger buttons + Assignee Avatar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, marginTop: '1px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
             {cPhone && (
               <a
                 href={`tel:${cPhone.replace(/[^\d+]/g, '')}`}
@@ -765,6 +759,17 @@ const Kanban = () => {
             )}
           </div>
         </div>
+
+        {/* 2. Client Name in up to 3 lines (No empty space if parts are missing) */}
+        {clientNameLines.length > 0 && (
+          <div className="card-client-name-block">
+            {clientNameLines.map((line, idx) => (
+              <div key={idx} className="card-client-name-line">
+                {line}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* 2. Address Row + Maps Buttons */}
         {card.address && (
@@ -1332,17 +1337,30 @@ const Kanban = () => {
               >
                 <div 
                   className="column-header"
-                  draggable={!isWorker}
+                  draggable={!isWorker && !isMobile}
                   onDragStart={(e) => {
+                    if (isMobile) return;
                     e.stopPropagation();
                     e.dataTransfer.setData('columnId', col.id.toString());
                     e.dataTransfer.effectAllowed = 'move';
                   }}
-                  onTouchStart={(e) => handleHandleTouchStart(e, col.id)}
-                  onTouchMove={handleHandleTouchMove}
-                  onTouchEnd={handleHandleTouchEnd}
-                  onTouchCancel={handleHandleTouchCancel}
-                  style={{ cursor: !isWorker ? 'grab' : 'default' }}
+                  onTouchStart={(e) => {
+                    if (isMobile) return;
+                    handleHandleTouchStart(e, col.id);
+                  }}
+                  onTouchMove={(e) => {
+                    if (isMobile) return;
+                    handleHandleTouchMove(e);
+                  }}
+                  onTouchEnd={(e) => {
+                    if (isMobile) return;
+                    handleHandleTouchEnd(e);
+                  }}
+                  onTouchCancel={() => {
+                    if (isMobile) return;
+                    handleHandleTouchCancel();
+                  }}
+                  style={{ cursor: !isWorker && !isMobile ? 'grab' : 'default' }}
                 >
                   <div className="column-title">
                     <span 

@@ -60,3 +60,18 @@ export const isActFile = (fileName?: string, isActFlag?: boolean): boolean => {
     || /completion\s*act/i.test(name);
 };
 
+/**
+ * Splits client name / full name into up to 3 lines (e.g. Surname, First name, Patronymic).
+ * Returns empty array if name is empty.
+ * Returns 1 line for single-word names, 2 lines for 2-word names, 3 lines for 3+ words (combining 3rd and subsequent words).
+ * Leaves no empty lines if some parts are missing.
+ */
+export const formatClientNameLines = (name?: string | null): string[] => {
+  if (!name || !name.trim()) return [];
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 3) {
+    return parts;
+  }
+  return [parts[0], parts[1], parts.slice(2).join(' ')];
+};
+

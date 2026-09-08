@@ -1,5 +1,5 @@
-﻿import { describe, it, expect } from 'vitest';
-import { DEFAULT_ACT_CHECKLIST, mergeActChecklist } from './constants';
+import { describe, it, expect } from 'vitest';
+import { DEFAULT_ACT_CHECKLIST, mergeActChecklist, formatClientNameLines } from './constants';
 
 describe('kanban constants and helpers', () => {
   it('DEFAULT_ACT_CHECKLIST contains 15 default checklist items', () => {
@@ -35,6 +35,35 @@ describe('kanban constants and helpers', () => {
       const merged = mergeActChecklist(saved);
       expect(merged).toHaveLength(16);
       expect(merged.find(i => i.id === 'custom-1')?.checked).toBe(true);
+    });
+  });
+
+  describe('formatClientNameLines', () => {
+    it('returns empty array for empty or nullish strings', () => {
+      expect(formatClientNameLines(undefined)).toEqual([]);
+      expect(formatClientNameLines(null)).toEqual([]);
+      expect(formatClientNameLines('')).toEqual([]);
+      expect(formatClientNameLines('   ')).toEqual([]);
+    });
+
+    it('returns single line for 1-word name without empty rows', () => {
+      expect(formatClientNameLines('Иван')).toEqual(['Иван']);
+    });
+
+    it('returns 2 lines for 2-word name without empty rows', () => {
+      expect(formatClientNameLines('Иванов Иван')).toEqual(['Иванов', 'Иван']);
+    });
+
+    it('returns 3 lines for 3-word name (Surname, Name, Patronymic)', () => {
+      expect(formatClientNameLines('Иванов Иван Иванович')).toEqual(['Иванов', 'Иван', 'Иванович']);
+    });
+
+    it('returns 3 lines for names with more than 3 words (combining rest into 3rd line)', () => {
+      expect(formatClientNameLines('ООО Ромашка Плюс Элит Сервис')).toEqual([
+        'ООО',
+        'Ромашка',
+        'Плюс Элит Сервис'
+      ]);
     });
   });
 });
