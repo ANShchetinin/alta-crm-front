@@ -1,4 +1,5 @@
 import { api } from './axiosConfig';
+import type { TenantDto } from './settings';
 
 export interface UserTenant {
   tenantId: number;
@@ -19,6 +20,12 @@ export interface MyTenantsResponse {
   tenants: UserTenant[];
 }
 
+export interface SwitchTenantResponse {
+  token: string;
+  tenantSettings?: TenantDto;
+  myTenants?: MyTenantsResponse;
+}
+
 export const loginCall = async (email: string, password: string) => {
   const response = await api.post('/auth/login', { email, password });
   return response.data.token;
@@ -29,7 +36,7 @@ export const getMyTenants = async (): Promise<MyTenantsResponse> => {
   return response.data;
 };
 
-export const switchTenant = async (tenantId: number): Promise<string> => {
-  const response = await api.post(`/auth/switch-tenant/${tenantId}`);
-  return response.data.token;
+export const switchTenant = async (tenantId: number): Promise<SwitchTenantResponse> => {
+  const response = await api.post<SwitchTenantResponse>(`/auth/switch-tenant/${tenantId}`);
+  return response.data;
 };

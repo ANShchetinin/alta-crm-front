@@ -17,6 +17,7 @@ interface AppState {
   setNewOrdersCount: (count: number) => void;
   fetchLowStockMaterials: () => Promise<void>;
   tenantSettings: TenantDto | null;
+  setTenantSettings: (settings: TenantDto | null) => void;
   fetchTenantSettings: () => Promise<void>;
   updateTenantSettingsLocally: (settings: Partial<TenantDto>) => void;
 }
@@ -62,6 +63,10 @@ export const useAppStore = create<AppState>((set) => ({
   },
   
   tenantSettings: null,
+
+  setTenantSettings: (settings) => {
+    set({ tenantSettings: settings });
+  },
   
   fetchTenantSettings: async () => {
     try {
