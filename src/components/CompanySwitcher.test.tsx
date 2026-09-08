@@ -92,7 +92,21 @@ describe('DashboardLayout Company Switcher', () => {
     expect(activeItem?.className).toContain('active');
 
     // Click company 2 to switch
-    mockSwitchTenant.mockResolvedValueOnce({ token: 'new-tenant-2-token' });
+    mockSwitchTenant.mockResolvedValueOnce({
+      token: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvd25lckB0ZXN0LmNvbSIsInJvbGUiOiJPV05FUiIsInVzZXJJZCI6MSwidGVuYW50SWQiOjJ9.test',
+      tenantSettings: { id: 2, name: 'Компания 2', logoUrl: '', primaryColor: '#10b981' },
+      myTenants: {
+        currentTenantId: 2,
+        maxCompaniesLimit: 5,
+        currentCompaniesCount: 2,
+        canCreateCompany: true,
+        tenants: [
+          { tenantId: 1, name: 'Компания 1', role: 'OWNER', primaryColor: '#3b82f6', isActive: true },
+          { tenantId: 2, name: 'Компания 2', role: 'OWNER', primaryColor: '#10b981', isActive: true },
+        ]
+      }
+    });
+
     const company2Item = screen.getByText('Компания 2').closest('.company-dropdown-item');
     if (company2Item) {
       fireEvent.click(company2Item);
@@ -100,6 +114,8 @@ describe('DashboardLayout Company Switcher', () => {
 
     await waitFor(() => {
       expect(mockSwitchTenant).toHaveBeenCalledWith(2);
+      expect(useAuthStore.getState().tenantId).toBe(2);
+      expect(useAppStore.getState().tenantSettings?.name).toBe('Компания 2');
     });
   });
 });

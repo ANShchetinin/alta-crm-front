@@ -10,6 +10,7 @@ import { getOrders, getOrderStatuses } from '../api/kanban';
 import { getProfile } from '../api/settings';
 import { getMyTenants, switchTenant, type MyTenantsResponse } from '../api/auth';
 import { getRecentNotifications, markNotificationAsRead, markAllNotificationsAsRead, type AppNotificationItem } from '../api/notifications';
+import { queryClient } from '../lib/queryClient';
 import { PushNotificationSettings } from './PushNotificationSettings';
 import { FeatureGate } from './FeatureGate';
 import { CreateCompanyModal } from './CreateCompanyModal';
@@ -22,8 +23,8 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings, fetchTenantSettings } = useAppStore();
-  const { logout, role, token, setToken } = useAuthStore();
+  const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings, setTenantSettings, fetchTenantSettings } = useAppStore();
+  const { logout, role, token, tenantId, setToken } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -148,16 +149,78 @@ const DashboardLayout = () => {
     }
   }, [token, role]);
 
+  const [recentNotifications, setRecentNotifications] = useState<AppNotificationItem[]>([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
+
+  const fetchNotificationsList = async () => {
+    try {
+      const list = await getRecentNotifications();
+      setRecentNotifications(list);
+      const unread = list.filter(n => !n.isRead).length;
+      setUnreadNotifCount(unread);
+    } catch (err) {
+      console.error("Failed to fetch recent notifications", err);
+    }
+  };
+
+  const fetchNewOrdersCount = async () => {
+    try {
+      const statuses = await getOrderStatuses();
+      const firstStatus = statuses.find(s => s.sortOrder === 1 || s.sortOrder === 0);
+      if (firstStatus) {
+        const orders = await getOrders();
+        const count = orders.filter(o => o.statusId === firstStatus.id).length;
+        setNewOrdersCount(count);
+      }
+    } catch (err) {
+      console.error("Failed to fetch new orders count", err);
+    }
+    if (role !== 'WORKER') {
+      fetchLowStockMaterials();
+    }
+  };
+
+  const fetchUserProfile = async () => {
+    try {
+      const profile = await getProfile();
+      const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
+      setUserName(fullName || profile.email || 'User');
+      setUserEmail(profile.email || '');
+      if (profile.avatarUrl) {
+        setUserAvatarUrl(profile.avatarUrl);
+      }
+      if (profile.canViewFinances !== undefined) {
+        setCanViewFinances(Boolean(profile.canViewFinances));
+      }
+      useAuthStore.getState().setPermissions({
+        canViewFinances: profile.canViewFinances,
+        canAccessMeasurements: profile.canAccessMeasurements
+      });
+    } catch (err) {
+      console.error("Failed to fetch user profile", err);
+    }
+  };
+
   const handleSwitchCompany = async (targetTenantId: number) => {
     if (targetTenantId === myTenantsData?.currentTenantId || isSwitchingCompany) return;
     setIsSwitchingCompany(true);
+    setIsCompanyDropdownOpen(false);
     try {
-      const newToken = await switchTenant(targetTenantId);
-      setToken(newToken);
-      setIsCompanyDropdownOpen(false);
-      await fetchTenantSettings();
-      await fetchMyTenantsData();
-      window.location.reload();
+      const res = await switchTenant(targetTenantId);
+      if (res?.token) {
+        setToken(res.token);
+      }
+      queryClient.clear();
+      if (res?.tenantSettings) {
+        setTenantSettings(res.tenantSettings);
+      }
+      if (res?.myTenants) {
+        setMyTenantsData(res.myTenants);
+      }
+      fetchUserProfile();
+      fetchNewOrdersCount();
+      fetchNotificationsList();
+      window.dispatchEvent(new CustomEvent('alta:tenant-changed', { detail: { tenantId: targetTenantId } }));
     } catch (err) {
       console.error("Failed to switch company", err);
     } finally {
@@ -167,11 +230,17 @@ const DashboardLayout = () => {
 
   const handleCompanyCreated = async (newToken: string) => {
     setToken(newToken);
+    queryClient.clear();
     setIsCreateCompanyModalOpen(false);
     setIsCompanyDropdownOpen(false);
-    await fetchTenantSettings();
-    await fetchMyTenantsData();
-    window.location.reload();
+    await Promise.all([
+      fetchTenantSettings(),
+      fetchMyTenantsData(),
+      fetchUserProfile(),
+      fetchNewOrdersCount(),
+      fetchNotificationsList()
+    ]);
+    window.dispatchEvent(new CustomEvent('alta:tenant-changed'));
   };
   
   // PWA Install States
@@ -235,64 +304,12 @@ const DashboardLayout = () => {
   useEffect(() => {
     if (role === 'SUPERADMIN') return;
 
-    const fetchNewOrdersCount = async () => {
-      try {
-        const statuses = await getOrderStatuses();
-        const firstStatus = statuses.find(s => s.sortOrder === 1 || s.sortOrder === 0);
-        if (firstStatus) {
-          const orders = await getOrders();
-          const count = orders.filter(o => o.statusId === firstStatus.id).length;
-          setNewOrdersCount(count);
-        }
-      } catch (err) {
-        console.error("Failed to fetch new orders count", err);
-      }
-      if (role !== 'WORKER') {
-        fetchLowStockMaterials();
-      }
-    };
     fetchNewOrdersCount();
-
-    const fetchUserProfile = async () => {
-      try {
-        const profile = await getProfile();
-        const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
-        setUserName(fullName || profile.email || 'User');
-        setUserEmail(profile.email || '');
-        if (profile.avatarUrl) {
-          setUserAvatarUrl(profile.avatarUrl);
-        }
-        if (profile.canViewFinances !== undefined) {
-          setCanViewFinances(Boolean(profile.canViewFinances));
-        }
-        useAuthStore.getState().setPermissions({
-          canViewFinances: profile.canViewFinances,
-          canAccessMeasurements: profile.canAccessMeasurements
-        });
-      } catch (err) {
-        console.error("Failed to fetch user profile", err);
-      }
-    };
     fetchUserProfile();
-
     fetchNotificationsList();
     const interval = setInterval(fetchNotificationsList, 25000);
     return () => clearInterval(interval);
   }, [role]);
-
-  const [recentNotifications, setRecentNotifications] = useState<AppNotificationItem[]>([]);
-  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
-
-  const fetchNotificationsList = async () => {
-    try {
-      const list = await getRecentNotifications();
-      setRecentNotifications(list);
-      const unread = list.filter(n => !n.isRead).length;
-      setUnreadNotifCount(unread);
-    } catch (err) {
-      console.error("Failed to fetch recent notifications", err);
-    }
-  };
 
   const handleNotificationClick = async (notif: AppNotificationItem) => {
     if (!notif.isRead) {
@@ -939,7 +956,7 @@ const DashboardLayout = () => {
           </div>
         </header>
         
-        <div className="content-area animate-fade-in">
+        <div className="content-area animate-fade-in" key={tenantId ?? 'default'}>
           <Outlet />
         </div>
       </main>
