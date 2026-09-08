@@ -154,4 +154,43 @@ describe('useTouchKanbanDrag Hook', () => {
     expect(result.current.draggingCard).toBeNull();
     expect(result.current.isClickAllowed()).toBe(false);
   });
+
+  it('triggers onDropCard when dropping into a different column', () => {
+    const { result } = renderHook(() =>
+      useTouchKanbanDrag({
+        boardRef,
+        onDropCard
+      })
+    );
+
+    const mockTarget = document.createElement('div');
+    const mockColumnTarget = document.createElement('div');
+    mockColumnTarget.setAttribute('data-column-id', '20');
+
+    document.elementFromPoint = vi.fn().mockReturnValue(mockColumnTarget);
+
+    act(() => {
+      result.current.handleGripTouchStart(
+        { touches: [{ clientX: 50, clientY: 120 }], currentTarget: mockTarget, stopPropagation: vi.fn() } as any,
+        mockOrder
+      );
+    });
+
+    act(() => {
+      result.current.handleTouchMove({
+        touches: [{ clientX: 250, clientY: 120 }],
+        nativeEvent: { touches: [{ clientX: 250, clientY: 120 }] }
+      } as any);
+    });
+
+    act(() => {
+      result.current.handleTouchEnd({
+        changedTouches: [{ clientX: 250, clientY: 120 }],
+        nativeEvent: { changedTouches: [{ clientX: 250, clientY: 120 }] }
+      } as any);
+    });
+
+    expect(onDropCard).toHaveBeenCalledWith(mockOrder.id, 20, null, undefined);
+    expect(result.current.draggingCard).toBeNull();
+  });
 });

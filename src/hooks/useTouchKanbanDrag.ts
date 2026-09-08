@@ -112,25 +112,27 @@ export const useTouchKanbanDrag = ({
 
   const updateTargetColumn = useCallback((x: number, y: number) => {
     if (typeof document === 'undefined' || typeof document.elementFromPoint !== 'function') return;
+    const currentCard = stateRef.current.card;
+    if (!currentCard) return;
+
     const element = document.elementFromPoint(x, y);
     if (!element) {
-      setTargetStatusId(null);
       setTargetCardId(null);
       setTargetCardPosition(null);
-      stateRef.current.targetStatusId = null;
       stateRef.current.targetCardId = null;
       stateRef.current.targetCardPosition = null;
       return;
     }
 
-    // Check if dragging over a specific card
+    // 1. Check if hovering over another card
     const cardEl = element.closest('[data-card-id]');
     if (cardEl) {
       const cardIdStr = cardEl.getAttribute('data-card-id');
       const cardColStr = cardEl.getAttribute('data-card-status-id');
-      if (cardIdStr) {
-        const id = parseInt(cardIdStr, 10);
-        const colId = cardColStr ? parseInt(cardColStr, 10) : null;
+      const id = cardIdStr ? parseInt(cardIdStr, 10) : null;
+      const colId = cardColStr ? parseInt(cardColStr, 10) : null;
+
+      if (id && id !== currentCard.id) {
         const rect = cardEl.getBoundingClientRect();
         const midY = rect.top + rect.height / 2;
         const pos: 'before' | 'after' = y < midY ? 'before' : 'after';
@@ -140,19 +142,14 @@ export const useTouchKanbanDrag = ({
         stateRef.current.targetCardId = id;
         stateRef.current.targetCardPosition = pos;
 
-        if (colId) {
-          setTargetStatusId(colId);
-          stateRef.current.targetStatusId = colId;
-          return;
-        }
+        const effectiveColId = colId || currentCard.statusId;
+        setTargetStatusId(effectiveColId);
+        stateRef.current.targetStatusId = effectiveColId;
+        return;
       }
-    } else {
-      setTargetCardId(null);
-      setTargetCardPosition(null);
-      stateRef.current.targetCardId = null;
-      stateRef.current.targetCardPosition = null;
     }
 
+    // 2. Check if hovering over a column container / column header / accordion
     const columnEl = element.closest('[data-column-id]');
     if (columnEl) {
       const colIdStr = columnEl.getAttribute('data-column-id');
@@ -163,8 +160,6 @@ export const useTouchKanbanDrag = ({
         return;
       }
     }
-    setTargetStatusId(null);
-    stateRef.current.targetStatusId = null;
   }, []);
 
   const triggerVibration = (pattern: number | number[]) => {
@@ -191,6 +186,14 @@ export const useTouchKanbanDrag = ({
     }
   };
 
+  const releasePointer = () => {
+    if (stateRef.current.cardElement && stateRef.current.activePointerId !== null) {
+      try {
+        stateRef.current.cardElement.releasePointerCapture(stateRef.current.activePointerId);
+      } catch {}
+    }
+  };
+
   // Move processor (used by both native touchmove and pointermove)
   const processMove = useCallback((clientX: number, clientY: number) => {
     if (!stateRef.current.isDragging) return;
@@ -208,12 +211,13 @@ export const useTouchKanbanDrag = ({
   const processEnd = useCallback((clientX: number, clientY: number) => {
     cleanupListeners.current();
     stopAutoScroll();
+    releasePointer();
     unlockBodyStyles();
 
-    const { isDragging, card } = stateRef.current;
+    const { isDragging, card, hasMoved } = stateRef.current;
 
     if (isDragging && card) {
-      let finalTargetColId: number | null = null;
+      let finalTargetColId: number | null = stateRef.current.targetStatusId;
       let finalTargetCardId: number | null = stateRef.current.targetCardId;
       let finalTargetPos: 'before' | 'after' | null = stateRef.current.targetCardPosition;
 
@@ -223,8 +227,9 @@ export const useTouchKanbanDrag = ({
         if (cardEl) {
           const cardIdStr = cardEl.getAttribute('data-card-id');
           const cardColStr = cardEl.getAttribute('data-card-status-id');
-          if (cardIdStr) {
-            finalTargetCardId = parseInt(cardIdStr, 10);
+          const foundId = cardIdStr ? parseInt(cardIdStr, 10) : null;
+          if (foundId && foundId !== card.id) {
+            finalTargetCardId = foundId;
             const rect = cardEl.getBoundingClientRect();
             finalTargetPos = clientY < rect.top + rect.height / 2 ? 'before' : 'after';
           }
@@ -240,11 +245,15 @@ export const useTouchKanbanDrag = ({
           }
         }
       }
+
       if (!finalTargetColId) {
-        finalTargetColId = stateRef.current.targetStatusId || card.statusId;
+        finalTargetColId = card.statusId;
       }
 
-      if (finalTargetColId) {
+      const isStatusChanged = finalTargetColId !== card.statusId;
+      const isReorderedInSameStatus = hasMoved && finalTargetCardId && finalTargetCardId !== card.id;
+
+      if (isStatusChanged || isReorderedInSameStatus) {
         onDropCard(card.id, finalTargetColId, finalTargetCardId, finalTargetPos || undefined);
         triggerVibration([30, 40]);
       }
@@ -257,7 +266,10 @@ export const useTouchKanbanDrag = ({
       setTargetCardPosition(null);
       setGhostData(null);
       stateRef.current.isDragging = false;
+      stateRef.current.hasMoved = false;
       stateRef.current.card = null;
+      stateRef.current.cardElement = null;
+      stateRef.current.activePointerId = null;
       stateRef.current.targetCardId = null;
       stateRef.current.targetCardPosition = null;
     }
@@ -267,9 +279,10 @@ export const useTouchKanbanDrag = ({
   const processCancel = useCallback(() => {
     cleanupListeners.current();
     stopAutoScroll();
+    releasePointer();
     unlockBodyStyles();
 
-    stateRef.current.hasMoved = true;
+    stateRef.current.hasMoved = false;
     stateRef.current.suppressClickUntil = Date.now() + CLICK_SUPPRESSION_MS;
     setDraggingCard(null);
     setDragPosition(null);
@@ -279,6 +292,8 @@ export const useTouchKanbanDrag = ({
     setGhostData(null);
     stateRef.current.isDragging = false;
     stateRef.current.card = null;
+    stateRef.current.cardElement = null;
+    stateRef.current.activePointerId = null;
     stateRef.current.targetCardId = null;
     stateRef.current.targetCardPosition = null;
   }, [stopAutoScroll]);
@@ -371,29 +386,27 @@ export const useTouchKanbanDrag = ({
     };
   }, [handleNativePointerMove, handleNativePointerUp, handleNativePointerCancel, handleNativeTouchMove, handleNativeTouchEnd, handleNativeTouchCancel]);
 
-  // Immediate Drag on Grip Handle via PointerDown (Standard for modern touch & desktop)
-  const handleGripPointerDown = useCallback((e: React.PointerEvent, card: Order) => {
-    e.stopPropagation();
-    if (e.cancelable && e.preventDefault) {
-      e.preventDefault();
-    }
+  const startDrag = (
+    clientX: number,
+    clientY: number,
+    card: Order,
+    cardEl: HTMLElement,
+    pointerId?: number
+  ) => {
+    if (stateRef.current.isDragging) return;
 
-    const cardEl = ((e.currentTarget as HTMLElement).closest('.kanban-card') || e.currentTarget) as HTMLElement;
     const rect = cardEl.getBoundingClientRect();
-
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const offsetX = startX - rect.left;
-    const offsetY = startY - rect.top;
+    const offsetX = clientX - rect.left;
+    const offsetY = clientY - rect.top;
 
     stateRef.current = {
-      startX,
-      startY,
-      currentX: startX,
-      currentY: startY,
+      startX: clientX,
+      startY: clientY,
+      currentX: clientX,
+      currentY: clientY,
       card,
       isDragging: true,
-      hasMoved: true,
+      hasMoved: false,
       startTime: Date.now(),
       suppressClickUntil: Date.now() + CLICK_SUPPRESSION_MS,
       cardElement: cardEl,
@@ -401,17 +414,19 @@ export const useTouchKanbanDrag = ({
       targetStatusId: card.statusId,
       targetCardId: null,
       targetCardPosition: null,
-      activePointerId: e.pointerId
+      activePointerId: pointerId !== undefined ? pointerId : null
     };
 
     lockBodyStyles();
 
-    try {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    } catch {}
+    if (pointerId !== undefined) {
+      try {
+        cardEl.setPointerCapture(pointerId);
+      } catch {}
+    }
 
     setDraggingCard(card);
-    setDragPosition({ x: startX, y: startY });
+    setDragPosition({ x: clientX, y: clientY });
     setGhostData({
       card,
       width: rect.width,
@@ -423,8 +438,19 @@ export const useTouchKanbanDrag = ({
     });
     setTargetStatusId(card.statusId);
 
-    attachGlobalListeners(e.pointerId);
+    attachGlobalListeners(pointerId);
     triggerVibration(50);
+  };
+
+  // Immediate Drag on Grip Handle via PointerDown (Standard for modern touch & desktop)
+  const handleGripPointerDown = useCallback((e: React.PointerEvent, card: Order) => {
+    e.stopPropagation();
+    if (e.cancelable && e.preventDefault) {
+      e.preventDefault();
+    }
+
+    const cardEl = ((e.currentTarget as HTMLElement).closest('.kanban-card') || e.currentTarget) as HTMLElement;
+    startDrag(e.clientX, e.clientY, card, cardEl, e.pointerId);
   }, [attachGlobalListeners]);
 
   // Immediate Drag on Grip Handle via TouchStart (Fallback & iOS WebKit support)
@@ -438,48 +464,7 @@ export const useTouchKanbanDrag = ({
     if (!touch) return;
 
     const cardEl = ((e.currentTarget as HTMLElement).closest('.kanban-card') || e.currentTarget) as HTMLElement;
-    const rect = cardEl.getBoundingClientRect();
-
-    const startX = touch.clientX;
-    const startY = touch.clientY;
-    const offsetX = startX - rect.left;
-    const offsetY = startY - rect.top;
-
-    stateRef.current = {
-      startX,
-      startY,
-      currentX: startX,
-      currentY: startY,
-      card,
-      isDragging: true,
-      hasMoved: true,
-      startTime: Date.now(),
-      suppressClickUntil: Date.now() + CLICK_SUPPRESSION_MS,
-      cardElement: cardEl,
-      autoScrollTimer: null,
-      targetStatusId: card.statusId,
-      targetCardId: null,
-      targetCardPosition: null,
-      activePointerId: null
-    };
-
-    lockBodyStyles();
-
-    setDraggingCard(card);
-    setDragPosition({ x: startX, y: startY });
-    setGhostData({
-      card,
-      width: rect.width,
-      height: rect.height,
-      offsetX,
-      offsetY,
-      initialX: rect.left,
-      initialY: rect.top
-    });
-    setTargetStatusId(card.statusId);
-
-    attachGlobalListeners();
-    triggerVibration(50);
+    startDrag(touch.clientX, touch.clientY, card, cardEl);
   }, [attachGlobalListeners]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -502,6 +487,7 @@ export const useTouchKanbanDrag = ({
     return () => {
       cleanupListeners.current();
       stopAutoScroll();
+      releasePointer();
       unlockBodyStyles();
     };
   }, [stopAutoScroll]);
