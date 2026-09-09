@@ -195,13 +195,27 @@ describe('Date Utilities (dateUtils)', () => {
       expect(res.text).toBe('Был(а) 15 мин назад');
     });
 
-    it('returns "Был(а) сегодня в HH:mm" for earlier today (>= 1 hour)', () => {
-      const date = new Date(Date.now() - 3 * 60 * 60 * 1000);
-      const isoStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+    it('returns "Был(а) вчера в HH:mm" for activity yesterday', () => {
+      const now = new Date();
+      const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 14, 30, 0);
+      const isoStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}T14:30:00`;
       const res = formatLastSeen(isoStr, false, true);
-      const h = String(date.getHours()).padStart(2, '0');
-      const m = String(date.getMinutes()).padStart(2, '0');
-      expect(res.text).toBe(`Был(а) сегодня в ${h}:${m}`);
+      expect(res.text).toBe('Был(а) вчера в 14:30');
+    });
+
+    it('returns "Был(а) сегодня в HH:mm" for activity earlier today', () => {
+      const now = new Date();
+      const todayEarlier = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Math.max(0, now.getHours() - 2), 0, 0);
+      const isoStr = `${todayEarlier.getFullYear()}-${String(todayEarlier.getMonth() + 1).padStart(2, '0')}-${String(todayEarlier.getDate()).padStart(2, '0')}T${String(todayEarlier.getHours()).padStart(2, '0')}:00:00`;
+      const res = formatLastSeen(isoStr, false, true);
+      const diffMins = Math.floor((now.getTime() - todayEarlier.getTime()) / 60000);
+      if (diffMins < 1) {
+        expect(res.text).toBe('Был(а) только что');
+      } else if (diffMins < 60) {
+        expect(res.text).toBe(`Был(а) ${diffMins} мин назад`);
+      } else {
+        expect(res.text).toBe(`Был(а) сегодня в ${String(todayEarlier.getHours()).padStart(2, '0')}:00`);
+      }
     });
   });
 });
