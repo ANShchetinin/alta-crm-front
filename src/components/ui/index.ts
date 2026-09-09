@@ -6,5 +6,6 @@ export * from './Badge';
 export * from './Input';
 export * from './FilterPill';
 export * from './ConfirmDialog';
+export * from './ToastContainer';
 export * from './Skeleton';
 export * from './EmptyState';

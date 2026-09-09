@@ -18,23 +18,40 @@ export const DEFAULT_ACT_CHECKLIST: ActChecklistItem[] = [
   { id: '15', name: 'Установка карниза', checked: false }
 ];
 
-export const mergeActChecklist = (savedList?: ActChecklistItem[]): ActChecklistItem[] => {
+export const mergeActChecklist = (savedList?: ActChecklistItem[], template?: string[]): ActChecklistItem[] => {
+  const hasCustomTemplate = Boolean(template && template.length > 0);
+  const baseList: ActChecklistItem[] = hasCustomTemplate
+    ? template!.map((name, i) => ({ id: `tpl_${i + 1}`, name, checked: false }))
+    : DEFAULT_ACT_CHECKLIST;
+
   if (!savedList || savedList.length === 0) {
-    return DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }));
+    return baseList.map(item => ({ ...item, checked: false }));
   }
+
+  // If a company template is defined, the checklist strictly uses the company template items,
+  // matching any already saved checked states by item name.
+  if (hasCustomTemplate) {
+    const savedNameMap = new Map(savedList.map(it => [it.name.trim().toLowerCase(), it.checked]));
+    return baseList.map(defItem => ({
+      ...defItem,
+      checked: savedNameMap.get(defItem.name.trim().toLowerCase()) || false
+    }));
+  }
+
+  // Standard ceilings fallback: merge by ID and name
   const savedMap = new Map(savedList.map(it => [it.id, it.checked]));
   const savedNameMap = new Map(savedList.map(it => [it.name, it.checked]));
 
-  const merged = DEFAULT_ACT_CHECKLIST.map(defItem => ({
+  const merged = baseList.map(defItem => ({
     ...defItem,
     checked: savedMap.has(defItem.id)
       ? !!savedMap.get(defItem.id)
       : (savedNameMap.has(defItem.name) ? !!savedNameMap.get(defItem.name) : false)
   }));
 
-  const defIds = new Set(DEFAULT_ACT_CHECKLIST.map(d => d.id));
+  const defIds = new Set(baseList.map(d => d.id));
   savedList.forEach(savedItem => {
-    if (!defIds.has(savedItem.id)) {
+    if (!defIds.has(savedItem.id) && savedItem.checked) {
       merged.push(savedItem);
     }
   });

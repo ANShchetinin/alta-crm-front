@@ -22,8 +22,10 @@ import {
   deleteReminder 
 } from '../api/reminders';
 import type { Employee } from '../api/employees';
-import { localInputToUtcIso, utcToLocalInput, parseUtcDate } from '../utils/dateUtils';
+import { localInputToIso, isoToLocalInput, parseLocalDateTime } from '../utils/dateUtils';
 import { useAuthStore } from '../store/useAuthStore';
+import { toast } from '../utils/toast';
+import { confirm } from '../utils/confirm';
 
 interface OrderRemindersSectionProps {
   orderId: number;
@@ -132,7 +134,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
 
   const openEditModal = (rem: OrderReminderDto) => {
     setEditingReminder(rem);
-    setCustomDateTime(utcToLocalInput(rem.remindAt));
+    setCustomDateTime(isoToLocalInput(rem.remindAt));
     setComment(rem.comment || '');
     setSelectedUserId(rem.userId || getDefaultUserId());
     setNotifyBeforeMinutes(rem.notifyBeforeMinutes || 0);
@@ -145,28 +147,30 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
       e.stopPropagation();
     }
     if (!customDateTime) {
-      alert('Пожалуйста, выберите дату и время напоминания');
+      toast.warning('Пожалуйста, выберите дату и время напоминания');
       return;
     }
 
-    const utcRemindAt = localInputToUtcIso(customDateTime) || customDateTime;
+    const isoRemindAt = localInputToIso(customDateTime) || customDateTime;
 
     try {
       setSubmitting(true);
       if (editingReminder) {
         await updateReminder(editingReminder.id, {
-          remindAt: utcRemindAt,
+          remindAt: isoRemindAt,
           comment: comment.trim() || undefined,
           userId: selectedUserId,
           notifyBeforeMinutes: notifyBeforeMinutes
         });
+        toast.success('Напоминание обновлено');
       } else {
         await createReminder(orderId, {
-          remindAt: utcRemindAt,
+          remindAt: isoRemindAt,
           comment: comment.trim() || undefined,
           userId: selectedUserId,
           notifyBeforeMinutes: notifyBeforeMinutes
         });
+        toast.success('Напоминание создано');
       }
       setIsModalOpen(false);
       await fetchReminders();
@@ -174,7 +178,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
     } catch (err: any) {
       console.error('Failed to save reminder', err);
       const errMsg = err?.response?.data?.message || err?.message || 'Ошибка при сохранении напоминания';
-      alert(`Ошибка при сохранении напоминания: ${errMsg}`);
+      toast.error(`Ошибка при сохранении напоминания: ${errMsg}`);
     } finally {
       setSubmitting(false);
     }
@@ -185,20 +189,31 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
       await completeReminder(id);
       await fetchReminders();
       if (onReminderCountChanged) onReminderCountChanged();
-    } catch (err) {
+      toast.success('Напоминание выполнено');
+    } catch (err: any) {
       console.error('Failed to complete reminder', err);
+      toast.error('Не удалось выполнить напоминание');
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Удалить это напоминание?')) {
-      try {
-        await deleteReminder(id);
-        await fetchReminders();
-        if (onReminderCountChanged) onReminderCountChanged();
-      } catch (err) {
-        console.error('Failed to delete reminder', err);
-      }
+    const ok = await confirm({
+      title: 'Удаление напоминания',
+      message: 'Удалить это напоминание?',
+      confirmText: 'Удалить',
+      cancelText: 'Отмена',
+      danger: true,
+    });
+    if (!ok) return;
+
+    try {
+      await deleteReminder(id);
+      await fetchReminders();
+      if (onReminderCountChanged) onReminderCountChanged();
+      toast.success('Напоминание удалено');
+    } catch (err: any) {
+      console.error('Failed to delete reminder', err);
+      toast.error('Не удалось удалить напоминание');
     }
   };
 
@@ -257,7 +272,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
             Активные напоминания ({pendingReminders.length}):
           </div>
           {pendingReminders.map(rem => {
-            const dateObj = parseUtcDate(rem.remindAt) || new Date(rem.remindAt);
+            const dateObj = parseLocalDateTime(rem.remindAt) || new Date(rem.remindAt);
             const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
             const timeStr = dateObj.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
             const isOverdue = rem.isOverdue || (dateObj.getTime() < Date.now());

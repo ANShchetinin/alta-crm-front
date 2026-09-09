@@ -13,6 +13,9 @@ import {
   getContractTemplateHtml 
 } from '../api/settings';
 import type { ContractTemplateStatus } from '../api/settings';
+import { useAppStore } from '../store/useAppStore';
+import { toast } from '../utils/toast';
+import { confirm } from '../utils/confirm';
 import '../styles/contract-templates.css';
 
 interface TagItem {
@@ -294,6 +297,7 @@ const STARTER_TEMPLATE_LEGAL = `
 `;
 
 export const ContractTemplates = () => {
+  const { tenantSettings } = useAppStore();
   const [activeTab, setActiveTab] = useState<'INDIVIDUAL' | 'LEGAL_ENTITY'>('INDIVIDUAL');
   const [viewMode, setViewMode] = useState<'DOCX_VIEW' | 'HTML_EDITOR'>('DOCX_VIEW');
   const [status, setStatus] = useState<ContractTemplateStatus | null>(null);
@@ -304,7 +308,6 @@ export const ContractTemplates = () => {
   const [copiedTag, setCopiedTag] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isModified, setIsModified] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -385,11 +388,6 @@ export const ContractTemplates = () => {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2500);
-  };
-
   const saveSelection = () => {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
@@ -424,7 +422,7 @@ export const ContractTemplates = () => {
         const imgHtml = `<p><img src="${dataUrl}" style="max-width: 100%; height: auto; display: block; margin: 12px 0;" /></p><p></p>`;
         document.execCommand('insertHTML', false, imgHtml);
         setIsModified(true);
-        showToast('Изображение успешно вставлено в документ!');
+        toast.success('Изображение успешно вставлено в документ!');
       }
     };
     reader.readAsDataURL(file);
@@ -446,13 +444,13 @@ export const ContractTemplates = () => {
       document.execCommand('insertText', false, tag);
       setIsModified(true);
       setCopiedTag(tag);
-      showToast(`Метка ${tag} вставлена в документ!`);
+      toast.success(`Метка ${tag} вставлена в документ!`);
       setTimeout(() => setCopiedTag(null), 2000);
     } else {
       // In DOCX preview mode, copy to clipboard
       navigator.clipboard.writeText(tag);
       setCopiedTag(tag);
-      showToast(`Метка ${tag} скопирована в буфер обмена! Вставьте её в ваш Word-документ.`);
+      toast.success(`Метка ${tag} скопирована в буфер обмена!`);
       setTimeout(() => setCopiedTag(null), 2500);
     }
   };
@@ -465,29 +463,35 @@ export const ContractTemplates = () => {
       const updatedStatus = await getContractTemplateStatus();
       setStatus(updatedStatus);
       setIsModified(false);
-      showToast('Шаблон договора успешно сохранен в CRM!');
+      toast.success('Шаблон договора успешно сохранен в CRM!');
     } catch (e: any) {
-      alert('Ошибка сохранения шаблона: ' + (e.response?.data?.error || e.message));
+      toast.error('Ошибка сохранения шаблона: ' + (e.response?.data?.error || e.message));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleLoadPreset = () => {
-    if (isModified && !window.confirm('Текущие изменения в редакторе будут заменены стандартным образцом. Продолжить?')) {
-      return;
+  const handleLoadPreset = async () => {
+    if (isModified) {
+      const ok = await confirm({
+        title: 'Загрузить стандартный образец?',
+        message: 'Текущие изменения в редакторе будут заменены стандартным образцом. Продолжить?',
+        confirmText: 'Загрузить образец',
+        danger: true
+      });
+      if (!ok) return;
     }
     const preset = activeTab === 'INDIVIDUAL' ? STARTER_TEMPLATE_INDIVIDUAL : STARTER_TEMPLATE_LEGAL;
     if (editorRef.current) {
       editorRef.current.innerHTML = preset;
     }
     setIsModified(true);
-    showToast('Стандартный образец договора загружен в редактор');
+    toast.success('Стандартный образец договора загружен в редактор');
   };
 
   const handleFileUpload = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.docx')) {
-      alert('Пожалуйста, выберите файл Microsoft Word в формате .docx');
+      toast.warning('Пожалуйста, выберите файл Microsoft Word в формате .docx');
       return;
     }
 
@@ -505,9 +509,9 @@ export const ContractTemplates = () => {
       const updatedStatus = await getContractTemplateStatus();
       setStatus(updatedStatus);
       setIsModified(false);
-      showToast('DOCX файл успешно загружен со 100% версткой и картинками!');
+      toast.success('DOCX файл успешно загружен со 100% версткой и картинками!');
     } catch (e: any) {
-      alert('Ошибка при чтении DOCX файла: ' + (e.message || e));
+      toast.error('Ошибка при чтении DOCX файла: ' + (e.message || e));
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -529,17 +533,22 @@ export const ContractTemplates = () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+      toast.success('Шаблон скачивается');
     } catch (e: any) {
-      alert('Не удалось скачать DOCX: ' + (e.response?.data?.error || e.message));
+      toast.error('Не удалось скачать DOCX: ' + (e.response?.data?.error || e.message));
     }
   };
 
   const handleDeleteTemplate = async () => {
     const isLegal = activeTab === 'LEGAL_ENTITY';
     const typeLabel = isLegal ? 'для юридических лиц' : 'для физических лиц';
-    if (!window.confirm(`Вы действительно хотите удалить загруженный шаблон ${typeLabel}?`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Удалить шаблон договора?',
+      message: `Вы действительно хотите удалить загруженный шаблон ${typeLabel}?`,
+      confirmText: 'Удалить',
+      danger: true
+    });
+    if (!ok) return;
 
     try {
       setLoading(true);
@@ -551,9 +560,9 @@ export const ContractTemplates = () => {
       if (editorRef.current) editorRef.current.innerHTML = preset;
       if (docxMountRef.current) docxMountRef.current.innerHTML = '';
       setIsModified(false);
-      showToast(`Шаблон ${typeLabel} удален.`);
+      toast.success(`Шаблон ${typeLabel} удален.`);
     } catch (e: any) {
-      alert('Ошибка при удалении шаблона: ' + (e.response?.data?.error || e.message));
+      toast.error('Ошибка при удалении шаблона: ' + (e.response?.data?.error || e.message));
     } finally {
       setLoading(false);
     }
@@ -575,9 +584,9 @@ export const ContractTemplates = () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      showToast('Тестовый договор (Word) успешно сформирован и скачан!');
+      toast.success('Тестовый договор (Word) успешно сформирован и скачан!');
     } catch (e: any) {
-      alert('Ошибка тестовой генерации: ' + (e.response?.data?.error || e.message));
+      toast.error('Ошибка тестовой генерации: ' + (e.response?.data?.error || e.message));
     } finally {
       setTestGenerating(false);
     }
@@ -606,7 +615,22 @@ export const ContractTemplates = () => {
 
   const isTemplateLoaded = activeTab === 'INDIVIDUAL' ? status?.individual : status?.legal;
 
-  const filteredTags = AVAILABLE_TAGS.filter(item => {
+  const customFieldTags: TagItem[] = (tenantSettings?.contractFieldDefinitions || []).map(f => ({
+    tag: `{{${f.key}}}`,
+    name: f.label,
+    example: f.placeholder || 'Пример значения',
+    category: 'ceiling'
+  }));
+
+  const allTagsList: TagItem[] = [
+    ...AVAILABLE_TAGS,
+    ...customFieldTags,
+    { tag: '{{spec_items}}', name: 'Таблица сметы (Приложение №4)', example: '[Авто-таблица позиций]', category: 'contract' },
+    { tag: '{{spec_table}}', name: 'Таблица сметы (алиас)', example: '[Авто-таблица позиций]', category: 'contract' },
+    { tag: '{{act_checklist}}', name: 'Таблица чек-листа работ для Акта (Приложение №3)', example: '[Авто-таблица чек-листа]', category: 'contract' }
+  ];
+
+  const filteredTags = allTagsList.filter(item => {
     if (item.forType && item.forType !== 'ALL' && item.forType !== activeTab) {
       return false;
     }
@@ -632,13 +656,6 @@ export const ContractTemplates = () => {
 
   return (
     <div className="contract-templates-page">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="contract-toast">
-          <Check size={16} />
-          <span>{toastMessage}</span>
-        </div>
-      )}
 
       {/* Header */}
       <div className="page-header">

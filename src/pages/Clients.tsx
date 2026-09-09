@@ -20,6 +20,8 @@ import { getClientInitials, getAvatarGradient } from '../utils/avatarUtils';
 import { PassportScannerModal, type PassportApplyResult } from '../components/PassportScannerModal';
 import { PRESET_LEAD_SOURCES, PRESET_VAT_STATUSES } from '../constants/clients';
 import { Sheet } from '../components/ui/Sheet';
+import { toast } from '../utils/toast';
+import { confirm } from '../utils/confirm';
 import '../styles/clients.css';
 
 export const Clients = () => {
@@ -301,24 +303,36 @@ export const Clients = () => {
 
       if (editingClient) {
         await updateClient(editingClient.id, payload);
+        toast.success('Клиент успешно обновлен');
       } else {
         await createClient(payload);
+        toast.success('Клиент успешно создан');
       }
       setIsModalOpen(false);
       fetchClients();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      toast.error(err.response?.data?.message || err.message || 'Ошибка при сохранении клиента');
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Вы уверены, что хотите удалить клиента?')) {
-      try {
-        await deleteClient(id);
-        fetchClients();
-      } catch (err) {
-        console.error(err);
-      }
+    const ok = await confirm({
+      title: 'Удаление клиента',
+      message: 'Вы уверены, что хотите удалить клиента?',
+      confirmText: 'Удалить',
+      cancelText: 'Отмена',
+      danger: true,
+    });
+    if (!ok) return;
+
+    try {
+      await deleteClient(id);
+      toast.success('Клиент удален');
+      fetchClients();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.message || err.message || 'Ошибка при удалении клиента');
     }
   };
 

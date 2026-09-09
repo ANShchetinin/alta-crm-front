@@ -26,6 +26,8 @@ import {
   type CalculationBasis
 } from '../api/estimationServices';
 import { SearchSelect } from './SearchSelect';
+import { toast } from '../utils/toast';
+import { confirm } from '../utils/confirm';
 
 interface Props {
   materials: Material[];
@@ -60,15 +62,23 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
   }, []);
 
   const handleInitDefaults = async () => {
-    if (!confirm('Инициализировать стандартный набор сметных услуг (Потолки, Освещение, Карнизы)?')) return;
+    const ok = await confirm({
+      title: 'Инициализация шаблонов',
+      message: 'Инициализировать стандартный набор сметных услуг (Потолки, Освещение, Карнизы)?',
+      confirmText: 'Инициализировать',
+      cancelText: 'Отмена',
+    });
+    if (!ok) return;
+
     setLoading(true);
     try {
       const res = await initDefaultEstimationServices();
       setServices(res);
       if (res.length > 0) setExpandedServiceId(res[0].id || null);
+      toast.success('Стандартные шаблоны успешно загружены');
     } catch (e) {
       console.error(e);
-      alert('Ошибка при инициализации шаблонов');
+      toast.error('Ошибка при инициализации шаблонов');
     } finally {
       setLoading(false);
     }
@@ -101,21 +111,30 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
 
   const handleDeleteService = async (id?: number) => {
     if (!id) return;
-    if (!confirm('Вы уверены, что хотите удалить эту услугу и все ее слоты?')) return;
+    const ok = await confirm({
+      title: 'Удаление сметной услуги',
+      message: 'Вы уверены, что хотите удалить эту услугу и все ее слоты?',
+      confirmText: 'Удалить',
+      cancelText: 'Отмена',
+      danger: true,
+    });
+    if (!ok) return;
+
     try {
       await deleteEstimationService(id);
       setServices(prev => prev.filter(s => s.id !== id));
       if (expandedServiceId === id) setExpandedServiceId(null);
+      toast.success('Услуга удалена');
     } catch (e) {
       console.error(e);
-      alert('Ошибка при удалении услуги');
+      toast.error('Ошибка при удалении услуги');
     }
   };
 
   const handleSaveEditingService = async () => {
     if (!editingService) return;
     if (!editingService.name.trim()) {
-      alert('Укажите название услуги');
+      toast.warning('Укажите название услуги');
       return;
     }
 
@@ -145,15 +164,17 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
 
       if (editingService.id) {
         await updateEstimationService(editingService.id, req);
+        toast.success('Услуга успешно обновлена');
       } else {
         await createEstimationService(req);
+        toast.success('Услуга успешно создана');
       }
 
       await loadServices();
       setEditingService(null);
     } catch (err: any) {
       console.error('Ошибка сохранения услуги:', err);
-      alert('Ошибка при сохранении: ' + (err.response?.data?.message || err.message));
+      toast.error('Ошибка при сохранении: ' + (err.response?.data?.message || err.message));
     } finally {
       setSaving(false);
     }

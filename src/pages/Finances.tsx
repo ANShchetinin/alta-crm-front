@@ -43,6 +43,8 @@ import {
   type ExpenseCategory 
 } from '../api/finances';
 import { getCompanyAiUsageSummary, type AiUsageSummaryDto, type AiUsageLogDto } from '../api/aiUsage';
+import { toast } from '../utils/toast';
+import { confirm } from '../utils/confirm';
 import { useAppStore } from '../store/useAppStore';
 import { formatDateTimeInTimezone, formatDateOnly } from '../utils/dateUtils';
 import '../styles/clients.css';
@@ -271,9 +273,10 @@ export const Finances = () => {
         prepaymentPaid: updated.prepaymentPaid,
         prepaymentPaidAt: updated.prepaymentPaidAt
       } : o));
+      toast.success(newStatus ? 'Аванс отмечен как оплаченный' : 'Оплата аванса отменена');
     } catch (err) {
       console.error('Failed to toggle prepayment status', err);
-      alert('Не удалось изменить статус оплаты аванса');
+      toast.error('Не удалось изменить статус оплаты аванса');
     }
   };
 
@@ -286,9 +289,10 @@ export const Finances = () => {
         remainderPaid: updated.remainderPaid,
         remainderPaidAt: updated.remainderPaidAt
       } : o));
+      toast.success(newStatus ? 'Остаток отмечен как оплаченный' : 'Оплата остатка отменена');
     } catch (err) {
       console.error('Failed to toggle remainder status', err);
-      alert('Не удалось изменить статус оплаты остатка');
+      toast.error('Не удалось изменить статус оплаты остатка');
     }
   };
 
@@ -336,25 +340,35 @@ export const Finances = () => {
       if (editingExpenseId) {
         const updated = await updateExpense(editingExpenseId, payload);
         setExpenses(prev => prev.map(ex => ex.id === editingExpenseId ? updated : ex));
+        toast.success('Расход обновлен');
       } else {
         const created = await createExpense(payload);
         setExpenses(prev => [created, ...prev]);
+        toast.success('Расход добавлен');
       }
       setIsExpenseModalOpen(false);
     } catch (err) {
       console.error('Failed to save expense', err);
-      alert('Не удалось сохранить расход');
+      toast.error('Не удалось сохранить расход');
     }
   };
 
   const handleDeleteExpense = async (id: number, title: string) => {
-    if (!window.confirm(`Удалить статью расхода «${title}»?`)) return;
+    const ok = await confirm({
+      title: 'Удаление расхода',
+      message: `Удалить статью расхода «${title}»?`,
+      confirmText: 'Удалить',
+      cancelText: 'Отмена',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteExpense(id);
       setExpenses(prev => prev.filter(e => e.id !== id));
+      toast.success('Расход удален');
     } catch (err) {
       console.error('Failed to delete expense', err);
-      alert('Не удалось удалить расход');
+      toast.error('Не удалось удалить расход');
     }
   };
 
@@ -374,9 +388,10 @@ export const Finances = () => {
       const updated = await updateFinanceStatuses(tempStatusSettings);
       setStatuses(updated.sort((a, b) => a.sortOrder - b.sortOrder));
       setIsStatusConfigModalOpen(false);
+      toast.success('Настройки статусов сохранены');
     } catch (err) {
       console.error('Failed to update finance statuses', err);
-      alert('Не удалось сохранить настройки статусов');
+      toast.error('Не удалось сохранить настройки статусов');
     } finally {
       setSavingStatusSettings(false);
     }

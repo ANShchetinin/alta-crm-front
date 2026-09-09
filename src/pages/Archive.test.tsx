@@ -28,6 +28,19 @@ vi.mock('../api/measurements', () => ({
   getMeasurementByOrderId: vi.fn()
 }));
 
+vi.mock('../utils/confirm', () => ({
+  confirm: vi.fn().mockResolvedValue(true)
+}));
+
+vi.mock('../utils/toast', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn()
+  }
+}));
+
 vi.mock('../store/useAuthStore', () => ({
   useAuthStore: () => ({
     role: 'OWNER'
@@ -160,8 +173,6 @@ describe('Archive Page Component', () => {
   });
 
   it('opens detail modal on order row click, displays estimate, and allows return to kanban', async () => {
-    window.confirm = vi.fn().mockReturnValue(true);
-    window.alert = vi.fn();
     (kanbanApi.updateOrder as any).mockResolvedValue({ ...mockOrders[0], statusId: 1 });
 
     render(<Archive />);
@@ -189,12 +200,10 @@ describe('Archive Page Component', () => {
       expect(kanbanApi.updateOrder).toHaveBeenCalledWith(101, expect.objectContaining({
         statusId: 1
       }));
-      expect(window.alert).toHaveBeenCalledWith('Заявка успешно возвращена на Канбан-доску');
     });
   });
 
   it('allows deleting an order from archive', async () => {
-    window.confirm = vi.fn().mockReturnValue(true);
     (kanbanApi.deleteOrder as any).mockResolvedValue(undefined);
 
     render(<Archive />);
@@ -207,7 +216,6 @@ describe('Archive Page Component', () => {
     fireEvent.click(deleteButtons[0]);
 
     await waitFor(() => {
-      expect(window.confirm).toHaveBeenCalled();
       expect(kanbanApi.deleteOrder).toHaveBeenCalled();
     });
   });

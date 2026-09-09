@@ -43,6 +43,8 @@ import { getMeasurementByOrderId, type MeasurementDto } from '../api/measurement
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { formatDateTimeInTimezone, formatDateInTimezone } from '../utils/dateUtils';
+import { toast } from '../utils/toast';
+import { confirm } from '../utils/confirm';
 import { getAvatarGradient, getClientInitials } from '../utils/avatarUtils';
 import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
@@ -273,7 +275,13 @@ export const Archive = () => {
 
   const handleReturnToKanban = async (targetStatusId: number) => {
     if (!selectedOrder) return;
-    if (!window.confirm('Вернуть эту заявку из архива в работу на Канбан?')) return;
+    const ok = await confirm({
+      title: 'Возврат заявки',
+      message: 'Вернуть эту заявку из архива в работу на Канбан?',
+      confirmText: 'Вернуть',
+      cancelText: 'Отмена',
+    });
+    if (!ok) return;
 
     try {
       setActionLoading(true);
@@ -281,11 +289,11 @@ export const Archive = () => {
         ...selectedOrder,
         statusId: targetStatusId
       });
-      alert('Заявка успешно возвращена на Канбан-доску');
+      toast.success('Заявка успешно возвращена на Канбан-доску');
       handleCloseDetail();
       fetchData();
     } catch (err: any) {
-      alert('Ошибка при возврате заявки: ' + (err.response?.data?.message || err.message));
+      toast.error('Ошибка при возврате заявки: ' + (err.response?.data?.message || err.message));
     } finally {
       setActionLoading(false);
     }
@@ -293,19 +301,25 @@ export const Archive = () => {
 
   const handleDeleteOrder = async (orderId: number, orderNumber?: string | null) => {
     const label = orderNumber || `№${orderId}`;
-    if (!window.confirm(`Вы уверены, что хотите безвозвратно удалить заявку ${label}?`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Удаление заявки',
+      message: `Вы уверены, что хотите безвозвратно удалить заявку ${label}?`,
+      confirmText: 'Удалить',
+      cancelText: 'Отмена',
+      danger: true,
+    });
+    if (!ok) return;
 
     try {
       setActionLoading(true);
       await deleteOrder(orderId);
+      toast.success('Заявка удалена');
       if (selectedOrder?.id === orderId) {
         handleCloseDetail();
       }
       fetchData();
     } catch (err: any) {
-      alert('Ошибка при удалении заявки: ' + (err.response?.data?.message || err.message));
+      toast.error('Ошибка при удалении заявки: ' + (err.response?.data?.message || err.message));
     } finally {
       setActionLoading(false);
     }
@@ -323,7 +337,7 @@ export const Archive = () => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch {
-      alert('Ошибка при скачивании договора DOCX');
+      toast.error('Ошибка при скачивании договора DOCX');
     }
   };
 
@@ -339,7 +353,7 @@ export const Archive = () => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch {
-      alert('Ошибка при скачивании договора PDF');
+      toast.error('Ошибка при скачивании договора PDF');
     }
   };
 
@@ -372,7 +386,7 @@ export const Archive = () => {
       });
     } catch (err) {
       console.error("Failed to open attachment", err);
-      alert("Не удалось открыть файл");
+      toast.error("Не удалось открыть файл");
     } finally {
       setOpeningAttachmentId(null);
     }
@@ -412,13 +426,13 @@ export const Archive = () => {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Failed to download attachment", err);
-      alert("Не удалось скачать файл");
+      toast.error("Не удалось скачать файл");
     }
   };
 
   const handleExportCsv = () => {
     if (sortedOrders.length === 0) {
-      alert('Нет данных для экспорта');
+      toast.warning('Нет данных для экспорта');
       return;
     }
 

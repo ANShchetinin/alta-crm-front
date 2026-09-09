@@ -13,21 +13,15 @@ import { type CalendarEventDto, getCalendarEvents } from '../api/calendar';
 import { getEmployees, type Employee } from '../api/employees';
 import { useAuthStore } from '../store/useAuthStore';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
-import { parseUtcDate } from '../utils/dateUtils';
+import { parseLocalDateTime } from '../utils/dateUtils';
 import '../styles/calendar.css';
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 const getSafeDate = (dateStr?: string): Date => {
   if (!dateStr) return new Date();
-  try {
-    const parsed = parseUtcDate(dateStr);
-    if (parsed && !isNaN(parsed.getTime())) return parsed;
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? new Date() : d;
-  } catch {
-    return new Date();
-  }
+  const parsed = parseLocalDateTime(dateStr);
+  return parsed || new Date();
 };
 
 export const Calendar: React.FC = () => {

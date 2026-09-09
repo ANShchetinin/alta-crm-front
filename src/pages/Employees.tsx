@@ -8,7 +8,10 @@ import type { OrderStatus } from '../api/kanban';
 import { getMyTenants, type UserTenant } from '../api/auth';
 import { AvatarUpload } from '../components/AvatarUpload';
 import { getEmployeeInitials, getAvatarGradient } from '../utils/avatarUtils';
+import { formatLastSeen } from '../utils/dateUtils';
 import { Sheet } from '../components/ui/Sheet';
+import { toast } from '../utils/toast';
+import { confirm } from '../utils/confirm';
 import '../styles/clients.css';
 
 export const Employees = () => {
@@ -48,6 +51,25 @@ export const Employees = () => {
 
   useEffect(() => {
     fetchInitialData();
+
+    // Auto-refresh employees and presence status periodically while page is open
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchEmployeesList();
+      }
+    }, 10000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchEmployeesList();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const fetchInitialData = async () => {
@@ -181,41 +203,50 @@ export const Employees = () => {
 
       if (formData.hasAccount) {
         if (!formData.email.trim()) {
-          alert('Пожалуйста, укажите Email (логин) для доступа в систему');
+          toast.warning('Пожалуйста, укажите Email (логин) для доступа в систему');
           return;
         }
         payload.email = formData.email.trim();
         if (formData.password.trim()) {
           payload.password = formData.password.trim();
         } else if (!editingEmployee?.hasAccount) {
-          alert('Пожалуйста, укажите пароль для нового аккаунта сотрудника');
+          toast.warning('Пожалуйста, укажите пароль для нового аккаунта сотрудника');
           return;
         }
       }
 
       if (editingEmployee) {
         await updateEmployee(editingEmployee.id, payload);
+        toast.success(`Данные сотрудника «${payload.name}» обновлены`);
       } else {
         await createEmployee(payload);
+        toast.success(`Сотрудник «${payload.name}» успешно добавлен`);
       }
 
       setIsModalOpen(false);
       fetchEmployeesList();
     } catch (err: any) {
       console.error(err);
-      alert('Ошибка при сохранении сотрудника: ' + (err.response?.data?.message || err.message));
+      toast.error('Ошибка при сохранении сотрудника: ' + (err.response?.data?.message || err.message));
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Вы уверены, что хотите удалить этого сотрудника? Если у него была учетная запись, она также будет удалена.')) {
-      try {
-        await deleteEmployee(id);
-        fetchEmployeesList();
-      } catch (err: any) {
-        console.error(err);
-        alert('Ошибка при удалении: ' + (err.response?.data?.message || err.message));
-      }
+    const ok = await confirm({
+      title: 'Удалить сотрудника?',
+      message: 'Вы уверены, что хотите удалить этого сотрудника? Если у него была учетная запись, доступ в систему также будет закрыт.',
+      confirmText: 'Удалить',
+      danger: true
+    });
+    if (!ok) return;
+
+    try {
+      await deleteEmployee(id);
+      fetchEmployeesList();
+      toast.success('Сотрудник успешно удален');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Ошибка при удалении: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -286,30 +317,48 @@ export const Employees = () => {
                   >
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        <div style={{
-                          width: '44px',
-                          height: '44px',
-                          borderRadius: '50%',
-                          overflow: 'hidden',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.95rem',
-                          fontWeight: 700,
-                          color: '#fff',
-                          background: employee.avatarUrl ? 'transparent' : getAvatarGradient(employee.name),
-                          border: '2px solid rgba(255, 255, 255, 0.12)',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                          flexShrink: 0
-                        }}>
-                          {employee.avatarUrl ? (
-                            <img 
-                              src={employee.avatarUrl} 
-                              alt={employee.name} 
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        <div style={{ position: 'relative', width: '44px', height: '44px', flexShrink: 0 }}>
+                          <div style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '50%',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.95rem',
+                            fontWeight: 700,
+                            color: '#fff',
+                            background: employee.avatarUrl ? 'transparent' : getAvatarGradient(employee.name),
+                            border: '2px solid rgba(255, 255, 255, 0.12)',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                            flexShrink: 0
+                          }}>
+                            {employee.avatarUrl ? (
+                              <img 
+                                src={employee.avatarUrl} 
+                                alt={employee.name} 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                              />
+                            ) : (
+                              getEmployeeInitials(employee.name)
+                            )}
+                          </div>
+                          {employee.isOnline && (
+                            <span 
+                              title="В сети"
+                              style={{
+                                position: 'absolute',
+                                bottom: '0px',
+                                right: '0px',
+                                width: '12px',
+                                height: '12px',
+                                borderRadius: '50%',
+                                backgroundColor: '#22c55e',
+                                border: '2px solid var(--bg-card, #1e293b)',
+                                boxShadow: '0 0 6px rgba(34, 197, 94, 0.6)'
+                              }}
                             />
-                          ) : (
-                            getEmployeeInitials(employee.name)
                           )}
                         </div>
                         <div>
@@ -369,14 +418,53 @@ export const Employees = () => {
                       <div className="client-phone">{employee.phone || '—'}</div>
                     </td>
                     <td>
-                      {employee.hasAccount ? (
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '12px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#4ade80', fontSize: '0.8rem', fontWeight: 600 }}>
-                          <Key size={13} />
-                          <span>{employee.email || 'Активен'}</span>
-                        </div>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Без доступа</span>
-                      )}
+                      {(() => {
+                        const presence = formatLastSeen(employee.lastActiveAt, employee.isOnline, employee.hasAccount);
+                        if (!presence.hasAccount) {
+                          return (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Без доступа</span>
+                          );
+                        }
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {presence.isOnline ? (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '2px 8px',
+                                  borderRadius: '10px',
+                                  background: 'rgba(34, 197, 94, 0.15)',
+                                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                                  color: '#4ade80',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600
+                                }}>
+                                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 4px #22c55e' }} />
+                                  В сети
+                                </span>
+                              ) : (
+                                <span style={{
+                                  fontSize: '0.75rem',
+                                  color: 'var(--text-secondary)',
+                                  background: 'rgba(255, 255, 255, 0.04)',
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  border: '1px solid var(--glass-border)'
+                                }}>
+                                  {presence.text}
+                                </span>
+                              )}
+                            </div>
+                            {employee.email && (
+                              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Key size={11} /> {employee.email}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td>
                       {allowedStatusNames.length > 0 ? (
@@ -440,30 +528,47 @@ export const Employees = () => {
                 >
                   <div className="mobile-data-card-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-                      <div style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.9rem',
-                        fontWeight: 700,
-                        color: '#fff',
-                        background: employee.avatarUrl ? 'transparent' : getAvatarGradient(employee.name),
-                        border: '2px solid rgba(255, 255, 255, 0.12)',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                        flexShrink: 0
-                      }}>
-                        {employee.avatarUrl ? (
-                          <img 
-                            src={employee.avatarUrl} 
-                            alt={employee.name} 
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      <div style={{ position: 'relative', width: '40px', height: '40px', flexShrink: 0 }}>
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.9rem',
+                          fontWeight: 700,
+                          color: '#fff',
+                          background: employee.avatarUrl ? 'transparent' : getAvatarGradient(employee.name),
+                          border: '2px solid rgba(255, 255, 255, 0.12)',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                          flexShrink: 0
+                        }}>
+                          {employee.avatarUrl ? (
+                            <img 
+                              src={employee.avatarUrl} 
+                              alt={employee.name} 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            />
+                          ) : (
+                            getEmployeeInitials(employee.name)
+                          )}
+                        </div>
+                        {employee.isOnline && (
+                          <span 
+                            style={{
+                              position: 'absolute',
+                              bottom: '0px',
+                              right: '0px',
+                              width: '11px',
+                              height: '11px',
+                              borderRadius: '50%',
+                              backgroundColor: '#22c55e',
+                              border: '2px solid var(--bg-card, #1e293b)',
+                              boxShadow: '0 0 6px rgba(34, 197, 94, 0.6)'
+                            }}
                           />
-                        ) : (
-                          getEmployeeInitials(employee.name)
                         )}
                       </div>
                       <div style={{ minWidth: 0, flex: 1 }}>
@@ -476,35 +581,58 @@ export const Employees = () => {
                       </div>
                     </div>
 
-                    {employee.hasAccount ? (
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '0.7rem',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(34, 197, 94, 0.15)',
-                        border: '1px solid rgba(34, 197, 94, 0.3)',
-                        color: '#4ade80',
-                        fontWeight: 600,
-                        flexShrink: 0
-                      }}>
-                        <Key size={11} /> В сети
-                      </span>
-                    ) : (
-                      <span style={{
-                        fontSize: '0.7rem',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        color: 'var(--text-muted)',
-                        fontWeight: 500,
-                        flexShrink: 0
-                      }}>
-                        Нет доступа
-                      </span>
-                    )}
+                    {(() => {
+                      const presence = formatLastSeen(employee.lastActiveAt, employee.isOnline, employee.hasAccount);
+                      if (!presence.hasAccount) {
+                        return (
+                          <span style={{
+                            fontSize: '0.7rem',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            color: 'var(--text-muted)',
+                            fontWeight: 500,
+                            flexShrink: 0
+                          }}>
+                            Без доступа
+                          </span>
+                        );
+                      }
+                      if (presence.isOnline) {
+                        return (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            fontSize: '0.7rem',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            background: 'rgba(34, 197, 94, 0.15)',
+                            border: '1px solid rgba(34, 197, 94, 0.3)',
+                            color: '#4ade80',
+                            fontWeight: 600,
+                            flexShrink: 0
+                          }}>
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 4px #22c55e' }} />
+                            В сети
+                          </span>
+                        );
+                      }
+                      return (
+                        <span style={{
+                          fontSize: '0.7rem',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          border: '1px solid var(--glass-border)',
+                          color: 'var(--text-secondary)',
+                          fontWeight: 500,
+                          flexShrink: 0
+                        }}>
+                          {presence.text}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   <div className="mobile-data-card-body">

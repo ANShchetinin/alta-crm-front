@@ -10,12 +10,14 @@ import { getOrders, getOrderStatuses } from '../api/kanban';
 import { getProfile } from '../api/settings';
 import { getMyTenants, switchTenant, type MyTenantsResponse } from '../api/auth';
 import { getRecentNotifications, markNotificationAsRead, markAllNotificationsAsRead, type AppNotificationItem } from '../api/notifications';
+import { sendHeartbeat } from '../api/presence';
 import { queryClient } from '../lib/queryClient';
 import { PushNotificationSettings } from './PushNotificationSettings';
 import { FeatureGate } from './FeatureGate';
 import { CreateCompanyModal } from './CreateCompanyModal';
 import { OrderDrawer } from '../features/kanban/components/OrderDrawer';
 import { formatTimeAgo } from '../utils/dateUtils';
+import { toast } from '../utils/toast';
 import '../styles/dashboard.css';
 
 const DashboardLayout = () => {
@@ -73,6 +75,36 @@ const DashboardLayout = () => {
       window.removeEventListener('alta:open-order', handleOpenOrderEvent);
     };
   }, []);
+
+  // Presence heartbeat (in-memory presence ping while user is active)
+  useEffect(() => {
+    if (!token) return;
+
+    // Initial heartbeat
+    sendHeartbeat().catch(() => {});
+
+    // Periodic heartbeat every 60s when tab is visible
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        sendHeartbeat().catch(() => {});
+      }
+    }, 60000);
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        sendHeartbeat().catch(() => {});
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, [token]);
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed(prev => {
@@ -205,6 +237,7 @@ const DashboardLayout = () => {
     if (targetTenantId === myTenantsData?.currentTenantId || isSwitchingCompany) return;
     setIsSwitchingCompany(true);
     setIsCompanyDropdownOpen(false);
+    useOrderDrawerStore.getState().closeOrder();
     try {
       const res = await switchTenant(targetTenantId);
       if (res?.token) {
@@ -231,6 +264,7 @@ const DashboardLayout = () => {
   const handleCompanyCreated = async (newToken: string) => {
     setToken(newToken);
     queryClient.clear();
+    useOrderDrawerStore.getState().closeOrder();
     setIsCreateCompanyModalOpen(false);
     setIsCompanyDropdownOpen(false);
     await Promise.all([
@@ -286,7 +320,7 @@ const DashboardLayout = () => {
       if (isIos) {
         setShowIosPrompt(true);
       } else {
-        alert('Для установки приложения нажмите кнопку меню браузера (⋮) и выберите «Установить приложение» или «Добавить на главный экран».');
+        toast.info('Для установки приложения нажмите кнопку меню браузера (⋮) и выберите «Установить приложение» или «Добавить на главный экран».');
       }
     }
   };

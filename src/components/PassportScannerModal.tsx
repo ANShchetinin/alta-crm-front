@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { scanPassportOnBackend } from '../api/passportOcr';
 import { normalizeRegistrationAddress } from '../utils/addressNormalizer';
+import { toast } from '../utils/toast';
 import '../styles/passportScanner.css';
 
 export interface PassportApplyResult {
@@ -142,7 +143,7 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
   // Run Backend Neural OCR Pipeline
   const handleStartOcr = async () => {
     if (!mainPageFile && !regPageFile) {
-      alert('Пожалуйста, загрузите хотя бы одну страницу паспорта для распознавания.');
+      toast.warning('Пожалуйста, загрузите хотя бы одну страницу паспорта для распознавания.');
       return;
     }
 

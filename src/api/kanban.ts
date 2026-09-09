@@ -66,6 +66,7 @@ export interface ContractParams {
   secondPhone?: string;
   specItems?: ContractSpecItem[];
   actChecklist?: ActChecklistItem[];
+  customParams?: Record<string, string>;
 }
 
 export interface Order {
