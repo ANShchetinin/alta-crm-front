@@ -44,7 +44,7 @@ import { getClientInitials, getEmployeeInitials } from '../utils/avatarUtils';
 import { getEmployees, type Employee } from '../api/employees';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { formatDateTimeInTimezone, formatDateOnly } from '../utils/dateUtils';
+import { formatDateTimeInTimezone, formatDateOnly, formatTimeOnly, parseLocalDateTime } from '../utils/dateUtils';
 import { useNavigate } from 'react-router-dom';
 import { getMyReminders, type OrderReminderDto } from '../api/reminders';
 import { useTouchKanbanDrag } from '../hooks/useTouchKanbanDrag';
@@ -55,6 +55,8 @@ import { MoveRestrictionModal } from '../features/kanban/components/MoveRestrict
 import { ColumnModal } from '../features/kanban/components/ColumnModal';
 import { isActFile, formatClientNameLines } from '../features/kanban/constants';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
+import { toast } from '../utils/toast';
+import { confirm } from '../utils/confirm';
 import '../styles/kanban.css';
 
 const sortCardsByStoredOrder = (cardList: Order[]): Order[] => {
@@ -274,7 +276,7 @@ const Kanban = () => {
     } catch (err: any) {
       console.error("Failed to move order", err);
       const errorMsg = err.response?.data?.message || err.message || 'Ошибка перемещения карточки';
-      alert(errorMsg);
+      toast.error(errorMsg);
       fetchData();
     }
   };
@@ -342,7 +344,7 @@ const Kanban = () => {
         } catch (err: any) {
           console.error("Failed to move order via touch drag", err);
           const errorMsg = err.response?.data?.message || err.message || 'Ошибка перемещения карточки';
-          alert(errorMsg);
+          toast.error(errorMsg);
           fetchData();
         }
       }
@@ -389,7 +391,7 @@ const Kanban = () => {
     const card = cards.find(c => c.id === orderId);
     const hasAct = (card?.attachments || []).some(a => isActFile(a.fileName, a.isAct));
     if (!hasAct) {
-      alert('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы».');
+      toast.warning('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы».');
       openOrder(orderId, 'FILES');
       return;
     }
@@ -403,11 +405,12 @@ const Kanban = () => {
         installedByName: updatedOrder.installedByName || c.installedByName,
         installedAt: updatedOrder.installedAt || new Date().toISOString()
       } : c));
+      toast.success('Монтаж успешно завершен');
       fetchData();
       window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'complete', orderId } }));
     } catch (err: any) {
       console.error('Failed to complete installation', err);
-      alert(err.response?.data?.message || err.message || 'Не удалось перевести заявку в завершенный статус');
+      toast.error(err.response?.data?.message || err.message || 'Не удалось перевести заявку в завершенный статус');
     }
   };
 
@@ -421,6 +424,7 @@ const Kanban = () => {
           includeInFinances: newColumnIncludeInFinances,
           isCompleted: newColumnIsCompleted
         });
+        toast.success('Этап обновлен');
       } else {
         await createOrderStatus({
           name: newColumnName,
@@ -429,6 +433,7 @@ const Kanban = () => {
           includeInFinances: newColumnIncludeInFinances,
           isCompleted: newColumnIsCompleted
         });
+        toast.success('Этап добавлен');
       }
       setIsColumnModalOpen(false);
       setEditingColumnId(null);
@@ -437,8 +442,9 @@ const Kanban = () => {
       setNewColumnIncludeInFinances(true);
       setNewColumnIsCompleted(false);
       fetchData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save column", err);
+      toast.error(err.response?.data?.message || err.message || 'Ошибка сохранения этапа');
     }
   };
 
@@ -461,13 +467,21 @@ const Kanban = () => {
   };
 
   const handleDeleteColumn = async (columnId: number) => {
-    if (confirm(t('kanban.deleteColumnConfirm') || 'Вы уверены, что хотите удалить этот этап?')) {
-      try {
-        await deleteOrderStatus(columnId);
-        fetchData();
-      } catch (err: any) {
-        alert(t('kanban.deleteColumnError') || 'Нельзя удалить этап, в котором есть заявки.');
-      }
+    const ok = await confirm({
+      title: 'Удаление этапа',
+      message: t('kanban.deleteColumnConfirm') || 'Вы уверены, что хотите удалить этот этап?',
+      confirmText: 'Удалить',
+      cancelText: 'Отмена',
+      danger: true,
+    });
+    if (!ok) return;
+
+    try {
+      await deleteOrderStatus(columnId);
+      toast.success('Этап удален');
+      fetchData();
+    } catch (err: any) {
+      toast.error(t('kanban.deleteColumnError') || 'Нельзя удалить этап, в котором есть заявки.');
     }
   };
 
@@ -478,14 +492,13 @@ const Kanban = () => {
       result = result.filter(card => {
         const cardRems = remindersMap[card.id] || [];
         const pending = cardRems.filter(r => r.status === 'PENDING');
-        if (pending.length === 0) return false;
+
         if (reminderFilter === 'overdue') {
-          return pending.some(r => r.isOverdue);
-        }
-        if (reminderFilter === 'today') {
+          return pending.some(r => r.isOverdue || (parseLocalDateTime(r.remindAt)?.getTime() || 0) < Date.now());
+        } else if (reminderFilter === 'today') {
           return pending.some(r => {
-            const d = new Date(r.remindAt);
-            return d.toDateString() === new Date().toDateString();
+            const d = parseLocalDateTime(r.remindAt);
+            return d ? d.toDateString() === new Date().toDateString() : false;
           });
         }
         return true;
@@ -531,13 +544,13 @@ const Kanban = () => {
 
     const cardReminders = remindersMap[card.id] || [];
     const pendingReminders = cardReminders.filter(r => r.status === 'PENDING');
-    const isOverdue = pendingReminders.some(r => r.isOverdue);
+    const isOverdue = pendingReminders.some(r => r.isOverdue || (parseLocalDateTime(r.remindAt)?.getTime() || 0) < Date.now());
     const isToday = pendingReminders.some(r => {
-      const d = new Date(r.remindAt);
-      return d.toDateString() === new Date().toDateString();
+      const d = parseLocalDateTime(r.remindAt);
+      return d ? d.toDateString() === new Date().toDateString() : false;
     });
     const nearestReminder = pendingReminders[0];
-    const reminderTimeStr = nearestReminder ? new Date(nearestReminder.remindAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+    const reminderTimeStr = nearestReminder ? formatTimeOnly(nearestReminder.remindAt) : '';
 
     const col = columns.find(c => c.id === card.statusId);
     const isCardCompleted = col ? (

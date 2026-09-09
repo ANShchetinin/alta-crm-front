@@ -9,6 +9,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import type { FeatureKey } from './api/features';
 import { useAppStore } from './store/useAppStore';
 import { useAuthStore } from './store/useAuthStore';
+import { ToastContainer } from './components/ui/ToastContainer';
+import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import './i18n';
 
 const Login = lazy(() => import('./pages/Login'));
@@ -195,6 +197,8 @@ function App() {
             </Route>
           </Routes>
         </Suspense>
+        <ToastContainer />
+        <ConfirmDialog />
       </BrowserRouter>
     </QueryClientProvider>
   );

@@ -323,7 +323,7 @@ export const FeatureFlags = () => {
             </p>
           </div>
 
-          <div className="search-box" style={{ width: '280px' }}>
+          <div className="search-input-wrapper" style={{ width: '280px' }}>
             <Search size={16} className="search-icon" />
             <input
               type="text"
@@ -331,7 +331,7 @@ export const FeatureFlags = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="search-input"
-              style={{ paddingLeft: '34px', width: '100%' }}
+              style={{ width: '100%' }}
             />
           </div>
         </div>

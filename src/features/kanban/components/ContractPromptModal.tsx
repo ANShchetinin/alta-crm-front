@@ -50,7 +50,13 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="modal-overlay" onClick={() => !contractPromptLoading && onClose()}>
+    <div
+      className="modal-overlay"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!contractPromptLoading) onClose();
+      }}
+    >
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', width: '92%' }}>
         <div className="modal-header">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem', margin: 0 }}>

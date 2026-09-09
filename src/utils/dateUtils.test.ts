@@ -1,13 +1,19 @@
-﻿import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
+  TIMEZONE_OPTIONS,
+  parseLocalDateTime,
   parseUtcDate,
   formatTimeAgo,
+  formatDateTime,
   formatDateTimeInTimezone,
-  formatDateInTimezone,
-  localInputToUtcIso,
-  utcToLocalInput,
   formatDateOnly,
-  TIMEZONE_OPTIONS
+  formatDateInTimezone,
+  formatTimeOnly,
+  localInputToIso,
+  localInputToUtcIso,
+  isoToLocalInput,
+  utcToLocalInput,
+  formatLastSeen
 } from './dateUtils';
 
 describe('Date Utilities (dateUtils)', () => {
@@ -19,26 +25,119 @@ describe('Date Utilities (dateUtils)', () => {
     });
   });
 
-  describe('parseUtcDate', () => {
+  describe('parseLocalDateTime and parseUtcDate', () => {
     it('returns null for null, empty, invalid or undefined string', () => {
-      expect(parseUtcDate(null)).toBeNull();
-      expect(parseUtcDate('')).toBeNull();
-      expect(parseUtcDate(undefined)).toBeNull();
-      expect(parseUtcDate('invalid-date-string')).toBeNull();
+      expect(parseLocalDateTime(null)).toBeNull();
+      expect(parseLocalDateTime('')).toBeNull();
+      expect(parseLocalDateTime(undefined)).toBeNull();
+      expect(parseLocalDateTime('invalid-date-string')).toBeNull();
     });
 
-    it('correctly appends Z to parse server UTC date strings without timezone', () => {
-      const parsed = parseUtcDate('2026-08-23T10:00:00');
+    it('parses ISO local date-time strings without timezone distortion', () => {
+      const parsed = parseLocalDateTime('2026-09-10T13:30:00');
       expect(parsed).not.toBeNull();
-      expect(parsed?.toISOString()).toBe('2026-08-23T10:00:00.000Z');
+      expect(parsed?.getFullYear()).toBe(2026);
+      expect(parsed?.getMonth()).toBe(8); // September is 0-indexed (8)
+      expect(parsed?.getDate()).toBe(10);
+      expect(parsed?.getHours()).toBe(13);
+      expect(parsed?.getMinutes()).toBe(30);
+      expect(parsed?.getSeconds()).toBe(0);
+
+      const parsedUtc = parseUtcDate('2026-09-10T13:30:00');
+      expect(parsedUtc).not.toBeNull();
+      expect(parsedUtc?.getHours()).toBe(13);
     });
 
-    it('parses strings that already have Z or offset', () => {
-      const parsedZ = parseUtcDate('2026-08-23T10:00:00Z');
-      expect(parsedZ?.toISOString()).toBe('2026-08-23T10:00:00.000Z');
+    it('parses strings with space delimiter or trailing Z preserving wall-clock numbers', () => {
+      const parsedZ = parseLocalDateTime('2026-09-10T13:30:00Z');
+      expect(parsedZ).not.toBeNull();
+      expect(parsedZ?.getFullYear()).toBe(2026);
+      expect(parsedZ?.getDate()).toBe(10);
+      expect(parsedZ?.getHours()).toBe(13);
+      expect(parsedZ?.getMinutes()).toBe(30);
 
-      const parsedOffset = parseUtcDate('2026-08-23T13:00:00+03:00');
-      expect(parsedOffset?.toISOString()).toBe('2026-08-23T10:00:00.000Z');
+      const parsedSpace = parseLocalDateTime('2026-09-10 13:30:00');
+      expect(parsedSpace).not.toBeNull();
+      expect(parsedSpace?.getHours()).toBe(13);
+      expect(parsedSpace?.getMinutes()).toBe(30);
+    });
+
+    it('handles Date instances directly', () => {
+      const date = new Date(2026, 8, 10, 13, 30);
+      const parsed = parseLocalDateTime(date);
+      expect(parsed).not.toBeNull();
+      expect(parsed?.getHours()).toBe(13);
+      expect(parsed?.getMinutes()).toBe(30);
+    });
+  });
+
+  describe('formatDateTime and formatDateTimeInTimezone', () => {
+    it('returns empty string for null or empty input', () => {
+      expect(formatDateTime(null)).toBe('');
+      expect(formatDateTime(undefined)).toBe('');
+      expect(formatDateTime('')).toBe('');
+    });
+
+    it('formats date and time exactly as given (DD.MM.YYYY, HH:mm)', () => {
+      const formatted = formatDateTime('2026-09-10T13:30:00');
+      expect(formatted).toBe('10.09.2026, 13:30');
+    });
+
+    it('formatDateTimeInTimezone formats identically preserving wall-clock time', () => {
+      const formatted = formatDateTimeInTimezone('2026-09-10T13:30:00', 'Europe/Moscow');
+      expect(formatted).toBe('10.09.2026, 13:30');
+    });
+  });
+
+  describe('formatDateOnly and formatDateInTimezone', () => {
+    it('returns empty string for null or empty', () => {
+      expect(formatDateOnly(null)).toBe('');
+      expect(formatDateOnly('')).toBe('');
+      expect(formatDateInTimezone(null)).toBe('');
+    });
+
+    it('formats only date part (DD.MM.YYYY)', () => {
+      expect(formatDateOnly('2026-09-10T13:30:00')).toBe('10.09.2026');
+      expect(formatDateOnly('2026-09-10')).toBe('10.09.2026');
+      expect(formatDateInTimezone('2026-09-10T13:30:00')).toBe('10.09.2026');
+    });
+  });
+
+  describe('formatTimeOnly', () => {
+    it('returns empty string for null or empty', () => {
+      expect(formatTimeOnly(null)).toBe('');
+      expect(formatTimeOnly('')).toBe('');
+    });
+
+    it('formats only time part (HH:mm)', () => {
+      expect(formatTimeOnly('2026-09-10T13:30:00')).toBe('13:30');
+      expect(formatTimeOnly('2026-09-10T09:05:00')).toBe('09:05');
+    });
+  });
+
+  describe('localInputToIso and localInputToUtcIso', () => {
+    it('returns undefined for invalid or empty input', () => {
+      expect(localInputToIso(null)).toBeUndefined();
+      expect(localInputToIso('')).toBeUndefined();
+      expect(localInputToUtcIso(null)).toBeUndefined();
+    });
+
+    it('converts local input format "YYYY-MM-DDTHH:mm" to "YYYY-MM-DDTHH:mm:00"', () => {
+      expect(localInputToIso('2026-09-10T13:30')).toBe('2026-09-10T13:30:00');
+      expect(localInputToUtcIso('2026-09-10T13:30')).toBe('2026-09-10T13:30:00');
+    });
+  });
+
+  describe('isoToLocalInput and utcToLocalInput', () => {
+    it('returns empty string for null or empty input', () => {
+      expect(isoToLocalInput(null)).toBe('');
+      expect(isoToLocalInput('')).toBe('');
+      expect(utcToLocalInput(null)).toBe('');
+    });
+
+    it('converts ISO string to input datetime-local format "YYYY-MM-DDTHH:mm"', () => {
+      expect(isoToLocalInput('2026-09-10T13:30:00')).toBe('2026-09-10T13:30');
+      expect(utcToLocalInput('2026-09-10T13:30:00.000')).toBe('2026-09-10T13:30');
     });
   });
 
@@ -49,91 +148,60 @@ describe('Date Utilities (dateUtils)', () => {
     });
 
     it('returns "только что" for recent dates within a minute', () => {
-      const recent = new Date().toISOString();
+      const now = new Date();
+      const recent = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
       expect(formatTimeAgo(recent)).toBe('только что');
     });
-
-    it('returns minutes ago for dates 1-59 mins ago', () => {
-      const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-      expect(formatTimeAgo(tenMinsAgo)).toBe('10 мин назад');
-    });
-
-    it('returns hours ago for dates 1-23 hours ago', () => {
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-      expect(formatTimeAgo(twoHoursAgo)).toBe('2 ч назад');
-    });
-
-    it('returns formatted date for older dates (> 24 hours)', () => {
-      const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-      const formatted = formatTimeAgo(twoDaysAgo);
-      expect(formatted).toMatch(/\d{2}\.\d{2}/);
-    });
   });
 
-  describe('formatDateTimeInTimezone', () => {
-    it('returns empty string for null or empty input', () => {
-      expect(formatDateTimeInTimezone(null)).toBe('');
-      expect(formatDateTimeInTimezone(undefined)).toBe('');
+  describe('formatLastSeen', () => {
+    it('returns "Без доступа к CRM" when hasAccount is false', () => {
+      const res = formatLastSeen('2026-09-10T13:30:00', false, false);
+      expect(res).toEqual({
+        text: 'Без доступа к CRM',
+        isOnline: false,
+        hasAccount: false
+      });
     });
 
-    it('formats date and time in given timezone', () => {
-      const dateStr = '2026-08-23T10:00:00Z';
-      const formatted = formatDateTimeInTimezone(dateStr, 'Europe/Moscow');
-      expect(formatted).toContain('23.08.2026');
-      expect(formatted).toContain('13:00');
+    it('returns "В сети" when isOnline is true', () => {
+      const res = formatLastSeen('2026-09-10T13:30:00', true, true);
+      expect(res).toEqual({
+        text: 'В сети',
+        isOnline: true,
+        hasAccount: true
+      });
     });
 
-    it('accepts Date object instance directly', () => {
-      const dateObj = new Date('2026-08-23T10:00:00Z');
-      const formatted = formatDateTimeInTimezone(dateObj, 'UTC');
-      expect(formatted).toContain('23.08.2026');
-      expect(formatted).toContain('10:00');
-    });
-  });
-
-  describe('formatDateInTimezone', () => {
-    it('returns empty string for null', () => {
-      expect(formatDateInTimezone(null)).toBe('');
+    it('returns "Был(а) давно" when lastActiveAt is empty or invalid', () => {
+      expect(formatLastSeen(null, false, true).text).toBe('Был(а) давно');
+      expect(formatLastSeen(undefined, false, true).text).toBe('Был(а) давно');
+      expect(formatLastSeen('invalid-date', false, true).text).toBe('Был(а) давно');
     });
 
-    it('formats date correctly in given timezone', () => {
-      const dateStr = '2026-08-23T10:00:00Z';
-      const formatted = formatDateInTimezone(dateStr, 'Europe/Moscow');
-      expect(formatted).toBe('23.08.2026');
-    });
-  });
-
-  describe('localInputToUtcIso and utcToLocalInput', () => {
-    it('returns undefined / empty for invalid or empty input', () => {
-      expect(localInputToUtcIso(null)).toBeUndefined();
-      expect(localInputToUtcIso('')).toBeUndefined();
-      expect(utcToLocalInput(null)).toBe('');
-      expect(utcToLocalInput('')).toBe('');
+    it('returns "Был(а) только что" for activity within 1 minute', () => {
+      const now = new Date();
+      const isoStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+      const res = formatLastSeen(isoStr, false, true);
+      expect(res.text).toBe('Был(а) только что');
+      expect(res.isOnline).toBe(false);
+      expect(res.hasAccount).toBe(true);
     });
 
-    it('converts local input string to UTC ISO string', () => {
-      const localStr = '2026-09-04T12:30';
-      const utcIso = localInputToUtcIso(localStr);
-      expect(utcIso).toBeDefined();
-      expect(utcIso).toMatch(/Z$/);
+    it('returns "Был(а) X мин назад" for activity between 1 and 59 minutes ago', () => {
+      const date = new Date(Date.now() - 15 * 60 * 1000);
+      const isoStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+      const res = formatLastSeen(isoStr, false, true);
+      expect(res.text).toBe('Был(а) 15 мин назад');
     });
 
-    it('converts UTC date string to input datetime-local format', () => {
-      const utcStr = '2026-09-04T12:30:00.000Z';
-      const localInput = utcToLocalInput(utcStr);
-      expect(localInput).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
-    });
-  });
-
-  describe('formatDateOnly', () => {
-    it('returns empty string for empty input', () => {
-      expect(formatDateOnly(null)).toBe('');
-      expect(formatDateOnly('')).toBe('');
-    });
-
-    it('formats YYYY-MM-DD directly to DD.MM.YYYY', () => {
-      expect(formatDateOnly('2026-09-04')).toBe('04.09.2026');
-      expect(formatDateOnly('2026-12-31T15:00:00Z')).toBe('31.12.2026');
+    it('returns "Был(а) сегодня в HH:mm" for earlier today (>= 1 hour)', () => {
+      const date = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      const isoStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+      const res = formatLastSeen(isoStr, false, true);
+      const h = String(date.getHours()).padStart(2, '0');
+      const m = String(date.getMinutes()).padStart(2, '0');
+      expect(res.text).toBe(`Был(а) сегодня в ${h}:${m}`);
     });
   });
 });

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, ChevronDown, Check, X, Phone, User } from 'lucide-react';
 import type { Employee } from '../../../api/employees';
 import { getAvatarGradient, getEmployeeInitials } from '../../../utils/avatarUtils';
@@ -113,19 +113,42 @@ export const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
                 getEmployeeInitials(selectedEmployee.name)
               )}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, overflow: 'hidden' }}>
               <span style={{ fontWeight: 600, fontSize: '0.86rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {selectedEmployee.name}
               </span>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {selectedEmployee.position && <span>{selectedEmployee.position}</span>}
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                {selectedEmployee.position && (
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1 }}>
+                    {selectedEmployee.position}
+                  </span>
+                )}
+                {selectedEmployee.position && selectedEmployee.phone && (
+                  <span style={{ opacity: 0.4, flexShrink: 0 }}>•</span>
+                )}
                 {selectedEmployee.phone && (
                   <a
                     href={`tel:${selectedEmployee.phone.replace(/[^\d+]/g, '')}`}
                     onClick={(e) => e.stopPropagation()}
-                    style={{ color: '#22c55e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}
+                    style={{
+                      color: '#22c55e',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '2px',
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                      maxWidth: '100%'
+                    }}
+                    title={selectedEmployee.phone}
                   >
-                    <Phone size={10} /> {selectedEmployee.phone}
+                    <Phone size={10} style={{ flexShrink: 0 }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {selectedEmployee.phone}
+                    </span>
                   </a>
                 )}
               </div>
@@ -291,13 +314,24 @@ export const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
                           getEmployeeInitials(emp.name)
                         )}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, overflow: 'hidden' }}>
                         <span style={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.84rem', color: isSelected ? accentColor : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {emp.name}
                         </span>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          {emp.position && <span>{emp.position}</span>}
-                          {emp.phone && <span>{emp.phone}</span>}
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                          {emp.position && (
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1 }}>
+                              {emp.position}
+                            </span>
+                          )}
+                          {emp.position && emp.phone && (
+                            <span style={{ opacity: 0.4, flexShrink: 0 }}>•</span>
+                          )}
+                          {emp.phone && (
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={emp.phone}>
+                              {emp.phone}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>

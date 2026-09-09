@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus,
   Trash2,
@@ -12,7 +13,7 @@ import {
   Layers,
   Check
 } from 'lucide-react';
-import type { Material } from '../api/storage';
+import { getMaterials, type Material } from '../api/storage';
 import {
   getMeasurementByOrderId,
   saveOrderMeasurement,
@@ -22,11 +23,12 @@ import {
   type MeasurementCalculateResponse
 } from '../api/measurements';
 import { getActiveEstimationServices, type EstimationService, type EstimationServiceSlot } from '../api/estimationServices';
+import { toast } from '../utils/toast';
 import { SearchSelect, type SearchSelectOption } from './SearchSelect';
 
 interface MeasurementWizardProps {
   orderId?: number;
-  materials: Material[];
+  materials?: Material[];
   canViewFinances: boolean;
   onSaved?: (savedMeasurement: MeasurementDto, calculated: MeasurementCalculateResponse) => void;
   onDownloadDocx?: () => void;
@@ -46,11 +48,27 @@ const PRESET_ROOMS = [
 
 export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   orderId,
-  materials,
+  materials = [],
   canViewFinances,
   onSaved,
   onDownloadDocx
 }) => {
+  const [internalMaterials, setInternalMaterials] = useState<Material[]>(materials);
+
+  useEffect(() => {
+    if (materials && materials.length > 0) {
+      setInternalMaterials(materials);
+    } else {
+      getMaterials()
+        .then(mats => {
+          if (mats && mats.length > 0) {
+            setInternalMaterials(mats);
+          }
+        })
+        .catch(err => console.error('Ошибка загрузки материалов в MeasurementWizard:', err));
+    }
+  }, [materials]);
+
   const [rooms, setRooms] = useState<MeasurementRoomDto[]>([]);
   const [notes, setNotes] = useState<string>('');
   const [activeRoomIdx, setActiveRoomIdx] = useState<number>(0);
@@ -357,6 +375,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
   const addCustomEmptyItem = () => {
     setIsManualEditMode(true);
+    setShowSpecDetails(true);
     const currentRoomName = currentRoom?.roomName || 'Помещение 1';
     const newItem: MeasurementCalculationItemDto = {
       name: 'Дополнительная позиция / работа',
@@ -370,13 +389,15 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       roomName: currentRoomName
     };
     setCustomItems(prev => [...prev, newItem]);
+    toast.success('Добавлена новая позиция');
   };
 
   const addMaterialFromWarehouse = (matId: number) => {
-    const mat = materials.find(m => m.id === matId);
+    const mat = internalMaterials.find(m => m.id === matId);
     if (!mat) return;
 
     setIsManualEditMode(true);
+    setShowSpecDetails(true);
     const currentRoomName = currentRoom?.roomName || 'Помещение 1';
     const newItem: MeasurementCalculationItemDto = {
       materialId: mat.id,
@@ -393,6 +414,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     setCustomItems(prev => [...prev, newItem]);
     setIsAddMaterialModalOpen(false);
     setSelectedAddMaterialId('');
+    toast.success(`Добавлено со склада: ${mat.name}`);
   };
 
   // Вычисляем итоговые суммы
@@ -439,7 +461,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       }
     } catch (e: any) {
       console.error('Не удалось сохранить замер', e);
-      alert('Ошибка при сохранении замера: ' + (e.response?.data?.message || e.message));
+      toast.error('Ошибка при сохранении замера: ' + (e.response?.data?.message || e.message));
     } finally {
       setSaving(false);
     }
@@ -491,7 +513,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     letterSpacing: '0.5px'
   };
 
-  const allWarehouseOptions: SearchSelectOption[] = materials.map(m => ({
+  const allWarehouseOptions: SearchSelectOption[] = internalMaterials.map(m => ({
     value: m.id,
     label: m.name,
     price: m.salePrice,
@@ -1240,18 +1262,63 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             <div className="wizard-cards-mobile">
               {customItems.length === 0 ? (
                 <div style={{
-                  padding: '20px',
+                  padding: '24px 16px',
                   textAlign: 'center',
-                  background: 'var(--table-bg)',
+                  background: 'var(--table-bg, rgba(0, 0, 0, 0.2))',
                   border: '1px solid var(--glass-border)',
                   borderRadius: 'var(--radius-md)',
                   color: 'var(--text-secondary)',
-                  fontSize: '0.84rem'
+                  fontSize: '0.84rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px'
                 }}>
-                  Нет позиций в смете. Выберите нужные виды работ выше или добавьте позиции со склада кнопкой «+ Со склада».
+                  <div>Нет позиций в смете. Выберите нужные виды работ выше или добавьте позиции со склада кнопкой «+ Со склада».</div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddMaterialModalOpen(true)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 14px',
+                        borderRadius: '6px',
+                        background: 'rgba(59, 130, 246, 0.15)',
+                        border: '1px solid rgba(59, 130, 246, 0.4)',
+                        color: 'var(--accent-primary)',
+                        fontSize: '0.84rem',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Box size={14} /> + Добавить со склада
+                    </button>
+                    <button
+                      type="button"
+                      onClick={addCustomEmptyItem}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 14px',
+                        borderRadius: '6px',
+                        background: 'var(--row-hover-bg, rgba(255, 255, 255, 0.06))',
+                        border: '1px solid var(--glass-border)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.84rem',
+                        fontWeight: 500,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Plus size={14} /> + Своя позиция
+                    </button>
+                  </div>
                 </div>
               ) : (
-                customItems.map((item, idx) => {
+                <>
+                  {customItems.map((item, idx) => {
                   let linkedSlot: EstimationServiceSlot | undefined;
                   if (item.slotId) {
                     for (const svc of estimationServices) {
@@ -1563,7 +1630,54 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                       </div>
                     </div>
                   );
-                })
+                })}
+                {customItems.length > 0 && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddMaterialModalOpen(true)}
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        background: 'rgba(59, 130, 246, 0.12)',
+                        border: '1px solid rgba(59, 130, 246, 0.35)',
+                        color: 'var(--accent-primary)',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Box size={15} /> + Со склада
+                    </button>
+                    <button
+                      type="button"
+                      onClick={addCustomEmptyItem}
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        background: 'var(--row-hover-bg, rgba(255, 255, 255, 0.06))',
+                        border: '1px solid var(--glass-border)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.85rem',
+                        fontWeight: 500,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Plus size={15} /> + Своя позиция
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </div>
           </div>
@@ -1621,36 +1735,14 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       </div>
 
       {/* Модальное окно выбора товара со склада */}
-      {isAddMaterialModalOpen && (
+      {isAddMaterialModalOpen && typeof document !== 'undefined' && createPortal(
         <div
-          className="modal-overlay"
+          className="measurement-warehouse-modal-overlay"
           onClick={() => setIsAddMaterialModalOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-            zIndex: 10005
-          }}
         >
           <div
+            className="measurement-warehouse-modal-box"
             onClick={e => e.stopPropagation()}
-            style={{
-              background: 'var(--modal-bg, var(--card-bg, #1e293b))',
-              border: '1px solid var(--glass-border)',
-              borderRadius: 'var(--radius-lg)',
-              maxWidth: '500px',
-              width: '100%',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)'
-            }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1700,7 +1792,8 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

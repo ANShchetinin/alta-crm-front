@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend 
 } from 'recharts';
+import { formatDateOnly } from '../utils/dateUtils';
 import '../styles/clients.css'; 
 import '../styles/reports.css'; 
 
@@ -903,7 +904,7 @@ export const Reports = () => {
                       <td>
                         {order.measurementDate ? (
                           <span style={{ fontSize: '0.85rem', color: '#a855f7', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Ruler size={13} /> {new Date(order.measurementDate).toLocaleDateString('ru-RU')}
+                            <Ruler size={13} /> {formatDateOnly(order.measurementDate)}
                           </span>
                         ) : '—'}
                       </td>

@@ -29,6 +29,8 @@ import {
   type ExitIntentSessionItem,
   type ExitIntentCalcData
 } from '../api/exitIntentAnalytics';
+import { toast } from '../utils/toast';
+import { confirm } from '../utils/confirm';
 import '../styles/dashboard.css';
 
 type DateFilterType = 'today' | 'yesterday' | '7days' | '30days' | 'all' | 'custom';
@@ -135,17 +137,24 @@ export const ExitIntentStats: React.FC = () => {
   };
 
   const handleDeleteSession = async (id: number) => {
-    if (!window.confirm('Вы уверены, что хотите удалить эту запись аналитики?')) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Удаление записи',
+      message: 'Вы уверены, что хотите удалить эту запись аналитики?',
+      confirmText: 'Удалить',
+      cancelText: 'Отмена',
+      danger: true,
+    });
+    if (!ok) return;
+
     setDeletingId(id);
     try {
       await deleteExitIntentSession(id);
       // Reload sessions and summary
       await Promise.all([loadSummary(), loadSessions(page)]);
+      toast.success('Запись аналитики удалена');
     } catch (err) {
       console.error('Failed to delete session', err);
-      alert('Ошибка при удалении записи');
+      toast.error('Ошибка при удалении записи');
     } finally {
       setDeletingId(null);
     }

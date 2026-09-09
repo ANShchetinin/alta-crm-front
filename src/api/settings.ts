@@ -45,11 +45,20 @@ export interface TenantRequisites {
   brandName?: string;
 }
 
+export interface ContractFieldDefinition {
+  id: string;
+  key: string;
+  label: string;
+  placeholder?: string;
+}
+
 export interface UpdateTenantSettingsRequest {
   primaryColor?: string;
   requisites?: TenantRequisites;
   orderNumberFormat?: string;
   timezone?: string;
+  contractFieldDefinitions?: ContractFieldDefinition[];
+  actChecklistTemplate?: string[];
 }
 
 export interface TenantDto {
@@ -61,6 +70,8 @@ export interface TenantDto {
   requisites?: TenantRequisites;
   orderNumberFormat?: string;
   timezone?: string;
+  contractFieldDefinitions?: ContractFieldDefinition[];
+  actChecklistTemplate?: string[];
   activeFeatures?: string[];
   createdAt: string;
 }

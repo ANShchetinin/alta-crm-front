@@ -1099,7 +1099,7 @@ body.light-theme .order-drawer-content {
   .modal-overlay {
     padding: 0 !important;
     align-items: stretch !important;
-    z-index: 10005 !important;
+    z-index: 100060 !important;
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;

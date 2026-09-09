@@ -36,6 +36,33 @@ describe('kanban constants and helpers', () => {
       expect(merged).toHaveLength(16);
       expect(merged.find(i => i.id === 'custom-1')?.checked).toBe(true);
     });
+
+    it('uses custom template if provided', () => {
+      const template = ['Проверка карниза', 'Проверка мотора', 'Подключение к питанию'];
+      const merged = mergeActChecklist([], template);
+      expect(merged).toHaveLength(3);
+      expect(merged[0].name).toBe('Проверка карниза');
+      expect(merged[1].name).toBe('Проверка мотора');
+      expect(merged[2].name).toBe('Подключение к питанию');
+      expect(merged.every(i => i.checked === false)).toBe(true);
+    });
+
+    it('overrides default ceiling items with custom template and matches checked state by name', () => {
+      const template = ['Проверка карниза', 'Проверка мотора', 'Подключение к питанию'];
+      const oldCeilingsList = [
+        { id: '1', name: 'Установка багета (Ал.)', checked: true },
+        { id: '2', name: 'Проверка мотора', checked: true },
+        { id: '3', name: 'Установка натяжного потолка', checked: true }
+      ];
+      const merged = mergeActChecklist(oldCeilingsList, template);
+      expect(merged).toHaveLength(3);
+      expect(merged[0].name).toBe('Проверка карниза');
+      expect(merged[0].checked).toBe(false);
+      expect(merged[1].name).toBe('Проверка мотора');
+      expect(merged[1].checked).toBe(true);
+      expect(merged[2].name).toBe('Подключение к питанию');
+      expect(merged[2].checked).toBe(false);
+    });
   });
 
   describe('formatClientNameLines', () => {

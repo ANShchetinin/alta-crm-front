@@ -6,6 +6,8 @@ import { getMaterials, createMaterial, updateMaterial, deleteMaterial } from '..
 import { getEstimationServices, type EstimationService } from '../api/estimationServices';
 import { useAppStore } from '../store/useAppStore';
 import { Sheet } from '../components/ui/Sheet';
+import { toast } from '../utils/toast';
+import { confirm } from '../utils/confirm';
 import '../styles/clients.css';
 
 export const Storage = () => {
@@ -146,19 +148,29 @@ export const Storage = () => {
       
       if (editingId) {
         await updateMaterial(editingId, payload);
+        toast.success('Позиция успешно обновлена');
       } else {
         await createMaterial(payload);
+        toast.success('Позиция успешно добавлена на склад');
       }
       setIsModalOpen(false);
       fetchMaterials();
       fetchLowStockMaterials();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      toast.error(err.response?.data?.message || 'Не удалось сохранить позицию');
     }
   };
 
   const handleDeleteMaterial = async (id: number, name: string) => {
-    if (!window.confirm(`Вы уверены, что хотите удалить позицию «${name}»?`)) return;
+    const ok = await confirm({
+      title: 'Удалить позицию?',
+      message: `Вы уверены, что хотите удалить «${name}»? Это действие нельзя отменить.`,
+      confirmText: 'Удалить',
+      danger: true
+    });
+    if (!ok) return;
+
     try {
       await deleteMaterial(id);
       setMaterials(prev => prev.filter(m => m.id !== id));
@@ -166,9 +178,10 @@ export const Storage = () => {
         setIsModalOpen(false);
       }
       fetchLowStockMaterials();
-    } catch (err) {
+      toast.success(`Позиция «${name}» успешно удалена`);
+    } catch (err: any) {
       console.error(err);
-      alert('Не удалось удалить позицию.');
+      toast.error(err.response?.data?.message || 'Не удалось удалить позицию');
     }
   };
 
@@ -262,7 +275,7 @@ export const Storage = () => {
           </button>
         </div>
 
-        <div className="search-box" style={{ width: '280px' }}>
+        <div className="search-input-wrapper" style={{ width: '280px' }}>
           <Search size={16} className="search-icon" />
           <input 
             type="text" 

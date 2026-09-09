@@ -33,7 +33,8 @@ import {
   RotateCcw,
   Copy,
   Coins,
-  FileDown
+  FileDown,
+  Table
 } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
@@ -64,6 +65,7 @@ import {
   type OrderAttachment,
   type OrderAiSummary,
   type ContractParams,
+  type ContractSpecItem,
   type ChatMessage
 } from '../../../api/kanban';
 import { getOrderAiUsage, type OrderAiCostDto } from '../../../api/aiUsage';
@@ -82,13 +84,16 @@ import { DocumentScannerModal } from '../../../components/DocumentScannerModal';
 import { PassportScannerModal, type PassportApplyResult } from '../../../components/PassportScannerModal';
 import { ActUploadActionSheet } from '../../../components/ActUploadActionSheet';
 import { MeasurementWizard } from '../../../components/MeasurementWizard';
+import { getMeasurementByOrderId } from '../../../api/measurements';
 import { AttachmentPreviewModal, type PreviewAttachmentData } from '../../../components/AttachmentPreviewModal';
 import { ClientSearchSelect } from './ClientSearchSelect';
 import { EmployeeSearchSelect } from './EmployeeSearchSelect';
 import { QuickClientModal } from './QuickClientModal';
 import { ContractPromptModal } from './ContractPromptModal';
-import { DEFAULT_ACT_CHECKLIST, mergeActChecklist, isActFile } from '../constants';
+import { mergeActChecklist, isActFile } from '../constants';
 import { useOrderDrawerStore } from '../../../store/useOrderDrawerStore';
+import { toast } from '../../../utils/toast';
+import { confirm } from '../../../utils/confirm';
 
 const getAvatarGradient = (name: string) => {
   const gradients = [
@@ -228,6 +233,7 @@ export const OrderDrawer: React.FC = () => {
   // Contract Generation & Prompt Modal State
   const [isContractPromptOpen, setIsContractPromptOpen] = useState(false);
   const [contractPromptLoading, setContractPromptLoading] = useState(false);
+  const [isSyncingMeasurement, setIsSyncingMeasurement] = useState(false);
   const [isPassportScannerOpen, setIsPassportScannerOpen] = useState(false);
   const [passportScannerTarget, setPassportScannerTarget] = useState<'CONTRACT' | 'NEW_CLIENT' | 'ORDER'>('CONTRACT');
   const [contractPromptData, setContractPromptData] = useState({
@@ -292,6 +298,26 @@ export const OrderDrawer: React.FC = () => {
     loadAuxData();
   }, [isOpen, isWorker, hasContractTemplates]);
 
+  // Close drawer if company/tenant changes
+  const authTenantId = useAuthStore(state => state.tenantId);
+  const prevTenantIdRef = useRef<number | null>(authTenantId);
+  useEffect(() => {
+    if (prevTenantIdRef.current !== null && prevTenantIdRef.current !== authTenantId) {
+      closeOrder();
+    }
+    prevTenantIdRef.current = authTenantId;
+  }, [authTenantId, closeOrder]);
+
+  useEffect(() => {
+    const handleTenantChanged = () => {
+      closeOrder();
+    };
+    window.addEventListener('alta:tenant-changed', handleTenantChanged);
+    return () => {
+      window.removeEventListener('alta:tenant-changed', handleTenantChanged);
+    };
+  }, [closeOrder]);
+
   // Load order data when orderId changes
   useEffect(() => {
     if (!isOpen) return;
@@ -351,7 +377,8 @@ export const OrderDrawer: React.FC = () => {
         discount: '',
         handoverDate: '',
         specItems: [],
-        actChecklist: DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }))
+        actChecklist: mergeActChecklist([], tenantSettings?.actChecklistTemplate),
+        customParams: {}
       },
       materials: [],
       attachments: []
@@ -372,8 +399,9 @@ export const OrderDrawer: React.FC = () => {
     const initialContractParams: ContractParams = order.contractParams ? {
       ...order.contractParams,
       contractDate: order.contractParams.contractDate || new Date().toISOString().slice(0, 10),
-      actChecklist: mergeActChecklist(order.contractParams.actChecklist),
-      specItems: order.contractParams.specItems || []
+      actChecklist: mergeActChecklist(order.contractParams.actChecklist, tenantSettings?.actChecklistTemplate),
+      specItems: order.contractParams.specItems || [],
+      customParams: order.contractParams.customParams || {}
     } : {
       area: '70,3',
       perimeter: '110,5',
@@ -386,7 +414,8 @@ export const OrderDrawer: React.FC = () => {
       discount: '',
       handoverDate: '',
       specItems: [],
-      actChecklist: DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }))
+      actChecklist: mergeActChecklist([], tenantSettings?.actChecklistTemplate),
+      customParams: {}
     };
 
     const initialData = {
@@ -471,6 +500,17 @@ export const OrderDrawer: React.FC = () => {
 
   const handleConfirmDiscardAndClose = () => {
     setIsUnsavedConfirmOpen(false);
+    if (initialFormDataJson) {
+      try {
+        const parsed = JSON.parse(initialFormDataJson);
+        if (parsed && parsed.formData) {
+          setFormData(parsed.formData);
+        }
+      } catch (err) {
+        console.error("Failed to reset form data", err);
+      }
+    }
+    setPendingFiles([]);
     smoothClose();
   };
 
@@ -495,7 +535,7 @@ export const OrderDrawer: React.FC = () => {
   };
 
   const getContractParams = (): ContractParams => {
-    return formData.contractParams || {
+    const defaultParams: ContractParams = {
       area: '70,3',
       perimeter: '110,5',
       canvasesCount: '5',
@@ -507,7 +547,15 @@ export const OrderDrawer: React.FC = () => {
       discount: '',
       handoverDate: '',
       specItems: [],
-      actChecklist: DEFAULT_ACT_CHECKLIST.map(item => ({ ...item, checked: false }))
+      actChecklist: mergeActChecklist([], tenantSettings?.actChecklistTemplate),
+      customParams: {}
+    };
+    if (!formData.contractParams) {
+      return defaultParams;
+    }
+    return {
+      ...formData.contractParams,
+      actChecklist: mergeActChecklist(formData.contractParams.actChecklist, tenantSettings?.actChecklistTemplate)
     };
   };
 
@@ -521,15 +569,74 @@ export const OrderDrawer: React.FC = () => {
     }));
   };
 
+  const updateCustomContractParam = (key: string, value: string) => {
+    const cur = getContractParams();
+    const custom = { ...(cur.customParams || {}), [key]: value };
+    setFormData(prev => ({
+      ...prev,
+      contractParams: {
+        ...cur,
+        customParams: custom
+      }
+    }));
+  };
+
   const toggleActItem = (itemId: string) => {
     const curParams = getContractParams();
-    const updatedChecklist = (curParams.actChecklist || DEFAULT_ACT_CHECKLIST).map(item => {
+    const currentList = curParams.actChecklist && curParams.actChecklist.length > 0
+      ? curParams.actChecklist
+      : mergeActChecklist([], tenantSettings?.actChecklistTemplate);
+    const updatedChecklist = currentList.map(item => {
       if (String(item.id) === String(itemId)) {
         return { ...item, checked: !item.checked };
       }
       return item;
     });
     updateContractParam('actChecklist', updatedChecklist);
+  };
+
+  const handleSyncFromMeasurement = async () => {
+    if (!editingOrderId) {
+      toast.warning('Сначала сохраните заявку, чтобы привязать позиции замера');
+      return;
+    }
+    try {
+      setIsSyncingMeasurement(true);
+      const dto = await getMeasurementByOrderId(editingOrderId);
+      if (!dto || !dto.items || dto.items.length === 0) {
+        toast.info('В замере для этой заявки пока нет сохраненных позиций сметы');
+        return;
+      }
+
+      const mappedItems: ContractSpecItem[] = dto.items.map((it, i) => ({
+        idx: i + 1,
+        name: it.name + (it.roomName ? ` (${it.roomName})` : ''),
+        quantity: String(it.quantity),
+        unit: it.unit || 'шт.',
+        price: it.unitSalePrice,
+        total: it.totalSalePrice
+      }));
+
+      const totalSum = mappedItems.reduce((acc, it) => acc + (it.total || 0), 0);
+      const prepay = parseFloat(formData.prepayment) || 0;
+      const newRem = Math.max(0, totalSum - prepay);
+
+      setFormData(prev => ({
+        ...prev,
+        totalPrice: totalSum > 0 ? totalSum.toString() : prev.totalPrice,
+        remainder: totalSum > 0 ? newRem.toString() : prev.remainder,
+        contractParams: {
+          ...getContractParams(),
+          specItems: mappedItems
+        }
+      }));
+      toast.success('Позиции сметы успешно подтянуты в договор!');
+    } catch (err) {
+      console.error("Failed to sync from measurement", err);
+      toast.error('Не удалось загрузить позиции из замера');
+    } finally {
+      setIsSyncingMeasurement(false);
+    }
   };
 
   const currentMaterialsCost = useMemo(() => {
@@ -614,10 +721,12 @@ export const OrderDrawer: React.FC = () => {
 
       if (shouldClose) {
         smoothClose();
+      } else {
+        toast.success(editingOrderId ? 'Заявка успешно сохранена' : 'Новая заявка создана');
       }
     } catch (err: any) {
       console.error("Failed to save order", err);
-      alert(err.response?.data?.message || "Ошибка при сохранении заявки");
+      toast.error(err.response?.data?.message || "Ошибка при сохранении заявки");
     }
   };
 
@@ -628,17 +737,24 @@ export const OrderDrawer: React.FC = () => {
 
   const handleDeleteOrder = async () => {
     if (!editingOrderId) return;
-    if (window.confirm(t('kanban.modal.confirmDelete') || 'Удалить эту заявку?')) {
-      try {
-        await deleteOrder(editingOrderId);
-        window.dispatchEvent(new CustomEvent('alta:orders-changed', {
-          detail: { action: 'delete', orderId: editingOrderId }
-        }));
-        smoothClose();
-      } catch (err) {
-        console.error("Failed to delete order", err);
-        alert("Не удалось удалить заявку");
-      }
+    const ok = await confirm({
+      title: 'Удалить заявку?',
+      message: `Вы уверены, что хотите удалить заявку #${editingOrderId}? Все файлы и история будут удалены.`,
+      confirmText: 'Удалить',
+      danger: true
+    });
+    if (!ok) return;
+
+    try {
+      await deleteOrder(editingOrderId);
+      window.dispatchEvent(new CustomEvent('alta:orders-changed', {
+        detail: { action: 'delete', orderId: editingOrderId }
+      }));
+      smoothClose();
+      toast.success(`Заявка #${editingOrderId} успешно удалена`);
+    } catch (err) {
+      console.error("Failed to delete order", err);
+      toast.error("Не удалось удалить заявку");
     }
   };
 
@@ -647,7 +763,7 @@ export const OrderDrawer: React.FC = () => {
     e.stopPropagation();
     const hasAct = formData.attachments.some(a => isActFile(a.fileName, a.isAct)) || pendingFiles.some(f => isActFile(f.name));
     if (!hasAct) {
-      alert('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы».');
+      toast.warning('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы»');
       setOrderModalTab('FILES');
       return;
     }
@@ -656,17 +772,17 @@ export const OrderDrawer: React.FC = () => {
       if (updated) {
         populateOrderData(updated);
         window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'complete', orderId: oId } }));
-        alert('Монтаж успешно завершен!');
+        toast.success('Монтаж успешно завершен!');
       }
     } catch (err: any) {
       console.error('Failed to complete installation', err);
-      alert(err.response?.data?.message || err.message || 'Не удалось перевести заявку в завершенный статус');
+      toast.error(err.response?.data?.message || err.message || 'Не удалось перевести заявку в завершенный статус');
     }
   };
 
   const handleStartGenerateContract = () => {
     if (!editingOrderId) {
-      alert("Сначала сохраните заявку, чтобы сформировать договор");
+      toast.warning('Сначала сохраните заявку, чтобы сформировать договор');
       return;
     }
     const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
@@ -735,9 +851,10 @@ export const OrderDrawer: React.FC = () => {
           });
           const updatedClients = await getClients();
           setClients(updatedClients);
-          alert('Данные паспорта успешно обновлены в карточке клиента!');
+          toast.success('Данные паспорта успешно обновлены в карточке клиента!');
         } catch (err) {
           console.error("Failed to update client with passport data", err);
+          toast.error("Не удалось обновить данные клиента");
         }
       }
     }
@@ -749,9 +866,9 @@ export const OrderDrawer: React.FC = () => {
 
     setCreatingClient(true);
     try {
-      const finalLeadSource = newClientLeadSource === 'CUSTOM'
+      const finalLeadSource = (newClientLeadSource.toLowerCase() === 'custom')
         ? (newClientCustomLeadSource.trim() || undefined)
-        : (newClientLeadSource || undefined);
+        : (newClientLeadSource.trim() || undefined);
 
       const created = await createClient({
         name: newClientName.trim(),
@@ -768,6 +885,7 @@ export const OrderDrawer: React.FC = () => {
       setClients(updatedClients);
       setFormData(prev => ({ ...prev, clientId: created.id.toString() }));
       setIsNewClientModalOpen(false);
+      toast.success(`Клиент «${created.name}» создан и привязан`);
 
       setNewClientName('');
       setNewClientPhone('');
@@ -779,7 +897,7 @@ export const OrderDrawer: React.FC = () => {
       setNewClientCustomLeadSource('');
     } catch (err: any) {
       console.error("Failed to create client", err);
-      alert(err.response?.data?.message || "Не удалось создать клиента");
+      toast.error(err.response?.data?.message || "Не удалось создать клиента");
     } finally {
       setCreatingClient(false);
     }
@@ -802,9 +920,10 @@ export const OrderDrawer: React.FC = () => {
           }));
         }
         window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
+        toast.success(files.length > 1 ? `Загружено файлов: ${files.length}` : 'Файл успешно прикреплен');
       } catch (err) {
         console.error("Failed to upload file", err);
-        alert("Не удалось загрузить файл");
+        toast.error("Не удалось загрузить файл");
       } finally {
         setUploadingFile(false);
         e.target.value = '';
@@ -830,9 +949,10 @@ export const OrderDrawer: React.FC = () => {
           attachments: [...prev.attachments, newAtt]
         }));
         window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
+        toast.success('Акт выполненных работ успешно прикреплен');
       } catch (err) {
         console.error("Failed to upload act", err);
-        alert("Не удалось загрузить Акт");
+        toast.error("Не удалось загрузить Акт");
       } finally {
         setUploadingFile(false);
         e.target.value = '';
@@ -889,7 +1009,7 @@ export const OrderDrawer: React.FC = () => {
       } else if (err.response?.data?.message) {
         message = err.response.data.message;
       }
-      alert(message);
+      toast.error(message);
     } finally {
       setOpeningAttachmentId(null);
     }
@@ -913,6 +1033,7 @@ export const OrderDrawer: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success('Файл скачивается');
     } catch (err: any) {
       console.error("Failed to download attachment", err);
       let message = "Не удалось скачать файл";
@@ -927,11 +1048,19 @@ export const OrderDrawer: React.FC = () => {
       } else if (err.response?.data?.message) {
         message = err.response.data.message;
       }
-      alert(message);
+      toast.error(message);
     }
   };
 
   const handleDeleteAttachment = async (attachmentId: number) => {
+    const ok = await confirm({
+      title: 'Удалить файл?',
+      message: 'Вы уверены, что хотите удалить этот прикрепленный файл?',
+      confirmText: 'Удалить',
+      danger: true
+    });
+    if (!ok) return;
+
     try {
       await deleteAttachment(attachmentId);
       setFormData(prev => ({
@@ -939,8 +1068,10 @@ export const OrderDrawer: React.FC = () => {
         attachments: prev.attachments.filter(a => a.id !== attachmentId)
       }));
       window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
+      toast.success('Файл успешно удален');
     } catch (err) {
       console.error("Failed to delete attachment", err);
+      toast.error("Не удалось удалить файл");
     }
   };
 
@@ -952,8 +1083,10 @@ export const OrderDrawer: React.FC = () => {
         attachments: prev.attachments.map(a => a.id === att.id ? { ...a, isAct: updated.isAct } : a)
       }));
       window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
+      toast.success(updated.isAct ? 'Файл помечен как «Акт выполненных работ»' : 'С файла снята метка «Акт»');
     } catch (err) {
       console.error("Failed to toggle act status", err);
+      toast.error("Не удалось изменить статус Акта");
     }
   };
 
@@ -969,7 +1102,7 @@ export const OrderDrawer: React.FC = () => {
 
   const handleSaveRenameAttachment = async (attachmentId: number) => {
     if (!editingAttachmentName.trim()) {
-      alert('Имя файла не может быть пустым');
+      toast.warning('Имя файла не может быть пустым');
       return;
     }
     setRenamingAttachment(true);
@@ -982,9 +1115,10 @@ export const OrderDrawer: React.FC = () => {
       setEditingAttachmentId(null);
       setEditingAttachmentName('');
       window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
+      toast.success('Файл успешно переименован');
     } catch (err: any) {
       console.error('Failed to rename attachment', err);
-      alert(err.response?.data?.message || 'Не удалось переименовать файл');
+      toast.error(err.response?.data?.message || 'Не удалось переименовать файл');
     } finally {
       setRenamingAttachment(false);
     }
@@ -1001,8 +1135,10 @@ export const OrderDrawer: React.FC = () => {
       const summary = await getAiSummary(editingOrderId);
       setAiSummary(summary);
       getOrderAiUsage(editingOrderId).catch(() => {});
+      toast.success('Аудиозапись успешно загружена и отправлена на анализ');
     } catch (err) {
       console.error("Failed to upload audio", err);
+      toast.error("Не удалось загрузить аудиозапись");
     } finally {
       setUploadingAudio(false);
       e.target.value = '';
@@ -1011,9 +1147,14 @@ export const OrderDrawer: React.FC = () => {
 
   const handleDeleteAudio = async () => {
     if (!editingOrderId) return;
-    if (!window.confirm('Удалить аудиозапись звонка и результаты анализа? Аудиофайл будет безвозвратно удален из хранилища S3.')) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Удалить аудиозапись?',
+      message: 'Удалить аудиозапись звонка и результаты анализа? Аудиофайл будет безвозвратно удален из хранилища.',
+      confirmText: 'Удалить',
+      danger: true
+    });
+    if (!ok) return;
+
     try {
       await deleteOrderAudio(editingOrderId);
       setAiSummary(null);
@@ -1021,9 +1162,10 @@ export const OrderDrawer: React.FC = () => {
       if (orderChatCacheRef.current) {
         delete orderChatCacheRef.current[editingOrderId];
       }
+      toast.success('Аудиозапись звонка удалена');
     } catch (err: any) {
       console.error('Failed to delete audio', err);
-      alert(err.response?.data?.message || 'Не удалось удалить аудиозапись звонка');
+      toast.error(err.response?.data?.message || 'Не удалось удалить аудиозапись звонка');
     }
   };
 
@@ -1076,9 +1218,10 @@ export const OrderDrawer: React.FC = () => {
       const updated = await analyzeAudioWithPrompt(editingOrderId, promptToSend, preset, force);
       setAiSummary(updated);
       getOrderAiUsage(editingOrderId).catch(() => {});
+      toast.success('AI анализ завершен');
     } catch (err: any) {
       console.error("Failed to run AI analysis", err);
-      alert(err.response?.data?.message || "Ошибка при анализе стенограммы");
+      toast.error(err.response?.data?.message || "Ошибка при анализе стенограммы");
     } finally {
       setIsAnalyzingAudio(false);
     }
@@ -1165,13 +1308,21 @@ export const OrderDrawer: React.FC = () => {
 
   const handleClearChat = async () => {
     if (!editingOrderId) return;
-    if (!window.confirm('Очистить историю диалога с AI для этой заявки?')) return;
+    const ok = await confirm({
+      title: 'Очистка истории диалога',
+      message: 'Очистить историю диалога с AI для этой заявки?',
+      confirmText: 'Очистить',
+      cancelText: 'Отмена',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await clearOrderAiChat(editingOrderId);
       setChatMessages([]);
       if (orderChatCacheRef.current) {
         delete orderChatCacheRef.current[editingOrderId];
       }
+      toast.success('История диалога с AI очищена');
     } catch (err) {
       console.error("Failed to clear chat", err);
       setChatMessages([]);
@@ -2049,42 +2200,44 @@ export const OrderDrawer: React.FC = () => {
                       borderRadius: 'var(--radius-md)',
                       marginBottom: '16px'
                     }}>
-                      <div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px', lineHeight: '1.3' }}>
                           Себестоимость материалов
                         </div>
-                        <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#f59e0b' }}>
+                        <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#f59e0b', marginTop: 'auto' }}>
                           {currentMaterialsCost.toLocaleString('ru-RU')} ₽
                         </div>
                       </div>
-                      <div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px', lineHeight: '1.3' }}>
                           Монтаж
                         </div>
-                        <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                        <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)', marginTop: 'auto' }}>
                           {currentInstallationPrice.toLocaleString('ru-RU')} ₽
                         </div>
                       </div>
-                      <div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px', lineHeight: '1.3' }}>
                           {t('kanban.modal.profit') || 'Прибыль'}
                         </div>
                         <div style={{
                           fontWeight: 700,
                           fontSize: '1.05rem',
-                          color: currentProfit >= 0 ? 'var(--success)' : 'var(--danger)'
+                          color: currentProfit >= 0 ? 'var(--success)' : 'var(--danger)',
+                          marginTop: 'auto'
                         }}>
                           {currentProfit >= 0 ? `+${currentProfit.toLocaleString('ru-RU')}` : currentProfit.toLocaleString('ru-RU')} ₽
                         </div>
                       </div>
-                      <div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px', lineHeight: '1.3' }}>
                           {t('kanban.modal.margin') || 'Рентабельность'}
                         </div>
                         <div style={{
                           fontWeight: 700,
                           fontSize: '1.05rem',
-                          color: currentProfitMargin >= 0 ? 'var(--success)' : 'var(--danger)'
+                          color: currentProfitMargin >= 0 ? 'var(--success)' : 'var(--danger)',
+                          marginTop: 'auto'
                         }}>
                           {currentProfitMargin}%
                         </div>
@@ -2151,7 +2304,7 @@ export const OrderDrawer: React.FC = () => {
                       detail: { action: 'measurement_saved', orderId: editingOrderId }
                     }));
                   }
-                  alert('Замер и смета успешно сохранены в заказ!');
+                  toast.success('Замер и смета успешно сохранены в заказ!');
                 }}
               />
             )}
@@ -2297,7 +2450,7 @@ export const OrderDrawer: React.FC = () => {
                             {!hasTemplate && (
                               <button
                                 type="button"
-                                onClick={() => alert(missingTemplateMsg)}
+                                onClick={() => toast.info(missingTemplateMsg)}
                                 style={{
                                   width: '44px',
                                   height: '44px',
@@ -2323,7 +2476,7 @@ export const OrderDrawer: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Блок 1: Сводные параметры потолка */}
+                {/* Блок 1: Сводные параметры спецификации */}
                 <div style={{
                   background: 'rgba(255, 255, 255, 0.02)',
                   border: '1px solid var(--glass-border)',
@@ -2333,101 +2486,123 @@ export const OrderDrawer: React.FC = () => {
                 }}>
                   <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Tag size={15} style={{ color: 'var(--accent-primary)' }} />
-                    1. Сводные параметры потолка
+                    1. {tenantSettings?.contractFieldDefinitions && tenantSettings.contractFieldDefinitions.length > 0 
+                        ? 'Параметры спецификации договора' 
+                        : 'Сводные параметры потолка'}
                   </h4>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '12px' }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.78rem' }}>Площадь (м²)</label>
-                      <input
-                        type="text"
-                        placeholder="70,3"
-                        value={getContractParams().area || ''}
-                        onChange={(e) => updateContractParam('area', e.target.value)}
-                        className="search-input"
-                        style={{ width: '100%', paddingLeft: '10px' }}
-                      />
+                  {tenantSettings?.contractFieldDefinitions && tenantSettings.contractFieldDefinitions.length > 0 ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+                      {tenantSettings.contractFieldDefinitions.map(field => (
+                        <div key={field.id} className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.78rem' }}>{field.label}</label>
+                          <input
+                            type="text"
+                            placeholder={field.placeholder || ''}
+                            value={getContractParams().customParams?.[field.key] || ''}
+                            onChange={(e) => updateCustomContractParam(field.key, e.target.value)}
+                            className="search-input"
+                            style={{ width: '100%', paddingLeft: '10px' }}
+                          />
+                        </div>
+                      ))}
                     </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.78rem' }}>Периметр (м/п)</label>
-                      <input
-                        type="text"
-                        placeholder="110,5"
-                        value={getContractParams().perimeter || ''}
-                        onChange={(e) => updateContractParam('perimeter', e.target.value)}
-                        className="search-input"
-                        style={{ width: '100%', paddingLeft: '10px' }}
-                      />
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.78rem' }}>Площадь (м²)</label>
+                        <input
+                          type="text"
+                          placeholder="70,3"
+                          value={getContractParams().area || ''}
+                          onChange={(e) => updateContractParam('area', e.target.value)}
+                          className="search-input"
+                          style={{ width: '100%', paddingLeft: '10px' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.78rem' }}>Периметр (м/п)</label>
+                        <input
+                          type="text"
+                          placeholder="110,5"
+                          value={getContractParams().perimeter || ''}
+                          onChange={(e) => updateContractParam('perimeter', e.target.value)}
+                          className="search-input"
+                          style={{ width: '100%', paddingLeft: '10px' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.78rem' }}>Кол-во полотен</label>
+                        <input
+                          type="text"
+                          placeholder="5"
+                          value={getContractParams().canvasesCount || ''}
+                          onChange={(e) => updateContractParam('canvasesCount', e.target.value)}
+                          className="search-input"
+                          style={{ width: '100%', paddingLeft: '10px' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.78rem' }}>Вставка (м/п)</label>
+                        <input
+                          type="text"
+                          placeholder="20"
+                          value={getContractParams().insertLength || ''}
+                          onChange={(e) => updateContractParam('insertLength', e.target.value)}
+                          className="search-input"
+                          style={{ width: '100%', paddingLeft: '10px' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.78rem' }}>Обвод труб (шт)</label>
+                        <input
+                          type="text"
+                          placeholder="0"
+                          value={getContractParams().pipeCount || ''}
+                          onChange={(e) => updateContractParam('pipeCount', e.target.value)}
+                          className="search-input"
+                          style={{ width: '100%', paddingLeft: '10px' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.78rem' }}>Свет. пр. (точек)</label>
+                        <input
+                          type="text"
+                          placeholder="30"
+                          value={getContractParams().lightsCount || ''}
+                          onChange={(e) => updateContractParam('lightsCount', e.target.value)}
+                          className="search-input"
+                          style={{ width: '100%', paddingLeft: '10px' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.78rem' }}>Брус (м/п)</label>
+                        <input
+                          type="text"
+                          placeholder="17"
+                          value={getContractParams().timberLength || ''}
+                          onChange={(e) => updateContractParam('timberLength', e.target.value)}
+                          className="search-input"
+                          style={{ width: '100%', paddingLeft: '10px' }}
+                        />
+                      </div>
                     </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.78rem' }}>Кол-во полотен</label>
-                      <input
-                        type="text"
-                        placeholder="5"
-                        value={getContractParams().canvasesCount || ''}
-                        onChange={(e) => updateContractParam('canvasesCount', e.target.value)}
-                        className="search-input"
-                        style={{ width: '100%', paddingLeft: '10px' }}
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.78rem' }}>Вставка (м/п)</label>
-                      <input
-                        type="text"
-                        placeholder="20"
-                        value={getContractParams().insertLength || ''}
-                        onChange={(e) => updateContractParam('insertLength', e.target.value)}
-                        className="search-input"
-                        style={{ width: '100%', paddingLeft: '10px' }}
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.78rem' }}>Обвод труб (шт)</label>
-                      <input
-                        type="text"
-                        placeholder="0"
-                        value={getContractParams().pipeCount || ''}
-                        onChange={(e) => updateContractParam('pipeCount', e.target.value)}
-                        className="search-input"
-                        style={{ width: '100%', paddingLeft: '10px' }}
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.78rem' }}>Свет. пр. (точек)</label>
-                      <input
-                        type="text"
-                        placeholder="30"
-                        value={getContractParams().lightsCount || ''}
-                        onChange={(e) => updateContractParam('lightsCount', e.target.value)}
-                        className="search-input"
-                        style={{ width: '100%', paddingLeft: '10px' }}
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.78rem' }}>Брус (м/п)</label>
-                      <input
-                        type="text"
-                        placeholder="17"
-                        value={getContractParams().timberLength || ''}
-                        onChange={(e) => updateContractParam('timberLength', e.target.value)}
-                        className="search-input"
-                        style={{ width: '100%', paddingLeft: '10px' }}
-                      />
-                    </div>
-                  </div>
+                  )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.78rem' }}>Артикул полотна (фактура)</label>
-                      <input
-                        type="text"
-                        placeholder="Полотно Мат 303"
-                        value={getContractParams().canvasArticle || ''}
-                        onChange={(e) => updateContractParam('canvasArticle', e.target.value)}
-                        className="search-input"
-                        style={{ width: '100%', paddingLeft: '10px' }}
-                      />
-                    </div>
+                    {(!tenantSettings?.contractFieldDefinitions || tenantSettings.contractFieldDefinitions.length === 0) && (
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.78rem' }}>Артикул полотна (фактура)</label>
+                        <input
+                          type="text"
+                          placeholder="Полотно Мат 303"
+                          value={getContractParams().canvasArticle || ''}
+                          onChange={(e) => updateContractParam('canvasArticle', e.target.value)}
+                          className="search-input"
+                          style={{ width: '100%', paddingLeft: '10px' }}
+                        />
+                      </div>
+                    )}
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label style={{ fontSize: '0.78rem' }}>Дата сдачи объекта</label>
                       <input
@@ -2447,7 +2622,8 @@ export const OrderDrawer: React.FC = () => {
                   background: 'rgba(255, 255, 255, 0.02)',
                   border: '1px solid var(--glass-border)',
                   borderRadius: 'var(--radius-md)',
-                  padding: '16px'
+                  padding: '16px',
+                  marginBottom: '18px'
                 }}>
                   <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <FileCheck size={15} style={{ color: '#60a5fa' }} />
@@ -2455,7 +2631,10 @@ export const OrderDrawer: React.FC = () => {
                   </h4>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
-                    {(getContractParams().actChecklist || DEFAULT_ACT_CHECKLIST).map((actItem) => (
+                    {(getContractParams().actChecklist && getContractParams().actChecklist!.length > 0
+                      ? getContractParams().actChecklist!
+                      : mergeActChecklist([], tenantSettings?.actChecklistTemplate)
+                    ).map((actItem) => (
                       <div
                         key={actItem.id}
                         onClick={() => toggleActItem(actItem.id)}
@@ -2487,6 +2666,226 @@ export const OrderDrawer: React.FC = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Блок 3: Спецификация позиций сметы (Приложение №4) */}
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '16px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Table size={15} style={{ color: '#10b981' }} />
+                      3. Спецификация позиций сметы (для договора и акта)
+                    </h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      {editingOrderId && (
+                        <button
+                          type="button"
+                          onClick={handleSyncFromMeasurement}
+                          disabled={isSyncingMeasurement}
+                          className="btn btn-ghost"
+                          style={{ fontSize: '0.8rem', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--accent-primary)', border: '1px solid var(--glass-border)' }}
+                          title="Синхронизировать позиции и цены из вкладки «Замер и смета»"
+                        >
+                          <RefreshCw size={13} className={isSyncingMeasurement ? 'animate-spin' : ''} />
+                          {isSyncingMeasurement ? 'Синхронизация...' : 'Обновить из замера'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setOrderModalTab('MEASUREMENT')}
+                        className="btn btn-ghost"
+                        style={{ fontSize: '0.8rem', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#a855f7', border: '1px solid var(--glass-border)' }}
+                        title="Перейти в интерактивный калькулятор замера"
+                      >
+                        <Ruler size={13} /> Замер и смета
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = getContractParams();
+                          const items = cur.specItems || [];
+                          const nextIdx = items.length + 1;
+                          const newRow: ContractSpecItem = {
+                            idx: nextIdx,
+                            name: '',
+                            quantity: '1',
+                            unit: 'шт.',
+                            price: 0,
+                            total: 0
+                          };
+                          updateContractParam('specItems', [...items, newRow]);
+                        }}
+                        className="btn btn-secondary"
+                        style={{ fontSize: '0.8rem', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Plus size={14} /> Добавить позицию
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Информационная плашка синхронизации */}
+                  {getContractParams().specItems && getContractParams().specItems!.length > 0 ? (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      borderRadius: 'var(--radius-sm)',
+                      marginBottom: '12px',
+                      fontSize: '0.8rem',
+                      color: '#34d399',
+                      gap: '8px',
+                      flexWrap: 'wrap'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <CheckCircle2 size={15} style={{ color: '#10b981', flexShrink: 0 }} />
+                        <span>Спецификация сформирована из замера и подставляется в печатную форму договора/акта (тег <code>&#123;&#123;spec_table&#125;&#125;</code>).</span>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Позиций: {getContractParams().specItems!.length} • Сумма: {getContractParams().specItems!.reduce((sum, it) => sum + (it.total || 0), 0).toLocaleString('ru-RU')} ₽
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '12px 14px',
+                      background: 'rgba(59, 130, 246, 0.08)',
+                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                      borderRadius: 'var(--radius-sm)',
+                      marginBottom: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      flexWrap: 'wrap'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: '#93c5fd' }}>
+                        <Ruler size={16} style={{ color: '#60a5fa', flexShrink: 0 }} />
+                        <span>Позиции не заполнены. Вы можете составить смету во вкладке <strong>«Замер и смета»</strong> или добавить строки вручную.</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {(!getContractParams().specItems || getContractParams().specItems!.length === 0) ? (
+                    <div style={{
+                      padding: '20px',
+                      textAlign: 'center',
+                      background: 'rgba(255, 255, 255, 0.01)',
+                      border: '1px dashed var(--glass-border)',
+                      borderRadius: 'var(--radius-sm)',
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.85rem'
+                    }}>
+                      Позиции сметы отсутствуют. Нажмите «Обновить из замера» или «Добавить позицию».
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-secondary)', textAlign: 'left' }}>
+                            <th style={{ padding: '6px 8px', width: '36px' }}>№</th>
+                            <th style={{ padding: '6px 8px' }}>Наименование</th>
+                            <th style={{ padding: '6px 8px', width: '80px' }}>Кол-во</th>
+                            <th style={{ padding: '6px 8px', width: '70px' }}>Ед.</th>
+                            <th style={{ padding: '6px 8px', width: '100px' }}>Цена (₽)</th>
+                            <th style={{ padding: '6px 8px', width: '110px' }}>Сумма (₽)</th>
+                            <th style={{ padding: '6px 8px', width: '36px' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {getContractParams().specItems!.map((item, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                              <td style={{ padding: '6px 8px', color: 'var(--text-secondary)' }}>{idx + 1}</td>
+                              <td style={{ padding: '4px 6px' }}>
+                                <input
+                                  type="text"
+                                  value={item.name}
+                                  placeholder="Наименование товара / услуги..."
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const items = [...(getContractParams().specItems || [])];
+                                    items[idx] = { ...items[idx], name: val };
+                                    updateContractParam('specItems', items);
+                                  }}
+                                  className="search-input"
+                                  style={{ width: '100%', fontSize: '0.85rem', padding: '4px 8px' }}
+                                />
+                              </td>
+                              <td style={{ padding: '4px 6px' }}>
+                                <input
+                                  type="text"
+                                  value={item.quantity}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const items = [...(getContractParams().specItems || [])];
+                                    const numQty = parseFloat(val.replace(',', '.')) || 0;
+                                    const total = numQty * (items[idx].price || 0);
+                                    items[idx] = { ...items[idx], quantity: val, total };
+                                    updateContractParam('specItems', items);
+                                  }}
+                                  className="search-input"
+                                  style={{ width: '100%', fontSize: '0.85rem', padding: '4px 8px' }}
+                                />
+                              </td>
+                              <td style={{ padding: '4px 6px' }}>
+                                <input
+                                  type="text"
+                                  value={item.unit}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const items = [...(getContractParams().specItems || [])];
+                                    items[idx] = { ...items[idx], unit: val };
+                                    updateContractParam('specItems', items);
+                                  }}
+                                  className="search-input"
+                                  style={{ width: '100%', fontSize: '0.85rem', padding: '4px 8px' }}
+                                />
+                              </td>
+                              <td style={{ padding: '4px 6px' }}>
+                                <input
+                                  type="number"
+                                  value={item.price || ''}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    const items = [...(getContractParams().specItems || [])];
+                                    const numQty = parseFloat(String(items[idx].quantity).replace(',', '.')) || 0;
+                                    const total = numQty * val;
+                                    items[idx] = { ...items[idx], price: val, total };
+                                    updateContractParam('specItems', items);
+                                  }}
+                                  className="search-input"
+                                  style={{ width: '100%', fontSize: '0.85rem', padding: '4px 8px' }}
+                                />
+                              </td>
+                              <td style={{ padding: '6px 8px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {(item.total || 0).toLocaleString('ru-RU')} ₽
+                              </td>
+                              <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const items = (getContractParams().specItems || []).filter((_, i) => i !== idx);
+                                    const reindexed = items.map((it, i) => ({ ...it, idx: i + 1 }));
+                                    updateContractParam('specItems', reindexed);
+                                  }}
+                                  className="btn btn-ghost"
+                                  style={{ padding: '4px', color: 'var(--danger)' }}
+                                  title="Удалить строку"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -3909,10 +4308,11 @@ export const OrderDrawer: React.FC = () => {
             a.download = `Договор_Заявка_${editingOrderId}.docx`;
             a.click();
             URL.revokeObjectURL(url);
+            toast.success('Договор (Word) успешно сформирован и скачан');
             setIsContractPromptOpen(false);
           } catch (err: any) {
             console.error("Failed to generate docx", err);
-            alert(err.response?.data?.message || "Ошибка генерации договора");
+            toast.error(err.response?.data?.message || "Ошибка генерации договора");
           } finally {
             setContractPromptLoading(false);
           }
@@ -3984,9 +4384,13 @@ export const OrderDrawer: React.FC = () => {
         hasAct={formData.attachments.some(a => a.isAct || isActFile(a.fileName))}
       />
 
+        </div>,
+        document.body
+      )}
+
       {/* Unsaved Changes Confirmation Modal */}
-      {isUnsavedConfirmOpen && (
-        <div className="modal-overlay dialog-overlay" style={{ zIndex: 100060 }} onClick={() => setIsUnsavedConfirmOpen(false)}>
+      {isUnsavedConfirmOpen && typeof document !== 'undefined' && createPortal(
+        <div className="modal-overlay dialog-overlay" style={{ zIndex: 100060, pointerEvents: 'auto' }} onClick={() => setIsUnsavedConfirmOpen(false)}>
           <div className="modal-content dialog-content animate-fade-in" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
               <div style={{
@@ -4040,9 +4444,6 @@ export const OrderDrawer: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
-
         </div>,
         document.body
       )}

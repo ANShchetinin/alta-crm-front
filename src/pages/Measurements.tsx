@@ -15,7 +15,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { MeasurementWizard } from '../components/MeasurementWizard';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import { getWhatsAppLink } from '../utils/messengerUtils';
-import { formatDateOnly } from '../utils/dateUtils';
+import { formatDateTime, parseLocalDateTime } from '../utils/dateUtils';
 
 export const Measurements: React.FC = () => {
   const userId = useAuthStore(state => state.userId);
@@ -73,12 +73,12 @@ export const Measurements: React.FC = () => {
 
     if (filterMode === 'today') {
       if (!order.measurementDate) return true; // Без даты тоже показываем
-      const d = new Date(order.measurementDate);
-      return d.toDateString() === new Date().toDateString();
+      const d = parseLocalDateTime(order.measurementDate);
+      return d ? d.toDateString() === new Date().toDateString() : true;
     } else if (filterMode === 'upcoming') {
       if (!order.measurementDate) return true;
-      const d = new Date(order.measurementDate);
-      return d.getTime() >= Date.now();
+      const d = parseLocalDateTime(order.measurementDate);
+      return d ? d.getTime() >= Date.now() : true;
     }
 
     return true;
@@ -300,7 +300,7 @@ export const Measurements: React.FC = () => {
                       fontWeight: 600
                     }}>
                       <Clock size={12} />
-                      {formatDateOnly(order.measurementDate)}
+                      {formatDateTime(order.measurementDate)}
                     </div>
                   )}
                 </div>

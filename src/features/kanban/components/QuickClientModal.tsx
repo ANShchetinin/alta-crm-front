@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import { X, User, Building2, MessageCircle, Send, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -60,20 +60,40 @@ export const QuickClientModal: React.FC<QuickClientModalProps> = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="modal-overlay" style={{ zIndex: 100000 }}>
-      <div className="modal-content animate-fade-in" style={{ maxWidth: '460px' }}>
+    <div
+      className="modal-overlay"
+      style={{ zIndex: 100000 }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
+    >
+      <div
+        className="modal-content animate-fade-in"
+        style={{ maxWidth: '460px' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <h2>{clientType === 'LEGAL_ENTITY' ? 'Новая компания / Юрлицо' : t('clients.modal.addTitle')}</h2>
           <button 
             type="button" 
-            onClick={onClose} 
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }} 
             className="btn-icon"
             aria-label="Close"
           >
             <X size={20} />
           </button>
         </div>
-        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        <form
+          onSubmit={(e) => {
+            e.stopPropagation();
+            onSubmit(e);
+          }}
+          style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+        >
           <div className="modal-body">
             {/* Type toggle */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
@@ -259,7 +279,10 @@ export const QuickClientModal: React.FC<QuickClientModalProps> = ({
             <button 
               type="button" 
               className="btn btn-ghost"
-              onClick={onClose}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
             >
               {t('clients.modal.cancel')}
             </button>

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Copy, CheckCircle2, Eye, EyeOff, RefreshCcw, Building2, UserCheck, Check, Loader2 } from 'lucide-react';
 import { tenantsApi } from '../api/tenants';
 import type { Tenant, CreateTenantRequest, SuperAdminOwner } from '../api/tenants';
+import { toast } from '../utils/toast';
+import { confirm } from '../utils/confirm';
 import '../styles/clients.css';
 
 export const Tenants = () => {
@@ -75,10 +77,11 @@ export const Tenants = () => {
       await tenantsApi.create(formData);
       setIsModalOpen(false);
       setFormData({ name: '', ownerFirstName: '', ownerLastName: '', ownerEmail: '', ownerPassword: '' });
+      toast.success('Компания успешно создана');
       fetchData();
     } catch (err) {
       console.error(err);
-      alert('Ошибка при создании компании');
+      toast.error('Ошибка при создании компании');
     }
   };
 
@@ -95,10 +98,11 @@ export const Tenants = () => {
       });
       setAddCompanyForOwner(null);
       setNewCompanyNameForOwner('');
+      toast.success('Компания для владельца успешно создана');
       fetchData();
     } catch (err: any) {
       console.error(err);
-      alert('Ошибка при создании компании: ' + (err.response?.data || err.message));
+      toast.error('Ошибка при создании компании: ' + (err.response?.data || err.message));
     } finally {
       setIsSavingForOwner(false);
     }
@@ -111,10 +115,11 @@ export const Tenants = () => {
     setSavingLimitUserId(userId);
     try {
       await tenantsApi.updateOwnerLimit(userId, limit);
+      toast.success('Лимит компаний успешно обновлен');
       await fetchData();
     } catch (err: any) {
       console.error(err);
-      alert('Ошибка при обновлении лимита');
+      toast.error('Ошибка при обновлении лимита');
     } finally {
       setSavingLimitUserId(null);
     }
@@ -123,20 +128,28 @@ export const Tenants = () => {
   const copyToClipboard = (token: string, id: number) => {
     navigator.clipboard.writeText(token);
     setCopiedTokenId(id);
+    toast.info('API токен скопирован в буфер обмена');
     setTimeout(() => setCopiedTokenId(null), 2000);
   };
 
   const handleResetPassword = async (tenantId: number) => {
-    if (!window.confirm('Вы уверены, что хотите сбросить пароль владельца этой компании?')) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Сброс пароля',
+      message: 'Вы уверены, что хотите сбросить пароль владельца этой компании?',
+      confirmText: 'Сбросить пароль',
+      cancelText: 'Отмена',
+      danger: true,
+    });
+    if (!ok) return;
+
     try {
       setResetTenantId(tenantId);
       const res = await tenantsApi.resetOwnerPassword(tenantId);
       setTempPassword(res.temporaryPassword);
+      toast.success('Пароль успешно сброшен');
     } catch (err) {
       console.error(err);
-      alert('Ошибка при сбросе пароля');
+      toast.error('Ошибка при сбросе пароля');
     } finally {
       setResetTenantId(null);
     }
@@ -526,7 +539,7 @@ export const Tenants = () => {
             <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>Новый временный пароль владельца:</p>
             <div style={{ padding: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '2px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px' }}>
               {tempPassword}
-              <button onClick={() => { navigator.clipboard.writeText(tempPassword); alert('Скопировано!'); }} className="btn-icon">
+              <button onClick={() => { navigator.clipboard.writeText(tempPassword); toast.info('Пароль скопирован в буфер обмена'); }} className="btn-icon">
                 <Copy size={20} />
               </button>
             </div>
