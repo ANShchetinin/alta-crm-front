@@ -1,0 +1,404 @@
+﻿/* Contract Fields & Checklist Settings PWA Styles */
+
+.settings-tabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--glass-border);
+  padding-bottom: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.settings-tabs-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md, 10px);
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 44px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  user-select: none;
+}
+
+.settings-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.settings-tab-btn.active-general {
+  background: var(--accent-primary, #0ea5e9);
+  border-color: var(--accent-primary, #0ea5e9);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+.settings-tab-btn.active-contract {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: #10b981;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.settings-tab-btn.active-calc {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  border-color: #3b82f6;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Contract Config Main Container */
+.contract-config-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 880px;
+  box-sizing: border-box;
+  padding-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+  .contract-config-container {
+    padding-bottom: 90px; /* Space for mobile sticky save bar */
+    gap: 16px;
+  }
+}
+
+/* Header Banner */
+.contract-config-header {
+  padding: 18px 20px;
+  border-radius: var(--radius-lg, 16px);
+  background: var(--card-bg, rgba(30, 41, 59, 0.7));
+  border: 1px solid var(--glass-border);
+}
+
+.contract-config-header h2 {
+  font-size: 1.15rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.contract-config-header p {
+  margin: 6px 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Collapsible Help / Guide Card */
+.contract-help-card {
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: var(--radius-md, 12px);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  margin-bottom: 20px;
+}
+
+.contract-help-toggle-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--accent-primary, #60a5fa);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.contract-help-content {
+  padding: 0 16px 16px 16px;
+  border-top: 1px dashed rgba(59, 130, 246, 0.15);
+  margin-top: 4px;
+}
+
+.contract-help-list {
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  margin-bottom: 14px;
+}
+
+.contract-example-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--glass-border);
+}
+
+.contract-example-table {
+  width: 100%;
+  min-width: 480px;
+  font-size: 0.8rem;
+  border-collapse: collapse;
+}
+
+.contract-example-table th {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  text-align: left;
+  padding: 8px 12px;
+  font-weight: 600;
+}
+
+.contract-example-table td {
+  padding: 8px 12px;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* Fields List: Desktop vs Mobile View */
+.contract-fields-desktop-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.contract-fields-table-header {
+  display: grid;
+  grid-template-columns: 140px 1.3fr 1fr 130px 44px;
+  gap: 10px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  align-items: center;
+}
+
+.contract-field-row {
+  display: grid;
+  grid-template-columns: 140px 1.3fr 1fr 130px 44px;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md, 10px);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.contract-field-row.is-duplicate {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Mobile Field Cards (< 768px) */
+.contract-fields-mobile-list {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.contract-field-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md, 12px);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.contract-field-card.is-duplicate {
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.contract-field-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.contract-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  font-family: monospace;
+  font-weight: 600;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.contract-tag-badge:active {
+  transform: scale(0.96);
+  background: rgba(59, 130, 246, 0.3);
+}
+
+.contract-tag-badge.badge-duplicate {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.contract-field-card-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.contract-field-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.contract-field-input-group label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.contract-touch-btn {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md, 10px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .contract-fields-desktop-table {
+    display: none;
+  }
+  .contract-fields-mobile-list {
+    display: flex;
+  }
+}
+
+/* Add New Field Form */
+.contract-add-field-form {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md, 12px);
+  padding: 16px;
+}
+
+.contract-add-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 600px) {
+  .contract-add-field-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .contract-add-field-btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+
+/* Checklist items list */
+.act-checklist-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md, 10px);
+}
+
+.act-checklist-add-wrap {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+@media (max-width: 540px) {
+  .act-checklist-add-wrap {
+    flex-direction: column;
+  }
+  
+  .act-checklist-add-wrap .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+
+/* Sticky Save Bar for PWA and Mobile */
+.contract-save-bar-wrapper {
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .contract-save-bar-wrapper {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--glass-border);
+    z-index: 99;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
+    display: flex;
+    justify-content: center;
+    margin-top: 0;
+  }
+
+  .contract-save-bar-wrapper .btn-save-contract {
+    width: 100%;
+    max-width: 500px;
+    justify-content: center;
+    min-height: 48px;
+    font-size: 0.95rem;
+  }
+}

@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, Archive, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, Archive, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp, PanelLeftClose, PanelLeftOpen, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -129,6 +129,7 @@ const DashboardLayout = () => {
     if (path.startsWith('/site-analytics')) return { title: t('nav.siteAnalytics') || 'Аналитика сайта', icon: TrendingUp };
     if (path.startsWith('/contract-templates')) return { title: 'Шаблоны договоров', icon: FileText };
     if (path.startsWith('/settings')) return { title: t('nav.settings') || 'Настройки', icon: Settings };
+    if (path.startsWith('/audit-logs')) return { title: 'Журнал аудита', icon: ShieldCheck };
     if (path.startsWith('/tenants')) return { title: 'Компании', icon: Building2 };
     if (path.startsWith('/feature-flags')) return { title: 'Feature Flags', icon: Sliders };
     return { title: 'Alta CRM', icon: LayoutDashboard };
@@ -678,6 +679,12 @@ const DashboardLayout = () => {
                 <Settings size={20} />
                 <span>{t('nav.settings')}</span>
               </NavLink>
+              {role === 'OWNER' && (
+                <NavLink to="/audit-logs" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <ShieldCheck size={20} />
+                  <span>Журнал аудита</span>
+                </NavLink>
+              )}
             </>
           )}
           {role === 'SUPERADMIN' && (
