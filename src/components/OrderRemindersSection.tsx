@@ -445,8 +445,32 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
       {/* Модальное окно создания / редактирования напоминания */}
       {isModalOpen && createPortal(
         <div className="modal-overlay dialog-overlay" style={{ zIndex: 100060 }} onClick={() => setIsModalOpen(false)}>
-          <div className="modal-content dialog-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '92%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div
+            className="modal-content dialog-content animate-fade-in"
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: '500px',
+              width: '94%',
+              maxHeight: 'min(92vh, calc(100dvh - 24px))',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              padding: '16px 20px',
+              boxSizing: 'border-box'
+            }}
+          >
+            <div
+              className="modal-header"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingBottom: '12px',
+                marginBottom: '12px',
+                borderBottom: '1px solid var(--glass-border)',
+                flexShrink: 0
+              }}
+            >
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
                 <CalendarClock size={20} style={{ color: 'var(--accent-primary)' }} />
                 {editingReminder ? 'Редактировать напоминание' : 'Новое напоминание'}
@@ -455,64 +479,78 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
                 type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="btn-icon"
-                aria-label="Close"
+                aria-label="Закрыть"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Быстрые пресеты времени */}
-            <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 500 }}>
-                Быстрый выбор времени:
+            <div
+              className="modal-body"
+              style={{
+                flex: '1 1 auto',
+                minHeight: 0,
+                overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                paddingRight: '4px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}
+            >
+              {/* Быстрые пресеты времени */}
+              <div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 500 }}>
+                  Быстрый выбор времени:
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setPresetTime('1h')}
+                    className="btn btn-ghost"
+                    style={{ fontSize: '0.78rem', padding: '4px 10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)' }}
+                  >
+                    +1 час
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPresetTime('3h')}
+                    className="btn btn-ghost"
+                    style={{ fontSize: '0.78rem', padding: '4px 10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)' }}
+                  >
+                    +3 часа
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPresetTime('tomorrow10')}
+                    className="btn btn-ghost"
+                    style={{ fontSize: '0.78rem', padding: '4px 10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)' }}
+                  >
+                    Завтра в 10:00
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPresetTime('3d')}
+                    className="btn btn-ghost"
+                    style={{ fontSize: '0.78rem', padding: '4px 10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)' }}
+                  >
+                    Через 3 дня
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPresetTime('1w')}
+                    className="btn btn-ghost"
+                    style={{ fontSize: '0.78rem', padding: '4px 10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)' }}
+                  >
+                    Через неделю
+                  </button>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => setPresetTime('1h')}
-                  className="btn btn-ghost"
-                  style={{ fontSize: '0.78rem', padding: '4px 10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)' }}
-                >
-                  +1 час
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPresetTime('3h')}
-                  className="btn btn-ghost"
-                  style={{ fontSize: '0.78rem', padding: '4px 10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)' }}
-                >
-                  +3 часа
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPresetTime('tomorrow10')}
-                  className="btn btn-ghost"
-                  style={{ fontSize: '0.78rem', padding: '4px 10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)' }}
-                >
-                  Завтра в 10:00
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPresetTime('3d')}
-                  className="btn btn-ghost"
-                  style={{ fontSize: '0.78rem', padding: '4px 10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)' }}
-                >
-                  Через 3 дня
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPresetTime('1w')}
-                  className="btn btn-ghost"
-                  style={{ fontSize: '0.78rem', padding: '4px 10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)' }}
-                >
-                  Через неделю
-                </button>
-              </div>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '0.8rem', marginBottom: '4px' }}>Дата и время напоминания *</label>
+                <label style={{ fontSize: '0.8rem', marginBottom: '4px', display: 'block', fontWeight: 500 }}>
+                  Дата и время напоминания *
+                </label>
                 <input
                   type="datetime-local"
                   value={customDateTime}
@@ -522,9 +560,11 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label style={{ fontSize: '0.8rem', marginBottom: '4px' }}>Уведомить заранее</label>
+                  <label style={{ fontSize: '0.8rem', marginBottom: '4px', display: 'block', fontWeight: 500 }}>
+                    Уведомить заранее
+                  </label>
                   <select
                     value={notifyBeforeMinutes}
                     onChange={e => setNotifyBeforeMinutes(parseInt(e.target.value))}
@@ -541,7 +581,9 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label style={{ fontSize: '0.8rem', marginBottom: '4px' }}>Ответственный</label>
+                  <label style={{ fontSize: '0.8rem', marginBottom: '4px', display: 'block', fontWeight: 500 }}>
+                    Ответственный
+                  </label>
                   <select
                     value={selectedUserId || ''}
                     onChange={e => setSelectedUserId(e.target.value ? parseInt(e.target.value) : undefined)}
@@ -559,7 +601,7 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
 
               {/* Быстрые подсказки комментариев */}
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: 500 }}>
                   Быстрая цель контакта:
                 </div>
                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
@@ -585,30 +627,47 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label style={{ fontSize: '0.8rem', marginBottom: '4px' }}>Комментарий / цель звонка</label>
-                <input
-                  type="text"
-                  placeholder="Комментарий или цель звонка (напр. спросить по замеру)..."
+                <label style={{ fontSize: '0.8rem', marginBottom: '4px', display: 'block', fontWeight: 500 }}>
+                  Комментарий / цель звонка
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Комментарий или цель звонка (напр. спросить по замеру, уточнить детали)..."
                   value={comment}
                   onChange={e => setComment(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleSaveReminder(e);
-                    }
-                  }}
                   className="search-input"
-                  style={{ width: '100%', fontSize: '0.88rem', padding: '8px 10px' }}
+                  style={{
+                    width: '100%',
+                    fontSize: '0.88rem',
+                    padding: '8px 10px',
+                    minHeight: '72px',
+                    maxHeight: '180px',
+                    resize: 'vertical',
+                    lineHeight: '1.4',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box'
+                  }}
                 />
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <div
+              className="modal-actions"
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                marginTop: '14px',
+                paddingTop: '12px',
+                borderTop: '1px solid var(--glass-border)',
+                flexShrink: 0
+              }}
+            >
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="btn btn-ghost"
-                style={{ fontSize: '0.88rem' }}
+                style={{ fontSize: '0.88rem', padding: '8px 16px' }}
               >
                 Отмена
               </button>
@@ -622,11 +681,12 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
                   alignItems: 'center',
                   gap: '6px',
                   fontSize: '0.88rem',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  padding: '8px 18px'
                 }}
               >
                 <Check size={16} />
-                {editingReminder ? 'Сохранить изменения' : 'Поставить напоминание'}
+                Сохранить
               </button>
             </div>
           </div>

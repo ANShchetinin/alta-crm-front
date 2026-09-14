@@ -1,5 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import { Globe, Moon, Sun, User, Building2, Eye, EyeOff, FileText, Hash, Clock, Plus, Trash2, CheckSquare, ListChecks, HelpCircle } from 'lucide-react';
+import { 
+  Globe, Moon, Sun, User, Building2, Eye, EyeOff, FileText, Hash, Clock, 
+  Plus, Trash2, CheckSquare, ListChecks, HelpCircle, ChevronDown, ChevronUp, 
+  Copy, Check 
+} from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { updateProfile, updateTenantSettings, uploadTenantLogo, getProfile } from '../api/settings';
@@ -12,6 +16,7 @@ import { TIMEZONE_OPTIONS } from '../utils/dateUtils';
 import { Sliders } from 'lucide-react';
 import { toast } from '../utils/toast';
 import '../styles/clients.css'; // Reusing standard wrapper/header styles
+import '../styles/contract-fields-settings.css';
 
 export const Settings = () => {
   const { t } = useTranslation();
@@ -36,6 +41,17 @@ export const Settings = () => {
   const [newFieldLabel, setNewFieldLabel] = useState('');
   const [newFieldKey, setNewFieldKey] = useState('');
   const [newFieldPlaceholder, setNewFieldPlaceholder] = useState('');
+  const [showHelpGuide, setShowHelpGuide] = useState(false);
+  const [copiedTag, setCopiedTag] = useState<string | null>(null);
+
+  const handleCopyTag = (tag: string) => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(tag);
+      setCopiedTag(tag);
+      toast.success(`Метка ${tag} скопирована!`);
+      setTimeout(() => setCopiedTag(null), 2000);
+    }
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -292,34 +308,15 @@ export const Settings = () => {
         <h1>{t('settings.title')}</h1>
       </div>
 
-      {/* Навигация по вкладкам настроек */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        marginBottom: '20px',
-        borderBottom: '1px solid var(--glass-border)',
-        paddingBottom: '10px',
-        flexWrap: 'wrap'
-      }}>
+      {/* Навигация по вкладкам настроек (PWA Horizontal Scrollable Bar) */}
+      <div className="settings-tabs-nav">
         <button
           type="button"
           onClick={() => setActiveTab('GENERAL')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 16px',
-            borderRadius: 'var(--radius-md)',
-            background: activeTab === 'GENERAL' ? 'var(--accent-primary, #0ea5e9)' : 'rgba(255, 255, 255, 0.04)',
-            color: activeTab === 'GENERAL' ? '#fff' : 'var(--text-primary)',
-            border: '1px solid ' + (activeTab === 'GENERAL' ? 'var(--accent-primary, #0ea5e9)' : 'var(--glass-border)'),
-            fontWeight: activeTab === 'GENERAL' ? 600 : 400,
-            fontSize: '0.9rem',
-            cursor: 'pointer'
-          }}
+          className={`settings-tab-btn ${activeTab === 'GENERAL' ? 'active-general' : ''}`}
         >
-          <Building2 size={16} /> Общие настройки и профиль
+          <Building2 size={18} />
+          <span>Общие настройки и профиль</span>
         </button>
 
         {role === 'OWNER' && (
@@ -327,41 +324,19 @@ export const Settings = () => {
             <button
               type="button"
               onClick={() => setActiveTab('CONTRACT_CONFIG')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                borderRadius: 'var(--radius-md)',
-                background: activeTab === 'CONTRACT_CONFIG' ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255, 255, 255, 0.04)',
-                color: activeTab === 'CONTRACT_CONFIG' ? '#fff' : 'var(--text-primary)',
-                border: '1px solid ' + (activeTab === 'CONTRACT_CONFIG' ? '#10b981' : 'var(--glass-border)'),
-                fontWeight: activeTab === 'CONTRACT_CONFIG' ? 600 : 400,
-                fontSize: '0.9rem',
-                cursor: 'pointer'
-              }}
+              className={`settings-tab-btn ${activeTab === 'CONTRACT_CONFIG' ? 'active-contract' : ''}`}
             >
-              <ListChecks size={16} /> 📝 Поля договора и чек-лист
+              <ListChecks size={18} />
+              <span>📝 Поля договора и чек-лист</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('ESTIMATION')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                borderRadius: 'var(--radius-md)',
-                background: activeTab === 'ESTIMATION' ? 'linear-gradient(135deg, #3b82f6, #6366f1)' : 'rgba(255, 255, 255, 0.04)',
-                color: activeTab === 'ESTIMATION' ? '#fff' : 'var(--text-primary)',
-                border: '1px solid ' + (activeTab === 'ESTIMATION' ? '#3b82f6' : 'var(--glass-border)'),
-                fontWeight: activeTab === 'ESTIMATION' ? 600 : 400,
-                fontSize: '0.9rem',
-                cursor: 'pointer'
-              }}
+              className={`settings-tab-btn ${activeTab === 'ESTIMATION' ? 'active-calc' : ''}`}
             >
-              <Sliders size={16} /> 📐 Конструктор калькулятора
+              <Sliders size={18} />
+              <span>📐 Конструктор калькулятора</span>
             </button>
           </>
         )}
@@ -370,20 +345,20 @@ export const Settings = () => {
       {activeTab === 'ESTIMATION' && role === 'OWNER' ? (
         <EstimationServiceBuilder materials={materials} />
       ) : activeTab === 'CONTRACT_CONFIG' && role === 'OWNER' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '840px' }}>
+        <div className="contract-config-container">
           {/* Header Panel */}
-          <div className="glass-panel" style={{ padding: '20px 24px', borderRadius: 'var(--radius-lg)' }}>
-            <h2 style={{ fontSize: '1.2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ListChecks size={20} style={{ color: '#10b981' }} />
+          <div className="contract-config-header">
+            <h2>
+              <ListChecks size={22} style={{ color: '#10b981', flexShrink: 0 }} />
               Параметры договора и чек-лист выполненных работ
             </h2>
-            <p style={{ margin: '6px 0 0 0', fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <p>
               Настройте список полей спецификации для договора и пункты чек-листа акта приема-передачи под специфику вашей компании.
             </p>
           </div>
 
           {/* Block 1: Contract Spec Fields */}
-          <div className="glass-panel" style={{ padding: '20px 24px', borderRadius: 'var(--radius-lg)' }}>
+          <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)' }}>
             <h3 style={{ fontSize: '1.05rem', margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <FileText size={18} style={{ color: 'var(--accent-primary)' }} />
               1. Поля параметров спецификации договора
@@ -392,58 +367,64 @@ export const Settings = () => {
               Эти поля отображаются во вкладке «Договор» карточки заказа. Значения автоматически подставляются в шаблон Word по метке <code style={{ color: '#60a5fa' }}>{'{{ключ}}'}</code>.
             </p>
 
-            {/* Instruction & Example Card */}
-            <div style={{
-              background: 'rgba(59, 130, 246, 0.05)',
-              border: '1px solid rgba(59, 130, 246, 0.2)',
-              borderRadius: 'var(--radius-md)',
-              padding: '16px 18px',
-              marginBottom: '20px'
-            }}>
-              <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--accent-primary, #60a5fa)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <HelpCircle size={16} /> Как добавлять и использовать поля:
-              </div>
-              <div style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
-                <div>• <strong>Название поля:</strong> как поле подписано для сотрудника в карточке заказа (например, <em>«Длина карниза (м)»</em> или <em>«Площадь потолка (м²)»</em>).</div>
-                <div>• <strong>Ключ метки:</strong> латинское название без пробелов. По нему формируется тег для шаблона договора Word (например, ключ <code>length</code> создаст тег <code>{`{{length}}`}</code>).</div>
-                <div>• <strong>Подсказка:</strong> серый текст внутри поля ввода, помогающий понять формат значения (например, <em>«13,20»</em> или <em>«Dooya DT52S»</em>).</div>
-              </div>
+            {/* Collapsible Instruction & Example Card */}
+            <div className="contract-help-card">
+              <button
+                type="button"
+                onClick={() => setShowHelpGuide(!showHelpGuide)}
+                className="contract-help-toggle-btn"
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <HelpCircle size={17} /> Как добавлять и использовать поля
+                </span>
+                {showHelpGuide ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </button>
 
-              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                Примеры заполнения:
-              </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse', border: '1px solid var(--glass-border)' }}>
-                  <thead>
-                    <tr style={{ background: 'rgba(255, 255, 255, 0.04)', color: 'var(--text-secondary)', textAlign: 'left' }}>
-                      <th style={{ padding: '6px 10px' }}>Название поля в CRM</th>
-                      <th style={{ padding: '6px 10px' }}>Ключ (латиница)</th>
-                      <th style={{ padding: '6px 10px' }}>Метка для шаблона Word</th>
-                      <th style={{ padding: '6px 10px' }}>Подсказка (placeholder)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderTop: '1px solid var(--glass-border)' }}>
-                      <td style={{ padding: '6px 10px' }}>Длина карниза (м)</td>
-                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>length</td>
-                      <td style={{ padding: '6px 10px' }}><code style={{ color: '#60a5fa' }}>{'{{length}}'}</code></td>
-                      <td style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>13,20</td>
-                    </tr>
-                    <tr style={{ borderTop: '1px solid var(--glass-border)' }}>
-                      <td style={{ padding: '6px 10px' }}>Модель двигателя</td>
-                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>motor</td>
-                      <td style={{ padding: '6px 10px' }}><code style={{ color: '#60a5fa' }}>{'{{motor}}'}</code></td>
-                      <td style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>WIFI (4 шт)</td>
-                    </tr>
-                    <tr style={{ borderTop: '1px solid var(--glass-border)' }}>
-                      <td style={{ padding: '6px 10px' }}>Площадь (м²)</td>
-                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>area</td>
-                      <td style={{ padding: '6px 10px' }}><code style={{ color: '#60a5fa' }}>{'{{area}}'}</code></td>
-                      <td style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>70,3</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              {showHelpGuide && (
+                <div className="contract-help-content">
+                  <div className="contract-help-list">
+                    <div>• <strong>Название поля:</strong> как поле подписано для сотрудника в карточке заказа (например, <em>«Длина карниза (м)»</em> или <em>«Площадь потолка (м²)»</em>).</div>
+                    <div>• <strong>Ключ метки:</strong> латинское название без пробелов. По нему формируется тег для шаблона договора Word (например, ключ <code>length</code> создаст тег <code>{`{{length}}`}</code>).</div>
+                    <div>• <strong>Подсказка:</strong> серый текст внутри поля ввода, помогающий понять формат значения (например, <em>«13,20»</em> или <em>«Dooya DT52S»</em>).</div>
+                  </div>
+
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                    Примеры заполнения:
+                  </div>
+                  <div className="contract-example-table-wrap">
+                    <table className="contract-example-table">
+                      <thead>
+                        <tr>
+                          <th>Название поля в CRM</th>
+                          <th>Ключ (латиница)</th>
+                          <th>Метка для шаблона Word</th>
+                          <th>Подсказка (placeholder)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Длина карниза (м)</td>
+                          <td style={{ fontFamily: 'monospace' }}>length</td>
+                          <td><code style={{ color: '#60a5fa' }}>{'{{length}}'}</code></td>
+                          <td style={{ color: 'var(--text-secondary)' }}>13,20</td>
+                        </tr>
+                        <tr>
+                          <td>Модель двигателя</td>
+                          <td style={{ fontFamily: 'monospace' }}>motor</td>
+                          <td><code style={{ color: '#60a5fa' }}>{'{{motor}}'}</code></td>
+                          <td style={{ color: 'var(--text-secondary)' }}>WIFI (4 шт)</td>
+                        </tr>
+                        <tr>
+                          <td>Площадь (м²)</td>
+                          <td style={{ fontFamily: 'monospace' }}>area</td>
+                          <td><code style={{ color: '#60a5fa' }}>{'{{area}}'}</code></td>
+                          <td style={{ color: 'var(--text-secondary)' }}>70,3</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* List of Configured Fields */}
@@ -461,144 +442,232 @@ export const Settings = () => {
                 Поля спецификации еще не настроены (по умолчанию используются 8 базовых полей потолков). Добавьте нужные поля в форме ниже.
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '130px 1.2fr 1fr 120px 40px',
-                  gap: '8px',
-                  padding: '4px 8px',
-                  fontSize: '0.78rem',
-                  color: 'var(--text-secondary)',
-                  fontWeight: 600
-                }}>
-                  <div>Метка в Word</div>
-                  <div>Название поля (в CRM)</div>
-                  <div>Подсказка (placeholder)</div>
-                  <div>Ключ (латиница)</div>
-                  <div></div>
+              <>
+                {/* Desktop Table View (>= 768px) */}
+                <div className="contract-fields-desktop-table">
+                  <div className="contract-fields-table-header">
+                    <div>Метка в Word</div>
+                    <div>Название поля (в CRM)</div>
+                    <div>Подсказка (placeholder)</div>
+                    <div>Ключ (латиница)</div>
+                    <div></div>
+                  </div>
+
+                  {contractFields.map((field, idx) => {
+                    const normKey = field.key.trim().toLowerCase();
+                    const isDuplicate = normKey !== '' && contractFields.filter(f => f.key.trim().toLowerCase() === normKey).length > 1;
+                    const tagString = `{{${field.key}}}`;
+                    const isCopied = copiedTag === tagString;
+                    return (
+                      <div
+                        key={field.id || idx}
+                        className={`contract-field-row ${isDuplicate ? 'is-duplicate' : ''}`}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyTag(tagString)}
+                            className={`contract-tag-badge ${isDuplicate ? 'badge-duplicate' : ''}`}
+                            title="Нажмите, чтобы скопировать метку в буфер обмена"
+                          >
+                            {isCopied ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+                            <span>{tagString}</span>
+                          </button>
+                          {isDuplicate && (
+                            <span style={{ color: '#ef4444', fontSize: '0.7rem', fontWeight: 600 }} title="Дублирующаяся метка">
+                              ⚠️ Дубль
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            value={field.label}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setContractFields(prev => prev.map((f, i) => i === idx ? { ...f, label: val } : f));
+                            }}
+                            className="search-input"
+                            style={{ width: '100%', fontSize: '0.85rem', padding: '6px 8px' }}
+                            placeholder="Название..."
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            value={field.placeholder || ''}
+                            placeholder="Подсказка..."
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setContractFields(prev => prev.map((f, i) => i === idx ? { ...f, placeholder: val } : f));
+                            }}
+                            className="search-input"
+                            style={{ width: '100%', fontSize: '0.85rem', padding: '6px 8px' }}
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            value={field.key}
+                            onChange={(e) => {
+                              const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+                              setContractFields(prev => prev.map((f, i) => i === idx ? { ...f, key: val } : f));
+                            }}
+                            className="search-input"
+                            style={{
+                              width: '100%',
+                              fontSize: '0.82rem',
+                              fontFamily: 'monospace',
+                              padding: '6px 8px',
+                              borderColor: isDuplicate ? '#ef4444' : undefined
+                            }}
+                          />
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteField(field.id)}
+                            className="btn btn-ghost contract-touch-btn"
+                            style={{ padding: '6px', color: 'var(--danger)' }}
+                            title="Удалить поле"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {contractFields.map((field, idx) => {
-                  const normKey = field.key.trim().toLowerCase();
-                  const isDuplicate = normKey !== '' && contractFields.filter(f => f.key.trim().toLowerCase() === normKey).length > 1;
-                  return (
-                    <div
-                      key={field.id || idx}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '130px 1.2fr 1fr 120px 40px',
-                        gap: '8px',
-                        alignItems: 'center',
-                        padding: '8px',
-                        background: isDuplicate ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                        border: '1px solid ' + (isDuplicate ? 'rgba(239, 68, 68, 0.5)' : 'var(--glass-border)'),
-                        borderRadius: 'var(--radius-sm)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                        <code style={{
-                          background: isDuplicate ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.15)',
-                          color: isDuplicate ? '#f87171' : '#60a5fa',
-                          padding: '3px 6px',
-                          borderRadius: '4px',
-                          fontSize: '0.8rem',
-                          fontWeight: 600
-                        }}>
-                          {`{{${field.key}}}`}
-                        </code>
-                        {isDuplicate && (
-                          <span style={{ color: '#ef4444', fontSize: '0.7rem', fontWeight: 600 }} title="Дублирующаяся метка">
-                            ⚠️ Дубль
-                          </span>
-                        )}
+                {/* Mobile Cards List (< 768px) */}
+                <div className="contract-fields-mobile-list">
+                  {contractFields.map((field, idx) => {
+                    const normKey = field.key.trim().toLowerCase();
+                    const isDuplicate = normKey !== '' && contractFields.filter(f => f.key.trim().toLowerCase() === normKey).length > 1;
+                    const tagString = `{{${field.key}}}`;
+                    const isCopied = copiedTag === tagString;
+                    return (
+                      <div
+                        key={field.id || idx}
+                        className={`contract-field-card ${isDuplicate ? 'is-duplicate' : ''}`}
+                      >
+                        <div className="contract-field-card-header">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyTag(tagString)}
+                              className={`contract-tag-badge ${isDuplicate ? 'badge-duplicate' : ''}`}
+                              title="Скопировать метку"
+                            >
+                              {isCopied ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
+                              <span>{tagString}</span>
+                            </button>
+                            {isDuplicate && (
+                              <span style={{ color: '#ef4444', fontSize: '0.72rem', fontWeight: 600 }}>
+                                ⚠️ Дубликат метки
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteField(field.id)}
+                            className="btn btn-ghost contract-touch-btn"
+                            style={{ color: 'var(--danger)', padding: '8px' }}
+                            title="Удалить поле"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+
+                        <div className="contract-field-card-inputs">
+                          <div className="contract-field-input-group">
+                            <label>Название поля в CRM (для сотрудников) *</label>
+                            <input
+                              type="text"
+                              value={field.label}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setContractFields(prev => prev.map((f, i) => i === idx ? { ...f, label: val } : f));
+                              }}
+                              className="search-input"
+                              placeholder="Напр. Длина карниза (м)"
+                              style={{ width: '100%', fontSize: '0.9rem', height: '42px' }}
+                            />
+                          </div>
+
+                          <div className="contract-field-input-group">
+                            <label>Ключ метки для шаблона Word (латиница) *</label>
+                            <input
+                              type="text"
+                              value={field.key}
+                              onChange={(e) => {
+                                const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+                                setContractFields(prev => prev.map((f, i) => i === idx ? { ...f, key: val } : f));
+                              }}
+                              className="search-input"
+                              placeholder="length"
+                              style={{
+                                width: '100%',
+                                fontSize: '0.9rem',
+                                fontFamily: 'monospace',
+                                height: '42px',
+                                borderColor: isDuplicate ? '#ef4444' : undefined
+                              }}
+                            />
+                          </div>
+
+                          <div className="contract-field-input-group">
+                            <label>Подсказка для заполнения (placeholder)</label>
+                            <input
+                              type="text"
+                              value={field.placeholder || ''}
+                              placeholder="Напр. 13,20"
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setContractFields(prev => prev.map((f, i) => i === idx ? { ...f, placeholder: val } : f));
+                              }}
+                              className="search-input"
+                              style={{ width: '100%', fontSize: '0.9rem', height: '42px' }}
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <input
-                          type="text"
-                          value={field.label}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setContractFields(prev => prev.map((f, i) => i === idx ? { ...f, label: val } : f));
-                          }}
-                          className="search-input"
-                          style={{ width: '100%', fontSize: '0.85rem', padding: '6px 8px' }}
-                        />
-                      </div>
-                      <div>
-                        <input
-                          type="text"
-                          value={field.placeholder || ''}
-                          placeholder="Подсказка..."
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setContractFields(prev => prev.map((f, i) => i === idx ? { ...f, placeholder: val } : f));
-                          }}
-                          className="search-input"
-                          style={{ width: '100%', fontSize: '0.85rem', padding: '6px 8px' }}
-                        />
-                      </div>
-                      <div>
-                        <input
-                          type="text"
-                          value={field.key}
-                          onChange={(e) => {
-                            const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-                            setContractFields(prev => prev.map((f, i) => i === idx ? { ...f, key: val } : f));
-                          }}
-                          className="search-input"
-                          style={{
-                            width: '100%',
-                            fontSize: '0.82rem',
-                            fontFamily: 'monospace',
-                            padding: '6px 8px',
-                            borderColor: isDuplicate ? '#ef4444' : undefined
-                          }}
-                        />
-                      </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteField(field.id)}
-                          className="btn btn-ghost"
-                          style={{ padding: '6px', color: 'var(--danger)' }}
-                          title="Удалить поле"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
 
-            {/* Add New Field Form with Explicit Labels */}
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.02)',
-              border: '1px solid var(--glass-border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '16px'
-            }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '12px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Plus size={16} style={{ color: 'var(--accent-primary)' }} />
+            {/* Add New Field Form */}
+            <div className="contract-add-field-form">
+              <div style={{ fontSize: '0.92rem', fontWeight: 600, marginBottom: '12px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Plus size={18} style={{ color: 'var(--accent-primary)' }} />
                 Добавить новое поле спецификации:
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '14px' }}>
+              <div className="contract-add-field-grid">
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 500, marginBottom: '5px', color: 'var(--text-secondary)' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
                     Название поля (в карточке заказа) <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
                   <input
                     type="text"
                     placeholder="Напр. Длина карниза (м)"
                     value={newFieldLabel}
-                    onChange={(e) => setNewFieldLabel(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setNewFieldLabel(val);
+                      if (!newFieldKey) {
+                        // Helpful transliteration / key helper
+                        const autoKey = val.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, '');
+                        if (autoKey) setNewFieldKey(autoKey);
+                      }
+                    }}
                     className="search-input"
-                    style={{ width: '100%', fontSize: '0.85rem' }}
+                    style={{ width: '100%', fontSize: '0.9rem', height: '42px' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 500, marginBottom: '5px', color: 'var(--text-secondary)' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
                     Ключ метки для Word (латиница)
                   </label>
                   <input
@@ -607,14 +676,14 @@ export const Settings = () => {
                     value={newFieldKey}
                     onChange={(e) => setNewFieldKey(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
                     className="search-input"
-                    style={{ width: '100%', fontSize: '0.85rem', fontFamily: 'monospace' }}
+                    style={{ width: '100%', fontSize: '0.9rem', fontFamily: 'monospace', height: '42px' }}
                   />
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '3px' }}>
-                    Тег в docx: <code>{`{{${newFieldKey.trim() || 'ключ'}}}`}</code>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    Тег в docx: <code style={{ color: '#60a5fa' }}>{`{{${newFieldKey.trim() || 'ключ'}}}`}</code>
                   </div>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 500, marginBottom: '5px', color: 'var(--text-secondary)' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
                     Подсказка для ввода (placeholder)
                   </label>
                   <input
@@ -623,23 +692,23 @@ export const Settings = () => {
                     value={newFieldPlaceholder}
                     onChange={(e) => setNewFieldPlaceholder(e.target.value)}
                     className="search-input"
-                    style={{ width: '100%', fontSize: '0.85rem' }}
+                    style={{ width: '100%', fontSize: '0.9rem', height: '42px' }}
                   />
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleAddField}
-                className="btn btn-secondary"
-                style={{ fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                className="btn btn-secondary contract-add-field-btn"
+                style={{ fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
-                <Plus size={15} /> Добавить поле
+                <Plus size={16} /> Добавить поле
               </button>
             </div>
           </div>
 
           {/* Block 2: Act Checklist Template */}
-          <div className="glass-panel" style={{ padding: '20px 24px', borderRadius: 'var(--radius-lg)' }}>
+          <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)' }}>
             <h3 style={{ fontSize: '1.05rem', margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <CheckSquare size={18} style={{ color: '#10b981' }} />
               2. Шаблон чек-листа выполненных работ (для Акта)
@@ -648,21 +717,13 @@ export const Settings = () => {
               Пункты работ, отображаемые монтажнику или менеджеру в карточке заказа для формирования Акта сдачи-приемки.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
               {actChecklist.map((item, idx) => (
                 <div
                   key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '6px 12px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid var(--glass-border)',
-                    borderRadius: 'var(--radius-sm)'
-                  }}
+                  className="act-checklist-item-row"
                 >
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', width: '24px', textAlign: 'right' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', width: '26px', textAlign: 'right', fontWeight: 600, flexShrink: 0 }}>
                     {idx + 1}.
                   </span>
                   <input
@@ -673,26 +734,26 @@ export const Settings = () => {
                       setActChecklist(prev => prev.map((it, i) => i === idx ? val : it));
                     }}
                     className="search-input"
-                    style={{ flex: 1, fontSize: '0.85rem', padding: '5px 8px' }}
+                    style={{ flex: 1, fontSize: '0.9rem', height: '40px', padding: '6px 10px' }}
                   />
                   <button
                     type="button"
                     onClick={() => handleDeleteChecklistItem(idx)}
-                    className="btn btn-ghost"
-                    style={{ padding: '6px', color: 'var(--danger)' }}
+                    className="btn btn-ghost contract-touch-btn"
+                    style={{ color: 'var(--danger)', padding: '6px' }}
                     title="Удалить пункт"
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               ))}
             </div>
 
             {/* Add Checklist Item Form */}
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="act-checklist-add-wrap">
               <input
                 type="text"
-                placeholder="Новый пункт чек-листа (например: Установка электродвигателя или Проверка багета)"
+                placeholder="Новый пункт чек-листа (например: Проверка багета или Установка карниза)"
                 value={newChecklistText}
                 onChange={(e) => setNewChecklistText(e.target.value)}
                 onKeyDown={(e) => {
@@ -702,39 +763,40 @@ export const Settings = () => {
                   }
                 }}
                 className="search-input"
-                style={{ flex: 1, fontSize: '0.85rem' }}
+                style={{ flex: 1, fontSize: '0.9rem', height: '42px' }}
               />
               <button
                 type="button"
                 onClick={handleAddChecklistItem}
                 className="btn btn-secondary"
-                style={{ fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
+                style={{ fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', minHeight: '42px' }}
               >
-                <Plus size={15} /> Добавить пункт
+                <Plus size={16} /> Добавить пункт
               </button>
             </div>
           </div>
 
-          {/* Bottom Save Action */}
-          <div>
+          {/* Bottom Save Action / PWA Mobile Sticky Bar */}
+          <div className="contract-save-bar-wrapper">
             <button
               type="button"
               onClick={handleSaveContractConfig}
               disabled={tenantSaving}
-              className="btn btn-primary"
+              className="btn btn-primary btn-save-contract"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '10px 24px',
+                padding: '12px 28px',
                 fontSize: '0.95rem',
                 fontWeight: 600,
                 background: 'linear-gradient(135deg, #10b981, #059669)',
                 border: 'none',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                cursor: 'pointer'
               }}
             >
-              <CheckSquare size={16} />
+              <CheckSquare size={18} />
               {tenantSaving ? 'Сохранение...' : 'Сохранить параметры договора и чек-лист'}
             </button>
           </div>

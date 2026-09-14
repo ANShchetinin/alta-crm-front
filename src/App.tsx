@@ -29,6 +29,7 @@ const Finances = lazy(() => import('./pages/Finances').then(m => ({ default: m.F
 const FeatureFlags = lazy(() => import('./pages/FeatureFlags').then(m => ({ default: m.FeatureFlags })));
 const ExitIntentStats = lazy(() => import('./pages/ExitIntentStats').then(m => ({ default: m.ExitIntentStats })));
 const Archive = lazy(() => import('./pages/Archive').then(m => ({ default: m.Archive })));
+const AuditLogs = lazy(() => import('./pages/AuditLogs').then(m => ({ default: m.AuditLogs })));
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const token = useAuthStore(state => state.token);
@@ -194,6 +195,7 @@ function App() {
               <Route path="exit-intent-stats" element={<Navigate to="/site-analytics" replace />} />
               <Route path="contract-templates" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="CONTRACT_TEMPLATES"><ContractTemplates /></FeatureRoute></RoleRoute>} />
               <Route path="settings" element={<RoleRoute allowedRoles={['OWNER']}><Settings /></RoleRoute>} />
+              <Route path="audit-logs" element={<RoleRoute allowedRoles={['OWNER']}><AuditLogs /></RoleRoute>} />
             </Route>
           </Routes>
         </Suspense>
