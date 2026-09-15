@@ -675,10 +675,12 @@ const DashboardLayout = () => {
                   <span>Шаблоны договоров</span>
                 </NavLink>
               )}
-              <NavLink to="/settings" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                <Settings size={20} />
-                <span>{t('nav.settings')}</span>
-              </NavLink>
+              {role === 'OWNER' && (
+                <NavLink to="/settings" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <Settings size={20} />
+                  <span>{t('nav.settings')}</span>
+                </NavLink>
+              )}
               {role === 'OWNER' && (
                 <NavLink to="/audit-logs" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <ShieldCheck size={20} />
@@ -1238,7 +1240,7 @@ const DashboardLayout = () => {
 
               <PushNotificationSettings />
 
-              {role !== 'WORKER' && (
+              {role === 'OWNER' && (
                 <div style={{ textAlign: 'center', marginTop: '4px' }}>
                   <NavLink
                     to="/settings"

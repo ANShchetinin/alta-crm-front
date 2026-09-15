@@ -186,7 +186,7 @@ function App() {
               <Route path="measurements" element={<MeasurementRoute><Measurements /></MeasurementRoute>} />
               <Route path="earnings" element={<RoleRoute allowedRoles={['WORKER', 'OWNER', 'MANAGER']}><Earnings /></RoleRoute>} />
               <Route path="clients" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><Clients /></RoleRoute>} />
-              <Route path="employees" element={<RoleRoute allowedRoles={['OWNER']}><Employees /></RoleRoute>} />
+              <Route path="employees" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><Employees /></RoleRoute>} />
               <Route path="storage" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="STORAGE"><Storage /></FeatureRoute></RoleRoute>} />
               <Route path="archive" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><Archive /></RoleRoute>} />
               <Route path="finances" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="FINANCES"><Finances /></FeatureRoute></RoleRoute>} />

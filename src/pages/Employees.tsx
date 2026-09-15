@@ -6,6 +6,7 @@ import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '..
 import { getOrderStatuses } from '../api/kanban';
 import type { OrderStatus } from '../api/kanban';
 import { getMyTenants, type UserTenant } from '../api/auth';
+import { useAuthStore } from '../store/useAuthStore';
 import { AvatarUpload } from '../components/AvatarUpload';
 import { getEmployeeInitials, getAvatarGradient } from '../utils/avatarUtils';
 import { formatLastSeen } from '../utils/dateUtils';
@@ -16,6 +17,9 @@ import '../styles/clients.css';
 
 export const Employees = () => {
   const { t } = useTranslation();
+  const { role: currentUserRole } = useAuthStore();
+  const canManageEmployees = currentUserRole === 'OWNER' || currentUserRole === 'SUPERADMIN';
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [statuses, setStatuses] = useState<OrderStatus[]>([]);
   const [myTenants, setMyTenants] = useState<UserTenant[]>([]);
@@ -39,6 +43,7 @@ export const Employees = () => {
     passportDepartmentCode: '',
     registrationAddress: '',
     hasAccount: false,
+    role: 'WORKER' as 'WORKER' | 'MANAGER' | 'OWNER' | 'SUPERADMIN',
     email: '',
     password: '',
     allowedStatusIds: [] as number[],
@@ -132,6 +137,7 @@ export const Employees = () => {
       passportDepartmentCode: '',
       registrationAddress: '',
       hasAccount: false,
+      role: 'WORKER',
       email: '',
       password: '',
       allowedStatusIds: [],
@@ -157,6 +163,7 @@ export const Employees = () => {
       passportDepartmentCode: employee.passportDepartmentCode || '',
       registrationAddress: employee.registrationAddress || '',
       hasAccount: !!employee.hasAccount,
+      role: (employee.role === 'MANAGER' ? 'MANAGER' : 'WORKER') as 'WORKER' | 'MANAGER' | 'OWNER' | 'SUPERADMIN',
       email: employee.email || '',
       password: '',
       allowedStatusIds: employee.allowedStatusIds || [],
@@ -207,6 +214,7 @@ export const Employees = () => {
           return;
         }
         payload.email = formData.email.trim();
+        payload.role = formData.role || 'WORKER';
         if (formData.password.trim()) {
           payload.password = formData.password.trim();
         } else if (!editingEmployee?.hasAccount) {
@@ -275,10 +283,12 @@ export const Employees = () => {
               className="search-input"
             />
           </div>
-          <button onClick={openAddModal} className="btn btn-primary">
-            <Plus size={18} />
-            <span>{t('employees.addEmployee') || 'Добавить сотрудника'}</span>
-          </button>
+          {canManageEmployees && (
+            <button onClick={openAddModal} className="btn btn-primary">
+              <Plus size={18} />
+              <span>{t('employees.addEmployee') || 'Добавить сотрудника'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -370,39 +380,81 @@ export const Employees = () => {
                                 style={{ 
                                   display: 'inline-flex', 
                                   alignItems: 'center', 
-                                  gap: '4px', 
+                                  gap: '3px',
                                   fontSize: '0.72rem', 
-                                  color: '#38bdf8', 
+                                  padding: '1px 6px', 
+                                  borderRadius: '4px', 
                                   background: 'rgba(56, 189, 248, 0.12)', 
                                   border: '1px solid rgba(56, 189, 248, 0.25)', 
-                                  padding: '1px 6px', 
-                                  borderRadius: '6px', 
-                                  cursor: 'default'
+                                  color: '#38bdf8',
+                                  fontWeight: 500,
+                                  cursor: 'help'
                                 }}
                               >
                                 <FileText size={11} /> Паспорт
                               </span>
                             )}
                           </div>
+                          <div className="client-meta" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {employee.birthDate ? `Д.Р.: ${employee.birthDate}` : (employee.phone || '')}
+                          </div>
                         </div>
                       </div>
                     </td>
                     <td>
-                      <div className="client-phone">{employee.position || '—'}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ fontWeight: 500 }}>{employee.position || '—'}</div>
+                        {employee.canViewFinances && (
+                          <span 
+                            title="Есть доступ к просмотру финансов и кассы"
+                            style={{ 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              padding: '2px 6px', 
+                              borderRadius: '4px', 
+                              background: 'rgba(34, 197, 94, 0.12)', 
+                              border: '1px solid rgba(34, 197, 94, 0.3)', 
+                              color: '#4ade80',
+                              fontSize: '0.72rem',
+                              fontWeight: 600
+                            }}
+                          >
+                            <Wallet size={11} style={{ marginRight: '3px' }} /> Финансы
+                          </span>
+                        )}
+                        {employee.canAccessMeasurements && (
+                          <span 
+                            title="Есть доступ к разделу замеров"
+                            style={{ 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              padding: '2px 6px', 
+                              borderRadius: '4px', 
+                              background: 'rgba(99, 102, 241, 0.12)', 
+                              border: '1px solid rgba(99, 102, 241, 0.3)', 
+                              color: '#a5b4fc',
+                              fontSize: '0.72rem',
+                              fontWeight: 600
+                            }}
+                          >
+                            <Ruler size={11} style={{ marginRight: '3px' }} /> Замеры
+                          </span>
+                        )}
+                      </div>
                       {myTenants.length > 1 && employee.allowedTenantIds && employee.allowedTenantIds.length > 0 && (
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
+                        <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
                           {employee.allowedTenantIds.map(tid => {
                             const t = myTenants.find(x => x.tenantId === tid);
                             if (!t) return null;
                             const isCurrent = t.tenantId === currentTenantId;
                             return (
                               <span 
-                                key={tid}
-                                style={{
-                                  fontSize: '0.7rem',
-                                  padding: '1px 6px',
-                                  borderRadius: '4px',
-                                  background: isCurrent ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                key={tid} 
+                                style={{ 
+                                  fontSize: '0.7rem', 
+                                  padding: '1px 6px', 
+                                  borderRadius: '4px', 
+                                  background: isCurrent ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.05)', 
                                   border: `1px solid ${isCurrent ? 'rgba(59, 130, 246, 0.3)' : 'var(--glass-border)'}`,
                                   color: isCurrent ? '#60a5fa' : 'var(--text-secondary)'
                                 }}
@@ -426,8 +478,8 @@ export const Employees = () => {
                           );
                         }
                         return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                               {presence.isOnline ? (
                                 <span style={{
                                   display: 'inline-flex',
@@ -456,6 +508,31 @@ export const Employees = () => {
                                   {presence.text}
                                 </span>
                               )}
+                              {employee.role === 'MANAGER' ? (
+                                <span style={{
+                                  fontSize: '0.72rem',
+                                  padding: '1px 7px',
+                                  borderRadius: '4px',
+                                  background: 'rgba(56, 189, 248, 0.15)',
+                                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                                  color: '#38bdf8',
+                                  fontWeight: 600
+                                }}>
+                                  Менеджер
+                                </span>
+                              ) : (
+                                <span style={{
+                                  fontSize: '0.72rem',
+                                  padding: '1px 7px',
+                                  borderRadius: '4px',
+                                  background: 'rgba(255, 255, 255, 0.06)',
+                                  border: '1px solid var(--glass-border)',
+                                  color: 'var(--text-secondary)',
+                                  fontWeight: 500
+                                }}>
+                                  Исполнитель
+                                </span>
+                              )}
                             </div>
                             {employee.email && (
                               <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -481,22 +558,35 @@ export const Employees = () => {
                     </td>
                     <td>
                       <div className="client-actions" style={{ justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
-                        <button 
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); openEditModal(employee); }}
-                          className="action-btn"
-                          title="Редактировать сотрудника и права"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); handleDelete(employee.id); }}
-                          className="action-btn delete"
-                          title="Удалить"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {canManageEmployees ? (
+                          <>
+                            <button 
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); openEditModal(employee); }}
+                              className="action-btn"
+                              title="Редактировать сотрудника и права"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleDelete(employee.id); }}
+                              className="action-btn delete"
+                              title="Удалить"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </>
+                        ) : (
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); openEditModal(employee); }}
+                            className="action-btn"
+                            title="Просмотр профиля"
+                          >
+                            <Eye size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -598,39 +688,63 @@ export const Employees = () => {
                           </span>
                         );
                       }
-                      if (presence.isOnline) {
-                        return (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            fontSize: '0.7rem',
-                            padding: '2px 8px',
-                            borderRadius: '6px',
-                            background: 'rgba(34, 197, 94, 0.15)',
-                            border: '1px solid rgba(34, 197, 94, 0.3)',
-                            color: '#4ade80',
-                            fontWeight: 600,
-                            flexShrink: 0
-                          }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 4px #22c55e' }} />
-                            В сети
-                          </span>
-                        );
-                      }
                       return (
-                        <span style={{
-                          fontSize: '0.7rem',
-                          padding: '2px 8px',
-                          borderRadius: '6px',
-                          background: 'rgba(255, 255, 255, 0.04)',
-                          border: '1px solid var(--glass-border)',
-                          color: 'var(--text-secondary)',
-                          fontWeight: 500,
-                          flexShrink: 0
-                        }}>
-                          {presence.text}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px', flexShrink: 0 }}>
+                          {presence.isOnline ? (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              fontSize: '0.7rem',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(34, 197, 94, 0.15)',
+                              border: '1px solid rgba(34, 197, 94, 0.3)',
+                              color: '#4ade80',
+                              fontWeight: 600
+                            }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 4px #22c55e' }} />
+                              В сети
+                            </span>
+                          ) : (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(255, 255, 255, 0.04)',
+                              border: '1px solid var(--glass-border)',
+                              color: 'var(--text-secondary)',
+                              fontWeight: 500
+                            }}>
+                              {presence.text}
+                            </span>
+                          )}
+                          {employee.role === 'MANAGER' ? (
+                            <span style={{
+                              fontSize: '0.68rem',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: 'rgba(56, 189, 248, 0.15)',
+                              border: '1px solid rgba(56, 189, 248, 0.35)',
+                              color: '#38bdf8',
+                              fontWeight: 600
+                            }}>
+                              Менеджер
+                            </span>
+                          ) : (
+                            <span style={{
+                              fontSize: '0.68rem',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              border: '1px solid var(--glass-border)',
+                              color: 'var(--text-secondary)',
+                              fontWeight: 500
+                            }}>
+                              Исполнитель
+                            </span>
+                          )}
+                        </div>
                       );
                     })()}
                   </div>
@@ -671,12 +785,12 @@ export const Employees = () => {
                           const isCurrent = t.tenantId === currentTenantId;
                           return (
                             <span 
-                              key={tid}
-                              style={{
-                                fontSize: '0.68rem',
-                                padding: '1px 6px',
-                                borderRadius: '4px',
-                                background: isCurrent ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                              key={tid} 
+                              style={{ 
+                                fontSize: '0.68rem', 
+                                padding: '1px 6px', 
+                                borderRadius: '4px', 
+                                background: isCurrent ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.05)', 
                                 border: `1px solid ${isCurrent ? 'rgba(59, 130, 246, 0.3)' : 'var(--glass-border)'}`,
                                 color: isCurrent ? '#60a5fa' : 'var(--text-secondary)'
                               }}
@@ -706,22 +820,35 @@ export const Employees = () => {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <button 
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); openEditModal(employee); }}
-                        className="btn btn-ghost"
-                        style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <Edit2 size={13} /> Редактировать
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleDelete(employee.id); }}
-                        className="btn btn-ghost text-danger"
-                        style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', color: '#ef4444' }}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {canManageEmployees ? (
+                        <>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); openEditModal(employee); }}
+                            className="btn btn-ghost"
+                            style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <Edit2 size={13} /> Редактировать
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleDelete(employee.id); }}
+                            className="btn btn-ghost text-danger"
+                            style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', color: '#ef4444' }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </>
+                      ) : (
+                        <button 
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openEditModal(employee); }}
+                          className="btn btn-ghost"
+                          style={{ fontSize: '0.78rem', padding: '4px 8px', height: '28px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <Eye size={13} /> Просмотр
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -735,8 +862,8 @@ export const Employees = () => {
       <Sheet
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingEmployee ? (t('employees.modal.editTitle') || 'Редактировать сотрудника') : (t('employees.modal.addTitle') || 'Добавить сотрудника')}
-        description={editingEmployee ? 'Редактирование профиля и прав доступа' : 'Создание нового сотрудника и настройка доступа'}
+        title={!canManageEmployees ? 'Просмотр сотрудника' : editingEmployee ? (t('employees.modal.editTitle') || 'Редактировать сотрудника') : (t('employees.modal.addTitle') || 'Добавить сотрудника')}
+        description={!canManageEmployees ? 'Просмотр профиля и прав доступа сотрудника' : editingEmployee ? 'Редактирование профиля и прав доступа' : 'Создание нового сотрудника и настройка доступа'}
         size="md"
       >
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -746,7 +873,7 @@ export const Employees = () => {
                   label="Фотография сотрудника"
                   name={formData.name}
                   initialAvatarUrl={formData.avatarUrl || ''}
-                  onAvatarUrlChange={handleAvatarChange}
+                  onAvatarUrlChange={canManageEmployees ? handleAvatarChange : () => {}}
                   fallbackIcon={<User size={30} />}
                 />
 
@@ -755,6 +882,7 @@ export const Employees = () => {
                   <input 
                     type="text" 
                     required
+                    disabled={!canManageEmployees}
                     placeholder="Иван Иванов"
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
@@ -766,6 +894,7 @@ export const Employees = () => {
                     <label>{t('employees.modal.position') || 'Должность'}</label>
                     <input 
                       type="text" 
+                      disabled={!canManageEmployees}
                       placeholder="Монтажник / Замерщик"
                       value={formData.position}
                       onChange={(e) => setFormData({...formData, position: e.target.value})}
@@ -775,6 +904,7 @@ export const Employees = () => {
                     <label>{t('employees.modal.phone') || 'Телефон'}</label>
                     <input 
                       type="text" 
+                      disabled={!canManageEmployees}
                       placeholder="+7 (999) 000-00-00"
                       value={formData.phone}
                       onChange={(e) => setFormData({...formData, phone: e.target.value})}
@@ -800,6 +930,7 @@ export const Employees = () => {
                       <label style={{ fontSize: '0.8rem' }}>Серия и номер паспорта</label>
                       <input 
                         type="text" 
+                        disabled={!canManageEmployees}
                         placeholder="6305 123456"
                         value={formData.passportSeriesNumber}
                         onChange={(e) => setFormData({ ...formData, passportSeriesNumber: e.target.value })}
@@ -810,6 +941,7 @@ export const Employees = () => {
                       <label style={{ fontSize: '0.8rem' }}>Дата рождения</label>
                       <input 
                         type="date" 
+                        disabled={!canManageEmployees}
                         value={formData.birthDate}
                         onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
                       />
@@ -821,6 +953,7 @@ export const Employees = () => {
                       <label style={{ fontSize: '0.8rem' }}>Дата выдачи паспорта</label>
                       <input 
                         type="date" 
+                        disabled={!canManageEmployees}
                         value={formData.passportIssuedDate}
                         onChange={(e) => setFormData({ ...formData, passportIssuedDate: e.target.value })}
                       />
@@ -830,6 +963,7 @@ export const Employees = () => {
                       <label style={{ fontSize: '0.8rem' }}>Код подразделения</label>
                       <input 
                         type="text" 
+                        disabled={!canManageEmployees}
                         placeholder="640-001"
                         value={formData.passportDepartmentCode}
                         onChange={(e) => setFormData({ ...formData, passportDepartmentCode: e.target.value })}
@@ -841,6 +975,7 @@ export const Employees = () => {
                     <label style={{ fontSize: '0.8rem' }}>Кем выдан паспорт</label>
                     <input 
                       type="text" 
+                      disabled={!canManageEmployees}
                       placeholder="Отделом УФМС России по Саратовской обл."
                       value={formData.passportIssuedBy}
                       onChange={(e) => setFormData({ ...formData, passportIssuedBy: e.target.value })}
@@ -851,6 +986,7 @@ export const Employees = () => {
                     <label style={{ fontSize: '0.8rem' }}>Адрес регистрации (прописка)</label>
                     <textarea 
                       rows={2}
+                      disabled={!canManageEmployees}
                       placeholder="г. Саратов, ул. Московская, д. 10, кв. 25"
                       value={formData.registrationAddress}
                       onChange={(e) => setFormData({ ...formData, registrationAddress: e.target.value })}
@@ -881,65 +1017,121 @@ export const Employees = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Key size={17} style={{ color: '#818cf8' }} />
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Доступ в CRM (роль Исполнитель)</div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Сотрудник сможет входить в систему и видеть только свои заявки</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Доступ в CRM</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Вход сотрудника в систему с выбранной ролью и правами</div>
                       </div>
                     </div>
-                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: canManageEmployees ? 'pointer' : 'default' }}>
                       <input 
                         type="checkbox" 
+                        disabled={!canManageEmployees}
                         checked={formData.hasAccount} 
                         onChange={(e) => setFormData({ ...formData, hasAccount: e.target.checked })}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                        style={{ width: '18px', height: '18px', cursor: canManageEmployees ? 'pointer' : 'default' }}
                       />
                     </label>
                   </div>
 
                   {formData.hasAccount && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                      {/* Выбор системной роли */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Роль сотрудника в системе <span style={{ color: 'var(--danger)' }}>*</span></label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px' }}>
+                          <button
+                            type="button"
+                            disabled={!canManageEmployees}
+                            onClick={() => setFormData({ ...formData, role: 'WORKER' })}
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: '8px',
+                              textAlign: 'left',
+                              border: formData.role === 'WORKER' ? '2px solid var(--primary, #6366f1)' : '1px solid var(--glass-border)',
+                              background: formData.role === 'WORKER' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                              color: 'var(--text-main)',
+                              cursor: canManageEmployees ? 'pointer' : 'default',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: formData.role === 'WORKER' ? '#a5b4fc' : 'var(--text-main)' }}>
+                              Исполнитель
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.3 }}>
+                              Монтажник / замерщик (видит только назначенные заявки)
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={!canManageEmployees}
+                            onClick={() => setFormData({ ...formData, role: 'MANAGER' })}
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: '8px',
+                              textAlign: 'left',
+                              border: formData.role === 'MANAGER' ? '2px solid #38bdf8' : '1px solid var(--glass-border)',
+                              background: formData.role === 'MANAGER' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                              color: 'var(--text-main)',
+                              cursor: canManageEmployees ? 'pointer' : 'default',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: formData.role === 'MANAGER' ? '#38bdf8' : 'var(--text-main)' }}>
+                              Менеджер
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.3 }}>
+                              Полный доступ к клиентам, заказам, материалам и статусам
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label style={{ fontSize: '0.8rem' }}>Email для входа (Логин) <span style={{ color: 'var(--danger)' }}>*</span></label>
                         <input 
                           type="email" 
+                          disabled={!canManageEmployees}
                           required={formData.hasAccount}
                           placeholder="worker@company.ru"
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         />
                       </div>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between' }}>
-                          <span>{editingEmployee?.hasAccount ? 'Новый пароль (опционально)' : 'Пароль учетной записи *'}</span>
-                        </label>
-                        <div style={{ position: 'relative' }}>
-                          <input 
-                            type={showPassword ? 'text' : 'password'}
-                            required={formData.hasAccount && !editingEmployee?.hasAccount}
-                            placeholder={editingEmployee?.hasAccount ? 'Оставьте пустым, чтобы не менять' : 'Минимум 6 символов'}
-                            value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            style={{ paddingRight: '40px' }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            style={{
-                              position: 'absolute',
-                              right: '10px',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              background: 'transparent',
-                              border: 'none',
-                              color: 'var(--text-muted)',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center'
-                            }}
-                          >
-                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
+                      {canManageEmployees && (
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{editingEmployee?.hasAccount ? 'Новый пароль (опционально)' : 'Пароль учетной записи *'}</span>
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <input 
+                              type={showPassword ? 'text' : 'password'}
+                              required={formData.hasAccount && !editingEmployee?.hasAccount}
+                              placeholder={editingEmployee?.hasAccount ? 'Оставьте пустым, чтобы не менять' : 'Минимум 6 символов'}
+                              value={formData.password}
+                              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                              style={{ paddingRight: '40px' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              style={{
+                                position: 'absolute',
+                                right: '10px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-muted)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                            >
+                              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -969,7 +1161,7 @@ export const Employees = () => {
                         return (
                           <div 
                             key={status.id}
-                            onClick={() => toggleStatusSelection(status.id)}
+                            onClick={() => canManageEmployees && toggleStatusSelection(status.id)}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
@@ -978,7 +1170,7 @@ export const Employees = () => {
                               borderRadius: '8px',
                               background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
                               border: isSelected ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
-                              cursor: 'pointer',
+                              cursor: canManageEmployees ? 'pointer' : 'default',
                               transition: 'all 0.15s ease'
                             }}
                           >
@@ -1021,15 +1213,16 @@ export const Employees = () => {
                       <Wallet size={18} style={{ color: '#4ade80', flexShrink: 0 }} />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Доступ к разделу «Финансы»</div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Разрешить сотруднику (менеджеру) просмотр кассы, оплат, дебиторки и расходов</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Разрешить сотруднику просмотр кассы, оплат, дебиторки и расходов</div>
                       </div>
                     </div>
-                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: canManageEmployees ? 'pointer' : 'default' }}>
                       <input 
                         type="checkbox" 
+                        disabled={!canManageEmployees}
                         checked={formData.canViewFinances} 
                         onChange={(e) => setFormData({ ...formData, canViewFinances: e.target.checked })}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                        style={{ width: '18px', height: '18px', cursor: canManageEmployees ? 'pointer' : 'default' }}
                       />
                     </label>
                   </div>
@@ -1048,15 +1241,16 @@ export const Employees = () => {
                       <Ruler size={18} style={{ color: '#818cf8', flexShrink: 0 }} />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Доступ к разделу «Замеры»</div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Разрешить сотруднику (монтажнику) доступ к модулю замеров и расчету сметы</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Разрешить сотруднику доступ к модулю замеров и расчету сметы</div>
                       </div>
                     </div>
-                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: canManageEmployees ? 'pointer' : 'default' }}>
                       <input 
                         type="checkbox" 
+                        disabled={!canManageEmployees}
                         checked={formData.canAccessMeasurements} 
                         onChange={(e) => setFormData({ ...formData, canAccessMeasurements: e.target.checked })}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                        style={{ width: '18px', height: '18px', cursor: canManageEmployees ? 'pointer' : 'default' }}
                       />
                     </label>
                   </div>
@@ -1086,6 +1280,7 @@ export const Employees = () => {
                           <div
                             key={t.tenantId}
                             onClick={() => {
+                              if (!canManageEmployees) return;
                               const next = isChecked
                                 ? formData.allowedTenantIds.filter(id => id !== t.tenantId)
                                 : [...formData.allowedTenantIds, t.tenantId];
@@ -1102,7 +1297,7 @@ export const Employees = () => {
                               borderRadius: '8px',
                               background: isChecked ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
                               border: isChecked ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
-                              cursor: 'pointer',
+                              cursor: canManageEmployees ? 'pointer' : 'default',
                               transition: 'all 0.15s ease'
                             }}
                           >
@@ -1127,11 +1322,13 @@ export const Employees = () => {
                   onClick={() => setIsModalOpen(false)}
                   className="btn btn-ghost"
                 >
-                  {t('employees.modal.cancel') || 'Отмена'}
+                  {canManageEmployees ? (t('employees.modal.cancel') || 'Отмена') : 'Закрыть'}
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  {t('employees.modal.save') || 'Сохранить'}
-                </button>
+                {canManageEmployees && (
+                  <button type="submit" className="btn btn-primary">
+                    {t('employees.modal.save') || 'Сохранить'}
+                  </button>
+                )}
               </div>
             </form>
       </Sheet>
