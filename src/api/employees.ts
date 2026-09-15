@@ -15,6 +15,7 @@ export interface Employee {
   userId?: number;
   email?: string;
   password?: string;
+  role?: 'WORKER' | 'MANAGER' | 'OWNER' | 'SUPERADMIN';
   hasAccount?: boolean;
   allowedStatusIds?: number[];
   allowedTenantIds?: number[];
