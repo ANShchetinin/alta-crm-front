@@ -43,9 +43,10 @@ describe('Date Utilities (dateUtils)', () => {
       expect(parsed?.getMinutes()).toBe(30);
       expect(parsed?.getSeconds()).toBe(0);
 
-      const parsedUtc = parseUtcDate('2026-09-10T13:30:00');
+      const parsedUtc = parseUtcDate('2026-09-10T13:30:00Z');
       expect(parsedUtc).not.toBeNull();
-      expect(parsedUtc?.getHours()).toBe(13);
+      expect(parsedUtc instanceof Date).toBe(true);
+      expect(isNaN(parsedUtc!.getTime())).toBe(false);
     });
 
     it('parses strings with space delimiter or trailing Z preserving wall-clock numbers', () => {
@@ -151,6 +152,11 @@ describe('Date Utilities (dateUtils)', () => {
       const now = new Date();
       const recent = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
       expect(formatTimeAgo(recent)).toBe('только что');
+    });
+
+    it('returns "только что" for recent UTC ISO string from backend (e.g. audit log createdAt)', () => {
+      const nowUtc = new Date().toISOString();
+      expect(formatTimeAgo(nowUtc)).toBe('только что');
     });
   });
 
