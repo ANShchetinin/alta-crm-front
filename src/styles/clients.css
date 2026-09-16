@@ -1324,5 +1324,188 @@ select.search-input option {
   cursor: not-allowed;
 }
 
+/* ==========================================================================
+   Employee Modal & Form Responsive / Theme Styles
+   ========================================================================== */
 
+.employee-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
 
+.employee-form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.employee-section-box {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-sizing: border-box;
+}
+
+.light-theme .employee-section-box {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.employee-section-box.access {
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.light-theme .employee-section-box.access {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.employee-section-box.finances {
+  background: rgba(34, 197, 94, 0.05);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.light-theme .employee-section-box.finances {
+  background: rgba(34, 197, 94, 0.06);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.employee-section-box.tenants {
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.light-theme .employee-section-box.tenants {
+  background: rgba(59, 130, 246, 0.06);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.employee-role-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.employee-role-card {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.light-theme .employee-role-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.employee-role-card.active-worker {
+  border: 2px solid var(--primary, #6366f1);
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.light-theme .employee-role-card.active-worker {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.employee-role-card.active-manager {
+  border: 2px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+}
+
+.light-theme .employee-role-card.active-manager {
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.employee-status-grid,
+.employee-tenant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.employee-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  min-height: 42px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.light-theme .employee-checkbox-item {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.employee-checkbox-item.selected {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.light-theme .employee-checkbox-item.selected {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-primary);
+}
+
+.employee-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--glass-border);
+}
+
+@media (max-width: 640px) {
+  .employee-form-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .employee-role-selector {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .employee-status-grid,
+  .employee-tenant-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .employee-modal-footer {
+    flex-direction: column-reverse;
+    gap: 8px;
+    width: 100%;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+  }
+
+  .employee-modal-footer button {
+    width: 100%;
+    height: 46px;
+    min-height: 46px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .employee-section-box {
+    padding: 12px;
+  }
+}
