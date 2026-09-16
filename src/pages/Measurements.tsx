@@ -16,6 +16,7 @@ import { MeasurementWizard } from '../components/MeasurementWizard';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import { getWhatsAppLink } from '../utils/messengerUtils';
 import { formatDateTime, parseLocalDateTime } from '../utils/dateUtils';
+import '../styles/measurements.css';
 
 export const Measurements: React.FC = () => {
   const userId = useAuthStore(state => state.userId);
@@ -85,32 +86,15 @@ export const Measurements: React.FC = () => {
   });
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="measurements-container">
       {/* Шапка раздела */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '20px',
-        flexWrap: 'wrap',
-        gap: '14px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '12px',
-            background: 'rgba(59, 130, 246, 0.15)',
-            border: '1px solid rgba(59, 130, 246, 0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--accent-primary)'
-          }}>
+      <div className="measurements-header">
+        <div className="measurements-title-box">
+          <div className="measurements-title-icon">
             <Ruler size={22} />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: '1.4rem', color: 'var(--text-primary)' }}>
+            <h1 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--text-primary)' }}>
               Выезды и калькулятор замера
             </h1>
             <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -123,110 +107,48 @@ export const Measurements: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsExpressCalcOpen(true)}
-          className="btn btn-primary"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 18px',
-            fontWeight: 600,
-            fontSize: '0.92rem'
-          }}
+          className="btn btn-primary measurements-header-btn"
         >
-          <Calculator size={18} /> Быстрый экспресс-расчет
+          <Calculator size={18} /> <span>Быстрый экспресс-расчет</span>
         </button>
       </div>
 
       {/* Панель фильтров и поиска */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '18px',
-        gap: '12px',
-        flexWrap: 'wrap'
-      }}>
+      <div className="measurements-filter-bar">
         {/* Табы фильтра */}
-        <div style={{
-          display: 'flex',
-          background: 'var(--chip-bg, rgba(255, 255, 255, 0.04))',
-          border: '1px solid var(--glass-border)',
-          borderRadius: 'var(--radius-md)',
-          padding: '3px'
-        }}>
+        <div className="measurements-filter-tabs">
           <button
             type="button"
             onClick={() => setFilterMode('today')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '6px',
-              border: 'none',
-              background: filterMode === 'today' ? 'var(--accent-primary)' : 'transparent',
-              color: filterMode === 'today' ? '#ffffff' : 'var(--text-secondary)',
-              fontWeight: filterMode === 'today' ? 600 : 400,
-              fontSize: '0.86rem',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
+            className={`measurements-tab-btn ${filterMode === 'today' ? 'active' : ''}`}
           >
             Сегодня
           </button>
           <button
             type="button"
             onClick={() => setFilterMode('upcoming')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '6px',
-              border: 'none',
-              background: filterMode === 'upcoming' ? 'var(--accent-primary)' : 'transparent',
-              color: filterMode === 'upcoming' ? '#ffffff' : 'var(--text-secondary)',
-              fontWeight: filterMode === 'upcoming' ? 600 : 400,
-              fontSize: '0.86rem',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
+            className={`measurements-tab-btn ${filterMode === 'upcoming' ? 'active' : ''}`}
           >
             Предстоящие
           </button>
           <button
             type="button"
             onClick={() => setFilterMode('all')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '6px',
-              border: 'none',
-              background: filterMode === 'all' ? 'var(--accent-primary)' : 'transparent',
-              color: filterMode === 'all' ? '#ffffff' : 'var(--text-secondary)',
-              fontWeight: filterMode === 'all' ? 600 : 400,
-              fontSize: '0.86rem',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
+            className={`measurements-tab-btn ${filterMode === 'all' ? 'active' : ''}`}
           >
             Все заявки
           </button>
         </div>
 
         {/* Поиск */}
-        <div style={{ position: 'relative', minWidth: '260px', flex: 1, maxWidth: '400px' }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+        <div className="measurements-search-box">
+          <Search size={16} className="search-icon" />
           <input
             type="text"
             placeholder="Поиск по клиенту, адресу, телефону..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="search-input"
-            style={{ 
-              width: '100%', 
-              paddingLeft: '36px',
-              background: 'var(--input-bg)',
-              border: '1px solid var(--glass-border)',
-              color: 'var(--text-primary)',
-              borderRadius: 'var(--radius-md)',
-              height: '38px',
-              fontSize: '0.88rem',
-              outline: 'none'
-            }}
+            className="measurements-search-input"
           />
         </div>
       </div>
@@ -254,26 +176,12 @@ export const Measurements: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-          gap: '16px'
-        }}>
+        <div className="measurements-grid">
           {filteredOrders.map(order => {
             return (
               <div
                 key={order.id}
-                style={{
-                  background: 'var(--card-bg, rgba(255, 255, 255, 0.03))',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '18px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                  boxShadow: 'var(--glass-shadow)',
-                  transition: 'transform 0.15s ease, border-color 0.15s ease'
-                }}
+                className="measurement-order-card"
               >
                 {/* Шапка карточки */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
@@ -281,24 +189,13 @@ export const Measurements: React.FC = () => {
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                       Заявка #{order.id} {order.orderNumber ? `• ${order.orderNumber}` : ''}
                     </div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {order.clientName || 'Клиент без имени'}
                     </div>
                   </div>
 
                   {order.measurementDate && (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      background: 'rgba(59, 130, 246, 0.12)',
-                      border: '1px solid rgba(59, 130, 246, 0.3)',
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      color: 'var(--accent-primary)',
-                      fontSize: '0.78rem',
-                      fontWeight: 600
-                    }}>
+                    <div className="measurement-date-badge">
                       <Clock size={12} />
                       {formatDateTime(order.measurementDate)}
                     </div>
@@ -313,21 +210,12 @@ export const Measurements: React.FC = () => {
                       <span style={{ color: 'var(--text-primary)' }}>{order.address}</span>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px', marginLeft: '20px' }}>
+                    <div style={{ display: 'flex', gap: '8px', paddingLeft: '20px', flexWrap: 'wrap' }}>
                       <a
                         href={getYandexMapsUrl(order.address, order.entrance, order.floor)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{
-                          fontSize: '0.75rem',
-                          color: '#dc2626',
-                          background: 'rgba(239, 68, 68, 0.1)',
-                          border: '1px solid rgba(239, 68, 68, 0.2)',
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          textDecoration: 'none',
-                          fontWeight: 600
-                        }}
+                        className="measurement-nav-link yandex"
                       >
                         Яндекс.Навигатор
                       </a>
@@ -335,16 +223,7 @@ export const Measurements: React.FC = () => {
                         href={get2GisUrl(order.address, order.entrance, order.floor)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{
-                          fontSize: '0.75rem',
-                          color: '#16a34a',
-                          background: 'rgba(34, 197, 94, 0.1)',
-                          border: '1px solid rgba(34, 197, 94, 0.2)',
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          textDecoration: 'none',
-                          fontWeight: 600
-                        }}
+                        className="measurement-nav-link gis"
                       >
                         2ГИС
                       </a>
@@ -357,45 +236,23 @@ export const Measurements: React.FC = () => {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--glass-border)', paddingTop: '10px' }}>
                     <a
                       href={`tel:${order.clientPhone.replace(/[^\d+]/g, '')}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        color: '#16a34a',
-                        textDecoration: 'none',
-                        fontSize: '0.9rem',
-                        fontWeight: 600
-                      }}
+                      className="measurement-phone-btn"
                     >
-                      <Phone size={14} /> {order.clientPhone}
+                      <Phone size={14} /> <span>{order.clientPhone}</span>
                     </a>
 
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      {order.clientPhone && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const waUrl = getWhatsAppLink(order.clientPhone!, `Здравствуйте, ${order.clientName || ''}! Напоминаем о замере.`);
-                            window.open(waUrl, '_blank');
-                          }}
-                          style={{
-                            background: 'rgba(37, 211, 102, 0.15)',
-                            border: '1px solid rgba(37, 211, 102, 0.3)',
-                            color: '#16a34a',
-                            borderRadius: '6px',
-                            padding: '4px 8px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '0.75rem',
-                            fontWeight: 600
-                          }}
-                          title="Написать в WhatsApp"
-                        >
-                          <MessageCircle size={13} /> WA
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const waUrl = getWhatsAppLink(order.clientPhone!, `Здравствуйте, ${order.clientName || ''}! Напоминаем о замере.`);
+                          window.open(waUrl, '_blank');
+                        }}
+                        className="measurement-wa-btn"
+                        title="Написать в WhatsApp"
+                      >
+                        <MessageCircle size={13} /> WA
+                      </button>
                     </div>
                   </div>
                 )}
@@ -405,25 +262,9 @@ export const Measurements: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setActiveOrderId(order.id)}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      padding: '10px',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))',
-                      color: '#ffffff',
-                      border: 'none',
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 12px var(--accent-glow)',
-                      transition: 'all 0.15s ease'
-                    }}
+                    className="measurement-start-btn"
                   >
-                    <Ruler size={16} /> Начать замер и смету
+                    <Ruler size={16} /> <span>Начать замер и смету</span>
                   </button>
                 </div>
               </div>
@@ -442,7 +283,7 @@ export const Measurements: React.FC = () => {
             className="wizard-modal-box"
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="wizard-modal-header">
               <div>
                 <h2 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
                   📐 Замер по заявке #{activeOrderId}
@@ -451,8 +292,8 @@ export const Measurements: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveOrderId(null)}
-                className="btn-icon"
-                style={{ fontSize: '1.2rem', padding: '4px' }}
+                className="wizard-modal-close-btn"
+                aria-label="Закрыть"
               >
                 ✕
               </button>
@@ -482,7 +323,7 @@ export const Measurements: React.FC = () => {
             className="wizard-modal-box"
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="wizard-modal-header">
               <div>
                 <h2 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
                   ⚡ Экспресс-калькулятор натяжных потолков
@@ -494,8 +335,8 @@ export const Measurements: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsExpressCalcOpen(false)}
-                className="btn-icon"
-                style={{ fontSize: '1.2rem', padding: '4px' }}
+                className="wizard-modal-close-btn"
+                aria-label="Закрыть"
               >
                 ✕
               </button>
@@ -512,3 +353,4 @@ export const Measurements: React.FC = () => {
     </div>
   );
 };
+

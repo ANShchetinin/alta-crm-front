@@ -866,471 +866,398 @@ export const Employees = () => {
         description={!canManageEmployees ? 'Просмотр профиля и прав доступа сотрудника' : editingEmployee ? 'Редактирование профиля и прав доступа' : 'Создание нового сотрудника и настройка доступа'}
         size="md"
       >
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                
-                {/* Аватарка */}
-                <AvatarUpload
-                  label="Фотография сотрудника"
-                  name={formData.name}
-                  initialAvatarUrl={formData.avatarUrl || ''}
-                  onAvatarUrlChange={canManageEmployees ? handleAvatarChange : () => {}}
-                  fallbackIcon={<User size={30} />}
-                />
+        <form onSubmit={handleSubmit} className="employee-form-container">
+          {/* Аватарка */}
+          <AvatarUpload
+            label="Фотография сотрудника"
+            name={formData.name}
+            initialAvatarUrl={formData.avatarUrl || ''}
+            onAvatarUrlChange={canManageEmployees ? handleAvatarChange : () => {}}
+            fallbackIcon={<User size={30} />}
+          />
 
-                <div className="form-group">
-                  <label>{t('employees.modal.name') || 'ФИО'} <span style={{ color: 'var(--danger)' }}>*</span></label>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label>{t('employees.modal.name') || 'ФИО'} <span style={{ color: 'var(--danger)' }}>*</span></label>
+            <input 
+              type="text" 
+              required
+              disabled={!canManageEmployees}
+              placeholder="Иван Иванов"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+            />
+          </div>
+          
+          <div className="employee-form-grid-2">
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>{t('employees.modal.position') || 'Должность'}</label>
+              <input 
+                type="text" 
+                disabled={!canManageEmployees}
+                placeholder="Монтажник / Замерщик"
+                value={formData.position}
+                onChange={(e) => setFormData({...formData, position: e.target.value})}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>{t('employees.modal.phone') || 'Телефон'}</label>
+              <input 
+                type="text" 
+                disabled={!canManageEmployees}
+                placeholder="+7 (999) 000-00-00"
+                value={formData.phone}
+                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+              />
+            </div>
+          </div>
+
+          {/* Блок Паспортных данных сотрудника */}
+          <div className="employee-section-box">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <FileText size={16} style={{ color: '#38bdf8' }} />
+              <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Паспортные данные</span>
+            </div>
+
+            <div className="employee-form-grid-2">
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label style={{ fontSize: '0.8rem' }}>Серия и номер паспорта</label>
+                <input 
+                  type="text" 
+                  disabled={!canManageEmployees}
+                  placeholder="6305 123456"
+                  value={formData.passportSeriesNumber}
+                  onChange={(e) => setFormData({ ...formData, passportSeriesNumber: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label style={{ fontSize: '0.8rem' }}>Дата рождения</label>
+                <input 
+                  type="date" 
+                  disabled={!canManageEmployees}
+                  value={formData.birthDate}
+                  onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="employee-form-grid-2" style={{ marginTop: '12px' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label style={{ fontSize: '0.8rem' }}>Дата выдачи паспорта</label>
+                <input 
+                  type="date" 
+                  disabled={!canManageEmployees}
+                  value={formData.passportIssuedDate}
+                  onChange={(e) => setFormData({ ...formData, passportIssuedDate: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label style={{ fontSize: '0.8rem' }}>Код подразделения</label>
+                <input 
+                  type="text" 
+                  disabled={!canManageEmployees}
+                  placeholder="640-001"
+                  value={formData.passportDepartmentCode}
+                  onChange={(e) => setFormData({ ...formData, passportDepartmentCode: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginTop: '12px', marginBottom: 0 }}>
+              <label style={{ fontSize: '0.8rem' }}>Кем выдан паспорт</label>
+              <input 
+                type="text" 
+                disabled={!canManageEmployees}
+                placeholder="Отделом УФМС России по Саратовской обл."
+                value={formData.passportIssuedBy}
+                onChange={(e) => setFormData({ ...formData, passportIssuedBy: e.target.value })}
+              />
+            </div>
+
+            <div className="form-group" style={{ marginTop: '12px', marginBottom: 0 }}>
+              <label style={{ fontSize: '0.8rem' }}>Адрес регистрации (прописка)</label>
+              <textarea 
+                rows={2}
+                disabled={!canManageEmployees}
+                placeholder="г. Саратов, ул. Московская, д. 10, кв. 25"
+                value={formData.registrationAddress}
+                onChange={(e) => setFormData({ ...formData, registrationAddress: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--input-bg)',
+                  border: '1px solid var(--glass-border)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.875rem',
+                  resize: 'vertical',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Блок Учетной записи в CRM */}
+          <div className="employee-section-box access">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: formData.hasAccount ? '14px' : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Key size={17} style={{ color: '#818cf8' }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Доступ в CRM</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Вход сотрудника в систему с выбранной ролью и правами</div>
+                </div>
+              </div>
+              <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: canManageEmployees ? 'pointer' : 'default' }}>
+                <input 
+                  type="checkbox" 
+                  disabled={!canManageEmployees}
+                  checked={formData.hasAccount} 
+                  onChange={(e) => setFormData({ ...formData, hasAccount: e.target.checked })}
+                  style={{ width: '18px', height: '18px', cursor: canManageEmployees ? 'pointer' : 'default' }}
+                />
+              </label>
+            </div>
+
+            {formData.hasAccount && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--glass-border)' }}>
+                {/* Выбор системной роли */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Роль сотрудника в системе <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <div className="employee-role-selector">
+                    <button
+                      type="button"
+                      disabled={!canManageEmployees}
+                      onClick={() => setFormData({ ...formData, role: 'WORKER' })}
+                      className={`employee-role-card ${formData.role === 'WORKER' ? 'active-worker' : ''}`}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', color: formData.role === 'WORKER' ? 'var(--primary, #6366f1)' : 'var(--text-primary)' }}>
+                        Исполнитель
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.3 }}>
+                        Монтажник / замерщик (видит только назначенные заявки)
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!canManageEmployees}
+                      onClick={() => setFormData({ ...formData, role: 'MANAGER' })}
+                      className={`employee-role-card ${formData.role === 'MANAGER' ? 'active-manager' : ''}`}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', color: formData.role === 'MANAGER' ? '#0284c7' : 'var(--text-primary)' }}>
+                        Менеджер
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.3 }}>
+                        Полный доступ к клиентам, заказам, материалам и статусам
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.8rem' }}>Email для входа (Логин) <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input 
-                    type="text" 
-                    required
+                    type="email" 
                     disabled={!canManageEmployees}
-                    placeholder="Иван Иванов"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    required={formData.hasAccount}
+                    placeholder="worker@company.ru"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
                 </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="form-group">
-                    <label>{t('employees.modal.position') || 'Должность'}</label>
-                    <input 
-                      type="text" 
-                      disabled={!canManageEmployees}
-                      placeholder="Монтажник / Замерщик"
-                      value={formData.position}
-                      onChange={(e) => setFormData({...formData, position: e.target.value})}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>{t('employees.modal.phone') || 'Телефон'}</label>
-                    <input 
-                      type="text" 
-                      disabled={!canManageEmployees}
-                      placeholder="+7 (999) 000-00-00"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                {/* Блок Паспортных данных сотрудника */}
-                <div style={{
-                  marginTop: '16px',
-                  padding: '16px',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-md)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                    <FileText size={16} style={{ color: '#38bdf8' }} />
-                    <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Паспортные данные</span>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.8rem' }}>Серия и номер паспорта</label>
-                      <input 
-                        type="text" 
-                        disabled={!canManageEmployees}
-                        placeholder="6305 123456"
-                        value={formData.passportSeriesNumber}
-                        onChange={(e) => setFormData({ ...formData, passportSeriesNumber: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.8rem' }}>Дата рождения</label>
-                      <input 
-                        type="date" 
-                        disabled={!canManageEmployees}
-                        value={formData.birthDate}
-                        onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.8rem' }}>Дата выдачи паспорта</label>
-                      <input 
-                        type="date" 
-                        disabled={!canManageEmployees}
-                        value={formData.passportIssuedDate}
-                        onChange={(e) => setFormData({ ...formData, passportIssuedDate: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.8rem' }}>Код подразделения</label>
-                      <input 
-                        type="text" 
-                        disabled={!canManageEmployees}
-                        placeholder="640-001"
-                        value={formData.passportDepartmentCode}
-                        onChange={(e) => setFormData({ ...formData, passportDepartmentCode: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group" style={{ marginTop: '12px', marginBottom: 0 }}>
-                    <label style={{ fontSize: '0.8rem' }}>Кем выдан паспорт</label>
-                    <input 
-                      type="text" 
-                      disabled={!canManageEmployees}
-                      placeholder="Отделом УФМС России по Саратовской обл."
-                      value={formData.passportIssuedBy}
-                      onChange={(e) => setFormData({ ...formData, passportIssuedBy: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginTop: '12px', marginBottom: 0 }}>
-                    <label style={{ fontSize: '0.8rem' }}>Адрес регистрации (прописка)</label>
-                    <textarea 
-                      rows={2}
-                      disabled={!canManageEmployees}
-                      placeholder="г. Саратов, ул. Московская, д. 10, кв. 25"
-                      value={formData.registrationAddress}
-                      onChange={(e) => setFormData({ ...formData, registrationAddress: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid var(--glass-border)',
-                        color: 'var(--text-main)',
-                        fontSize: '0.875rem',
-                        resize: 'vertical',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Блок Учетной записи в CRM */}
-                <div style={{
-                  marginTop: '18px',
-                  padding: '16px',
-                  background: 'rgba(99, 102, 241, 0.05)',
-                  border: '1px solid rgba(99, 102, 241, 0.2)',
-                  borderRadius: 'var(--radius-md)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: formData.hasAccount ? '14px' : 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Key size={17} style={{ color: '#818cf8' }} />
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Доступ в CRM</div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Вход сотрудника в систему с выбранной ролью и правами</div>
-                      </div>
-                    </div>
-                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: canManageEmployees ? 'pointer' : 'default' }}>
-                      <input 
-                        type="checkbox" 
-                        disabled={!canManageEmployees}
-                        checked={formData.hasAccount} 
-                        onChange={(e) => setFormData({ ...formData, hasAccount: e.target.checked })}
-                        style={{ width: '18px', height: '18px', cursor: canManageEmployees ? 'pointer' : 'default' }}
-                      />
-                    </label>
-                  </div>
-
-                  {formData.hasAccount && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                      {/* Выбор системной роли */}
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Роль сотрудника в системе <span style={{ color: 'var(--danger)' }}>*</span></label>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px' }}>
-                          <button
-                            type="button"
-                            disabled={!canManageEmployees}
-                            onClick={() => setFormData({ ...formData, role: 'WORKER' })}
-                            style={{
-                              padding: '10px 12px',
-                              borderRadius: '8px',
-                              textAlign: 'left',
-                              border: formData.role === 'WORKER' ? '2px solid var(--primary, #6366f1)' : '1px solid var(--glass-border)',
-                              background: formData.role === 'WORKER' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                              color: 'var(--text-main)',
-                              cursor: canManageEmployees ? 'pointer' : 'default',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: formData.role === 'WORKER' ? '#a5b4fc' : 'var(--text-main)' }}>
-                              Исполнитель
-                            </div>
-                            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.3 }}>
-                              Монтажник / замерщик (видит только назначенные заявки)
-                            </div>
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={!canManageEmployees}
-                            onClick={() => setFormData({ ...formData, role: 'MANAGER' })}
-                            style={{
-                              padding: '10px 12px',
-                              borderRadius: '8px',
-                              textAlign: 'left',
-                              border: formData.role === 'MANAGER' ? '2px solid #38bdf8' : '1px solid var(--glass-border)',
-                              background: formData.role === 'MANAGER' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                              color: 'var(--text-main)',
-                              cursor: canManageEmployees ? 'pointer' : 'default',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: formData.role === 'MANAGER' ? '#38bdf8' : 'var(--text-main)' }}>
-                              Менеджер
-                            </div>
-                            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.3 }}>
-                              Полный доступ к клиентам, заказам, материалам и статусам
-                            </div>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ fontSize: '0.8rem' }}>Email для входа (Логин) <span style={{ color: 'var(--danger)' }}>*</span></label>
-                        <input 
-                          type="email" 
-                          disabled={!canManageEmployees}
-                          required={formData.hasAccount}
-                          placeholder="worker@company.ru"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        />
-                      </div>
-                      {canManageEmployees && (
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label style={{ fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{editingEmployee?.hasAccount ? 'Новый пароль (опционально)' : 'Пароль учетной записи *'}</span>
-                          </label>
-                          <div style={{ position: 'relative' }}>
-                            <input 
-                              type={showPassword ? 'text' : 'password'}
-                              required={formData.hasAccount && !editingEmployee?.hasAccount}
-                              placeholder={editingEmployee?.hasAccount ? 'Оставьте пустым, чтобы не менять' : 'Минимум 6 символов'}
-                              value={formData.password}
-                              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                              style={{ paddingRight: '40px' }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              style={{
-                                position: 'absolute',
-                                right: '10px',
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                background: 'transparent',
-                                border: 'none',
-                                color: 'var(--text-muted)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center'
-                              }}
-                            >
-                              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Блок разрешенных статусов заявок */}
-                <div style={{
-                  marginTop: '16px',
-                  padding: '16px',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-md)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <Shield size={16} style={{ color: '#60a5fa' }} />
-                    <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Разрешенные статусы Канбана</span>
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                    Выберите статусы/колонки, которые будут видны сотруднику. Если ничего не выбрано, сотрудник увидит заявки во всех статусах, где он назначен.
-                  </div>
-
-                  {statuses.length === 0 ? (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Статусы заявок не найдены</div>
-                  ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      {statuses.map(status => {
-                        const isSelected = formData.allowedStatusIds.includes(status.id);
-                        return (
-                          <div 
-                            key={status.id}
-                            onClick={() => canManageEmployees && toggleStatusSelection(status.id)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              padding: '8px 10px',
-                              borderRadius: '8px',
-                              background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                              border: isSelected ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
-                              cursor: canManageEmployees ? 'pointer' : 'default',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            {isSelected ? (
-                              <CheckSquare size={16} style={{ color: '#60a5fa', flexShrink: 0 }} />
-                            ) : (
-                              <Square size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                            )}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
-                              <span 
-                                style={{ 
-                                  width: '8px', 
-                                  height: '8px', 
-                                  borderRadius: '50%', 
-                                  background: status.color || '#6366f1',
-                                  flexShrink: 0 
-                                }} 
-                              />
-                              <span style={{ fontSize: '0.82rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {status.name}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Блок Доступа к разделу Финансы */}
-                <div style={{
-                  marginTop: '16px',
-                  padding: '16px',
-                  background: 'rgba(34, 197, 94, 0.05)',
-                  border: '1px solid rgba(34, 197, 94, 0.2)',
-                  borderRadius: 'var(--radius-md)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <Wallet size={18} style={{ color: '#4ade80', flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Доступ к разделу «Финансы»</div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Разрешить сотруднику просмотр кассы, оплат, дебиторки и расходов</div>
-                      </div>
-                    </div>
-                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: canManageEmployees ? 'pointer' : 'default' }}>
-                      <input 
-                        type="checkbox" 
-                        disabled={!canManageEmployees}
-                        checked={formData.canViewFinances} 
-                        onChange={(e) => setFormData({ ...formData, canViewFinances: e.target.checked })}
-                        style={{ width: '18px', height: '18px', cursor: canManageEmployees ? 'pointer' : 'default' }}
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Блок Доступа к разделу Замеры */}
-                <div style={{
-                  marginTop: '16px',
-                  padding: '16px',
-                  background: 'rgba(99, 102, 241, 0.05)',
-                  border: '1px solid rgba(99, 102, 241, 0.2)',
-                  borderRadius: 'var(--radius-md)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <Ruler size={18} style={{ color: '#818cf8', flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Доступ к разделу «Замеры»</div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Разрешить сотруднику доступ к модулю замеров и расчету сметы</div>
-                      </div>
-                    </div>
-                    <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: canManageEmployees ? 'pointer' : 'default' }}>
-                      <input 
-                        type="checkbox" 
-                        disabled={!canManageEmployees}
-                        checked={formData.canAccessMeasurements} 
-                        onChange={(e) => setFormData({ ...formData, canAccessMeasurements: e.target.checked })}
-                        style={{ width: '18px', height: '18px', cursor: canManageEmployees ? 'pointer' : 'default' }}
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Блок Выбора компаний/филиалов сотрудника */}
-                {myTenants.length > 1 && (
-                  <div style={{
-                    marginTop: '16px',
-                    padding: '16px',
-                    background: 'rgba(59, 130, 246, 0.05)',
-                    border: '1px solid rgba(59, 130, 246, 0.2)',
-                    borderRadius: 'var(--radius-md)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                      <Building2 size={18} style={{ color: '#60a5fa' }} />
-                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>Доступ к компаниям / филиалам</div>
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                      Сотрудник сможет работать с заявками в выбранных компаниях
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      {myTenants.map(t => {
-                        const isChecked = formData.allowedTenantIds.includes(t.tenantId);
-                        return (
-                          <div
-                            key={t.tenantId}
-                            onClick={() => {
-                              if (!canManageEmployees) return;
-                              const next = isChecked
-                                ? formData.allowedTenantIds.filter(id => id !== t.tenantId)
-                                : [...formData.allowedTenantIds, t.tenantId];
-                              setFormData({
-                                ...formData,
-                                allowedTenantIds: next.length ? next : [t.tenantId]
-                              });
-                            }}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              padding: '8px 10px',
-                              borderRadius: '8px',
-                              background: isChecked ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                              border: isChecked ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
-                              cursor: canManageEmployees ? 'pointer' : 'default',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            {isChecked ? (
-                              <CheckSquare size={16} style={{ color: '#60a5fa', flexShrink: 0 }} />
-                            ) : (
-                              <Square size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                            )}
-                            <span style={{ fontSize: '0.82rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {t.name}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--glass-border)' }}>
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)}
-                  className="btn btn-ghost"
-                >
-                  {canManageEmployees ? (t('employees.modal.cancel') || 'Отмена') : 'Закрыть'}
-                </button>
                 {canManageEmployees && (
-                  <button type="submit" className="btn btn-primary">
-                    {t('employees.modal.save') || 'Сохранить'}
-                  </button>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>{editingEmployee?.hasAccount ? 'Новый пароль (опционально)' : 'Пароль учетной записи *'}</span>
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        type={showPassword ? 'text' : 'password'}
+                        required={formData.hasAccount && !editingEmployee?.hasAccount}
+                        placeholder={editingEmployee?.hasAccount ? 'Оставьте пустым, чтобы не менять' : 'Минимум 6 символов'}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        style={{ paddingRight: '40px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
-            </form>
+            )}
+          </div>
+
+          {/* Блок разрешенных статусов заявок */}
+          <div className="employee-section-box">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <Shield size={16} style={{ color: '#60a5fa' }} />
+              <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Разрешенные статусы Канбана</span>
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+              Выберите статусы/колонки, которые будут видны сотруднику. Если ничего не выбрано, сотрудник увидит заявки во всех статусах, где он назначен.
+            </div>
+
+            {statuses.length === 0 ? (
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Статусы заявок не найдены</div>
+            ) : (
+              <div className="employee-status-grid">
+                {statuses.map(status => {
+                  const isSelected = formData.allowedStatusIds.includes(status.id);
+                  return (
+                    <div 
+                      key={status.id}
+                      onClick={() => canManageEmployees && toggleStatusSelection(status.id)}
+                      className={`employee-checkbox-item ${isSelected ? 'selected' : ''}`}
+                      style={{ cursor: canManageEmployees ? 'pointer' : 'default' }}
+                    >
+                      {isSelected ? (
+                        <CheckSquare size={16} style={{ color: '#3b82f6', flexShrink: 0 }} />
+                      ) : (
+                        <Square size={16} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
+                        <span 
+                          style={{ 
+                            width: '8px', 
+                            height: '8px', 
+                            borderRadius: '50%', 
+                            background: status.color || '#6366f1',
+                            flexShrink: 0 
+                          }} 
+                        />
+                        <span style={{ fontSize: '0.82rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {status.name}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Блок Доступа к разделу Финансы */}
+          <div className="employee-section-box finances">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Wallet size={18} style={{ color: '#4ade80', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Доступ к разделу «Финансы»</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Разрешить сотруднику просмотр кассы, оплат, дебиторки и расходов</div>
+                </div>
+              </div>
+              <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: canManageEmployees ? 'pointer' : 'default' }}>
+                <input 
+                  type="checkbox" 
+                  disabled={!canManageEmployees}
+                  checked={formData.canViewFinances} 
+                  onChange={(e) => setFormData({ ...formData, canViewFinances: e.target.checked })}
+                  style={{ width: '18px', height: '18px', cursor: canManageEmployees ? 'pointer' : 'default' }}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Блок Доступа к разделу Замеры */}
+          <div className="employee-section-box access">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Ruler size={18} style={{ color: '#818cf8', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Доступ к разделу «Замеры»</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Разрешить сотруднику доступ к модулю замеров и расчету сметы</div>
+                </div>
+              </div>
+              <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: canManageEmployees ? 'pointer' : 'default' }}>
+                <input 
+                  type="checkbox" 
+                  disabled={!canManageEmployees}
+                  checked={formData.canAccessMeasurements} 
+                  onChange={(e) => setFormData({ ...formData, canAccessMeasurements: e.target.checked })}
+                  style={{ width: '18px', height: '18px', cursor: canManageEmployees ? 'pointer' : 'default' }}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Блок Выбора компаний/филиалов сотрудника */}
+          {myTenants.length > 1 && (
+            <div className="employee-section-box tenants">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <Building2 size={18} style={{ color: '#60a5fa' }} />
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Доступ к компаниям / филиалам</div>
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                Сотрудник сможет работать с заявками в выбранных компаниях
+              </div>
+
+              <div className="employee-tenant-grid">
+                {myTenants.map(t => {
+                  const isChecked = formData.allowedTenantIds.includes(t.tenantId);
+                  return (
+                    <div
+                      key={t.tenantId}
+                      onClick={() => {
+                        if (!canManageEmployees) return;
+                        const next = isChecked
+                          ? formData.allowedTenantIds.filter(id => id !== t.tenantId)
+                          : [...formData.allowedTenantIds, t.tenantId];
+                        setFormData({
+                          ...formData,
+                          allowedTenantIds: next.length ? next : [t.tenantId]
+                        });
+                      }}
+                      className={`employee-checkbox-item ${isChecked ? 'selected' : ''}`}
+                      style={{ cursor: canManageEmployees ? 'pointer' : 'default' }}
+                    >
+                      {isChecked ? (
+                        <CheckSquare size={16} style={{ color: '#3b82f6', flexShrink: 0 }} />
+                      ) : (
+                        <Square size={16} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+                      )}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {t.name}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="employee-modal-footer">
+            <button 
+              type="button" 
+              onClick={() => setIsModalOpen(false)}
+              className="btn btn-ghost"
+            >
+              {canManageEmployees ? (t('employees.modal.cancel') || 'Отмена') : 'Закрыть'}
+            </button>
+            {canManageEmployees && (
+              <button type="submit" className="btn btn-primary">
+                {t('employees.modal.save') || 'Сохранить'}
+              </button>
+            )}
+          </div>
+        </form>
       </Sheet>
     </div>
   );

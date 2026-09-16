@@ -25,6 +25,7 @@ import {
 import { getActiveEstimationServices, type EstimationService, type EstimationServiceSlot } from '../api/estimationServices';
 import { toast } from '../utils/toast';
 import { SearchSelect, type SearchSelectOption } from './SearchSelect';
+import '../styles/measurements.css';
 
 interface MeasurementWizardProps {
   orderId?: number;
@@ -523,16 +524,9 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   }));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
       {/* 1. Навигация по комнатам (Табы) */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        overflowX: 'auto',
-        paddingBottom: '4px',
-        scrollbarWidth: 'none'
-      }}>
+      <div className="wizard-room-tabs-bar">
         {rooms.map((room, idx) => {
           const isActive = idx === activeRoomIdx;
           return (
@@ -540,22 +534,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
               key={idx}
               type="button"
               onClick={() => setActiveRoomIdx(idx)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 14px',
-                borderRadius: 'var(--radius-md)',
-                background: isActive ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))' : 'var(--chip-bg, rgba(255, 255, 255, 0.04))',
-                color: isActive ? '#ffffff' : 'var(--text-primary)',
-                border: '1px solid ' + (isActive ? 'var(--accent-primary)' : 'var(--glass-border)'),
-                fontWeight: isActive ? 600 : 500,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease',
-                boxShadow: isActive ? '0 4px 12px var(--accent-glow)' : 'none'
-              }}
+              className={`wizard-room-tab-btn ${isActive ? 'active' : ''}`}
             >
               <span>{room.roomName || `Помещение ${idx + 1}`}</span>
               <span style={{
@@ -590,7 +569,8 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
             cursor: 'pointer',
             whiteSpace: 'nowrap',
             flexShrink: 0,
-            fontWeight: 500
+            fontWeight: 500,
+            minHeight: '40px'
           }}
         >
           <Plus size={15} /> Добавить
@@ -598,23 +578,14 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       </div>
 
       {/* Быстрые пресеты для добавления комнат */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+      <div className="wizard-presets-row">
         <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Шаблоны:</span>
         {PRESET_ROOMS.map(preset => (
           <button
             key={preset}
             type="button"
             onClick={() => addRoom(preset)}
-            style={{
-              fontSize: '0.76rem',
-              padding: '3px 9px',
-              borderRadius: '6px',
-              background: 'var(--chip-bg, rgba(255, 255, 255, 0.04))',
-              border: '1px solid var(--glass-border)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
+            className="wizard-preset-chip"
           >
             + {preset}
           </button>
@@ -629,11 +600,12 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           padding: '18px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '18px'
+          gap: '18px',
+          boxSizing: 'border-box'
         }}>
           {/* Название помещения и кнопка удаления */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-            <div style={{ flex: 1, maxWidth: '320px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '200px', maxWidth: '340px' }}>
               <input
                 type="text"
                 value={currentRoom.roomName}
@@ -666,7 +638,8 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                   gap: '6px',
                   cursor: 'pointer',
                   fontSize: '0.82rem',
-                  fontWeight: 500
+                  fontWeight: 500,
+                  minHeight: '38px'
                 }}
                 title="Удалить это помещение"
               >
@@ -733,20 +706,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { extraCorners: Math.max(0, (currentRoom.extraCorners || 0) - 1) })}
-                    style={{
-                      width: '46px',
-                      minWidth: '46px',
-                      flexShrink: 0,
-                      height: '100%',
-                      background: 'var(--row-hover-bg)',
-                      border: 'none',
-                      color: 'var(--text-primary)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      touchAction: 'manipulation'
-                    }}
+                    className="wizard-stepper-btn"
                   >
                     <Minus size={18} />
                   </button>
@@ -773,20 +733,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                   <button
                     type="button"
                     onClick={() => updateRoom(activeRoomIdx, { extraCorners: (currentRoom.extraCorners || 0) + 1 })}
-                    style={{
-                      width: '46px',
-                      minWidth: '46px',
-                      flexShrink: 0,
-                      height: '100%',
-                      background: 'var(--row-hover-bg)',
-                      border: 'none',
-                      color: 'var(--text-primary)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      touchAction: 'manipulation'
-                    }}
+                    className="wizard-stepper-btn"
                   >
                     <Plus size={18} />
                   </button>
@@ -798,7 +745,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
           {/* 2. ПАКЕТЫ РАБОТ И КОМПЛЕКТАЦИЯ (Быстрое добавление пакетов в смету комнаты) */}
           {estimationServices.length > 0 && (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
                 <div style={sectionHeaderStyle}>
                   <Layers size={15} style={{ color: 'var(--accent-primary)' }} />
                   Виды работ и комплектация
@@ -808,7 +755,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                 </span>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <div className="wizard-services-grid">
                 {estimationServices.map(svc => {
                   const active = isServiceActiveInRoom(svc);
                   return (
@@ -816,26 +763,10 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                       key={svc.id}
                       type="button"
                       onClick={() => toggleGlobalServiceInRoom(svc)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 16px',
-                        borderRadius: '24px',
-                        background: active 
-                          ? 'linear-gradient(135deg, #0ea5e9, #3b82f6)' 
-                          : 'var(--chip-bg, rgba(255, 255, 255, 0.04))',
-                        color: active ? '#ffffff' : 'var(--text-primary)',
-                        border: '1px solid ' + (active ? '#38bdf8' : 'var(--glass-border)'),
-                        cursor: 'pointer',
-                        fontSize: '0.88rem',
-                        fontWeight: active ? 600 : 500,
-                        transition: 'all 0.2s ease',
-                        boxShadow: active ? '0 4px 14px rgba(14, 165, 233, 0.4)' : 'none'
-                      }}
+                      className={`wizard-service-chip ${active ? 'active' : ''}`}
                     >
                       {active ? <Check size={16} /> : <Plus size={16} style={{ opacity: 0.6 }} />}
-                      {svc.name}
+                      <span>{svc.name}</span>
                       <span style={{
                         fontSize: '0.72rem',
                         opacity: 0.85,
@@ -881,39 +812,19 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       </div>
 
       {/* 3. Плавающий блок итогов и ИНТЕРАКТИВНАЯ ТАБЛИЦА СМЕТЫ */}
-      <div style={{
-        background: 'var(--wizard-summary-gradient)',
-        border: '1px solid var(--wizard-summary-border)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '18px 20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '14px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+      <div className="wizard-summary-box">
+        <div className="wizard-summary-top">
           <div>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 600 }}>
               ИТОГОВАЯ СМЕТА
             </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#16a34a', letterSpacing: '-0.5px' }}>
+            <div className="wizard-summary-price">
               {effectiveTotalSalePrice.toLocaleString('ru-RU')} ₽
             </div>
           </div>
 
           {/* Сводка геометрии */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            fontSize: '0.86rem',
-            color: 'var(--text-secondary)',
-            background: 'var(--wizard-stat-bg)',
-            border: '1px solid var(--glass-border)',
-            padding: '8px 14px',
-            borderRadius: '8px',
-            flexWrap: 'wrap'
-          }}>
+          <div className="wizard-stat-pill">
             <div>
               <span>Общая площадь: </span>
               <strong style={{ color: 'var(--text-primary)' }}>{totalArea} м²</strong>
@@ -930,16 +841,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
           {/* Финансовые показатели (только для canViewFinances) */}
           {canViewFinances && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              background: 'var(--wizard-stat-bg)',
-              border: '1px solid var(--glass-border)',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              fontSize: '0.84rem'
-            }}>
+            <div className="wizard-stat-pill" style={{ fontSize: '0.84rem' }}>
               <div>
                 <span style={{ color: 'var(--text-secondary)' }}>Себестоимость: </span>
                 <strong style={{ color: 'var(--text-primary)' }}>{effectiveTotalCostPrice.toLocaleString('ru-RU')} ₽</strong>
