@@ -51,20 +51,39 @@ export function parseLocalDateTime(dateStr: string | Date | null | undefined): D
 }
 
 /**
- * Парсит дату из строки от бэкенда.
+ * Парсит дату и время реального события (UTC timestamp или локальная дата) из строки от бэкенда.
+ * Если передан ISO UTC timestamp (с Z или смещением), преобразует его в локальное время браузера пользователя.
  */
-export function parseUtcDate(dateStr: string | null | undefined): Date | null {
-  return parseLocalDateTime(dateStr);
+export function parseUtcDate(dateStr: string | Date | null | undefined): Date | null {
+  if (!dateStr) return null;
+  if (dateStr instanceof Date) {
+    return isNaN(dateStr.getTime()) ? null : new Date(dateStr.getTime());
+  }
+  const str = String(dateStr).trim();
+  if (!str) return null;
+
+  // Если строка явно содержит Z или смещение часового пояса (+03:00, -04:00 и т.д.)
+  if (str.endsWith('Z') || str.includes('+') || (str.length > 19 && str.lastIndexOf('-') > 10)) {
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Если строка без часового пояса, парсим как локальное время
+  return parseLocalDateTime(str);
 }
 
 /**
- * Форматирует относительное время (например, "только что", "5 мин назад", "2 ч назад").
+ * Форматирует относительное время (например, "только что", "5 мин назад", "2 ч назад")
+ * относительно локального времени пользователя.
  */
-export function formatTimeAgo(dateStr: string | null | undefined, _timeZone = 'Europe/Moscow'): string {
-  const date = parseLocalDateTime(dateStr);
+export function formatTimeAgo(dateStr: string | Date | null | undefined, _timeZone = 'Europe/Moscow'): string {
+  const date = parseUtcDate(dateStr);
   if (!date) return '';
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
+  if (diffMs < 0 && diffMs > -60000) {
+    return 'только что';
+  }
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMins / 60);
 
@@ -81,13 +100,24 @@ export function formatTimeAgo(dateStr: string | null | undefined, _timeZone = 'E
 
 /**
  * Форматирует дату и время (например: "10.09.2026, 13:30").
+ * Для UTC-строк (с Z или смещением) преобразует в локальное время пользователя.
  */
 export function formatDateTime(
   dateStr: string | Date | null | undefined,
   options?: Intl.DateTimeFormatOptions
 ): string {
   if (!dateStr) return '';
-  const date = parseLocalDateTime(dateStr);
+  let date: Date | null;
+  if (dateStr instanceof Date) {
+    date = isNaN(dateStr.getTime()) ? null : dateStr;
+  } else {
+    const str = String(dateStr).trim();
+    if (str.endsWith('Z') || str.includes('+') || (str.length > 19 && str.lastIndexOf('-') > 10)) {
+      date = parseUtcDate(str);
+    } else {
+      date = parseLocalDateTime(str);
+    }
+  }
   if (!date) return '';
 
   if (options) {
@@ -234,14 +264,14 @@ export function formatLastSeen(
     return { text: 'Был(а) давно', isOnline: false, hasAccount: true };
   }
 
-  const date = parseLocalDateTime(lastActiveAt);
+  const date = parseUtcDate(lastActiveAt);
   if (!date) {
     return { text: 'Был(а) давно', isOnline: false, hasAccount: true };
   }
 
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
+  const diffMins = diffMs < 0 && diffMs > -60000 ? 0 : Math.floor(diffMs / 60000);
 
   if (diffMins < 1) {
     return { text: 'Был(а) только что', isOnline: false, hasAccount: true };
