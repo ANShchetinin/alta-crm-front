@@ -193,7 +193,7 @@ function App() {
               <Route path="reports" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="REPORTS"><Reports /></FeatureRoute></RoleRoute>} />
               <Route path="site-analytics" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="EXIT_INTENT_ANALYTICS"><ExitIntentStats /></FeatureRoute></RoleRoute>} />
               <Route path="exit-intent-stats" element={<Navigate to="/site-analytics" replace />} />
-              <Route path="contract-templates" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="CONTRACT_TEMPLATES"><ContractTemplates /></FeatureRoute></RoleRoute>} />
+              <Route path="contract-templates" element={<RoleRoute allowedRoles={['OWNER']}><FeatureRoute feature="CONTRACT_TEMPLATES"><ContractTemplates /></FeatureRoute></RoleRoute>} />
               <Route path="settings" element={<RoleRoute allowedRoles={['OWNER']}><Settings /></RoleRoute>} />
               <Route path="audit-logs" element={<RoleRoute allowedRoles={['OWNER']}><AuditLogs /></RoleRoute>} />
             </Route>

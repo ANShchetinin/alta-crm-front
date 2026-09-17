@@ -669,7 +669,7 @@ const DashboardLayout = () => {
                   <span>{t('nav.siteAnalytics') || 'Аналитика сайта'}</span>
                 </NavLink>
               )}
-              {hasContractTemplates && (
+              {hasContractTemplates && role === 'OWNER' && (
                 <NavLink to="/contract-templates" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <FileText size={20} />
                   <span>Шаблоны договоров</span>
