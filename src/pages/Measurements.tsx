@@ -187,7 +187,7 @@ export const Measurements: React.FC = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                   <div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                      Заявка #{order.id} {order.orderNumber ? `• ${order.orderNumber}` : ''}
+                      Заказ #{order.id} {order.orderNumber ? `• ${order.orderNumber}` : ''}
                     </div>
                     <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                       {order.clientName || 'Клиент без имени'}

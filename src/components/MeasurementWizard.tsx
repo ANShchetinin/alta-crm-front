@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Plus,
@@ -30,6 +30,13 @@ import '../styles/measurements.css';
 interface MeasurementWizardProps {
   orderId?: number;
   materials?: Material[];
+  initialContractParams?: {
+    area?: string | number;
+    perimeter?: string | number;
+    lightsCount?: string | number;
+    pipeCount?: string | number;
+    canvasArticle?: string;
+  };
   canViewFinances: boolean;
   onSaved?: (savedMeasurement: MeasurementDto, calculated: MeasurementCalculateResponse) => void;
   onDownloadDocx?: () => void;
@@ -50,6 +57,7 @@ const PRESET_ROOMS = [
 export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   orderId,
   materials = [],
+  initialContractParams,
   canViewFinances,
   onSaved,
   onDownloadDocx
@@ -70,6 +78,9 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     }
   }, [materials]);
 
+  const initialContractParamsRef = useRef(initialContractParams);
+  initialContractParamsRef.current = initialContractParams;
+
   const [rooms, setRooms] = useState<MeasurementRoomDto[]>([]);
   const [notes, setNotes] = useState<string>('');
   const [activeRoomIdx, setActiveRoomIdx] = useState<number>(0);
@@ -86,7 +97,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   const [isAddMaterialModalOpen, setIsAddMaterialModalOpen] = useState<boolean>(false);
   const [selectedAddMaterialId, setSelectedAddMaterialId] = useState<number | ''>('');
 
-  // Загрузка услуг и сохраненной сметы
+  // Загрузка услуг и сохраненной сметы (выполняется только при смене orderId)
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
@@ -100,13 +111,13 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
 
       const targetRooms = (dto && dto.rooms && dto.rooms.length > 0)
         ? dto.rooms
-        : [createDefaultRoom('Гостиная')];
+        : [createDefaultRoom('Гостиная', true)];
 
       setRooms(targetRooms);
       setNotes(dto?.notes || '');
 
       // Если у замера уже сохранены точные позиции сметы, восстанавливаем их.
-      // Изначально для новой заявки/замера смета пустая, пока пользователь не нажмет на чипсу услуги.
+      // Изначально для нового заказа/замера смета пустая, пока пользователь не нажмет на чипсу услуги.
       let calculatedItems: MeasurementCalculationItemDto[] = [];
       if (dto && dto.items && dto.items.length > 0) {
         calculatedItems = dto.items;
@@ -119,7 +130,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     }).catch(err => {
       console.error('Ошибка инициализации замера:', err);
       if (isMounted) {
-        setRooms([createDefaultRoom('Гостиная')]);
+        setRooms([createDefaultRoom('Гостиная', true)]);
         setLoading(false);
       }
     });
@@ -127,7 +138,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [orderId, materials]);
+  }, [orderId]);
 
   // Фикс iOS Safari / Webkit: при скрытии клавиатуры восстанавливаем скролл окна
   useEffect(() => {
@@ -149,19 +160,33 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
     return () => window.removeEventListener('focusout', handleFocusOut);
   }, []);
 
-  function createDefaultRoom(name: string): MeasurementRoomDto {
+  function createDefaultRoom(name: string, isFirstRoom: boolean = false): MeasurementRoomDto {
+    const initParams = initialContractParamsRef.current;
+    const parsedArea = isFirstRoom && initParams?.area 
+      ? parseFloat(String(initParams.area).replace(',', '.')) 
+      : 0;
+    const parsedPerimeter = isFirstRoom && initParams?.perimeter 
+      ? parseFloat(String(initParams.perimeter).replace(',', '.')) 
+      : 0;
+    const parsedLights = isFirstRoom && initParams?.lightsCount 
+      ? parseInt(String(initParams.lightsCount), 10) 
+      : 0;
+    const parsedPipes = isFirstRoom && initParams?.pipeCount 
+      ? parseInt(String(initParams.pipeCount), 10) 
+      : 0;
+
     return {
       roomName: name,
-      area: 15,
-      perimeter: 16,
+      area: !isNaN(parsedArea) && parsedArea > 0 ? parsedArea : 0,
+      perimeter: !isNaN(parsedPerimeter) && parsedPerimeter > 0 ? parsedPerimeter : 0,
       height: 2.7,
       baseCorners: 4,
       extraCorners: 0,
-      lightsCount: 0,
+      lightsCount: !isNaN(parsedLights) && parsedLights > 0 ? parsedLights : 0,
       chandeliersCount: 0,
       tracksLength: 0,
       corniceLength: 0,
-      pipesCount: 0,
+      pipesCount: !isNaN(parsedPipes) && parsedPipes > 0 ? parsedPipes : 0,
       tileLength: 0,
       slotSelections: []
     };
@@ -209,9 +234,9 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
         const waste = slot.wasteCoefficient || 1.0;
 
         if (slot.calculationBasis === 'AREA') {
-          quantity = Math.round((currentRoom.area || 15) * waste * 100) / 100;
+          quantity = Math.round((currentRoom.area || 0) * waste * 100) / 100;
         } else if (slot.calculationBasis === 'PERIMETER') {
-          quantity = Math.round((currentRoom.perimeter || 16) * waste * 100) / 100;
+          quantity = Math.round((currentRoom.perimeter || 0) * waste * 100) / 100;
         } else if (slot.calculationBasis === 'COUNT' || slot.calculationBasis === 'LENGTH') {
           quantity = 1;
         }

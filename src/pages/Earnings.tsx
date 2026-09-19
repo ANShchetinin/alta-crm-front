@@ -144,7 +144,7 @@ export const Earnings: React.FC = () => {
             Мой заработок
           </h1>
           <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Начисления за выполненные монтажи по завершенным заявкам
+            Начисления за выполненные монтажи по завершенным заказам
           </p>
         </div>
 

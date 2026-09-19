@@ -289,11 +289,11 @@ export const Archive = () => {
         ...selectedOrder,
         statusId: targetStatusId
       });
-      toast.success('Заявка успешно возвращена на Канбан-доску');
+      toast.success('Заказ успешно возвращен на Канбан-доску');
       handleCloseDetail();
       fetchData();
     } catch (err: any) {
-      toast.error('Ошибка при возврате заявки: ' + (err.response?.data?.message || err.message));
+      toast.error('Ошибка при возврате заказа: ' + (err.response?.data?.message || err.message));
     } finally {
       setActionLoading(false);
     }
@@ -302,8 +302,8 @@ export const Archive = () => {
   const handleDeleteOrder = async (orderId: number, orderNumber?: string | null) => {
     const label = orderNumber || `№${orderId}`;
     const ok = await confirm({
-      title: 'Удаление заявки',
-      message: `Вы уверены, что хотите безвозвратно удалить заявку ${label}?`,
+      title: 'Удаление заказа',
+      message: `Вы уверены, что хотите безвозвратно удалить заказ ${label}?`,
       confirmText: 'Удалить',
       cancelText: 'Отмена',
       danger: true,
@@ -313,13 +313,13 @@ export const Archive = () => {
     try {
       setActionLoading(true);
       await deleteOrder(orderId);
-      toast.success('Заявка удалена');
+      toast.success('Заказ удален');
       if (selectedOrder?.id === orderId) {
         handleCloseDetail();
       }
       fetchData();
     } catch (err: any) {
-      toast.error('Ошибка при удалении заявки: ' + (err.response?.data?.message || err.message));
+      toast.error('Ошибка при удалении заказа: ' + (err.response?.data?.message || err.message));
     } finally {
       setActionLoading(false);
     }
@@ -1194,10 +1194,10 @@ export const Archive = () => {
         title={selectedOrder ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ArchiveIcon size={20} style={{ color: 'var(--accent-primary)' }} />
-            Заявка {selectedOrder.orderNumber || `#${selectedOrder.id}`}
+            Заказ {selectedOrder.orderNumber || `#${selectedOrder.id}`}
           </span>
         ) : ''}
-        description={selectedOrder ? `Архивная завершенная заявка от ${selectedOrder.createdAt ? formatDateInTimezone(selectedOrder.createdAt, tenantSettings?.timezone) : ''}` : ''}
+        description={selectedOrder ? `Архивный завершенный заказ от ${selectedOrder.createdAt ? formatDateInTimezone(selectedOrder.createdAt, tenantSettings?.timezone) : ''}` : ''}
         size="lg"
       >
         {selectedOrder && (

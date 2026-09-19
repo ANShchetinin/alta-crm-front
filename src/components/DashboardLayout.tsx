@@ -25,7 +25,7 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings, setTenantSettings, fetchTenantSettings } = useAppStore();
+  const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, newSiteRequestsCount, fetchNewSiteRequestsCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings, setTenantSettings, fetchTenantSettings } = useAppStore();
   const { logout, role, token, tenantId, setToken } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
@@ -116,7 +116,8 @@ const DashboardLayout = () => {
 
   const getRouteTitle = () => {
     const path = location.pathname;
-    if (path.startsWith('/kanban')) return { title: t('nav.orders') || 'Заявки', icon: LayoutDashboard };
+    if (path.startsWith('/kanban')) return { title: t('nav.orders') || 'Заказы', icon: LayoutDashboard };
+    if (path.startsWith('/site-requests')) return { title: t('nav.siteRequests') || 'Заявки с сайта', icon: Globe };
     if (path.startsWith('/calendar')) return { title: t('nav.calendar') || 'Календарь', icon: CalendarDays };
     if (path.startsWith('/measurements')) return { title: 'Замеры', icon: Ruler };
     if (path.startsWith('/earnings')) return { title: 'Мой заработок', icon: Wallet };
@@ -149,6 +150,7 @@ const DashboardLayout = () => {
   const hasReports = useFeature('REPORTS');
   const hasContractTemplates = useFeature('CONTRACT_TEMPLATES');
   const hasExitIntent = useFeature('EXIT_INTENT_ANALYTICS');
+  const hasSiteRequests = useFeature('SITE_REQUESTS');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -210,6 +212,7 @@ const DashboardLayout = () => {
     }
     if (role !== 'WORKER') {
       fetchLowStockMaterials();
+      fetchNewSiteRequestsCount();
     }
   };
 
@@ -342,9 +345,17 @@ const DashboardLayout = () => {
     fetchNewOrdersCount();
     fetchUserProfile();
     fetchNotificationsList();
-    const interval = setInterval(fetchNotificationsList, 25000);
+    if (hasSiteRequests) {
+      fetchNewSiteRequestsCount();
+    }
+    const interval = setInterval(() => {
+      fetchNotificationsList();
+      if (hasSiteRequests) {
+        fetchNewSiteRequestsCount();
+      }
+    }, 25000);
     return () => clearInterval(interval);
-  }, [role]);
+  }, [role, hasSiteRequests]);
 
   const handleNotificationClick = async (notif: AppNotificationItem) => {
     if (!notif.isRead) {
@@ -357,7 +368,9 @@ const DashboardLayout = () => {
       }
     }
     setShowNotifications(false);
-    if (notif.orderId) {
+    if (notif.url && notif.url !== '/kanban') {
+      navigate(notif.url);
+    } else if (notif.orderId) {
       useOrderDrawerStore.getState().openOrder(notif.orderId);
     } else if (notif.url) {
       navigate(notif.url);
@@ -586,7 +599,7 @@ const DashboardLayout = () => {
             <>
               <NavLink to="/kanban" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <LayoutDashboard size={20} />
-                <span style={{ flex: 1 }}>{t('nav.orders') || 'Мои заявки'}</span>
+                <span style={{ flex: 1 }}>{t('nav.orders') || 'Мои заказы'}</span>
               </NavLink>
               {hasCalendar && (
                 <NavLink to="/calendar" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
@@ -621,6 +634,17 @@ const DashboardLayout = () => {
                   </span>
                 )}
               </NavLink>
+              {hasSiteRequests && (
+                <NavLink to="/site-requests" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <Globe size={20} />
+                  <span style={{ flex: 1 }}>{t('nav.siteRequests') || 'Заявки с сайта'}</span>
+                  {newSiteRequestsCount > 0 && (
+                    <span className="nav-badge danger-badge">
+                      {newSiteRequestsCount}
+                    </span>
+                  )}
+                </NavLink>
+              )}
               {hasCalendar && (
                 <NavLink to="/calendar" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <CalendarDays size={20} />
@@ -834,10 +858,10 @@ const DashboardLayout = () => {
                 onClick={() => {
                   useOrderDrawerStore.getState().openCreateOrder();
                 }}
-                title="Создать новую заявку"
+                title="Создать новый заказ"
               >
                 <Plus size={15} />
-                <span className="hidden sm:inline">Новая заявка</span>
+                <span className="hidden sm:inline">Новый заказ</span>
               </button>
             )}
 
@@ -1011,7 +1035,7 @@ const DashboardLayout = () => {
             <div className="bottom-nav-icon-wrapper">
               <LayoutDashboard size={20} />
             </div>
-            <span>{t('nav.orders') || 'Заявки'}</span>
+            <span>{t('nav.orders') || 'Заказы'}</span>
           </NavLink>
           {hasMeasurementCalculator && canAccessMeasurements && (
             <NavLink to="/measurements" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}>

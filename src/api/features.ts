@@ -13,7 +13,8 @@ export type FeatureKey =
   | 'OWNER_CREATE_COMPANY'
   | 'MEASUREMENT_CALCULATOR'
   | 'EXIT_INTENT_ANALYTICS'
-  | 'PASSPORT_OCR';
+  | 'PASSPORT_OCR'
+  | 'SITE_REQUESTS';
 
 export interface FeatureInfo {
   key: FeatureKey;

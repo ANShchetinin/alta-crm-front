@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, AlertCircle, FileCheck, X } from 'lucide-react';
 
@@ -43,7 +43,7 @@ export const MoveRestrictionModal: React.FC<MoveRestrictionModalProps> = ({
             Перемещение карточки невозможно
           </h3>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Заявка: <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{data.orderNumber}</span>
+            Заказ: <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{data.orderNumber}</span>
           </div>
 
           <div className="move-restriction-reason-box">
@@ -55,10 +55,10 @@ export const MoveRestrictionModal: React.FC<MoveRestrictionModalProps> = ({
 
           <div className="move-restriction-hint-box">
             <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-              💡 Как завершить заявку:
+              💡 Как завершить заказ:
             </div>
             <div>
-              Откройте карточку заявки, перейдите во вкладку <strong>«Файлы»</strong> и прикрепите скан/фото подписанного Акта выполненных работ (или отсканируйте камерой).
+              Откройте карточку заказа, перейдите во вкладку <strong>«Файлы»</strong> и прикрепите скан/фото подписанного Акта выполненных работ (или отсканируйте камерой).
             </div>
           </div>
         </div>

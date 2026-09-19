@@ -597,14 +597,14 @@ export const OrderDrawer: React.FC = () => {
 
   const handleSyncFromMeasurement = async () => {
     if (!editingOrderId) {
-      toast.warning('Сначала сохраните заявку, чтобы привязать позиции замера');
+      toast.warning('Сначала сохраните заказ, чтобы привязать позиции замера');
       return;
     }
     try {
       setIsSyncingMeasurement(true);
       const dto = await getMeasurementByOrderId(editingOrderId);
       if (!dto || !dto.items || dto.items.length === 0) {
-        toast.info('В замере для этой заявки пока нет сохраненных позиций сметы');
+        toast.info('В замере для этого заказа пока нет сохраненных позиций сметы');
         return;
       }
 
@@ -722,11 +722,11 @@ export const OrderDrawer: React.FC = () => {
       if (shouldClose) {
         smoothClose();
       } else {
-        toast.success(editingOrderId ? 'Заявка успешно сохранена' : 'Новая заявка создана');
+        toast.success(editingOrderId ? 'Заказ успешно сохранен' : 'Новый заказ создан');
       }
     } catch (err: any) {
       console.error("Failed to save order", err);
-      toast.error(err.response?.data?.message || "Ошибка при сохранении заявки");
+      toast.error(err.response?.data?.message || "Ошибка при сохранении заказа");
     }
   };
 
@@ -738,8 +738,8 @@ export const OrderDrawer: React.FC = () => {
   const handleDeleteOrder = async () => {
     if (!editingOrderId) return;
     const ok = await confirm({
-      title: 'Удалить заявку?',
-      message: `Вы уверены, что хотите удалить заявку #${editingOrderId}? Все файлы и история будут удалены.`,
+      title: 'Удалить заказ?',
+      message: `Вы уверены, что хотите удалить заказ #${editingOrderId}? Все файлы и история будут удалены.`,
       confirmText: 'Удалить',
       danger: true
     });
@@ -751,10 +751,10 @@ export const OrderDrawer: React.FC = () => {
         detail: { action: 'delete', orderId: editingOrderId }
       }));
       smoothClose();
-      toast.success(`Заявка #${editingOrderId} успешно удалена`);
+      toast.success(`Заказ #${editingOrderId} успешно удален`);
     } catch (err) {
       console.error("Failed to delete order", err);
-      toast.error("Не удалось удалить заявку");
+      toast.error("Не удалось удалить заказ");
     }
   };
 
@@ -776,13 +776,13 @@ export const OrderDrawer: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to complete installation', err);
-      toast.error(err.response?.data?.message || err.message || 'Не удалось перевести заявку в завершенный статус');
+      toast.error(err.response?.data?.message || err.message || 'Не удалось перевести заказ в завершенный статус');
     }
   };
 
   const handleStartGenerateContract = () => {
     if (!editingOrderId) {
-      toast.warning('Сначала сохраните заявку, чтобы сформировать договор');
+      toast.warning('Сначала сохраните заказ, чтобы сформировать договор');
       return;
     }
     const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
@@ -1285,9 +1285,9 @@ export const OrderDrawer: React.FC = () => {
   const handleExportChatTxt = () => {
     if (chatMessages.length === 0) return;
     const lines = [
-      `=== История диалога с AI по заявке #${editingOrderId} ===`,
+      `=== История диалога с AI по заказу #${editingOrderId} ===`,
       `Дата экспорта: ${new Date().toLocaleString('ru-RU')}`,
-      `--------------------------------------------------\\n`
+      `--------------------------------------------------\n`
     ];
     chatMessages.forEach(m => {
       lines.push(`[${m.timestamp}] ${m.role === 'user' ? 'Менеджер' : 'AI-Ассистент'}:`);
@@ -1297,7 +1297,7 @@ export const OrderDrawer: React.FC = () => {
       }
       lines.push('');
     });
-    const blob = new Blob([lines.join('\\n')], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1310,7 +1310,7 @@ export const OrderDrawer: React.FC = () => {
     if (!editingOrderId) return;
     const ok = await confirm({
       title: 'Очистка истории диалога',
-      message: 'Очистить историю диалога с AI для этой заявки?',
+      message: 'Очистить историю диалога с AI для этого заказа?',
       confirmText: 'Очистить',
       cancelText: 'Отмена',
       danger: true,
@@ -1409,7 +1409,7 @@ export const OrderDrawer: React.FC = () => {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1, minWidth: 0, paddingRight: '8px' }}>
             <h2 style={{ margin: 0, whiteSpace: 'nowrap' }}>
-              {editingOrderId ? `Заявка #${editingOrderId}` : 'Новая заявка'}
+              {editingOrderId ? `Заказ #${editingOrderId}` : 'Новый заказ'}
             </h2>
             
             {/* Status Dropdown in Modal Header */}
@@ -1428,7 +1428,7 @@ export const OrderDrawer: React.FC = () => {
                 value={formData.statusId}
                 onChange={(e) => setFormData({...formData, statusId: e.target.value})}
                 className="modal-header-status-select"
-                title="Статус заявки"
+                title="Статус заказа"
               >
                 {columns.map(col => (
                   <option key={col.id} value={col.id.toString()}>{col.name}</option>
@@ -1865,6 +1865,7 @@ export const OrderDrawer: React.FC = () => {
                   <label>{t('kanban.modal.address') || 'Адрес монтажа'}</label>
                   {import.meta.env.VITE_DADATA_API_KEY ? (
                     <AddressSuggestions
+                      key={`address-dadata-${editingOrderId || currentOrder?.id || 'new'}-${formData.address}`}
                       token={import.meta.env.VITE_DADATA_API_KEY}
                       defaultQuery={formData.address}
                       onChange={(suggestion) => setFormData({...formData, address: suggestion?.value || formData.address})}
@@ -1990,7 +1991,7 @@ export const OrderDrawer: React.FC = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>{t('kanban.modal.description') || 'Комментарии к заявке'}</label>
+                  <label>{t('kanban.modal.description') || 'Комментарии к заказу'}</label>
                   <textarea 
                     required
                     rows={3}
@@ -2007,7 +2008,7 @@ export const OrderDrawer: React.FC = () => {
                       fontFamily: 'inherit',
                       fontSize: '0.9rem'
                     }}
-                    placeholder="Описание или комментарии к заявке..."
+                    placeholder="Описание или комментарии к заказу..."
                   />
                 </div>
 
@@ -2260,6 +2261,7 @@ export const OrderDrawer: React.FC = () => {
               <MeasurementWizard
                 orderId={editingOrderId || undefined}
                 materials={allMaterials}
+                initialContractParams={getContractParams()}
                 canViewFinances={role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER'}
                 onDownloadDocx={handleStartGenerateContract}
                 onSaved={(_, calc) => {
@@ -2919,7 +2921,7 @@ export const OrderDrawer: React.FC = () => {
                               Акт выполненных работ
                             </div>
                             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                              {hasAct ? 'Подписанный Акт прикреплен к заявке' : 'Обязателен для возможности завершения монтажа'}
+                              {hasAct ? 'Подписанный Акт прикреплен к заказу' : 'Обязателен для возможности завершения монтажа'}
                             </div>
                           </div>
                         </div>
@@ -3833,7 +3835,7 @@ export const OrderDrawer: React.FC = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                           <Sparkles size={15} style={{ color: '#60a5fa', flexShrink: 0 }} />
-                          <span>История диалога сохраняется в заявке.</span>
+                          <span>История диалога сохраняется в заказе.</span>
                         </div>
                         {(() => {
                           const totalTokens = chatMessages.reduce((sum, m) => sum + (m.tokensUsed || 0), 0);
@@ -4126,7 +4128,7 @@ export const OrderDrawer: React.FC = () => {
                 const hasAct = formData.attachments.some(a => isActFile(a.fileName, a.isAct)) || pendingFiles.some(f => isActFile(f.name));
                 const canComplete = hasInstaller && hasAct;
 
-                let disabledTitle = 'Завершить монтаж и перевести заявку в статус «Завершен»';
+                let disabledTitle = 'Завершить монтаж и перевести заказ в статус «Завершен»';
                 if (!hasInstaller) {
                   disabledTitle = 'Для завершения монтажа необходимо выбрать монтажника';
                 } else if (!hasAct) {
@@ -4186,7 +4188,7 @@ export const OrderDrawer: React.FC = () => {
                 </button>
                 <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                   <Check size={16} />
-                  {editingOrderId ? (t('kanban.modal.save') || 'Сохранить') : (t('kanban.createOrder') || 'Создать заявку')}
+                  {editingOrderId ? (t('kanban.modal.save') || 'Сохранить') : (t('kanban.createOrder') || 'Создать заказ')}
                 </button>
               </div>
             )}
@@ -4305,7 +4307,7 @@ export const OrderDrawer: React.FC = () => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `Договор_Заявка_${editingOrderId}.docx`;
+            a.download = `Договор_Заказ_${editingOrderId}.docx`;
             a.click();
             URL.revokeObjectURL(url);
             toast.success('Договор (Word) успешно сформирован и скачан');
@@ -4412,7 +4414,7 @@ export const OrderDrawer: React.FC = () => {
                   Несохраненные изменения
                 </h3>
                 <p style={{ margin: '4px 0 0', fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                  В заявке есть несохраненные данные. Сохранить их перед закрытием?
+                  В заказе есть несохраненные данные. Сохранить их перед закрытием?
                 </p>
               </div>
             </div>

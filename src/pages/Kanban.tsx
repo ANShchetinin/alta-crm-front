@@ -1485,7 +1485,7 @@ const Kanban = () => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="card-order-id">#{touchDraggingCard.id}</span>
-                <span className="card-client-name">{touchDraggingCard.clientName || 'Заявка'}</span>
+                <span className="card-client-name">{touchDraggingCard.clientName || 'Заказ'}</span>
               </div>
             </div>
             {touchDraggingCard.address && (

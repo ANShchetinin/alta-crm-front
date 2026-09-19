@@ -3,6 +3,7 @@ import i18n from '../i18n';
 import { getLowStockMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
 import { getCurrentTenant, type TenantDto } from '../api/settings';
+import { getNewSiteRequestsCount } from '../api/siteRequests';
 
 type Theme = 'dark' | 'light';
 type Language = 'en' | 'ru';
@@ -11,10 +12,13 @@ interface AppState {
   theme: Theme;
   language: Language;
   newOrdersCount: number;
+  newSiteRequestsCount: number;
   lowStockMaterials: Material[];
   setTheme: (theme: Theme) => void;
   setLanguage: (lang: Language) => void;
   setNewOrdersCount: (count: number) => void;
+  setNewSiteRequestsCount: (count: number) => void;
+  fetchNewSiteRequestsCount: () => Promise<void>;
   fetchLowStockMaterials: () => Promise<void>;
   tenantSettings: TenantDto | null;
   setTenantSettings: (settings: TenantDto | null) => void;
@@ -36,6 +40,7 @@ export const useAppStore = create<AppState>((set) => ({
   theme: getInitialTheme(),
   language: getInitialLanguage(),
   newOrdersCount: 0,
+  newSiteRequestsCount: 0,
   lowStockMaterials: [],
   
   setTheme: (theme) => {
@@ -51,6 +56,19 @@ export const useAppStore = create<AppState>((set) => ({
   
   setNewOrdersCount: (count) => {
     set({ newOrdersCount: count });
+  },
+
+  setNewSiteRequestsCount: (count) => {
+    set({ newSiteRequestsCount: count });
+  },
+
+  fetchNewSiteRequestsCount: async () => {
+    try {
+      const count = await getNewSiteRequestsCount();
+      set({ newSiteRequestsCount: count });
+    } catch (err) {
+      console.error("Failed to fetch new site requests count", err);
+    }
   },
   
   fetchLowStockMaterials: async () => {

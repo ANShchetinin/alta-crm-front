@@ -845,7 +845,7 @@ export const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({
                 background: 'linear-gradient(135deg, #22c55e, #16a34a)'
               }}
             >
-              {isSaving ? 'Сохранение...' : 'Прикрепить к заявке'} <Check size={18} />
+              {isSaving ? 'Сохранение...' : 'Прикрепить к заказу'} <Check size={18} />
             </button>
           </div>
         </div>

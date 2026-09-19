@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { useAppStore } from './useAppStore';
 
 describe('useAppStore', () => {
@@ -28,6 +28,11 @@ describe('useAppStore', () => {
   it('sets newOrdersCount', () => {
     useAppStore.getState().setNewOrdersCount(12);
     expect(useAppStore.getState().newOrdersCount).toBe(12);
+  });
+
+  it('sets newSiteRequestsCount', () => {
+    useAppStore.getState().setNewSiteRequestsCount(5);
+    expect(useAppStore.getState().newSiteRequestsCount).toBe(5);
   });
 
   it('updates tenantSettings locally', () => {

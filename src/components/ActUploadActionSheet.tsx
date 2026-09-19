@@ -25,7 +25,7 @@ export const ActUploadActionSheet: React.FC<ActUploadActionSheetProps> = ({
   const isAct = mode === 'ACT';
   const headerTitle = isAct
     ? (hasAct ? 'Заменить Акт выполненных работ' : 'Прикрепить Акт выполненных работ')
-    : 'Прикрепить файл к заявке';
+    : 'Прикрепить файл к заказу';
 
   return createPortal(
     <div className="act-sheet-backdrop" onClick={onClose}>
