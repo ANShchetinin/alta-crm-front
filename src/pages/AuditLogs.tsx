@@ -13,7 +13,7 @@ import { toast } from '../utils/toast';
 import '../styles/audit-logs.css';
 
 const ENTITY_LABELS: Record<AuditEntityType, string> = {
-  ORDER: 'Заявка',
+  ORDER: 'Заказ',
   CLIENT: 'Клиент',
   EMPLOYEE: 'Сотрудник',
   TENANT: 'Настройки компании',

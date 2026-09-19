@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -151,7 +151,7 @@ export const ColumnModal: React.FC<ColumnModalProps> = ({
                   onChange={(e) => setIncludeInFinances(e.target.checked)}
                   style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
                 />
-                <span>Учитывать заявки этого статуса в блоке финансов</span>
+                <span>Учитывать заказы этого статуса в блоке финансов</span>
               </label>
             </div>
 
@@ -164,9 +164,9 @@ export const ColumnModal: React.FC<ColumnModalProps> = ({
                   style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)', cursor: 'pointer', marginTop: '2px', flexShrink: 0 }}
                 />
                 <div>
-                  <span style={{ fontWeight: 500 }}>Статус завершения (архивировать заявки)</span>
+                  <span style={{ fontWeight: 500 }}>Статус завершения (архивировать заказы)</span>
                   <span style={{ display: 'block', fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    Заявки в этом статусе за предыдущие месяцы будут автоматически перемещаться в раздел «Архив»
+                    Заказы в этом статусе за предыдущие месяцы будут автоматически перемещаться в раздел «Архив»
                   </span>
                 </div>
               </label>

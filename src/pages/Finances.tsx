@@ -859,7 +859,7 @@ export const Finances = () => {
             <table className="clients-table" style={{ width: '100%', fontSize: '0.85rem' }}>
               <thead>
                 <tr>
-                  <th style={{ padding: '12px 14px' }}>Договор / Заявка</th>
+                  <th style={{ padding: '12px 14px' }}>Договор / Заказ</th>
                   <th>Клиент</th>
                   <th>Статус</th>
                   <th>Сумма договора</th>
@@ -1125,7 +1125,7 @@ export const Finances = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
-                          {order.orderNumber ? `№ ${order.orderNumber}` : `Заявка #${order.id}`}
+                          {order.orderNumber ? `№ ${order.orderNumber}` : `Заказ #${order.id}`}
                         </div>
                         {statusObj && (
                           <span style={{
@@ -1385,7 +1385,7 @@ export const Finances = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                       <div>
                         <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                          {order.orderNumber ? `Договор № ${order.orderNumber}` : `Заявка #${order.id}`}
+                          {order.orderNumber ? `Договор № ${order.orderNumber}` : `Заказ #${order.id}`}
                         </div>
                         <div style={{ fontSize: '0.88rem', color: 'var(--text-primary)', marginTop: '2px' }}>
                           {order.clientName || 'Клиент'}
@@ -2066,7 +2066,7 @@ export const Finances = () => {
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-secondary)', fontSize: '0.8rem', textAlign: 'left' }}>
                       <th style={{ padding: '10px 12px' }}>Дата и время</th>
-                      <th style={{ padding: '10px 12px' }}>Заявка</th>
+                      <th style={{ padding: '10px 12px' }}>Заказ</th>
                       <th style={{ padding: '10px 12px' }}>Сервис / Операция</th>
                       <th style={{ padding: '10px 12px' }}>Объем (Токены / Время)</th>
                       <th style={{ padding: '10px 12px', textAlign: 'right' }}>Сумма (₽)</th>

@@ -268,7 +268,7 @@ export const Employees = () => {
         <div>
           <h1>{t('employees.title') || 'Сотрудники'}</h1>
           <p style={{ margin: '4px 0 0 0', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-            Управление персоналом, выдача учетных записей и настройка прав доступа к заявкам
+            Управление персоналом, выдача учетных записей и настройка прав доступа к заказам
           </p>
         </div>
         
@@ -1206,7 +1206,7 @@ export const Employees = () => {
                 <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Доступ к компаниям / филиалам</div>
               </div>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                Сотрудник сможет работать с заявками в выбранных компаниях
+                Сотрудник сможет работать с заказами в выбранных компаниях
               </div>
 
               <div className="employee-tenant-grid">

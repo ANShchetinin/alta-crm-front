@@ -3,6 +3,7 @@ import { Sliders, Search, CheckCircle2, XCircle, AlertCircle, RefreshCw, Layers,
 import { getFeatureMatrix, updateSystemFeature, updateTenantFeature, bulkUpdateTenantFeatures } from '../api/features';
 import type { TenantFeatureMatrix, FeatureKey } from '../api/features';
 import { getDevFeatureOverrides } from '../hooks/useFeatureToggle';
+import { useAppStore } from '../store/useAppStore';
 import '../styles/clients.css';
 
 export const FeatureFlags = () => {
@@ -56,6 +57,7 @@ export const FeatureFlags = () => {
         };
       });
       showToast(`Глобальный флаг «${featureKey}» переключен на: ${newEnabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}`);
+      useAppStore.getState().fetchTenantSettings();
     } catch (err: any) {
       console.error('Failed to update system feature', err);
       showToast(err.response?.data?.message || 'Не удалось обновить глобальный флаг', 'error');
@@ -85,6 +87,9 @@ export const FeatureFlags = () => {
           })
         };
       });
+      if (useAppStore.getState().tenantSettings?.id === tenantId) {
+        useAppStore.getState().fetchTenantSettings();
+      }
       showToast(`Модуль «${featureKey}» для компании #${tenantId} переключен`);
     } catch (err: any) {
       console.error('Failed to update tenant feature', err);
@@ -105,6 +110,9 @@ export const FeatureFlags = () => {
     try {
       await bulkUpdateTenantFeatures(tenantId, bulkMap);
       await fetchMatrix();
+      if (useAppStore.getState().tenantSettings?.id === tenantId) {
+        useAppStore.getState().fetchTenantSettings();
+      }
       showToast(`Все модули для компании #${tenantId} ${enableAll ? 'включены' : 'выключены'}`);
     } catch (err: any) {
       console.error('Failed to bulk update tenant features', err);

@@ -189,8 +189,8 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
               className="btn btn-secondary"
               onClick={handleClose}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', fontSize: '0.84rem', flexShrink: 0 }}
-              title="Вернуться назад в заявку"
-              aria-label="Вернуться назад в заявку"
+              title="Вернуться назад в заказ"
+              aria-label="Вернуться назад в заказ"
             >
               <ArrowLeft size={16} />
               <span>Назад</span>

@@ -83,7 +83,7 @@ describe('AttachmentPreviewModal', () => {
     );
 
     expect(screen.getAllByText('act_completed.pdf').length).toBeGreaterThanOrEqual(1);
-    const backBtn = screen.getByTitle('Вернуться назад в заявку');
+    const backBtn = screen.getByTitle('Вернуться назад в заказ');
     fireEvent.click(backBtn);
     expect(handleClose).toHaveBeenCalledTimes(1);
   });

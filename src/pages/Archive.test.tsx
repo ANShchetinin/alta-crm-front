@@ -186,7 +186,7 @@ describe('Archive Page Component', () => {
     fireEvent.click(row!);
 
     await waitFor(() => {
-      expect(screen.getByText('Заявка А0101_1')).toBeInTheDocument();
+      expect(screen.getByText('Заказ А0101_1')).toBeInTheDocument();
       expect(screen.getByText('Данные клиента')).toBeInTheDocument();
       expect(screen.getByText('Смета и спецификация заказа')).toBeInTheDocument();
       expect(screen.getByText('Полотно MSD Premium')).toBeInTheDocument();
@@ -270,7 +270,7 @@ describe('Archive Page Component', () => {
     fireEvent.click(mobileCards[0]);
 
     await waitFor(() => {
-      expect(screen.getByText('Заявка А0102_2')).toBeInTheDocument();
+      expect(screen.getByText('Заказ А0102_2')).toBeInTheDocument();
       expect(screen.getByText('Данные клиента')).toBeInTheDocument();
     });
   });
@@ -363,7 +363,7 @@ describe('Archive Page Component', () => {
     expect(screen.getByText('100%')).toBeInTheDocument();
 
     // Close preview with back button
-    const backBtn = screen.getByTitle('Вернуться назад в заявку');
+    const backBtn = screen.getByTitle('Вернуться назад в заказ');
     fireEvent.click(backBtn);
   });
 });
