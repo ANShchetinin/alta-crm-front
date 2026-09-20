@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Wallet, 
@@ -155,7 +155,7 @@ export const Finances = () => {
     return { from, to };
   }, [period]);
 
-  const loadAiUsage = async () => {
+  const loadAiUsage = useCallback(async () => {
     try {
       setLoadingAiUsage(true);
       const fromStr = dateRange.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
@@ -167,29 +167,39 @@ export const Finances = () => {
     } finally {
       setLoadingAiUsage(false);
     }
-  };
+  }, [dateRange]);
 
   useEffect(() => {
     loadAiUsage();
-  }, [dateRange]);
+  }, [loadAiUsage]);
 
   // Filter helper: check if date is within selected range
-  const isDateInRange = (dateStr?: string | null) => {
-    if (!dateStr) return false;
-    if (!dateRange.from && !dateRange.to) return true;
+  const isDateInRange = useCallback((dateStr?: string | null) => {
+    if (!dateStr) {
+      return false;
+    }
+    if (!dateRange.from && !dateRange.to) {
+      return true;
+    }
     const d = new Date(dateStr);
-    if (dateRange.from && d < dateRange.from) return false;
-    if (dateRange.to && d > dateRange.to) return false;
+    if (dateRange.from && d < dateRange.from) {
+      return false;
+    }
+    if (dateRange.to && d > dateRange.to) {
+      return false;
+    }
     return true;
-  };
+  }, [dateRange]);
 
   // Status helper
-  const isCompletedStatus = (statusId: number) => {
+  const isCompletedStatus = useCallback((statusId: number) => {
     const s = statuses.find(st => st.id === statusId);
-    if (!s || !s.name) return false;
+    if (!s || !s.name) {
+      return false;
+    }
     const n = s.name.toLowerCase();
     return n.includes('заверш') || n.includes('готов') || n.includes('выполнен') || n.includes('complete');
-  };
+  }, [statuses]);
 
   // Filter orders that belong to statuses included in finances
   const financeOrders = useMemo(() => {
@@ -261,7 +271,7 @@ export const Finances = () => {
       totalCashOutflow,
       netCashProfit
     };
-  }, [financeOrders, expenses, statuses, dateRange]);
+  }, [financeOrders, expenses, isCompletedStatus, isDateInRange]);
 
   // Payment Toggle Handlers
   const handleTogglePrepayment = async (orderId: number, currentStatus: boolean) => {
@@ -436,7 +446,7 @@ export const Finances = () => {
 
       return true;
     });
-  }, [financeOrders, searchQuery, paymentFilter, period, dateRange]);
+  }, [financeOrders, searchQuery, paymentFilter, period, isDateInRange]);
 
   // Debtor Orders
   const debtorOrders = useMemo(() => {
@@ -497,7 +507,7 @@ export const Finances = () => {
     return Array.from(map.values())
       .filter(item => item.orders.length > 0 || item.employee.position?.toLowerCase().includes('монтаж'))
       .sort((a, b) => b.completedEarnings - a.completedEarnings);
-  }, [employees, financeOrders, statuses, dateRange]);
+  }, [employees, financeOrders, isCompletedStatus, isDateInRange]);
 
   // Filtered Expenses
   const filteredExpenses = useMemo(() => {
@@ -510,7 +520,7 @@ export const Finances = () => {
       }
       return true;
     });
-  }, [expenses, expenseCategoryFilter, dateRange]);
+  }, [expenses, expenseCategoryFilter, isDateInRange]);
 
   if (loading) {
     return (

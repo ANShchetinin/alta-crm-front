@@ -386,14 +386,16 @@ export const useTouchKanbanDrag = ({
     };
   }, [handleNativePointerMove, handleNativePointerUp, handleNativePointerCancel, handleNativeTouchMove, handleNativeTouchEnd, handleNativeTouchCancel]);
 
-  const startDrag = (
+  const startDrag = useCallback((
     clientX: number,
     clientY: number,
     card: Order,
     cardEl: HTMLElement,
     pointerId?: number
   ) => {
-    if (stateRef.current.isDragging) return;
+    if (stateRef.current.isDragging) {
+      return;
+    }
 
     const rect = cardEl.getBoundingClientRect();
     const offsetX = clientX - rect.left;
@@ -440,7 +442,7 @@ export const useTouchKanbanDrag = ({
 
     attachGlobalListeners(pointerId);
     triggerVibration(50);
-  };
+  }, [attachGlobalListeners]);
 
   // Immediate Drag on Grip Handle via PointerDown (Standard for modern touch & desktop)
   const handleGripPointerDown = useCallback((e: React.PointerEvent, card: Order) => {
@@ -451,7 +453,7 @@ export const useTouchKanbanDrag = ({
 
     const cardEl = ((e.currentTarget as HTMLElement).closest('.kanban-card') || e.currentTarget) as HTMLElement;
     startDrag(e.clientX, e.clientY, card, cardEl, e.pointerId);
-  }, [attachGlobalListeners]);
+  }, [startDrag]);
 
   // Immediate Drag on Grip Handle via TouchStart (Fallback & iOS WebKit support)
   const handleGripTouchStart = useCallback((e: React.TouchEvent, card: Order) => {
@@ -461,11 +463,13 @@ export const useTouchKanbanDrag = ({
     }
 
     const touch = e.touches[0];
-    if (!touch) return;
+    if (!touch) {
+      return;
+    }
 
     const cardEl = ((e.currentTarget as HTMLElement).closest('.kanban-card') || e.currentTarget) as HTMLElement;
     startDrag(touch.clientX, touch.clientY, card, cardEl);
-  }, [attachGlobalListeners]);
+  }, [startDrag]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     handleNativeTouchMove(e.nativeEvent || (e as any));

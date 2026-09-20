@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Clock, 
@@ -80,19 +80,21 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
   const [notifyBeforeMinutes, setNotifyBeforeMinutes] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchReminders = async () => {
-    if (!orderId) return;
+  const fetchReminders = useCallback(async () => {
+    if (!orderId) {
+      return;
+    }
     try {
       const data = await getOrderReminders(orderId);
       setReminders(data);
     } catch (err) {
       console.error('Failed to fetch reminders', err);
     }
-  };
+  }, [orderId]);
 
   useEffect(() => {
     fetchReminders();
-  }, [orderId]);
+  }, [fetchReminders]);
 
   // Quick Preset Helper
   const setPresetTime = (type: '1h' | '3h' | 'tomorrow10' | '3d' | '1w') => {

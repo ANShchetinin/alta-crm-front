@@ -112,6 +112,21 @@ export interface Order {
   profit?: number;
   profitMargin?: number;
   isArchived?: boolean;
+  commentsCount?: number;
+}
+
+export interface OrderComment {
+  id: number;
+  orderId: number;
+  authorId?: number;
+  authorUserId?: number;
+  authorName?: string;
+  authorAvatarUrl?: string;
+  authorRole?: string;
+  text: string;
+  createdAt: string;
+  updatedAt?: string;
+  authorDeleted?: boolean;
 }
 
 export const getOrderStatuses = async (): Promise<OrderStatus[]> => {
@@ -176,9 +191,36 @@ export const updateOrder = async (orderId: number, order: Partial<Order>): Promi
   return response.data;
 };
 
-export const moveOrder = async (orderId: number, statusId: number): Promise<Order> => {
-  const response = await api.patch(`/orders/${orderId}/move?statusId=${statusId}`);
+export const moveOrder = async (orderId: number, statusId: number, comment?: string): Promise<Order> => {
+  const params: Record<string, any> = { statusId };
+  if (comment && comment.trim()) {
+    params.comment = comment.trim();
+  }
+  const response = await api.patch(`/orders/${orderId}/move`, null, { params });
   return response.data;
+};
+
+export const getOrderComments = async (orderId: number): Promise<OrderComment[]> => {
+  const response = await api.get(`/orders/${orderId}/comments`);
+  return response.data;
+};
+
+export const addOrderComment = async (orderId: number, text: string): Promise<OrderComment> => {
+  const response = await api.post(`/orders/${orderId}/comments`, { text });
+  return response.data;
+};
+
+export const updateOrderComment = async (
+  orderId: number,
+  commentId: number,
+  text: string
+): Promise<OrderComment> => {
+  const response = await api.put(`/orders/${orderId}/comments/${commentId}`, { text });
+  return response.data;
+};
+
+export const deleteOrderComment = async (orderId: number, commentId: number): Promise<void> => {
+  await api.delete(`/orders/${orderId}/comments/${commentId}`);
 };
 
 export const uploadAttachment = async (orderId: number, file: File, isAct?: boolean): Promise<OrderAttachment> => {

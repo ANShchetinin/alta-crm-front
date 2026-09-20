@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Users, UserCircle, Box, Archive, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp, PanelLeftClose, PanelLeftOpen, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
@@ -187,7 +187,7 @@ const DashboardLayout = () => {
   const [recentNotifications, setRecentNotifications] = useState<AppNotificationItem[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
 
-  const fetchNotificationsList = async () => {
+  const fetchNotificationsList = useCallback(async () => {
     try {
       const list = await getRecentNotifications();
       setRecentNotifications(list);
@@ -196,9 +196,9 @@ const DashboardLayout = () => {
     } catch (err) {
       console.error("Failed to fetch recent notifications", err);
     }
-  };
+  }, []);
 
-  const fetchNewOrdersCount = async () => {
+  const fetchNewOrdersCount = useCallback(async () => {
     try {
       const statuses = await getOrderStatuses();
       const firstStatus = statuses.find(s => s.sortOrder === 1 || s.sortOrder === 0);
@@ -214,9 +214,9 @@ const DashboardLayout = () => {
       fetchLowStockMaterials();
       fetchNewSiteRequestsCount();
     }
-  };
+  }, [role, setNewOrdersCount, fetchLowStockMaterials, fetchNewSiteRequestsCount]);
 
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     try {
       const profile = await getProfile();
       const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
@@ -235,10 +235,12 @@ const DashboardLayout = () => {
     } catch (err) {
       console.error("Failed to fetch user profile", err);
     }
-  };
+  }, []);
 
   const handleSwitchCompany = async (targetTenantId: number) => {
-    if (targetTenantId === myTenantsData?.currentTenantId || isSwitchingCompany) return;
+    if (targetTenantId === myTenantsData?.currentTenantId || isSwitchingCompany) {
+      return;
+    }
     setIsSwitchingCompany(true);
     setIsCompanyDropdownOpen(false);
     useOrderDrawerStore.getState().closeOrder();
@@ -340,22 +342,24 @@ const DashboardLayout = () => {
   }, []);
 
   useEffect(() => {
-    if (role === 'SUPERADMIN') return;
+    if (role === 'SUPERADMIN') {
+      return;
+    }
 
     fetchNewOrdersCount();
     fetchUserProfile();
     fetchNotificationsList();
-    if (hasSiteRequests) {
+    if (role !== 'WORKER' && hasSiteRequests) {
       fetchNewSiteRequestsCount();
     }
     const interval = setInterval(() => {
       fetchNotificationsList();
-      if (hasSiteRequests) {
+      if (role !== 'WORKER' && hasSiteRequests) {
         fetchNewSiteRequestsCount();
       }
     }, 25000);
     return () => clearInterval(interval);
-  }, [role, hasSiteRequests]);
+  }, [role, hasSiteRequests, fetchNewOrdersCount, fetchUserProfile, fetchNotificationsList, fetchNewSiteRequestsCount]);
 
   const handleNotificationClick = async (notif: AppNotificationItem) => {
     if (!notif.isRead) {

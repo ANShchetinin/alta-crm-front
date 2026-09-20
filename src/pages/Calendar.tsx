@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, 
@@ -19,7 +19,9 @@ import '../styles/calendar.css';
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 const getSafeDate = (dateStr?: string): Date => {
-  if (!dateStr) return new Date();
+  if (!dateStr) {
+    return new Date();
+  }
   const parsed = parseLocalDateTime(dateStr);
   return parsed || new Date();
 };
@@ -107,7 +109,7 @@ export const Calendar: React.FC = () => {
     }
   }, [currentDate, viewMode]);
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       const data = await getCalendarEvents({
         start: rangeStart.toISOString(),
@@ -120,11 +122,11 @@ export const Calendar: React.FC = () => {
       console.error('Failed to fetch calendar events', err);
       setEvents([]);
     }
-  };
+  }, [rangeStart, rangeEnd, activeTypes, selectedEmployeeId]);
 
   useEffect(() => {
     fetchEvents();
-  }, [rangeStart, rangeEnd, activeTypes, selectedEmployeeId]);
+  }, [fetchEvents]);
 
 
   // Navigation handlers

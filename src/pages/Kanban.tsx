@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Plus,
@@ -24,7 +24,8 @@ import {
   Send,
   FileText,
   GripVertical,
-  ArrowDownCircle
+  ArrowDownCircle,
+  MessageSquare
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -52,6 +53,7 @@ import { useTouchColumnReorder } from '../hooks/useTouchColumnReorder';
 import { getWhatsAppLink, getTelegramLink } from '../utils/messengerUtils';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import { MoveRestrictionModal } from '../features/kanban/components/MoveRestrictionModal';
+import { StatusChangeModal, type StatusChangePromptData } from '../features/kanban/components/StatusChangeModal';
 import { ColumnModal } from '../features/kanban/components/ColumnModal';
 import { isActFile, formatClientNameLines } from '../features/kanban/constants';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
@@ -62,12 +64,16 @@ import '../styles/kanban.css';
 const sortCardsByStoredOrder = (cardList: Order[]): Order[] => {
   try {
     const savedOrderJson = localStorage.getItem('kanban_cards_custom_order');
-    if (!savedOrderJson) return cardList;
+    if (!savedOrderJson) {
+      return cardList;
+    }
     const orderMap: Record<number, number> = JSON.parse(savedOrderJson);
     return [...cardList].sort((a, b) => {
       const orderA = orderMap[a.id] !== undefined ? orderMap[a.id] : 999999;
       const orderB = orderMap[b.id] !== undefined ? orderMap[b.id] : 999999;
-      if (orderA !== orderB) return orderA - orderB;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
       return b.id - a.id;
     });
   } catch {
@@ -100,7 +106,9 @@ const Kanban = () => {
 
   const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth <= 768);
   const [mobileViewMode, setMobileViewMode] = useState<'list' | 'board'>(() => {
-    if (typeof window === 'undefined') return 'list';
+    if (typeof window === 'undefined') {
+      return 'list';
+    }
     return (localStorage.getItem('kanban_mobile_view_mode') as 'list' | 'board') || 'list';
   });
   const [collapsedColumns, setCollapsedColumns] = useState<Record<number, boolean>>(() => {
@@ -155,6 +163,9 @@ const Kanban = () => {
     reason: string;
   } | null>(null);
 
+  // Status change with optional comment modal state
+  const [statusChangeModalData, setStatusChangeModalData] = useState<StatusChangePromptData | null>(null);
+
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [editingColumnId, setEditingColumnId] = useState<number | null>(null);
   const [newColumnName, setNewColumnName] = useState('');
@@ -163,20 +174,7 @@ const Kanban = () => {
   const [newColumnIsCompleted, setNewColumnIsCompleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // Listen to global order changes from drawer
-  useEffect(() => {
-    const handleOrdersChanged = () => {
-      fetchData();
-    };
-    window.addEventListener('alta:orders-changed', handleOrdersChanged);
-    return () => window.removeEventListener('alta:orders-changed', handleOrdersChanged);
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [statuses, orders, clientsData, employeesData, remindersData] = await Promise.all([
@@ -196,7 +194,9 @@ const Kanban = () => {
       const rMap: Record<number, OrderReminderDto[]> = {};
       (remindersData as OrderReminderDto[]).forEach(r => {
         if (r.orderId) {
-          if (!rMap[r.orderId]) rMap[r.orderId] = [];
+          if (!rMap[r.orderId]) {
+            rMap[r.orderId] = [];
+          }
           rMap[r.orderId].push(r);
         }
       });
@@ -211,19 +211,42 @@ const Kanban = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isWorker, setNewOrdersCount]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Listen to global order changes from drawer
+  useEffect(() => {
+    const handleOrdersChanged = () => {
+      fetchData();
+    };
+    window.addEventListener('alta:orders-changed', handleOrdersChanged);
+    return () => {
+      window.removeEventListener('alta:orders-changed', handleOrdersChanged);
+    };
+  }, [fetchData]);
 
   const isCompletedColumn = (col?: OrderStatus | null) => {
-    if (!col) return false;
-    if (col.isCompleted !== undefined) return Boolean(col.isCompleted);
-    if (!col.name) return false;
+    if (!col) {
+      return false;
+    }
+    if (col.isCompleted !== undefined) {
+      return Boolean(col.isCompleted);
+    }
+    if (!col.name) {
+      return false;
+    }
     const name = col.name.trim().toLowerCase();
     return name.includes('заверш') || name.includes('готов') || name.includes('выполнен') || name.includes('complete');
   };
 
   const checkCanMoveOrder = (orderId: number, targetStatusId: number): boolean => {
     const targetCol = columns.find(c => c.id === targetStatusId);
-    if (!targetCol) return true;
+    if (!targetCol) {
+      return true;
+    }
     const isCompleted = isCompletedColumn(targetCol);
     if (isCompleted) {
       const card = cards.find(c => c.id === orderId);
@@ -248,21 +271,17 @@ const Kanban = () => {
     setDesktopDraggingCardId(id);
   };
 
-  const handleDrop = async (e: React.DragEvent, statusId: number) => {
-    setDesktopDraggingCardId(null);
-    setDesktopDragOverColId(null);
-    const cardIdStr = e.dataTransfer.getData('cardId');
-    if (!cardIdStr) return;
-    const cardId = parseInt(cardIdStr);
-
-    const card = cards.find(c => c.id === cardId);
-    if (!card || card.statusId === statusId) return;
-
-    if (!checkCanMoveOrder(cardId, statusId)) {
+  const handleConfirmStatusChange = async (comment?: string) => {
+    if (!statusChangeModalData) {
+      return;
+    }
+    const { orderId, targetStatusId } = statusChangeModalData;
+    const card = cards.find(c => c.id === orderId);
+    if (!card) {
       return;
     }
 
-    const updatedCards = cards.map(c => c.id === cardId ? { ...c, statusId } : c);
+    const updatedCards = cards.map(c => c.id === orderId ? { ...c, statusId: targetStatusId } : c);
     setCards(updatedCards);
 
     const firstStatus = columns.find(s => s.sortOrder === 1);
@@ -271,14 +290,47 @@ const Kanban = () => {
     }
 
     try {
-      await moveOrder(cardId, statusId);
-      window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'move', orderId: cardId } }));
+      await moveOrder(orderId, targetStatusId, comment);
+      window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'move', orderId } }));
     } catch (err: any) {
       console.error("Failed to move order", err);
       const errorMsg = err.response?.data?.message || err.message || 'Ошибка перемещения карточки';
       toast.error(errorMsg);
       fetchData();
     }
+  };
+
+  const handleDrop = async (e: React.DragEvent, statusId: number) => {
+    setDesktopDraggingCardId(null);
+    setDesktopDragOverColId(null);
+    const cardIdStr = e.dataTransfer.getData('cardId');
+    if (!cardIdStr) {
+      return;
+    }
+    const cardId = parseInt(cardIdStr);
+
+    const card = cards.find(c => c.id === cardId);
+    if (!card || card.statusId === statusId) {
+      return;
+    }
+
+    if (!checkCanMoveOrder(cardId, statusId)) {
+      return;
+    }
+
+    const sourceCol = columns.find(c => c.id === card.statusId);
+    const targetCol = columns.find(c => c.id === statusId);
+
+    setStatusChangeModalData({
+      isOpen: true,
+      orderId: cardId,
+      orderNumber: card.orderNumber || `#${cardId}`,
+      sourceStatusName: sourceCol?.name,
+      sourceStatusColor: sourceCol?.color,
+      targetStatusId: statusId,
+      targetStatusName: targetCol?.name || '',
+      targetStatusColor: targetCol?.color
+    });
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -302,52 +354,53 @@ const Kanban = () => {
     boardRef,
     onDropCard: async (cardId, targetStatusId, targetCardId, position) => {
       const sourceCard = cards.find(c => c.id === cardId);
-      if (!sourceCard) return;
+      if (!sourceCard) {
+        return;
+      }
 
       const isSameStatus = sourceCard.statusId === targetStatusId;
       const isSameCard = targetCardId === cardId;
-      if (isSameStatus && (isSameCard || !targetCardId)) return;
+      if (isSameStatus && (isSameCard || !targetCardId)) {
+        return;
+      }
 
       if (!isSameStatus && !checkCanMoveOrder(cardId, targetStatusId)) {
         return;
       }
 
-      // Extract cards of target status (without current dragged card)
-      const targetColCards = cards.filter(c => c.statusId === targetStatusId && c.id !== cardId);
-      const updatedSourceCard = { ...sourceCard, statusId: targetStatusId };
-
-      let targetColIndex = targetColCards.length;
-      if (targetCardId && targetCardId !== cardId) {
-        const foundIdx = targetColCards.findIndex(c => c.id === targetCardId);
-        if (foundIdx !== -1) {
-          targetColIndex = position === 'after' ? foundIdx + 1 : foundIdx;
+      if (isSameStatus) {
+        // Reordering cards within the same status column
+        const targetColCards = cards.filter(c => c.statusId === targetStatusId && c.id !== cardId);
+        let targetColIndex = targetColCards.length;
+        if (targetCardId && targetCardId !== cardId) {
+          const foundIdx = targetColCards.findIndex(c => c.id === targetCardId);
+          if (foundIdx !== -1) {
+            targetColIndex = position === 'after' ? foundIdx + 1 : foundIdx;
+          }
         }
+        targetColCards.splice(targetColIndex, 0, sourceCard);
+
+        const otherCards = cards.filter(c => c.statusId !== targetStatusId && c.id !== cardId);
+        const newCards = [...otherCards, ...targetColCards];
+
+        setCards(newCards);
+        saveCardsOrder(newCards);
+        return;
       }
 
-      targetColCards.splice(targetColIndex, 0, updatedSourceCard);
+      const sourceCol = columns.find(c => c.id === sourceCard.statusId);
+      const targetCol = columns.find(c => c.id === targetStatusId);
 
-      // Reassemble complete cards array
-      const otherCards = cards.filter(c => c.statusId !== targetStatusId && c.id !== cardId);
-      const newCards = [...otherCards, ...targetColCards];
-
-      setCards(newCards);
-      saveCardsOrder(newCards);
-
-      if (!isSameStatus) {
-        const firstStatus = columns.find(s => s.sortOrder === 1);
-        if (firstStatus) {
-          setNewOrdersCount(newCards.filter(o => o.statusId === firstStatus.id).length);
-        }
-        try {
-          await moveOrder(cardId, targetStatusId);
-          window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'move', orderId: cardId } }));
-        } catch (err: any) {
-          console.error("Failed to move order via touch drag", err);
-          const errorMsg = err.response?.data?.message || err.message || 'Ошибка перемещения карточки';
-          toast.error(errorMsg);
-          fetchData();
-        }
-      }
+      setStatusChangeModalData({
+        isOpen: true,
+        orderId: cardId,
+        orderNumber: sourceCard.orderNumber || `#${cardId}`,
+        sourceStatusName: sourceCol?.name,
+        sourceStatusColor: sourceCol?.color,
+        targetStatusId,
+        targetStatusName: targetCol?.name || '',
+        targetStatusColor: targetCol?.color
+      });
     }
   });
 
@@ -377,7 +430,9 @@ const Kanban = () => {
 
   // Auto-expand collapsed column during touch drag if hovering over it for 350ms
   useEffect(() => {
-    if (!touchDraggingCard || !touchTargetStatusId) return;
+    if (!touchDraggingCard || !touchTargetStatusId) {
+      return;
+    }
     if (collapsedColumns[touchTargetStatusId] === true) {
       const timer = setTimeout(() => {
         setCollapsedColumns(prev => ({ ...prev, [touchTargetStatusId]: false }));
@@ -474,13 +529,15 @@ const Kanban = () => {
       cancelText: 'Отмена',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
 
     try {
       await deleteOrderStatus(columnId);
       toast.success('Этап удален');
       fetchData();
-    } catch (err: any) {
+    } catch {
       toast.error(t('kanban.deleteColumnError') || 'Нельзя удалить этап, в котором есть заявки.');
     }
   };
@@ -505,7 +562,9 @@ const Kanban = () => {
       });
     }
 
-    if (!searchQuery.trim()) return result;
+    if (!searchQuery.trim()) {
+      return result;
+    }
     const q = searchQuery.toLowerCase().trim();
 
     return result.filter(card => {
@@ -525,7 +584,9 @@ const Kanban = () => {
   }, [cards, reminderFilter, remindersMap, searchQuery, clients, employees]);
 
   const displayedColumns = useMemo(() => {
-    if (!hideEmptyColumns) return columns;
+    if (!hideEmptyColumns) {
+      return columns;
+    }
     return columns.filter(col => {
       return filteredCards.some(c => c.statusId === col.id);
     });
@@ -577,7 +638,9 @@ const Kanban = () => {
           data-card-status-id={card.statusId}
           draggable={!isMobile}
           onDragStart={(e) => {
-            if (isMobile) return;
+            if (isMobile) {
+              return;
+            }
             e.stopPropagation();
             handleDragStart(e, card.id);
           }}
@@ -898,6 +961,31 @@ const Kanban = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   <Paperclip size={12} /> {card.attachments.length}
                 </div>
+              )}
+              {card.commentsCount != null && card.commentsCount > 0 && (
+                <button
+                  type="button"
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openOrder(card.id, 'COMMENTS');
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontSize: '0.8rem',
+                    color: 'var(--text-secondary)',
+                    background: 'none',
+                    border: 'none',
+                    padding: '0 2px',
+                    cursor: 'pointer'
+                  }}
+                  title={`Комментарии (${card.commentsCount})`}
+                >
+                  <MessageSquare size={12} /> {card.commentsCount}
+                </button>
               )}
               {card.profitMargin != null && card.profitMargin > 0 && (
                 <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#16a34a' }}>
@@ -1344,7 +1432,9 @@ const Kanban = () => {
                   }
                 }}
                 onDragLeave={(e) => {
-                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                  if (e.currentTarget.contains(e.relatedTarget as Node)) {
+                    return;
+                  }
                   setDesktopDragOverColId(null);
                 }}
               >
@@ -1352,25 +1442,35 @@ const Kanban = () => {
                   className="column-header"
                   draggable={!isWorker && !isMobile}
                   onDragStart={(e) => {
-                    if (isMobile) return;
+                    if (isMobile) {
+                      return;
+                    }
                     e.stopPropagation();
                     e.dataTransfer.setData('columnId', col.id.toString());
                     e.dataTransfer.effectAllowed = 'move';
                   }}
                   onTouchStart={(e) => {
-                    if (isMobile) return;
+                    if (isMobile) {
+                      return;
+                    }
                     handleHandleTouchStart(e, col.id);
                   }}
                   onTouchMove={(e) => {
-                    if (isMobile) return;
+                    if (isMobile) {
+                      return;
+                    }
                     handleHandleTouchMove(e);
                   }}
                   onTouchEnd={(e) => {
-                    if (isMobile) return;
+                    if (isMobile) {
+                      return;
+                    }
                     handleHandleTouchEnd(e);
                   }}
                   onTouchCancel={() => {
-                    if (isMobile) return;
+                    if (isMobile) {
+                      return;
+                    }
                     handleHandleTouchCancel();
                   }}
                   style={{ cursor: !isWorker && !isMobile ? 'grab' : 'default' }}
@@ -1471,6 +1571,13 @@ const Kanban = () => {
         }}
       />
 
+      {/* Status Change with Optional Comment Modal */}
+      <StatusChangeModal
+        data={statusChangeModalData}
+        onClose={() => setStatusChangeModalData(null)}
+        onConfirm={handleConfirmStatusChange}
+      />
+
       {/* Touch Card Drag Ghost Portal */}
       {touchDraggingCard && touchDragPosition && touchGhostData && createPortal(
         <div 
@@ -1506,7 +1613,9 @@ const Kanban = () => {
       {/* Touch Column Drag Ghost Portal */}
       {draggingColId && colDragPosition && (() => {
         const draggingCol = columns.find(c => c.id === draggingColId);
-        if (!draggingCol) return null;
+        if (!draggingCol) {
+          return null;
+        }
         return createPortal(
           <div
             className="kanban-column-drag-ghost"

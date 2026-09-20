@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, HelpCircle, X } from 'lucide-react';
 import { useConfirmStore } from '../../store/useConfirmStore';
@@ -25,24 +25,30 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = (props) => {
   const cancelText = isControlled ? (props.cancelText || 'Отмена') : store.cancelText;
   const danger = isControlled ? Boolean(props.danger) : store.danger;
 
-  const handleConfirm = () => {
-    if (isControlled) {
-      props.onConfirm?.();
-    } else {
-      store.closeConfirm(true);
-    }
-  };
+  const { closeConfirm } = store;
+  const onConfirmProp = props.onConfirm;
+  const onCancelProp = props.onCancel;
 
-  const handleCancel = () => {
+  const handleConfirm = useCallback(() => {
     if (isControlled) {
-      props.onCancel?.();
+      onConfirmProp?.();
     } else {
-      store.closeConfirm(false);
+      closeConfirm(true);
     }
-  };
+  }, [isControlled, onConfirmProp, closeConfirm]);
+
+  const handleCancel = useCallback(() => {
+    if (isControlled) {
+      onCancelProp?.();
+    } else {
+      closeConfirm(false);
+    }
+  }, [isControlled, onCancelProp, closeConfirm]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      return;
+    }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -53,8 +59,10 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = (props) => {
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, handleCancel, handleConfirm]);
 
   if (typeof document === 'undefined' || !isOpen) {
     return null;

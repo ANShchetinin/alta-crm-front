@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ChevronDown,
@@ -46,7 +46,6 @@ import {
   updateOrder,
   completeOrder,
   uploadAttachment,
-  toggleAttachmentIsAct,
   fetchAttachmentBlob,
   deleteAttachment,
   renameAttachment,
@@ -91,6 +90,7 @@ import { EmployeeSearchSelect } from './EmployeeSearchSelect';
 import { QuickClientModal } from './QuickClientModal';
 import { ContractPromptModal } from './ContractPromptModal';
 import { mergeActChecklist, isActFile } from '../constants';
+import { OrderCommentsSection } from './OrderCommentsSection';
 import { useOrderDrawerStore } from '../../../store/useOrderDrawerStore';
 import { toast } from '../../../utils/toast';
 import { confirm } from '../../../utils/confirm';
@@ -143,7 +143,15 @@ export const OrderDrawer: React.FC = () => {
   const hasDocumentScanner = useFeature('DOCUMENT_SCANNER');
   const { fetchLowStockMaterials, tenantSettings } = useAppStore();
 
-  const { isOpen, orderId: editingOrderId, activeTab: orderModalTab, setActiveTab: setOrderModalTab, closeOrder } = useOrderDrawerStore();
+  const {
+    isOpen,
+    orderId: editingOrderId,
+    activeTab: orderModalTab,
+    setActiveTab: setOrderModalTab,
+    expandComments,
+    setExpandComments,
+    closeOrder
+  } = useOrderDrawerStore();
 
   const [columns, setColumns] = useState<OrderStatus[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -151,6 +159,11 @@ export const OrderDrawer: React.FC = () => {
   const [allMaterials, setAllMaterials] = useState<Material[]>([]);
   const [templateStatus, setTemplateStatus] = useState<ContractTemplateStatus | null>(null);
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  const [commentsCount, setCommentsCount] = useState<number>(0);
+
+  const handleCommentsCountChange = useCallback((count: number) => {
+    setCommentsCount(prev => (prev !== count ? count : prev));
+  }, []);
 
   const [initialFormDataJson, setInitialFormDataJson] = useState<string>('');
   const [isUnsavedConfirmOpen, setIsUnsavedConfirmOpen] = useState(false);
@@ -172,6 +185,8 @@ export const OrderDrawer: React.FC = () => {
     clientId: '',
     statusId: '',
     assigneeId: '',
+    assigneeName: '',
+    assigneeAvatarUrl: '',
     measurerId: '',
     measurerName: '',
     measurerAvatarUrl: '',
@@ -318,31 +333,13 @@ export const OrderDrawer: React.FC = () => {
     };
   }, [closeOrder]);
 
-  // Load order data when orderId changes
-  useEffect(() => {
-    if (!isOpen) return;
-
-    if (editingOrderId) {
-      getOrders().then(orders => {
-        const order = orders.find(o => o.id === editingOrderId);
-        if (order) {
-          setCurrentOrder(order);
-          populateOrderData(order);
-        }
-      }).catch(err => {
-        console.error("Failed to load order details", err);
-      });
-    } else {
-      setCurrentOrder(null);
-      initNewOrderForm();
-    }
-  }, [isOpen, editingOrderId]);
-
   const initNewOrderForm = () => {
     const initialData = {
       clientId: '',
       statusId: columns[0]?.id ? columns[0].id.toString() : '',
       assigneeId: '',
+      assigneeName: '',
+      assigneeAvatarUrl: '',
       measurerId: '',
       measurerName: '',
       measurerAvatarUrl: '',
@@ -386,12 +383,14 @@ export const OrderDrawer: React.FC = () => {
     setFormData(initialData);
     setInitialFormDataJson(JSON.stringify({ formData: initialData, pendingFilesCount: 0 }));
     setPendingFiles([]);
+    setCommentsCount(0);
     setAiSummary(null);
     setOrderAiCost(null);
     setChatMessages([]);
   };
 
   const populateOrderData = (order: Order) => {
+    setCommentsCount(order.commentsCount || 0);
     const prep = order.prepayment != null ? order.prepayment : 0;
     const rem = order.remainder != null ? order.remainder : (order.totalPrice != null ? Math.max(0, order.totalPrice - prep) : 0);
     const tot = order.totalPrice != null ? order.totalPrice : (prep + rem);
@@ -422,6 +421,8 @@ export const OrderDrawer: React.FC = () => {
       clientId: order.clientId ? order.clientId.toString() : '',
       statusId: order.statusId ? order.statusId.toString() : '',
       assigneeId: order.assigneeId ? order.assigneeId.toString() : '',
+      assigneeName: order.assigneeName || '',
+      assigneeAvatarUrl: order.assigneeAvatarUrl || '',
       measurerId: order.measurerId ? order.measurerId.toString() : '',
       measurerName: order.measurerName || '',
       measurerAvatarUrl: order.measurerAvatarUrl || '',
@@ -474,8 +475,37 @@ export const OrderDrawer: React.FC = () => {
     }
   };
 
+  const initNewOrderFormRef = useRef(initNewOrderForm);
+  initNewOrderFormRef.current = initNewOrderForm;
+  const populateOrderDataRef = useRef(populateOrderData);
+  populateOrderDataRef.current = populateOrderData;
+
+  // Load order data when orderId changes
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    if (editingOrderId) {
+      getOrders().then(orders => {
+        const order = orders.find(o => o.id === editingOrderId);
+        if (order) {
+          setCurrentOrder(order);
+          populateOrderDataRef.current(order);
+        }
+      }).catch(err => {
+        console.error("Failed to load order details", err);
+      });
+    } else {
+      setCurrentOrder(null);
+      initNewOrderFormRef.current();
+    }
+  }, [isOpen, editingOrderId]);
+
   const isDirty = useMemo(() => {
-    if (!initialFormDataJson) return false;
+    if (!initialFormDataJson) {
+      return false;
+    }
     const currentJson = JSON.stringify({ formData, pendingFilesCount: pendingFiles.length });
     return currentJson !== initialFormDataJson;
   }, [formData, pendingFiles.length, initialFormDataJson]);
@@ -1075,21 +1105,6 @@ export const OrderDrawer: React.FC = () => {
     }
   };
 
-  const handleToggleAttachmentIsAct = async (att: OrderAttachment) => {
-    try {
-      const updated = await toggleAttachmentIsAct(att.id, !att.isAct);
-      setFormData(prev => ({
-        ...prev,
-        attachments: prev.attachments.map(a => a.id === att.id ? { ...a, isAct: updated.isAct } : a)
-      }));
-      window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId: editingOrderId } }));
-      toast.success(updated.isAct ? 'Файл помечен как «Акт выполненных работ»' : 'С файла снята метка «Акт»');
-    } catch (err) {
-      console.error("Failed to toggle act status", err);
-      toast.error("Не удалось изменить статус Акта");
-    }
-  };
-
   const handleStartRenameAttachment = (att: OrderAttachment) => {
     setEditingAttachmentId(att.id);
     setEditingAttachmentName(att.fileName);
@@ -1436,6 +1451,43 @@ export const OrderDrawer: React.FC = () => {
               </select>
               <ChevronDown className="modal-header-status-icon" size={14} />
             </div>
+            {/* Comments Count Badge in Modal Header */}
+            {editingOrderId && commentsCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (orderModalTab !== 'MAIN') {
+                    setOrderModalTab('MAIN');
+                  }
+                  setExpandComments(true);
+                  setTimeout(() => {
+                    const el = document.getElementById('order-comments-section');
+                    if (el) {
+                      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }, 100);
+                }}
+                className="modal-header-comments-badge"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  background: 'rgba(59, 130, 246, 0.12)',
+                  color: 'var(--accent-primary)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  borderRadius: '14px',
+                  padding: '3px 10px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                title={`Комментарии к заказу (${commentsCount}). Нажмите, чтобы перейти`}
+              >
+                <MessageSquare size={13} />
+                <span>{commentsCount}</span>
+              </button>
+            )}
           </div>
 
           <button 
@@ -1754,11 +1806,21 @@ export const OrderDrawer: React.FC = () => {
                     <EmployeeSearchSelect
                       value={formData.assigneeId}
                       employees={employees}
-                      onChange={(val) => setFormData({ ...formData, assigneeId: val })}
+                      onChange={(val) => {
+                        const emp = employees.find(e => e.id.toString() === val);
+                        setFormData({
+                          ...formData,
+                          assigneeId: val,
+                          assigneeName: emp?.name || '',
+                          assigneeAvatarUrl: emp?.avatarUrl || ''
+                        });
+                      }}
                       placeholder={t('kanban.modal.selectAssignee') || 'Без ответственного'}
                       icon={<Users size={15} style={{ color: 'var(--accent-primary)' }} />}
                       accentColor="var(--accent-primary)"
                       isWorker={isWorker}
+                      fallbackName={formData.assigneeName || currentOrder?.assigneeName}
+                      fallbackAvatarUrl={formData.assigneeAvatarUrl || currentOrder?.assigneeAvatarUrl}
                     />
                   </div>
 
@@ -1771,11 +1833,21 @@ export const OrderDrawer: React.FC = () => {
                     <EmployeeSearchSelect
                       value={formData.measurerId}
                       employees={employees}
-                      onChange={(val) => setFormData({ ...formData, measurerId: val })}
+                      onChange={(val) => {
+                        const emp = employees.find(e => e.id.toString() === val);
+                        setFormData({
+                          ...formData,
+                          measurerId: val,
+                          measurerName: emp?.name || '',
+                          measurerAvatarUrl: emp?.avatarUrl || ''
+                        });
+                      }}
                       placeholder="Не назначен"
                       icon={<Ruler size={15} style={{ color: '#a855f7' }} />}
                       accentColor="#a855f7"
                       isWorker={isWorker}
+                      fallbackName={formData.measurerName || currentOrder?.measurerName}
+                      fallbackAvatarUrl={formData.measurerAvatarUrl || currentOrder?.measurerAvatarUrl}
                     />
                   </div>
 
@@ -1788,11 +1860,21 @@ export const OrderDrawer: React.FC = () => {
                     <EmployeeSearchSelect
                       value={formData.installedById}
                       employees={employees}
-                      onChange={(val) => setFormData({ ...formData, installedById: val })}
+                      onChange={(val) => {
+                        const emp = employees.find(e => e.id.toString() === val);
+                        setFormData({
+                          ...formData,
+                          installedById: val,
+                          installedByName: emp?.name || '',
+                          installedByAvatarUrl: emp?.avatarUrl || ''
+                        });
+                      }}
                       placeholder="Не назначен"
                       icon={<Wrench size={15} style={{ color: '#22c55e' }} />}
                       accentColor="#22c55e"
                       isWorker={isWorker}
+                      fallbackName={formData.installedByName || currentOrder?.installedByName}
+                      fallbackAvatarUrl={formData.installedByAvatarUrl || currentOrder?.installedByAvatarUrl}
                     />
                   </div>
                 </div>
@@ -2008,7 +2090,7 @@ export const OrderDrawer: React.FC = () => {
                       fontFamily: 'inherit',
                       fontSize: '0.9rem'
                     }}
-                    placeholder="Описание или комментарии к заказу..."
+                    placeholder="Описание заказа..."
                   />
                 </div>
 
@@ -2251,6 +2333,14 @@ export const OrderDrawer: React.FC = () => {
                   <OrderRemindersSection
                     orderId={editingOrderId}
                     employees={employees}
+                  />
+                )}
+
+                {editingOrderId && (
+                  <OrderCommentsSection
+                    orderId={editingOrderId}
+                    defaultExpanded={expandComments}
+                    onCommentsCountChange={handleCommentsCountChange}
                   />
                 )}
               </>
@@ -3132,7 +3222,7 @@ export const OrderDrawer: React.FC = () => {
                             </div>
                           ) : (
                             <>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', maxWidth: '55%' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
                                 {isAttAct && (
                                   <span style={{
                                     fontSize: '0.72rem',
@@ -3150,31 +3240,13 @@ export const OrderDrawer: React.FC = () => {
                                   </span>
                                 )}
                                 <span 
-                                  style={{fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}
+                                  style={{fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1}}
                                   title={att.fileName}
                                 >
                                   {att.fileName}
                                 </span>
                               </div>
-                              <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                {!isWorker && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleToggleAttachmentIsAct(att)}
-                                    className="btn btn-ghost"
-                                    style={{
-                                      padding: '4px 8px',
-                                      fontSize: '0.75rem',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      color: isAttAct ? '#4ade80' : 'var(--text-secondary)'
-                                    }}
-                                    title={isAttAct ? 'Снять отметку Акта выполненных работ' : 'Отметить как Акт выполненных работ'}
-                                  >
-                                    <FileCheck size={13} /> {isAttAct ? 'Акт' : 'Сделать Актом'}
-                                  </button>
-                                )}
+                              <div style={{display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0}}>
                                 {!isWorker && (
                                   <button 
                                     type="button" 
@@ -3248,7 +3320,7 @@ export const OrderDrawer: React.FC = () => {
                           borderColor: isPfAct ? 'rgba(34, 197, 94, 0.35)' : 'var(--glass-border)',
                           borderRadius: 'var(--radius-sm)'
                         }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
                             {isPfAct && (
                               <span style={{
                                 fontSize: '0.72rem',
@@ -3265,9 +3337,11 @@ export const OrderDrawer: React.FC = () => {
                                 <FileCheck size={11} /> Акт
                               </span>
                             )}
-                            <span style={{fontSize: '0.9rem'}}>{pf.name} (ожидает сохранения)</span>
+                            <span style={{ fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }} title={pf.name}>
+                              {pf.name} (ожидает сохранения)
+                            </span>
                           </div>
-                          <button type="button" onClick={() => removePendingFile(index)} style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center'}}>
+                          <button type="button" onClick={() => removePendingFile(index)} style={{background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0}}>
                             <Trash2 size={15} />
                           </button>
                         </div>
@@ -4103,93 +4177,103 @@ export const OrderDrawer: React.FC = () => {
             )}
           </div>
 
-          <div className="order-drawer-footer modal-actions">
-            {editingOrderId && !isWorker ? (
-              <button 
-                type="button" 
-                onClick={handleDeleteOrder}
-                className="btn btn-ghost"
-                style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Trash2 size={16} /> {t('kanban.modal.delete') || 'Удалить'}
-              </button>
-            ) : <div />}
-
-            {editingOrderId && (() => {
-              const currentStatus = columns.find(c => c.id.toString() === formData.statusId);
-              const isCompleted = currentStatus ? (
-                currentStatus.name.toLowerCase().includes('заверш') ||
-                currentStatus.name.toLowerCase().includes('готов') ||
-                currentStatus.name.toLowerCase().includes('выполнен')
-              ) : false;
-
-              if (!isCompleted) {
-                const hasInstaller = Boolean(formData.installedById || currentOrder?.installedById || currentOrder?.installedByName);
-                const hasAct = formData.attachments.some(a => isActFile(a.fileName, a.isAct)) || pendingFiles.some(f => isActFile(f.name));
-                const canComplete = hasInstaller && hasAct;
-
-                let disabledTitle = 'Завершить монтаж и перевести заказ в статус «Завершен»';
-                if (!hasInstaller) {
-                  disabledTitle = 'Для завершения монтажа необходимо выбрать монтажника';
-                } else if (!hasAct) {
-                  disabledTitle = 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»';
-                }
-
-                return (
-                  <button
-                    type="button"
-                    disabled={!canComplete}
-                    onClick={(e) => handleCompleteInstallation(e, editingOrderId)}
-                    className="btn"
-                    style={{
-                      background: canComplete ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
-                      color: canComplete ? '#fff' : 'var(--text-secondary)',
-                      border: canComplete ? 'none' : '1px solid var(--glass-border)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontWeight: 600,
-                      padding: '8px 14px',
-                      cursor: canComplete ? 'pointer' : 'not-allowed',
-                      opacity: canComplete ? 1 : 0.45
-                    }}
-                    title={disabledTitle}
-                  >
-                    <CheckCircle2 size={16} /> Завершить монтаж
-                  </button>
-                );
-              }
-              return (
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  color: '#4ade80',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  background: 'rgba(34, 197, 94, 0.12)',
-                  padding: '6px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid rgba(34, 197, 94, 0.25)'
-                }}>
-                  <CheckCircle2 size={16} /> Монтаж завершен
-                </div>
-              );
-            })()}
-
+          <div className="order-drawer-footer">
             {(!editingOrderId || isDirty) && (
-              <div className="modal-action-btns animate-fade-in" style={{ display: 'flex', gap: '8px' }}>
+              <div className="order-drawer-save-actions animate-fade-in">
+                {editingOrderId && (
+                  <button 
+                    type="button" 
+                    onClick={handleCancelChanges}
+                    className="btn btn-ghost order-drawer-cancel-btn"
+                  >
+                    {t('kanban.modal.cancel') || 'Отмена'}
+                  </button>
+                )}
                 <button 
-                  type="button" 
-                  onClick={handleCancelChanges}
-                  className="btn btn-ghost"
+                  type="submit" 
+                  className="btn btn-primary order-drawer-save-btn" 
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  {t('kanban.modal.cancel') || 'Отмена'}
-                </button>
-                <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                   <Check size={16} />
                   {editingOrderId ? (t('kanban.modal.save') || 'Сохранить') : (t('kanban.createOrder') || 'Создать заказ')}
                 </button>
+              </div>
+            )}
+
+            {editingOrderId && (
+              <div className="order-drawer-secondary-actions">
+                {!isWorker ? (
+                  <button 
+                    type="button" 
+                    onClick={handleDeleteOrder}
+                    className="btn btn-ghost order-drawer-delete-btn"
+                    style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Trash2 size={16} /> {t('kanban.modal.delete') || 'Удалить'}
+                  </button>
+                ) : <div />}
+
+                {(() => {
+                  const currentStatus = columns.find(c => c.id.toString() === formData.statusId);
+                  const isCompleted = currentStatus ? (
+                    currentStatus.name.toLowerCase().includes('заверш') ||
+                    currentStatus.name.toLowerCase().includes('готов') ||
+                    currentStatus.name.toLowerCase().includes('выполнен')
+                  ) : false;
+
+                  if (!isCompleted) {
+                    const hasInstaller = Boolean(formData.installedById || currentOrder?.installedById || currentOrder?.installedByName);
+                    const hasAct = formData.attachments.some(a => isActFile(a.fileName, a.isAct)) || pendingFiles.some(f => isActFile(f.name));
+                    const canComplete = hasInstaller && hasAct;
+
+                    let disabledTitle = 'Завершить монтаж и перевести заказ в статус «Завершен»';
+                    if (!hasInstaller) {
+                      disabledTitle = 'Для завершения монтажа необходимо выбрать монтажника';
+                    } else if (!hasAct) {
+                      disabledTitle = 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»';
+                    }
+
+                    return (
+                      <button
+                        type="button"
+                        disabled={!canComplete}
+                        onClick={(e) => handleCompleteInstallation(e, editingOrderId)}
+                        className="btn order-drawer-complete-btn"
+                        style={{
+                          background: canComplete ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(255, 255, 255, 0.08)',
+                          color: canComplete ? '#fff' : 'var(--text-secondary)',
+                          border: canComplete ? 'none' : '1px solid var(--glass-border)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontWeight: 600,
+                          padding: '8px 14px',
+                          cursor: canComplete ? 'pointer' : 'not-allowed',
+                          opacity: canComplete ? 1 : 0.45
+                        }}
+                        title={disabledTitle}
+                      >
+                        <CheckCircle2 size={16} /> Завершить монтаж
+                      </button>
+                    );
+                  }
+                  return (
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: '#4ade80',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      background: 'rgba(34, 197, 94, 0.12)',
+                      padding: '6px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid rgba(34, 197, 94, 0.25)'
+                    }}>
+                      <CheckCircle2 size={16} /> Монтаж завершен
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>

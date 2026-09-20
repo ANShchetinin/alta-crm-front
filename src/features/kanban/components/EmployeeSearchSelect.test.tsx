@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { EmployeeSearchSelect } from './EmployeeSearchSelect';
 import type { Employee } from '../../../api/employees';
@@ -41,5 +41,21 @@ describe('EmployeeSearchSelect', () => {
     );
     expect(screen.getByText('Иван Монтажник')).toBeInTheDocument();
     expect(screen.getByText('Монтажник')).toBeInTheDocument();
+  });
+
+  it('renders fallback employee details when employee is not in employees list (worker view)', () => {
+    render(
+      <EmployeeSearchSelect
+        value="99"
+        employees={[]}
+        onChange={() => {}}
+        isWorker={true}
+        fallbackName="Сергей Ответственный"
+        fallbackPosition="Бригадир"
+      />
+    );
+    expect(screen.getByText('Сергей Ответственный')).toBeInTheDocument();
+    expect(screen.getByText('Бригадир')).toBeInTheDocument();
+    expect(screen.queryByText('Не назначен')).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   Trash2,
@@ -42,24 +42,24 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
   // Модалка создания/редактирования услуги
   const [editingService, setEditingService] = useState<EstimationService | null>(null);
 
-  const loadServices = async () => {
+  const loadServices = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getEstimationServices();
       setServices(data);
-      if (data.length > 0 && expandedServiceId === null) {
-        setExpandedServiceId(data[0].id || null);
+      if (data.length > 0) {
+        setExpandedServiceId(prev => (prev === null ? (data[0].id || null) : prev));
       }
     } catch (err) {
       console.error('Ошибка загрузки сметных услуг:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadServices();
-  }, []);
+  }, [loadServices]);
 
   const handleInitDefaults = async () => {
     const ok = await confirm({
@@ -68,7 +68,9 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
       confirmText: 'Инициализировать',
       cancelText: 'Отмена',
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
 
     setLoading(true);
     try {

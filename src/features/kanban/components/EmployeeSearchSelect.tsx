@@ -11,6 +11,10 @@ export interface EmployeeSearchSelectProps {
   icon?: React.ReactNode;
   accentColor?: string;
   isWorker?: boolean;
+  fallbackName?: string;
+  fallbackAvatarUrl?: string;
+  fallbackPhone?: string;
+  fallbackPosition?: string;
 }
 
 export const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
@@ -20,14 +24,33 @@ export const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
   placeholder = 'Не назначен',
   icon,
   accentColor = 'var(--accent-primary)',
-  isWorker
+  isWorker,
+  fallbackName,
+  fallbackAvatarUrl,
+  fallbackPhone,
+  fallbackPosition
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const selectedEmployee = employees.find(e => e.id.toString() === value);
+  const selectedEmployee = useMemo(() => {
+    const found = employees.find(e => e.id.toString() === value);
+    if (found) {
+      return found;
+    }
+    if (fallbackName || (value && isWorker)) {
+      return {
+        id: Number(value) || 0,
+        name: fallbackName || 'Сотрудник',
+        avatarUrl: fallbackAvatarUrl,
+        phone: fallbackPhone,
+        position: fallbackPosition
+      } as Employee;
+    }
+    return undefined;
+  }, [employees, value, fallbackName, fallbackAvatarUrl, fallbackPhone, fallbackPosition, isWorker]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
