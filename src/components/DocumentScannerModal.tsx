@@ -203,7 +203,9 @@ export const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({
   }, [isOpen, step, startCamera, stopCamera]);
 
   const toggleTorch = async () => {
-    if (!streamRef.current) return;
+    if (!streamRef.current) {
+      return;
+    }
     const track = streamRef.current.getVideoTracks()[0];
     try {
       const nextState = !isTorchOn;
@@ -216,9 +218,54 @@ export const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({
     }
   };
 
+  // 3. Trigger Shutter Capture with Sound, Flash, and Haptics
+  const triggerCapture = useCallback((detectedCorners?: [Point, Point, Point, Point]) => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    // Flash & Shutter Audio Feedback (Scanner Pro style)
+    setIsFlashing(true);
+    playShutterSound();
+    if (navigator.vibrate) {
+      navigator.vibrate([40, 30, 80]);
+    }
+    setTimeout(() => {
+      setIsFlashing(false);
+    }, 200);
+
+    const vw = video.videoWidth || 1920;
+    const vh = video.videoHeight || 1080;
+
+    const fullCanvas = document.createElement('canvas');
+    fullCanvas.width = vw;
+    fullCanvas.height = vh;
+    const ctx = fullCanvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0, vw, vh);
+    setCapturedImageCanvas(fullCanvas);
+
+    const initialCorners: [Point, Point, Point, Point] = detectedCorners || lastRawCornersRef.current || [
+      { x: Math.round(vw * 0.1), y: Math.round(vh * 0.1) },
+      { x: Math.round(vw * 0.9), y: Math.round(vh * 0.1) },
+      { x: Math.round(vw * 0.9), y: Math.round(vh * 0.9) },
+      { x: Math.round(vw * 0.1), y: Math.round(vh * 0.9) }
+    ];
+
+    setCorners(initialCorners);
+    stopCamera();
+    setStep('ADJUST_CORNERS');
+  }, [stopCamera]);
+
   // 2. Real-time Scanner Pro Detection Loop
   useEffect(() => {
-    if (step !== 'CAMERA' || !isOpen) return;
+    if (step !== 'CAMERA' || !isOpen) {
+      return;
+    }
 
     if (!offscreenCanvasRef.current) {
       offscreenCanvasRef.current = document.createElement('canvas');
@@ -386,49 +433,14 @@ export const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({
         cancelAnimationFrame(animFrameIdRef.current);
       }
     };
-  }, [step, isOpen, isAutoCaptureEnabled]);
-
-  // 3. Trigger Shutter Capture with Sound, Flash, and Haptics
-  const triggerCapture = (detectedCorners?: [Point, Point, Point, Point]) => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    // Flash & Shutter Audio Feedback (Scanner Pro style)
-    setIsFlashing(true);
-    playShutterSound();
-    if (navigator.vibrate) {
-      navigator.vibrate([40, 30, 80]);
-    }
-    setTimeout(() => setIsFlashing(false), 200);
-
-    const vw = video.videoWidth || 1920;
-    const vh = video.videoHeight || 1080;
-
-    const fullCanvas = document.createElement('canvas');
-    fullCanvas.width = vw;
-    fullCanvas.height = vh;
-    const ctx = fullCanvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0, vw, vh);
-    setCapturedImageCanvas(fullCanvas);
-
-    const initialCorners: [Point, Point, Point, Point] = detectedCorners || lastRawCornersRef.current || [
-      { x: Math.round(vw * 0.1), y: Math.round(vh * 0.1) },
-      { x: Math.round(vw * 0.9), y: Math.round(vh * 0.1) },
-      { x: Math.round(vw * 0.9), y: Math.round(vh * 0.9) },
-      { x: Math.round(vw * 0.1), y: Math.round(vh * 0.9) }
-    ];
-
-    setCorners(initialCorners);
-    stopCamera();
-    setStep('ADJUST_CORNERS');
-  };
+  }, [step, isOpen, isAutoCaptureEnabled, triggerCapture]);
 
   // Process photo captured via native device camera fallback
   const handleFallbackPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     const img = new Image();
     img.onload = () => {

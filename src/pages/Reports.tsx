@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Search, BarChart2, FileText, Ruler, Target, TrendingUp, TrendingDown, 
@@ -97,12 +97,14 @@ export const Reports = () => {
   };
 
   // Check if order status is completed
-  const isOrderCompleted = (order: Order) => {
+  const isOrderCompleted = useCallback((order: Order) => {
     const st = statuses.find(s => s.id === order.statusId);
-    if (!st || !st.name) return false;
+    if (!st || !st.name) {
+      return false;
+    }
     const name = st.name.trim().toLowerCase();
     return name.includes('заверш') || name.includes('готов') || name.includes('выполнен') || name.includes('complete');
-  };
+  }, [statuses]);
 
   // Filter orders by selected period & employee
   const filteredOrders = useMemo(() => {
@@ -135,7 +137,9 @@ export const Reports = () => {
 
       // Period filter
       const dateStr = order.createdAt || '';
-      if (!dateStr) return false;
+      if (!dateStr) {
+        return false;
+      }
       const orderDate = new Date(dateStr);
 
       if (periodPreset === 'ALL') {
@@ -184,7 +188,7 @@ export const Reports = () => {
   // Completed contracts (for revenue and profit calculations)
   const completedContracts = useMemo(() => {
     return contracts.filter(isOrderCompleted);
-  }, [contracts, statuses]);
+  }, [contracts, isOrderCompleted]);
 
   // Measurements: orders with assigned measurement date
   const measurements = useMemo(() => {
@@ -244,7 +248,7 @@ export const Reports = () => {
     });
 
     return Object.values(dataMap).sort((a, b) => a.date.localeCompare(b.date));
-  }, [filteredOrders, statuses]);
+  }, [filteredOrders, isOrderCompleted]);
 
   // Lead Sources Analytics
   const leadSourcesData = useMemo(() => {
@@ -275,7 +279,7 @@ export const Reports = () => {
       const avg = s.completedCount > 0 ? Math.round(s.revenue / s.completedCount) : 0;
       return { ...s, ctr, avgCheck: avg };
     }).sort((a, b) => b.revenue - a.revenue);
-  }, [filteredOrders, clients, statuses]);
+  }, [filteredOrders, clients, isOrderCompleted]);
 
   // Employee Performance Analytics
   const employeePerformanceData = useMemo(() => {
@@ -394,7 +398,7 @@ export const Reports = () => {
         const avg = e.completedCount > 0 ? Math.round(e.revenue / e.completedCount) : 0;
         return { ...e, ctr, avgCheck: avg };
       }).sort((a, b) => b.revenue - a.revenue || b.contracts - a.contracts || b.measurements - a.measurements || b.installations - a.installations);
-  }, [filteredOrders, employees, statuses]);
+  }, [filteredOrders, employees, isOrderCompleted]);
 
   if (loading) {
     return <div className="p-8" style={{ color: 'var(--text-secondary)' }}>Загрузка аналитики...</div>;

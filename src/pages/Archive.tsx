@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Archive as ArchiveIcon, 
   Search, 
@@ -87,11 +87,7 @@ export const Archive = () => {
   const [previewAttachment, setPreviewAttachment] = useState<PreviewAttachmentData | null>(null);
   const [openingAttachmentId, setOpeningAttachmentId] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [archivedData, statusesData, clientsData, employeesData] = await Promise.all([
@@ -109,7 +105,11 @@ export const Archive = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isWorker]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Extract available years for filter
   const availableYears = useMemo(() => {
@@ -267,21 +267,25 @@ export const Archive = () => {
     }
   };
 
-  const handleCloseDetail = () => {
+  const handleCloseDetail = useCallback(() => {
     setSelectedOrder(null);
     setIsDetailModalOpen(false);
     setOrderMeasurement(null);
-  };
+  }, []);
 
   const handleReturnToKanban = async (targetStatusId: number) => {
-    if (!selectedOrder) return;
+    if (!selectedOrder) {
+      return;
+    }
     const ok = await confirm({
       title: 'Возврат заявки',
       message: 'Вернуть эту заявку из архива в работу на Канбан?',
       confirmText: 'Вернуть',
       cancelText: 'Отмена',
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
 
     try {
       setActionLoading(true);
@@ -308,7 +312,9 @@ export const Archive = () => {
       cancelText: 'Отмена',
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
 
     try {
       setActionLoading(true);
@@ -392,12 +398,12 @@ export const Archive = () => {
     }
   };
 
-  const handleClosePreviewAttachment = () => {
+  const handleClosePreviewAttachment = useCallback(() => {
     if (previewAttachment?.url) {
       URL.revokeObjectURL(previewAttachment.url);
     }
     setPreviewAttachment(null);
-  };
+  }, [previewAttachment]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -410,8 +416,10 @@ export const Archive = () => {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewAttachment, isDetailModalOpen]);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [previewAttachment, isDetailModalOpen, handleClosePreviewAttachment, handleCloseDetail]);
 
   const handleDownloadAttachment = async (att: OrderAttachment) => {
     try {

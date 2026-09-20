@@ -950,8 +950,7 @@ body.light-theme .order-drawer-content {
 }
 
 /* Order Drawer Footer Actions */
-.order-drawer-footer,
-.order-drawer-content .modal-actions {
+.order-drawer-footer {
   padding: 14px 20px;
   border-top: 1px solid var(--glass-border);
   background: var(--bg-secondary);
@@ -961,6 +960,20 @@ body.light-theme .order-drawer-content {
   justify-content: space-between;
   gap: 12px;
   flex-shrink: 0;
+  z-index: 10;
+}
+
+.order-drawer-save-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.order-drawer-secondary-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 /* DaData dark theme overrides */
@@ -1064,7 +1077,7 @@ body.light-theme .order-drawer-content {
     border-radius: 16px 16px 0 0 !important;
     animation: sheetSlideUpMobile 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
     box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.25) !important;
-    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    padding-bottom: 0 !important;
   }
 
   .order-drawer-drag-handle-wrapper {
@@ -1082,17 +1095,55 @@ body.light-theme .order-drawer-content {
   .order-drawer-body,
   .order-drawer-content .modal-body {
     padding: 14px 16px !important;
-    padding-bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 20px)) !important;
+    padding-bottom: 24px !important;
   }
 
-  .order-drawer-footer,
-  .order-drawer-content .modal-actions {
-    padding: 12px 16px !important;
+  .order-drawer-footer {
+    padding: 10px 16px !important;
+    padding-bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 10px)) !important;
     background: var(--bg-secondary) !important;
-    flex-direction: row !important;
-    justify-content: space-between !important;
-    align-items: center !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
     margin-top: 0 !important;
+    flex-shrink: 0 !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 50 !important;
+    border-top: 1px solid var(--glass-border) !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .order-drawer-save-actions {
+    display: flex !important;
+    gap: 8px !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+
+  .order-drawer-save-actions .btn {
+    flex: 1 !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .order-drawer-secondary-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .order-drawer-secondary-actions .btn {
+    height: 38px !important;
+    min-height: 38px !important;
+    font-size: 0.85rem !important;
   }
 
   /* Native Fullscreen Modal on mobile */
