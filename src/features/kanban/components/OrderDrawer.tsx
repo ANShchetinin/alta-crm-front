@@ -91,6 +91,8 @@ import { QuickClientModal } from './QuickClientModal';
 import { ContractPromptModal } from './ContractPromptModal';
 import { mergeActChecklist, isActFile } from '../constants';
 import { OrderCommentsSection } from './OrderCommentsSection';
+import { AiEstimateModal } from './AiEstimateModal';
+import { type AiEstimateResultDto } from '../../../api/aiEstimate';
 import { useOrderDrawerStore } from '../../../store/useOrderDrawerStore';
 import { toast } from '../../../utils/toast';
 import { confirm } from '../../../utils/confirm';
@@ -141,6 +143,7 @@ export const OrderDrawer: React.FC = () => {
   const hasAiSummary = useFeature('AI_SUMMARY');
   const hasContractTemplates = useFeature('CONTRACT_TEMPLATES');
   const hasDocumentScanner = useFeature('DOCUMENT_SCANNER');
+  const hasAiEstimate = useFeature('AI_ESTIMATE');
   const { fetchLowStockMaterials, tenantSettings } = useAppStore();
 
   const {
@@ -249,6 +252,7 @@ export const OrderDrawer: React.FC = () => {
   const [isContractPromptOpen, setIsContractPromptOpen] = useState(false);
   const [contractPromptLoading, setContractPromptLoading] = useState(false);
   const [isSyncingMeasurement, setIsSyncingMeasurement] = useState(false);
+  const [isAiEstimateModalOpen, setIsAiEstimateModalOpen] = useState(false);
   const [isPassportScannerOpen, setIsPassportScannerOpen] = useState(false);
   const [passportScannerTarget, setPassportScannerTarget] = useState<'CONTRACT' | 'NEW_CLIENT' | 'ORDER'>('CONTRACT');
   const [contractPromptData, setContractPromptData] = useState({
@@ -501,6 +505,23 @@ export const OrderDrawer: React.FC = () => {
       initNewOrderFormRef.current();
     }
   }, [isOpen, editingOrderId]);
+
+  const handleEstimateApplied = async (aiResult: AiEstimateResultDto) => {
+    toast.success('Смета успешно обновлена AI-агентом!');
+    const targetId = editingOrderId || aiResult.orderId;
+    if (targetId) {
+      try {
+        const orders = await getOrders();
+        const updated = orders.find(o => o.id === targetId);
+        if (updated) {
+          setCurrentOrder(updated);
+          populateOrderDataRef.current(updated);
+        }
+      } catch (e) {
+        console.error('Failed to reload order after AI estimate', e);
+      }
+    }
+  };
 
   const isDirty = useMemo(() => {
     if (!initialFormDataJson) {
@@ -1542,6 +1563,16 @@ export const OrderDrawer: React.FC = () => {
                 className={`order-drawer-tab-btn ${orderModalTab === 'AI' ? 'active' : ''}`}
               >
                 <Mic size={15} /> AI анализ звонков
+              </button>
+            )}
+            {hasAiEstimate && editingOrderId && (
+              <button
+                type="button"
+                onClick={() => setIsAiEstimateModalOpen(true)}
+                className="order-drawer-tab-btn"
+                style={{ color: '#8b5cf6' }}
+              >
+                <Sparkles size={15} style={{ color: '#8b5cf6' }} /> AI-Смета
               </button>
             )}
           </div>
@@ -2795,6 +2826,17 @@ export const OrderDrawer: React.FC = () => {
                       >
                         <Ruler size={13} /> Замер и смета
                       </button>
+                      {hasAiEstimate && editingOrderId && (
+                        <button
+                          type="button"
+                          onClick={() => setIsAiEstimateModalOpen(true)}
+                          className="btn btn-ghost"
+                          style={{ fontSize: '0.8rem', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#8b5cf6', border: '1px solid var(--glass-border)' }}
+                          title="AI-наполнение сметы материалами со склада голосом или текстом"
+                        >
+                          <Sparkles size={13} style={{ color: '#8b5cf6' }} /> AI-Смета
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
@@ -4540,6 +4582,18 @@ export const OrderDrawer: React.FC = () => {
         onClose={handleClosePreviewAttachment}
         onDownload={handleDownloadAttachment}
       />
+
+      {/* AI Estimate Modal */}
+      {hasAiEstimate && (
+        <AiEstimateModal
+          isOpen={isAiEstimateModalOpen}
+          onClose={() => setIsAiEstimateModalOpen(false)}
+          orderId={editingOrderId || undefined}
+          orderNumber={formData.orderNumber}
+          clientName={currentOrder?.clientName || clients.find(c => c.id === parseInt(formData.clientId))?.name}
+          onEstimateApplied={handleEstimateApplied}
+        />
+      )}
     </>
   );
 };

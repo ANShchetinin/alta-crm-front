@@ -14,7 +14,8 @@ export type FeatureKey =
   | 'MEASUREMENT_CALCULATOR'
   | 'EXIT_INTENT_ANALYTICS'
   | 'PASSPORT_OCR'
-  | 'SITE_REQUESTS';
+  | 'SITE_REQUESTS'
+  | 'AI_ESTIMATE';
 
 export interface FeatureInfo {
   key: FeatureKey;
