@@ -38,14 +38,21 @@ export interface AiEstimateResultDto {
 
 export interface AiEstimateTextRequest {
   orderId?: number;
-  prompt: string;
+  query?: string;
+  prompt?: string;
 }
 
 /**
  * Отправляет текстовый запрос на AI-заполнение сметы из остатков склада.
  */
 export const requestAiEstimateText = async (payload: AiEstimateTextRequest): Promise<AiEstimateResultDto> => {
-  const response = await api.post('/orders/ai-estimate/text', payload);
+  const query = payload.query || payload.prompt || '';
+  const body = {
+    orderId: payload.orderId,
+    query,
+    prompt: query
+  };
+  const response = await api.post('/orders/ai-estimate/text', body);
   return response.data;
 };
 

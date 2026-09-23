@@ -29,7 +29,11 @@ describe('aiEstimate API', () => {
     const payload = { orderId: 101, prompt: 'добавь 5 профилей' };
     const result = await requestAiEstimateText(payload);
 
-    expect(api.post).toHaveBeenCalledWith('/orders/ai-estimate/text', payload);
+    expect(api.post).toHaveBeenCalledWith('/orders/ai-estimate/text', {
+      orderId: 101,
+      query: 'добавь 5 профилей',
+      prompt: 'добавь 5 профилей'
+    });
     expect(result).toEqual(mockResponse);
   });
 

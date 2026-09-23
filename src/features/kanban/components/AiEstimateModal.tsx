@@ -81,6 +81,7 @@ export const AiEstimateModal: React.FC<AiEstimateModalProps> = ({
     try {
       const response = await requestAiEstimateText({
         orderId,
+        query: promptText.trim(),
         prompt: promptText.trim()
       });
       setResult(response);
