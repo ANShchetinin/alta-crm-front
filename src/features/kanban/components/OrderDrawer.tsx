@@ -254,6 +254,7 @@ export const OrderDrawer: React.FC = () => {
   const [contractPromptLoading, setContractPromptLoading] = useState(false);
   const [isSyncingMeasurement, setIsSyncingMeasurement] = useState(false);
   const [isAiEstimateModalOpen, setIsAiEstimateModalOpen] = useState(false);
+  const [measurementKey, setMeasurementKey] = useState(0);
   const [isPassportScannerOpen, setIsPassportScannerOpen] = useState(false);
   const [passportScannerTarget, setPassportScannerTarget] = useState<'CONTRACT' | 'NEW_CLIENT' | 'ORDER'>('CONTRACT');
   const [contractPromptData, setContractPromptData] = useState({
@@ -509,6 +510,7 @@ export const OrderDrawer: React.FC = () => {
 
   const handleEstimateApplied = async (aiResult: AiEstimateResultDto) => {
     toast.success('Смета успешно обновлена AI-агентом!');
+    setMeasurementKey(k => k + 1);
     const targetId = editingOrderId || aiResult.orderId;
     if (targetId) {
       try {
@@ -2383,6 +2385,7 @@ export const OrderDrawer: React.FC = () => {
             {/* 2. ЗАМЕР И СМЕТА */}
             {orderModalTab === 'MEASUREMENT' && (
               <MeasurementWizard
+                key={`${editingOrderId}-${measurementKey}`}
                 orderId={editingOrderId || undefined}
                 materials={allMaterials}
                 initialContractParams={getContractParams()}
