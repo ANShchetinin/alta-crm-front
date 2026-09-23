@@ -602,7 +602,9 @@ export const AiEstimateModal: React.FC<AiEstimateModalProps> = ({
                           bottom: '-10px',
                           borderRadius: '50%',
                           border: '2px solid rgba(239, 68, 68, 0.4)',
-                          animation: 'pulse 1.5s infinite'
+                          animation: 'pulse 1.5s infinite',
+                          pointerEvents: 'none',
+                          zIndex: 0
                         }}
                       />
                     )}
@@ -610,6 +612,9 @@ export const AiEstimateModal: React.FC<AiEstimateModalProps> = ({
                       type="button"
                       onClick={isRecording ? stopRecording : startRecording}
                       style={{
+                        position: 'relative',
+                        zIndex: 2,
+                        pointerEvents: 'auto',
                         width: '84px',
                         height: '84px',
                         borderRadius: '50%',
@@ -635,13 +640,31 @@ export const AiEstimateModal: React.FC<AiEstimateModalProps> = ({
                   {/* Status & Timer */}
                   <div>
                     {isRecording ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                         <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ef4444' }}>
                           ● {formatSeconds(recordingTime)}
                         </span>
                         <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary, #94a3b8)' }}>
                           Говорите... Нажмите еще раз, чтобы остановить запись.
                         </span>
+                        <button
+                          type="button"
+                          onClick={stopRecording}
+                          className="btn btn-secondary"
+                          style={{
+                            marginTop: '6px',
+                            padding: '6px 14px',
+                            borderRadius: '8px',
+                            fontSize: '0.82rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            color: '#ef4444',
+                            borderColor: 'rgba(239, 68, 68, 0.4)'
+                          }}
+                        >
+                          <Square size={13} fill="#ef4444" /> Остановить запись
+                        </button>
                       </div>
                     ) : audioBlob ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>

@@ -114,8 +114,12 @@ export const useAudioRecorder = (): AudioRecorderState => {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+    try {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    } catch (e) {
+      console.error('Failed to stop media recorder', e);
     }
     setIsRecording(false);
   }, []);
