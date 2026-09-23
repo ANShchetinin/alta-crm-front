@@ -65,6 +65,9 @@ export const AiEstimateModal: React.FC<AiEstimateModalProps> = ({
     if (loading) {
       return;
     }
+    if (result && result.success && onEstimateApplied) {
+      onEstimateApplied(result);
+    }
     resetRecording();
     setResult(null);
     setError(null);
@@ -85,6 +88,9 @@ export const AiEstimateModal: React.FC<AiEstimateModalProps> = ({
         prompt: promptText.trim()
       });
       setResult(response);
+      if (response.success === false) {
+        setError(response.aiMessage || 'ИИ-модель вернула ошибку при обработке');
+      }
     } catch (err: any) {
       const message = err.response?.data?.message || err.message || 'Ошибка обработки запроса агентом';
       setError(message);
@@ -102,6 +108,9 @@ export const AiEstimateModal: React.FC<AiEstimateModalProps> = ({
     try {
       const response = await requestAiEstimateVoice(audioBlob, orderId);
       setResult(response);
+      if (response.success === false) {
+        setError(response.aiMessage || 'ИИ-модель вернула ошибку при обработке');
+      }
     } catch (err: any) {
       const message = err.response?.data?.message || err.message || 'Ошибка распознавания или обработки аудио';
       setError(message);
@@ -120,6 +129,9 @@ export const AiEstimateModal: React.FC<AiEstimateModalProps> = ({
     try {
       const response = await requestAiEstimateVoice(file, orderId);
       setResult(response);
+      if (response.success === false) {
+        setError(response.aiMessage || 'ИИ-модель вернула ошибку при обработке');
+      }
     } catch (err: any) {
       const message = err.response?.data?.message || err.message || 'Ошибка обработки аудиофайла';
       setError(message);
@@ -132,7 +144,7 @@ export const AiEstimateModal: React.FC<AiEstimateModalProps> = ({
   };
 
   const handleApplyAndClose = () => {
-    if (result && onEstimateApplied) {
+    if (result && result.success && onEstimateApplied) {
       onEstimateApplied(result);
     }
     handleClose();
@@ -358,142 +370,154 @@ export const AiEstimateModal: React.FC<AiEstimateModalProps> = ({
               </div>
 
               {/* Added materials section */}
-              {result.addedMaterials && result.addedMaterials.length > 0 && (
-                <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginBottom: '8px',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      color: '#34d399'
-                    }}
-                  >
-                    <CheckCircle2 size={16} />
-                    <span>Добавлено в смету заказа ({result.addedMaterials.length}):</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {result.addedMaterials.map((item, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          background: 'rgba(16, 185, 129, 0.06)',
-                          border: '1px solid rgba(16, 185, 129, 0.2)',
-                          fontSize: '0.84rem'
-                        }}
-                      >
-                        <span style={{ fontWeight: 500 }}>{item.materialName}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ color: '#34d399', fontWeight: 600 }}>
-                            {item.quantity} {item.unit || 'шт.'}
-                          </span>
-                          {item.salePrice !== undefined && item.salePrice > 0 && (
-                            <span style={{ color: 'var(--text-secondary, #94a3b8)', fontSize: '0.78rem' }}>
-                              по {item.salePrice} ₽
+              {(() => {
+                const addedList = result.addedMaterials || (result as any).addedItems || [];
+                if (addedList.length === 0) return null;
+                return (
+                  <div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        color: '#34d399'
+                      }}
+                    >
+                      <CheckCircle2 size={16} />
+                      <span>Добавлено в смету заказа ({addedList.length}):</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {addedList.map((item: any, idx: number) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            background: 'rgba(16, 185, 129, 0.06)',
+                            border: '1px solid rgba(16, 185, 129, 0.2)',
+                            fontSize: '0.84rem'
+                          }}
+                        >
+                          <span style={{ fontWeight: 500 }}>{item.materialName || item.name}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ color: '#34d399', fontWeight: 600 }}>
+                              {item.quantity} {item.unit || 'шт.'}
                             </span>
-                          )}
+                            {item.salePrice !== undefined && item.salePrice > 0 && (
+                              <span style={{ color: 'var(--text-secondary, #94a3b8)', fontSize: '0.78rem' }}>
+                                по {item.salePrice} ₽
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Shortage materials section */}
-              {result.shortageMaterials && result.shortageMaterials.length > 0 && (
-                <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginBottom: '8px',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      color: '#fbbf24'
-                    }}
-                  >
-                    <AlertTriangle size={16} />
-                    <span>Частичный дефицит на складе ({result.shortageMaterials.length}):</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {result.shortageMaterials.map((item, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          background: 'rgba(245, 158, 11, 0.06)',
-                          border: '1px solid rgba(245, 158, 11, 0.25)',
-                          fontSize: '0.83rem'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ fontWeight: 500 }}>{item.materialName}</span>
-                          <span style={{ color: '#fbbf24', fontWeight: 600 }}>
-                            Добавлено: {item.addedQuantity} {item.unit || 'шт.'}
-                          </span>
+              {(() => {
+                const shortageList = result.shortageMaterials || (result as any).shortageItems || [];
+                if (shortageList.length === 0) return null;
+                return (
+                  <div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        color: '#fbbf24'
+                      }}
+                    >
+                      <AlertTriangle size={16} />
+                      <span>Частичный дефицит на складе ({shortageList.length}):</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {shortageList.map((item: any, idx: number) => (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            background: 'rgba(245, 158, 11, 0.06)',
+                            border: '1px solid rgba(245, 158, 11, 0.25)',
+                            fontSize: '0.83rem'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: 500 }}>{item.materialName || item.name}</span>
+                            <span style={{ color: '#fbbf24', fontWeight: 600 }}>
+                              Добавлено: {item.addedQuantity} {item.unit || 'шт.'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary, #94a3b8)' }}>
+                            Запрошено: {item.requestedQuantity} • На складе было: {item.availableQuantity} •
+                            <strong style={{ color: '#f87171', marginLeft: '4px' }}>
+                              Не хватает: {item.shortageQuantity} {item.unit || 'шт.'}
+                            </strong>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary, #94a3b8)' }}>
-                          Запрошено: {item.requestedQuantity} • На складе было: {item.availableQuantity} •
-                          <strong style={{ color: '#f87171', marginLeft: '4px' }}>
-                            Не хватает: {item.shortageQuantity} {item.unit || 'шт.'}
-                          </strong>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Missing materials section */}
-              {result.missingMaterials && result.missingMaterials.length > 0 && (
-                <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginBottom: '8px',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      color: '#f87171'
-                    }}
-                  >
-                    <XCircle size={16} />
-                    <span>Отсутствуют на складе ({result.missingMaterials.length}):</span>
+              {(() => {
+                const missingList = result.missingMaterials || (result as any).missingItems || [];
+                if (missingList.length === 0) return null;
+                return (
+                  <div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        color: '#f87171'
+                      }}
+                    >
+                      <XCircle size={16} />
+                      <span>Отсутствуют на складе ({missingList.length}):</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {missingList.map((item: any, idx: number) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            background: 'rgba(239, 68, 68, 0.06)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            fontSize: '0.82rem'
+                          }}
+                        >
+                          <span style={{ fontWeight: 500 }}>{item.materialName || item.name}</span>
+                          <span style={{ color: '#f87171', fontSize: '0.78rem' }}>
+                            {item.reason || 'Нет в наличии'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {result.missingMaterials.map((item, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          background: 'rgba(239, 68, 68, 0.06)',
-                          border: '1px solid rgba(239, 68, 68, 0.2)',
-                          fontSize: '0.82rem'
-                        }}
-                      >
-                        <span style={{ fontWeight: 500 }}>{item.materialName}</span>
-                        <span style={{ color: '#f87171', fontSize: '0.78rem' }}>
-                          {item.reason || 'Нет в наличии'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           ) : (
             /* Input View */

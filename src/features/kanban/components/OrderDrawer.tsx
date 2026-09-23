@@ -42,6 +42,7 @@ import { useTranslation } from 'react-i18next';
 import {
   getOrderStatuses,
   getOrders,
+  getOrderById,
   createOrder,
   updateOrder,
   completeOrder,
@@ -511,11 +512,13 @@ export const OrderDrawer: React.FC = () => {
     const targetId = editingOrderId || aiResult.orderId;
     if (targetId) {
       try {
-        const orders = await getOrders();
-        const updated = orders.find(o => o.id === targetId);
+        const updated = await getOrderById(targetId);
         if (updated) {
           setCurrentOrder(updated);
           populateOrderDataRef.current(updated);
+          window.dispatchEvent(new CustomEvent('alta:orders-changed', {
+            detail: { action: 'ai_estimate_applied', orderId: targetId }
+          }));
         }
       } catch (e) {
         console.error('Failed to reload order after AI estimate', e);

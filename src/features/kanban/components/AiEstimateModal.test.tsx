@@ -89,7 +89,8 @@ describe('AiEstimateModal', () => {
       missingMaterials: [
         { materialName: 'Лента подсветки', reason: 'Нет в наличии' }
       ],
-      aiMessage: 'В смету добавлен профиль стеновой. По светильникам дефицит 6 шт.'
+      aiMessage: 'В смету добавлен профиль стеновой. По светильникам дефицит 6 шт.',
+      success: true
     };
 
     (aiEstimateApi.requestAiEstimateText as any).mockResolvedValueOnce(mockResult);

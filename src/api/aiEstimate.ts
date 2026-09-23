@@ -30,10 +30,16 @@ export interface AiEstimateResultDto {
   orderId?: number;
   orderNumber?: string;
   clientName?: string;
-  addedMaterials: AddedMaterialDto[];
-  shortageMaterials: ShortageMaterialDto[];
-  missingMaterials: MissingMaterialDto[];
+  success?: boolean;
   aiMessage: string;
+  recognizedText?: string;
+  addedMaterials?: AddedMaterialDto[];
+  shortageMaterials?: ShortageMaterialDto[];
+  missingMaterials?: MissingMaterialDto[];
+  addedItems?: AddedMaterialDto[];
+  shortageItems?: ShortageMaterialDto[];
+  missingItems?: MissingMaterialDto[];
+  addedTotalCost?: number;
 }
 
 export interface AiEstimateTextRequest {
