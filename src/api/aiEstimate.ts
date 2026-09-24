@@ -3,10 +3,40 @@ import { api } from './axiosConfig';
 export interface AddedMaterialDto {
   materialId?: number;
   materialName?: string;
+  name?: string;
   quantity?: number;
   unit?: string;
   costPrice?: number;
   salePrice?: number;
+  totalCost?: number;
+}
+
+export interface UpdatedMaterialDto {
+  materialId?: number;
+  materialName?: string;
+  name?: string;
+  unit?: string;
+  oldQuantity?: number;
+  newQuantity?: number;
+  salePrice?: number;
+  costDelta?: number;
+}
+
+export interface ReplacedMaterialDto {
+  oldMaterialName?: string;
+  newMaterialName?: string;
+  quantity?: number;
+  unit?: string;
+  costDelta?: number;
+}
+
+export interface RemovedMaterialDto {
+  materialId?: number;
+  materialName?: string;
+  name?: string;
+  unit?: string;
+  quantity?: number;
+  refundCost?: number;
 }
 
 export interface ShortageMaterialDto {
@@ -37,9 +67,13 @@ export interface AiEstimateResultDto {
   shortageMaterials?: ShortageMaterialDto[];
   missingMaterials?: MissingMaterialDto[];
   addedItems?: AddedMaterialDto[];
+  updatedItems?: UpdatedMaterialDto[];
+  replacedItems?: ReplacedMaterialDto[];
+  removedItems?: RemovedMaterialDto[];
   shortageItems?: ShortageMaterialDto[];
   missingItems?: MissingMaterialDto[];
   addedTotalCost?: number;
+  totalCostDelta?: number;
 }
 
 export interface AiEstimateTextRequest {

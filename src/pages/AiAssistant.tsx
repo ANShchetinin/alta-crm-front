@@ -12,7 +12,10 @@ import {
   Upload,
   ExternalLink,
   HelpCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Edit3,
+  Repeat,
+  Trash2
 } from 'lucide-react';
 import {
   requestAiEstimateText,
@@ -26,10 +29,10 @@ import { toast } from '../utils/toast';
 import '../styles/ai-assistant.css';
 
 const EXAMPLE_PROMPTS = [
-  'Добавь в смету Анны Смирновой 2 обвода трубы 3 обвода углов и монтаж закладной под люстру',
-  'В заказ 1042 добавь 5 шт профиля 60х27 и 2 банки краски',
-  'Добавь 20 метров кабеля и 4 розетки для Иванова',
-  'Добавь в смету 4 светильника точечных и обвод трубы'
+  'Добавь в смету Анны Смирновой 2 обвода трубы и 3 обвода углов',
+  'В заказе 13 измени количество кабеля на 15 метров',
+  'Замени профиль 60х27 на профиль 28х27 10 шт для Иванова',
+  'В заказе 13 удали краску и убери светильники'
 ];
 
 export const AiAssistant: React.FC = () => {
@@ -416,11 +419,17 @@ export const AiAssistant: React.FC = () => {
                   Заказ №{result.orderNumber || result.orderId}
                   {result.clientName && ` — ${result.clientName}`}
                 </div>
-                {result.addedTotalCost !== undefined && (
+                {result.totalCostDelta !== undefined && result.totalCostDelta !== 0 ? (
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Изменение суммы сметы: <strong style={{ color: result.totalCostDelta > 0 ? '#10b981' : '#f59e0b' }}>
+                      {result.totalCostDelta > 0 ? '+' : ''}{result.totalCostDelta.toLocaleString('ru-RU')} ₽
+                    </strong>
+                  </div>
+                ) : result.addedTotalCost !== undefined && result.addedTotalCost > 0 ? (
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                     Добавлено в смету на сумму: <strong>{result.addedTotalCost.toLocaleString('ru-RU')} ₽</strong>
                   </div>
-                )}
+                ) : null}
               </div>
               <button
                 type="button"
@@ -478,6 +487,118 @@ export const AiAssistant: React.FC = () => {
                           <td>{item.salePrice ? `${item.salePrice} ₽` : '—'}</td>
                           <td style={{ fontWeight: 600, color: '#10b981' }}>
                             {lineCost ? `${lineCost} ₽` : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Updated items */}
+          {result.updatedItems && result.updatedItems.length > 0 && (
+            <div>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '0.95rem', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Edit3 size={16} />
+                Изменено количество ({result.updatedItems.length}):
+              </h4>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="ai-assistant-table">
+                  <thead>
+                    <tr>
+                      <th>Наименование</th>
+                      <th>Было</th>
+                      <th>Стало</th>
+                      <th>Цена за ед.</th>
+                      <th>Разница суммы</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.updatedItems.map((item, idx) => {
+                      const name = item.materialName || item.name || 'Позиция';
+                      const delta = item.costDelta ?? 0;
+                      return (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 500 }}>{name}</td>
+                          <td style={{ color: 'var(--text-secondary)' }}>{item.oldQuantity} {item.unit || 'шт'}</td>
+                          <td style={{ fontWeight: 600, color: '#3b82f6' }}>{item.newQuantity} {item.unit || 'шт'}</td>
+                          <td>{item.salePrice ? `${item.salePrice} ₽` : '—'}</td>
+                          <td style={{ fontWeight: 600, color: delta >= 0 ? '#10b981' : '#f59e0b' }}>
+                            {delta > 0 ? `+${delta}` : delta} ₽
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Replaced items */}
+          {result.replacedItems && result.replacedItems.length > 0 && (
+            <div>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '0.95rem', color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Repeat size={16} />
+                Заменено в смете ({result.replacedItems.length}):
+              </h4>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="ai-assistant-table">
+                  <thead>
+                    <tr>
+                      <th>Заменяемый материал</th>
+                      <th>Новый материал</th>
+                      <th>Количество</th>
+                      <th>Разница суммы</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.replacedItems.map((item, idx) => {
+                      const delta = item.costDelta ?? 0;
+                      return (
+                        <tr key={idx}>
+                          <td style={{ color: 'var(--text-secondary)', textDecoration: 'line-through' }}>{item.oldMaterialName}</td>
+                          <td style={{ fontWeight: 600, color: '#8b5cf6' }}>{item.newMaterialName}</td>
+                          <td>{item.quantity} {item.unit || 'шт'}</td>
+                          <td style={{ fontWeight: 600, color: delta >= 0 ? '#10b981' : '#f59e0b' }}>
+                            {delta > 0 ? `+${delta}` : delta} ₽
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Removed items */}
+          {result.removedItems && result.removedItems.length > 0 && (
+            <div>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '0.95rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Trash2 size={16} />
+                Удалено из сметы ({result.removedItems.length}):
+              </h4>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="ai-assistant-table">
+                  <thead>
+                    <tr>
+                      <th>Наименование</th>
+                      <th>Количество</th>
+                      <th>Сумма возврата</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.removedItems.map((item, idx) => {
+                      const name = item.materialName || item.name || 'Позиция';
+                      return (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 500, textDecoration: 'line-through', color: 'var(--text-secondary)' }}>{name}</td>
+                          <td>{item.quantity} {item.unit || 'шт'}</td>
+                          <td style={{ fontWeight: 600, color: '#ef4444' }}>
+                            -{item.refundCost ? `${item.refundCost} ₽` : '0 ₽'}
                           </td>
                         </tr>
                       );

@@ -63,32 +63,53 @@ describe('AiAssistant Page Component', () => {
     expect(textarea).toBeInTheDocument();
 
     // Click on an example prompt
-    const exampleBtn = screen.getByText(/В заказ 1042 добавь 5 шт профиля 60х27/i);
+    const exampleBtn = screen.getByText(/Добавь в смету Анны Смирновой 2 обвода трубы/i);
     fireEvent.click(exampleBtn);
 
-    expect(textarea.value).toContain('В заказ 1042 добавь 5 шт профиля 60х27');
+    expect(textarea.value).toContain('Добавь в смету Анны Смирновой 2 обвода трубы');
   });
 
-  it('sends text query and renders added items, shortages, and order link', async () => {
+  it('sends text query and renders added, updated, replaced, removed items and delta', async () => {
     const mockResult: aiEstimateApi.AiEstimateResultDto = {
       orderId: 101,
       orderNumber: 'ORD-101',
       clientName: 'Анна Смирнова',
       success: true,
-      aiMessage: 'Добавлены обвод трубы и обвод углов',
+      aiMessage: 'Смета обновлена для заказа №ORD-101',
       addedTotalCost: 1500,
+      totalCostDelta: 2400,
       addedItems: [
         {
           materialName: 'Обвод трубы',
           quantity: 2,
           unit: 'шт',
           salePrice: 300
-        },
+        }
+      ],
+      updatedItems: [
         {
-          materialName: 'Обвод углов',
-          quantity: 3,
+          materialName: 'Кабель ВВГнг',
+          oldQuantity: 10,
+          newQuantity: 25,
+          unit: 'м',
+          costDelta: 1200
+        }
+      ],
+      replacedItems: [
+        {
+          oldMaterialName: 'Полотно MSD',
+          newMaterialName: 'Полотно Bauf 205',
+          quantity: 20,
+          unit: 'кв.м',
+          costDelta: 1500
+        }
+      ],
+      removedItems: [
+        {
+          materialName: 'Светильник точечный',
+          quantity: 2,
           unit: 'шт',
-          salePrice: 300
+          refundCost: 600
         }
       ],
       shortageItems: [
@@ -117,7 +138,7 @@ describe('AiAssistant Page Component', () => {
     fireEvent.click(textTabBtn);
 
     const textarea = screen.getByPlaceholderText(/Добавь в смету Анны Смирновой/i);
-    fireEvent.change(textarea, { target: { value: 'Добавь 2 обвода трубы' } });
+    fireEvent.change(textarea, { target: { value: 'Обнови смету' } });
 
     const sendBtn = screen.getByRole('button', { name: /Отправить в смету/i });
     fireEvent.click(sendBtn);
@@ -125,18 +146,23 @@ describe('AiAssistant Page Component', () => {
     await waitFor(() => {
       expect(aiEstimateApi.requestAiEstimateText).toHaveBeenCalledWith({
         orderId: undefined,
-        query: 'Добавь 2 обвода трубы',
-        prompt: 'Добавь 2 обвода трубы'
+        query: 'Обнови смету',
+        prompt: 'Обнови смету'
       });
     });
 
     // Check results
     expect(await screen.findByText('Заказ №ORD-101 — Анна Смирнова')).toBeInTheDocument();
-    expect(screen.getByText(/Добавлены обвод трубы и обвод углов/i)).toBeInTheDocument();
+    expect(screen.getByText(/Смета обновлена для заказа/i)).toBeInTheDocument();
     expect(screen.getByText('Обвод трубы')).toBeInTheDocument();
-    expect(screen.getByText('Обвод углов')).toBeInTheDocument();
+    expect(screen.getByText('Кабель ВВГнг')).toBeInTheDocument();
+    expect(screen.getByText(/Полотно MSD/i)).toBeInTheDocument();
+    expect(screen.getByText(/Полотно Bauf 205/i)).toBeInTheDocument();
+    expect(screen.getByText('Светильник точечный')).toBeInTheDocument();
     expect(screen.getByText('Краска')).toBeInTheDocument();
     expect(screen.getByText('Неизвестный материал')).toBeInTheDocument();
+    expect(screen.getByText(/Изменение суммы сметы:/i)).toBeInTheDocument();
+    expect(screen.getByText(/\+2[\s\u00A0]?400/)).toBeInTheDocument();
 
     // Click on "Перейти в карточку заказа"
     const openOrderBtn = screen.getByRole('button', { name: /Перейти в карточку заказа/i });
