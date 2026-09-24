@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
+import '../../../styles/kanban.css';
 import { useTranslation } from 'react-i18next';
 import {
   getOrderStatuses,

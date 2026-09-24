@@ -154,7 +154,7 @@ export const AiAssistant: React.FC = () => {
 
   const handleOpenOrderDrawer = (orderId?: number) => {
     if (orderId) {
-      useOrderDrawerStore.getState().openOrder(orderId);
+      useOrderDrawerStore.getState().openOrder(orderId, 'CONTRACT');
     }
   };
 

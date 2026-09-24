@@ -143,6 +143,7 @@ describe('AiAssistant Page Component', () => {
     fireEvent.click(openOrderBtn);
     expect(useOrderDrawerStore.getState().isOpen).toBe(true);
     expect(useOrderDrawerStore.getState().orderId).toBe(101);
+    expect(useOrderDrawerStore.getState().activeTab).toBe('CONTRACT');
   });
 
   it('displays error if request fails', async () => {
