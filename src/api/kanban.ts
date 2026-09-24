@@ -108,11 +108,26 @@ export interface Order {
   contractParams?: ContractParams;
   materials?: OrderMaterial[];
   attachments?: OrderAttachment[];
+  installers?: OrderInstaller[];
   materialsCost?: number;
   profit?: number;
   profitMargin?: number;
   isArchived?: boolean;
   commentsCount?: number;
+}
+
+export interface OrderInstaller {
+  id?: number;
+  orderId?: number;
+  employeeId: number;
+  employeeName?: string;
+  employeeAvatarUrl?: string;
+  employeePhone?: string;
+  splitType?: 'EQUAL' | 'PERCENT' | 'FIXED' | string;
+  sharePercent?: number;
+  amount?: number;
+  isLead?: boolean;
+  createdAt?: string;
 }
 
 export interface OrderComment {

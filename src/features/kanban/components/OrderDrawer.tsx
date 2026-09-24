@@ -64,6 +64,7 @@ import {
   type Order,
   type OrderMaterial,
   type OrderAttachment,
+  type OrderInstaller,
   type OrderAiSummary,
   type ContractParams,
   type ContractSpecItem,
@@ -216,7 +217,8 @@ export const OrderDrawer: React.FC = () => {
     measurementDate: '',
     contractParams: undefined as ContractParams | undefined,
     materials: [] as OrderMaterial[],
-    attachments: [] as OrderAttachment[]
+    attachments: [] as OrderAttachment[],
+    installers: [] as OrderInstaller[]
   });
 
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -233,6 +235,7 @@ export const OrderDrawer: React.FC = () => {
   const [docScannerIsAct, setDocScannerIsAct] = useState(true);
   const actFileInputRef = useRef<HTMLInputElement | null>(null);
   const generalFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isAddingInstaller, setIsAddingInstaller] = useState(false);
 
   // AI Assistant & Audio Analysis State
   const [aiSummary, setAiSummary] = useState<OrderAiSummary | null>(null);
@@ -385,7 +388,8 @@ export const OrderDrawer: React.FC = () => {
         customParams: {}
       },
       materials: [],
-      attachments: []
+      attachments: [],
+      installers: []
     };
     setFormData(initialData);
     setInitialFormDataJson(JSON.stringify({ formData: initialData, pendingFilesCount: 0 }));
@@ -454,7 +458,18 @@ export const OrderDrawer: React.FC = () => {
       measurementDate: order.measurementDate ? order.measurementDate.slice(0, 16) : '',
       contractParams: initialContractParams,
       materials: order.materials || [],
-      attachments: order.attachments || []
+      attachments: order.attachments || [],
+      installers: (order.installers && order.installers.length > 0)
+        ? order.installers
+        : (order.installedById ? [{
+            employeeId: order.installedById,
+            employeeName: order.installedByName,
+            employeeAvatarUrl: order.installedByAvatarUrl,
+            splitType: 'EQUAL',
+            sharePercent: 100,
+            amount: order.installationPrice || 0,
+            isLead: true
+          }] : [])
     };
 
     setFormData(initialData);
@@ -715,6 +730,136 @@ export const OrderDrawer: React.FC = () => {
     return Math.round((currentProfit / total) * 100);
   }, [formData.totalPrice, formData.prepayment, formData.remainder, currentProfit]);
 
+  // Хелпер распределения стоимости оплаты между монтажниками
+  const distributeInstallerAmounts = useCallback((
+    items: OrderInstaller[] | undefined = [],
+    totalPriceNum: number = 0,
+    forceEqual: boolean = false
+  ): OrderInstaller[] => {
+    if (!items || items.length === 0) return [];
+    const count = items.length;
+
+    if (forceEqual || items[0]?.splitType === 'EQUAL') {
+      const rawAmt = Math.floor((totalPriceNum / count) * 100) / 100;
+      const share = Math.round((100 / count) * 100) / 100;
+      let accumulated = 0;
+      return items.map((it, idx) => {
+        const isLast = idx === count - 1;
+        const amt = isLast ? Math.round((totalPriceNum - accumulated) * 100) / 100 : rawAmt;
+        accumulated += rawAmt;
+        return {
+          ...it,
+          splitType: 'EQUAL',
+          sharePercent: share,
+          amount: amt
+        };
+      });
+    }
+
+    if (items[0]?.splitType === 'PERCENT') {
+      return items.map((it) => {
+        const pct = it.sharePercent || 0;
+        const amt = Math.round(((totalPriceNum * pct) / 100) * 100) / 100;
+        return {
+          ...it,
+          amount: amt
+        };
+      });
+    }
+
+    return items;
+  }, []);
+
+  const handleAddInstaller = (employeeIdStr: string) => {
+    if (!employeeIdStr) return;
+    const empId = parseInt(employeeIdStr);
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) return;
+
+    const currentList = formData.installers || [];
+    if (currentList.some(i => i.employeeId === empId)) {
+      toast.info('Этот монтажник уже добавлен в заказ');
+      return;
+    }
+
+    const isFirst = currentList.length === 0;
+    const newItem: OrderInstaller = {
+      employeeId: emp.id,
+      employeeName: emp.name,
+      employeeAvatarUrl: emp.avatarUrl || undefined,
+      employeePhone: emp.phone,
+      splitType: currentList[0]?.splitType || 'EQUAL',
+      isLead: isFirst,
+      sharePercent: 0,
+      amount: 0
+    };
+
+    const nextList = [...currentList, newItem];
+    const totalInstPrice = parseFloat(formData.installationPrice || '0') || 0;
+    const updatedList = distributeInstallerAmounts(nextList, totalInstPrice, true);
+
+    const lead = updatedList.find(i => i.isLead) || updatedList[0];
+    setFormData(prev => ({
+      ...prev,
+      installers: updatedList,
+      installedById: lead?.employeeId ? lead.employeeId.toString() : '',
+      installedByName: lead?.employeeName || '',
+      installedByAvatarUrl: lead?.employeeAvatarUrl || ''
+    }));
+  };
+
+  const handleRemoveInstaller = (index: number) => {
+    const currentList = formData.installers || [];
+    const filtered = currentList.filter((_, idx) => idx !== index);
+    if (filtered.length > 0 && !filtered.some(i => i.isLead)) {
+      filtered[0].isLead = true;
+    }
+    const totalInstPrice = parseFloat(formData.installationPrice || '0') || 0;
+    const updatedList = distributeInstallerAmounts(filtered, totalInstPrice, true);
+    const lead = updatedList.find(i => i.isLead) || updatedList[0];
+
+    setFormData(prev => ({
+      ...prev,
+      installers: updatedList,
+      installedById: lead?.employeeId ? lead.employeeId.toString() : '',
+      installedByName: lead?.employeeName || '',
+      installedByAvatarUrl: lead?.employeeAvatarUrl || ''
+    }));
+  };
+
+  const handleUpdateInstallerAmount = (index: number, newAmountStr: string) => {
+    const amt = parseFloat(newAmountStr) || 0;
+    const totalInstPrice = parseFloat(formData.installationPrice || '0') || 0;
+    const pct = totalInstPrice > 0 ? Math.round((amt / totalInstPrice) * 10000) / 100 : 0;
+
+    const updated = (formData.installers || []).map((it, idx) => {
+      if (idx === index) {
+        return {
+          ...it,
+          splitType: 'FIXED',
+          amount: amt,
+          sharePercent: pct
+        };
+      }
+      return it;
+    });
+
+    setFormData(prev => ({
+      ...prev,
+      installers: updated
+    }));
+  };
+
+  const handleEqualizeInstallers = () => {
+    const totalInstPrice = parseFloat(formData.installationPrice || '0') || 0;
+    const updated = distributeInstallerAmounts(formData.installers || [], totalInstPrice, true);
+    setFormData(prev => ({
+      ...prev,
+      installers: updated
+    }));
+    toast.success('Оплата монтажа разделена поровну между монтажниками');
+  };
+
   // Submission / Save logic
   const doSaveOrder = async (shouldClose = false) => {
     try {
@@ -731,6 +876,7 @@ export const OrderDrawer: React.FC = () => {
         assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : undefined,
         measurerId: formData.measurerId ? parseInt(formData.measurerId) : undefined,
         installedById: formData.installedById ? parseInt(formData.installedById) : undefined,
+        installers: formData.installers && formData.installers.length > 0 ? formData.installers : undefined,
         orderNumber: formData.orderNumber || undefined,
         address: formData.address || undefined,
         entrance: formData.entrance || undefined,
@@ -1813,12 +1959,12 @@ export const OrderDrawer: React.FC = () => {
                   )}
                 </div>
 
-                {/* Назначение сотрудников: Ответственный, Замерщик, Монтажник */}
+                {/* Назначение сотрудников: Ответственный и Замерщик */}
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
                   gap: '12px',
-                  marginBottom: '16px',
+                  marginBottom: '14px',
                   padding: '14px',
                   background: 'rgba(255, 255, 255, 0.02)',
                   border: '1px solid var(--glass-border)',
@@ -1877,33 +2023,331 @@ export const OrderDrawer: React.FC = () => {
                       fallbackAvatarUrl={formData.measurerAvatarUrl || currentOrder?.measurerAvatarUrl}
                     />
                   </div>
+                </div>
 
-                  {/* 3. Монтажник */}
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
-                      <Wrench size={15} style={{ color: '#22c55e' }} />
-                      Монтажник
-                    </label>
-                    <EmployeeSearchSelect
-                      value={formData.installedById}
-                      employees={employees}
-                      onChange={(val) => {
-                        const emp = employees.find(e => e.id.toString() === val);
-                        setFormData({
-                          ...formData,
-                          installedById: val,
-                          installedByName: emp?.name || '',
-                          installedByAvatarUrl: emp?.avatarUrl || ''
-                        });
-                      }}
-                      placeholder="Не назначен"
-                      icon={<Wrench size={15} style={{ color: '#22c55e' }} />}
-                      accentColor="#22c55e"
-                      isWorker={isWorker}
-                      fallbackName={formData.installedByName || currentOrder?.installedByName}
-                      fallbackAvatarUrl={formData.installedByAvatarUrl || currentOrder?.installedByAvatarUrl}
-                    />
+                {/* 2. Блок Монтажники (Мультимонтажники с разделением оплаты) */}
+                <div style={{
+                  marginBottom: '16px',
+                  padding: '14px',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  {/* Шапка блока */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.88rem', fontWeight: 600, margin: 0 }}>
+                        <Wrench size={16} style={{ color: '#22c55e' }} />
+                        Монтажники
+                      </label>
+                      {formData.installers && formData.installers.length > 0 && (
+                        <span style={{
+                          fontSize: '0.75rem',
+                          background: 'rgba(34, 197, 94, 0.12)',
+                          color: '#22c55e',
+                          padding: '1px 8px',
+                          borderRadius: '10px',
+                          fontWeight: 600
+                        }}>
+                          {formData.installers.length} {formData.installers.length === 1 ? 'монтажник' : 'монтажника'}
+                        </span>
+                      )}
+                    </div>
+
+                    {!isWorker && formData.installers && formData.installers.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={handleEqualizeInstallers}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid var(--glass-border)',
+                          borderRadius: 'var(--radius-sm)',
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.78rem',
+                          padding: '4px 10px',
+                          cursor: 'pointer',
+                          fontWeight: 500
+                        }}
+                        title="Разделить общую стоимость монтажа поровну"
+                      >
+                        ⚖️ Поровну
+                      </button>
+                    )}
                   </div>
+
+                  {/* Список монтажников */}
+                  {(!formData.installers || formData.installers.length === 0) ? (
+                    <div style={{
+                      padding: '12px',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px dashed var(--glass-border)',
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                        Монтажники не назначены
+                      </div>
+                      {!isWorker && (
+                        <EmployeeSearchSelect
+                          value=""
+                          employees={employees}
+                          onChange={(val) => {
+                            if (val) handleAddInstaller(val);
+                          }}
+                          placeholder="+ Назначить монтажника..."
+                          icon={<Wrench size={15} style={{ color: '#22c55e' }} />}
+                          accentColor="#22c55e"
+                          isWorker={isWorker}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {formData.installers.map((inst, idx) => {
+                        const emp = employees.find(e => e.id === inst.employeeId);
+                        const empName = inst.employeeName || emp?.name || `Монтажник #${inst.employeeId}`;
+                        const avatarUrl = inst.employeeAvatarUrl || emp?.avatarUrl;
+
+                        return (
+                          <div
+                            key={inst.employeeId || idx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '10px',
+                              padding: '8px 12px',
+                              background: 'var(--card-bg, rgba(255, 255, 255, 0.03))',
+                              border: '1px solid var(--glass-border)',
+                              borderRadius: 'var(--radius-sm)',
+                              flexWrap: 'wrap'
+                            }}
+                          >
+                            {/* Инфо о монтажнике */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '180px', flex: '1 1 200px' }}>
+                              <div style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                overflow: 'hidden',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: avatarUrl ? 'transparent' : 'rgba(34, 197, 94, 0.2)',
+                                color: '#22c55e',
+                                fontWeight: 700,
+                                fontSize: '0.8rem',
+                                flexShrink: 0
+                              }}>
+                                {avatarUrl ? (
+                                  <img src={avatarUrl} alt={empName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  empName.slice(0, 2).toUpperCase()
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                  {empName}
+                                </span>
+                                {(inst.employeePhone || emp?.phone) && (
+                                  <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                                    {inst.employeePhone || emp?.phone}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Финансовая часть (Сумма и процент) */}
+                            {!isWorker ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0"
+                                    value={inst.amount != null ? inst.amount : ''}
+                                    onChange={(e) => handleUpdateInstallerAmount(idx, e.target.value)}
+                                    style={{
+                                      width: '100px',
+                                      height: '32px',
+                                      textAlign: 'right',
+                                      padding: '0 24px 0 8px',
+                                      background: 'var(--input-bg, rgba(255, 255, 255, 0.05))',
+                                      border: '1px solid var(--glass-border)',
+                                      borderRadius: 'var(--radius-sm)',
+                                      color: 'var(--text-primary)',
+                                      fontSize: '0.85rem',
+                                      fontWeight: 600,
+                                      outline: 'none'
+                                    }}
+                                  />
+                                  <span style={{ position: 'absolute', right: '8px', fontSize: '0.78rem', color: 'var(--text-secondary)', pointerEvents: 'none' }}>
+                                    ₽
+                                  </span>
+                                </div>
+
+                                <span style={{
+                                  fontSize: '0.76rem',
+                                  color: 'var(--text-secondary)',
+                                  minWidth: '45px',
+                                  textAlign: 'right',
+                                  fontWeight: 500
+                                }}>
+                                  {inst.sharePercent != null ? `${inst.sharePercent}%` : ''}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveInstaller(idx)}
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    padding: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    borderRadius: '4px'
+                                  }}
+                                  title="Удалить монтажника из заказа"
+                                >
+                                  <Trash2 size={15} style={{ color: 'var(--text-secondary)' }} />
+                                </button>
+                              </div>
+                            ) : (
+                              inst.amount != null && (
+                                <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#22c55e' }}>
+                                  {inst.amount.toLocaleString('ru-RU')} ₽
+                                </div>
+                              )
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Кнопка добавления следующего монтажника */}
+                      {!isWorker && (
+                        <div style={{ marginTop: '4px' }}>
+                          {isAddingInstaller ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ flex: 1 }}>
+                                <EmployeeSearchSelect
+                                  value=""
+                                  employees={employees.filter(e => !(formData.installers || []).some(i => i.employeeId === e.id))}
+                                  onChange={(val) => {
+                                    if (val) {
+                                      handleAddInstaller(val);
+                                      setIsAddingInstaller(false);
+                                    }
+                                  }}
+                                  placeholder="Выберите монтажника для добавления..."
+                                  icon={<Wrench size={15} style={{ color: '#22c55e' }} />}
+                                  accentColor="#22c55e"
+                                  isWorker={isWorker}
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setIsAddingInstaller(false)}
+                                style={{
+                                  padding: '8px 12px',
+                                  background: 'rgba(255, 255, 255, 0.05)',
+                                  border: '1px solid var(--glass-border)',
+                                  borderRadius: 'var(--radius-sm)',
+                                  color: 'var(--text-secondary)',
+                                  fontSize: '0.82rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Отмена
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setIsAddingInstaller(true)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: 'transparent',
+                                border: '1px dashed var(--glass-border)',
+                                borderRadius: 'var(--radius-sm)',
+                                color: '#22c55e',
+                                fontSize: '0.82rem',
+                                padding: '6px 12px',
+                                cursor: 'pointer',
+                                fontWeight: 500,
+                                width: 'fit-content'
+                              }}
+                            >
+                              <Plus size={14} /> Добавить еще монтажника
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Сводка баланса распределения */}
+                      {!isWorker && formData.installers && formData.installers.length > 1 && (() => {
+                        const totalInstPrice = parseFloat(formData.installationPrice || '0') || 0;
+                        const totalDistributed = (formData.installers || []).reduce((sum, i) => sum + (i.amount || 0), 0);
+                        const diff = Math.round((totalInstPrice - totalDistributed) * 100) / 100;
+                        const hasDiff = Math.abs(diff) > 0.05;
+
+                        return (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '6px 10px',
+                            background: hasDiff ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                            border: hasDiff ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid var(--glass-border)',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.78rem',
+                            marginTop: '2px',
+                            flexWrap: 'wrap',
+                            gap: '8px'
+                          }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              Сумма монтажа: <b>{totalInstPrice.toLocaleString('ru-RU')} ₽</b> • Распределено: <b>{totalDistributed.toLocaleString('ru-RU')} ₽</b>
+                            </span>
+                            {hasDiff && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ color: '#ef4444', fontWeight: 600 }}>
+                                  ⚠️ Разница: {diff > 0 ? `+${diff}` : diff} ₽
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={handleEqualizeInstallers}
+                                  style={{
+                                    background: 'rgba(239, 68, 68, 0.15)',
+                                    border: 'none',
+                                    color: '#ef4444',
+                                    borderRadius: '4px',
+                                    padding: '2px 6px',
+                                    fontSize: '0.74rem',
+                                    cursor: 'pointer',
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  Поровну
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
 
                 {/* Дополнительная инфо о завершении монтажа */}
@@ -2188,7 +2632,18 @@ export const OrderDrawer: React.FC = () => {
                             step="0.01"
                             placeholder="0"
                             value={formData.installationPrice || ''}
-                            onChange={(e) => setFormData({...formData, installationPrice: e.target.value})}
+                            onChange={(e) => {
+                              const newInstPrice = e.target.value;
+                              const newInstallers = distributeInstallerAmounts(
+                                formData.installers,
+                                parseFloat(newInstPrice || '0') || 0
+                              );
+                              setFormData({
+                                ...formData,
+                                installationPrice: newInstPrice,
+                                installers: newInstallers
+                              });
+                            }}
                             className="custom-number-input"
                           />
                         </div>
@@ -2410,11 +2865,15 @@ export const OrderDrawer: React.FC = () => {
                       total: it.totalSalePrice
                     }));
 
+                    const newInstPrice = installSum.toString();
+                    const newInstallers = distributeInstallerAmounts(prev.installers, installSum);
+
                     return {
                       ...prev,
                       totalPrice: newTotalPrice,
                       remainder: newRem,
-                      installationPrice: installSum.toString(),
+                      installationPrice: newInstPrice,
+                      installers: newInstallers,
                       contractParams: updatedParams
                     };
                   });
@@ -4419,6 +4878,7 @@ export const OrderDrawer: React.FC = () => {
               assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : (currentOrder?.assigneeId || undefined),
               measurerId: formData.measurerId ? parseInt(formData.measurerId) : (currentOrder?.measurerId || undefined),
               installedById: formData.installedById ? parseInt(formData.installedById) : (currentOrder?.installedById || undefined),
+              installers: formData.installers && formData.installers.length > 0 ? formData.installers : (currentOrder?.installers || undefined),
               orderNumber: formData.orderNumber || currentOrder?.orderNumber || undefined,
               address: contractPromptData.installationAddress || formData.address || currentOrder?.address || undefined,
               entrance: formData.entrance || currentOrder?.entrance || undefined,
