@@ -600,8 +600,12 @@ const Kanban = () => {
     const isLegal = cType === 'LEGAL_ENTITY';
 
     const assignee = employees.find(e => e.id === card.assigneeId);
-    const installer = employees.find(e => e.id === card.installedById || e.name === card.installedByName);
-    const instName = card.installedByName || installer?.name;
+    const cardInstallers = card.installers && card.installers.length > 0 ? card.installers : [];
+    const leadInstallerRecord = cardInstallers.find(i => i.isLead) || cardInstallers[0];
+    const installer = employees.find(e => e.id === (leadInstallerRecord?.employeeId || card.installedById) || e.name === (leadInstallerRecord?.employeeName || card.installedByName));
+    const instName = leadInstallerRecord?.employeeName || card.installedByName || installer?.name;
+    const instAvatarUrl = leadInstallerRecord?.employeeAvatarUrl || card.installedByAvatarUrl || installer?.avatarUrl;
+    const additionalInstallersCount = cardInstallers.length > 1 ? cardInstallers.length - 1 : 0;
 
     const cardReminders = remindersMap[card.id] || [];
     const pendingReminders = cardReminders.filter(r => r.status === 'PENDING');
@@ -1016,21 +1020,39 @@ const Kanban = () => {
               fontSize: '0.65rem',
               fontWeight: 700,
               color: '#fff',
-              background: installer?.avatarUrl ? 'transparent' : '#065f46',
+              background: instAvatarUrl ? 'transparent' : '#065f46',
               flexShrink: 0
             }}>
-              {installer?.avatarUrl ? (
-                <img src={installer.avatarUrl} alt={instName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {instAvatarUrl ? (
+                <img src={instAvatarUrl} alt={instName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 getEmployeeInitials(instName)
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Wrench size={14} style={{ color: '#16a34a' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+              <Wrench size={14} style={{ color: '#16a34a', flexShrink: 0 }} />
               <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                 {instName}
               </span>
+              {additionalInstallersCount > 0 && (
+                <span
+                  title={cardInstallers.map(i => i.employeeName).filter(Boolean).join(', ')}
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    background: 'rgba(34, 197, 94, 0.15)',
+                    color: '#16a34a',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    borderRadius: '10px',
+                    padding: '1px 6px',
+                    marginLeft: '2px',
+                    cursor: 'default'
+                  }}
+                >
+                  +{additionalInstallersCount}
+                </span>
+              )}
             </div>
           </div>
         )}
