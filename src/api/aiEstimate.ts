@@ -101,8 +101,8 @@ export const requestAiEstimateText = async (payload: AiEstimateTextRequest): Pro
  */
 export const requestAiEstimateVoice = async (audioBlob: Blob, orderId?: number): Promise<AiEstimateResultDto> => {
   const formData = new FormData();
-  const mimeType = audioBlob.type || 'audio/webm';
-  const extension = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+  const mimeType = audioBlob.type || 'audio/wav';
+  const extension = mimeType.includes('wav') ? 'wav' : mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
   formData.append('file', audioBlob, `estimate_voice.${extension}`);
   if (orderId) {
     formData.append('orderId', orderId.toString());
