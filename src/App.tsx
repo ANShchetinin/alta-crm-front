@@ -31,6 +31,7 @@ const ExitIntentStats = lazy(() => import('./pages/ExitIntentStats').then(m => (
 const Archive = lazy(() => import('./pages/Archive').then(m => ({ default: m.Archive })));
 const AuditLogs = lazy(() => import('./pages/AuditLogs').then(m => ({ default: m.AuditLogs })));
 const SiteRequests = lazy(() => import('./pages/SiteRequests').then(m => ({ default: m.SiteRequests })));
+const AiAssistant = lazy(() => import('./pages/AiAssistant').then(m => ({ default: m.AiAssistant })));
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const token = useAuthStore(state => state.token);
@@ -183,6 +184,7 @@ function App() {
               <Route path="feature-flags" element={<RoleRoute allowedRoles={['SUPERADMIN']}><FeatureFlags /></RoleRoute>} />
 
               <Route path="kanban" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><Kanban /></RoleRoute>} />
+              <Route path="ai-assistant" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><FeatureRoute feature="AI_ESTIMATE"><AiAssistant /></FeatureRoute></RoleRoute>} />
               <Route path="site-requests" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="SITE_REQUESTS"><SiteRequests /></FeatureRoute></RoleRoute>} />
               <Route path="calendar" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><FeatureRoute feature="CALENDAR"><Calendar /></FeatureRoute></RoleRoute>} />
               <Route path="measurements" element={<MeasurementRoute><Measurements /></MeasurementRoute>} />

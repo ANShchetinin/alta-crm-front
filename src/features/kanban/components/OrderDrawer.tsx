@@ -1570,16 +1570,6 @@ export const OrderDrawer: React.FC = () => {
                 <Mic size={15} /> AI анализ звонков
               </button>
             )}
-            {hasAiEstimate && editingOrderId && (
-              <button
-                type="button"
-                onClick={() => setIsAiEstimateModalOpen(true)}
-                className="order-drawer-tab-btn"
-                style={{ color: '#8b5cf6' }}
-              >
-                <Sparkles size={15} style={{ color: '#8b5cf6' }} /> AI-Смета
-              </button>
-            )}
           </div>
 
           <div className="order-drawer-body modal-body">
@@ -2837,10 +2827,32 @@ export const OrderDrawer: React.FC = () => {
                           type="button"
                           onClick={() => setIsAiEstimateModalOpen(true)}
                           className="btn btn-ghost"
-                          style={{ fontSize: '0.8rem', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#8b5cf6', border: '1px solid var(--glass-border)' }}
+                          style={{
+                            fontSize: '0.8rem',
+                            padding: '4px 10px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            color: '#8b5cf6',
+                            background: 'rgba(139, 92, 246, 0.08)',
+                            border: '1px solid rgba(139, 92, 246, 0.3)'
+                          }}
                           title="AI-наполнение сметы материалами со склада голосом или текстом"
                         >
-                          <Sparkles size={13} style={{ color: '#8b5cf6' }} /> AI-Смета
+                          <Sparkles size={14} style={{ color: '#8b5cf6' }} />
+                          <span>AI-Смета</span>
+                          <span style={{
+                            fontSize: '0.62rem',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)',
+                            color: '#ffffff',
+                            lineHeight: 1.2
+                          }}>
+                            beta
+                          </span>
                         </button>
                       )}
                       <button

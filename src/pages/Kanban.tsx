@@ -25,8 +25,7 @@ import {
   FileText,
   GripVertical,
   ArrowDownCircle,
-  MessageSquare,
-  Sparkles
+  MessageSquare
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -58,9 +57,6 @@ import { StatusChangeModal, type StatusChangePromptData } from '../features/kanb
 import { ColumnModal } from '../features/kanban/components/ColumnModal';
 import { isActFile, formatClientNameLines } from '../features/kanban/constants';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
-import { useFeature } from '../hooks/useFeatureToggle';
-import { AiEstimateModal } from '../features/kanban/components/AiEstimateModal';
-import { type AiEstimateResultDto } from '../api/aiEstimate';
 import { toast } from '../utils/toast';
 import { confirm } from '../utils/confirm';
 import '../styles/kanban.css';
@@ -99,11 +95,9 @@ const Kanban = () => {
   const isWorker = role === 'WORKER';
   const { setNewOrdersCount } = useAppStore();
   const { isOpen: isOrderDrawerOpen, orderId: activeOrderId, openOrder, openCreateOrder } = useOrderDrawerStore();
-  const hasAiEstimate = useFeature('AI_ESTIMATE');
 
   const [columns, setColumns] = useState<OrderStatus[]>([]);
   const [cards, setCards] = useState<Order[]>([]);
-  const [isAiEstimateModalOpen, setIsAiEstimateModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -218,15 +212,6 @@ const Kanban = () => {
       setLoading(false);
     }
   }, [isWorker, setNewOrdersCount]);
-
-  const handleGlobalEstimateApplied = (result: AiEstimateResultDto) => {
-    fetchData();
-    if (result.orderNumber) {
-      toast.success(`Смета заказа №${result.orderNumber} успешно обновлена!`);
-    } else {
-      toast.success('Смета успешно обновлена AI-агентом!');
-    }
-  };
 
   useEffect(() => {
     fetchData();
@@ -1125,19 +1110,6 @@ const Kanban = () => {
             <span>Календарь</span>
           </button>
 
-          {hasAiEstimate && (
-            <button
-              type="button"
-              onClick={() => setIsAiEstimateModalOpen(true)}
-              className="kanban-toolbar-btn"
-              title="AI-Смета: наполнение сметы заказа материалами со склада голосом или текстом"
-              style={{ color: '#8b5cf6' }}
-            >
-              <Sparkles size={15} style={{ color: '#8b5cf6' }} />
-              <span>AI-Смета</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => {
@@ -1660,15 +1632,6 @@ const Kanban = () => {
           document.body
         );
       })()}
-
-      {/* AI Estimate Modal */}
-      {hasAiEstimate && (
-        <AiEstimateModal
-          isOpen={isAiEstimateModalOpen}
-          onClose={() => setIsAiEstimateModalOpen(false)}
-          onEstimateApplied={handleGlobalEstimateApplied}
-        />
-      )}
     </div>
   );
 };

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { 
   Globe, Moon, Sun, User, Building2, Eye, EyeOff, FileText, Hash, Clock, 
   Plus, Trash2, CheckSquare, ListChecks, HelpCircle, ChevronDown, ChevronUp, 
-  Copy, Check 
+  Copy, Check, Sparkles 
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -15,6 +15,8 @@ import { getMaterials, type Material } from '../api/storage';
 import { TIMEZONE_OPTIONS } from '../utils/dateUtils';
 import { Sliders } from 'lucide-react';
 import { toast } from '../utils/toast';
+import { useFeature, setDevFeatureOverride } from '../hooks/useFeatureToggle';
+import { updateTenantFeature } from '../api/features';
 import '../styles/clients.css'; // Reusing standard wrapper/header styles
 import '../styles/contract-fields-settings.css';
 
@@ -43,6 +45,27 @@ export const Settings = () => {
   const [newFieldPlaceholder, setNewFieldPlaceholder] = useState('');
   const [showHelpGuide, setShowHelpGuide] = useState(false);
   const [copiedTag, setCopiedTag] = useState<string | null>(null);
+
+  const isAiEstimateFeatureActive = useFeature('AI_ESTIMATE');
+  const [aiEstimateEnabled, setAiEstimateEnabled] = useState(isAiEstimateFeatureActive);
+
+  useEffect(() => {
+    setAiEstimateEnabled(isAiEstimateFeatureActive);
+  }, [isAiEstimateFeatureActive]);
+
+  const handleToggleAiEstimate = async () => {
+    const nextVal = !aiEstimateEnabled;
+    setAiEstimateEnabled(nextVal);
+    setDevFeatureOverride('AI_ESTIMATE', nextVal);
+    if (role === 'OWNER' && tenantSettings?.id) {
+      try {
+        await updateTenantFeature(tenantSettings.id, 'AI_ESTIMATE', nextVal);
+      } catch {
+        // Ignored if tenant admin endpoint restricted for non-superadmin
+      }
+    }
+    toast.success(nextVal ? 'AI-ассистент сметы включен' : 'AI-ассистент сметы выключен');
+  };
 
   const handleCopyTag = (tag: string) => {
     if (navigator?.clipboard) {
@@ -1667,6 +1690,65 @@ export const Settings = () => {
             </form>
             <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '24px 0' }} />
           </>
+        )}
+
+        {/* Интеллектуальные модули и AI */}
+        {(role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER') && (
+          <div style={{ marginBottom: '28px', borderTop: '1px dashed var(--glass-border)', paddingTop: '24px' }}>
+            <h2 style={{ fontSize: '1.25rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sparkles size={20} style={{ color: '#8b5cf6' }} />
+              Интеллектуальные модули (AI)
+            </h2>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 20px',
+              background: 'rgba(139, 92, 246, 0.05)',
+              border: '1px solid rgba(139, 92, 246, 0.2)',
+              borderRadius: 'var(--radius-md)',
+              flexWrap: 'wrap',
+              gap: '14px'
+            }}>
+              <div style={{ maxWidth: '600px' }}>
+                <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
+                  <span>AI-ассистент сметы</span>
+                  <span className="nav-badge beta-badge">beta</span>
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.4 }}>
+                  Голосовое и текстовое автонаполнение сметы заказа материалами со склада и услугами монтажа, отдельное окно ассистента в боковом меню и кнопка в смете заказа.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleAiEstimate}
+                style={{
+                  width: '52px',
+                  height: '28px',
+                  borderRadius: '14px',
+                  background: aiEstimateEnabled ? '#8b5cf6' : 'rgba(255, 255, 255, 0.15)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  transition: 'background 0.2s ease',
+                  padding: '2px',
+                  display: 'inline-flex',
+                  alignItems: 'center'
+                }}
+                aria-label="Переключить AI-ассистент"
+              >
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  background: '#ffffff',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                  transform: aiEstimateEnabled ? 'translateX(24px)' : 'translateX(0px)',
+                  transition: 'transform 0.2s ease'
+                }} />
+              </button>
+            </div>
+          </div>
         )}
 
         <h2 style={{ fontSize: '1.25rem', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
