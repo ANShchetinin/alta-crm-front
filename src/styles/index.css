@@ -705,6 +705,9 @@ body.light-theme {
   color: var(--text-primary) !important;
   box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.5) !important;
   z-index: 100070 !important;
+  max-height: 260px !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 .react-dadata__suggestion {

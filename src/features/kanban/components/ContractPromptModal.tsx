@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { FileCheck, X, AlertCircle, FileText } from 'lucide-react';
-import { AddressSuggestions } from 'react-dadata';
+import { AddressSuggestions, type DaDataSuggestion, type DaDataAddress } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 
 export interface ContractPromptData {
@@ -47,6 +47,12 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
   onOpenPassportScanner,
   onSubmit
 }) => {
+  const installationAddressValue = React.useMemo<DaDataSuggestion<DaDataAddress> | undefined>(() => {
+    return contractPromptData.installationAddress
+      ? ({ value: contractPromptData.installationAddress, unrestricted_value: contractPromptData.installationAddress, data: {} as DaDataAddress })
+      : undefined;
+  }, [contractPromptData.installationAddress]);
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -234,7 +240,7 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
               {import.meta.env.VITE_DADATA_API_KEY ? (
                 <AddressSuggestions
                   token={import.meta.env.VITE_DADATA_API_KEY}
-                  defaultQuery={contractPromptData.installationAddress}
+                  value={installationAddressValue}
                   onChange={(suggestion) => setContractPromptData(prev => ({ ...prev, installationAddress: suggestion?.value || prev.installationAddress }))}
                   inputProps={{
                     required: true,

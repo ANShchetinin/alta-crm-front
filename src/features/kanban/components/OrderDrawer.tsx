@@ -36,7 +36,7 @@ import {
   FileDown,
   Table
 } from 'lucide-react';
-import { AddressSuggestions } from 'react-dadata';
+import { AddressSuggestions, type DaDataSuggestion, type DaDataAddress } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
 import '../../../styles/kanban.css';
 import { useTranslation } from 'react-i18next';
@@ -220,6 +220,12 @@ export const OrderDrawer: React.FC = () => {
     attachments: [] as OrderAttachment[],
     installers: [] as OrderInstaller[]
   });
+
+  const dadataAddressValue = useMemo<DaDataSuggestion<DaDataAddress> | undefined>(() => {
+    return formData.address
+      ? ({ value: formData.address, unrestricted_value: formData.address, data: {} as DaDataAddress })
+      : undefined;
+  }, [formData.address]);
 
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -2418,15 +2424,15 @@ export const OrderDrawer: React.FC = () => {
                   <label>{t('kanban.modal.address') || 'Адрес монтажа'}</label>
                   {import.meta.env.VITE_DADATA_API_KEY ? (
                     <AddressSuggestions
-                      key={`address-dadata-${editingOrderId || currentOrder?.id || 'new'}-${formData.address}`}
+                      key={`address-dadata-${editingOrderId || currentOrder?.id || 'new'}`}
                       token={import.meta.env.VITE_DADATA_API_KEY}
-                      defaultQuery={formData.address}
-                      onChange={(suggestion) => setFormData({...formData, address: suggestion?.value || formData.address})}
+                      value={dadataAddressValue}
+                      onChange={(suggestion) => setFormData(prev => ({ ...prev, address: suggestion?.value || prev.address }))}
                       inputProps={{
                         placeholder: t('kanban.modal.address') || 'Адрес монтажа',
                         className: "search-input",
-                        style: {width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box'},
-                        onChange: (e: any) => setFormData({...formData, address: e.target.value})
+                        style: { width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box' },
+                        onChange: (e: any) => setFormData(prev => ({ ...prev, address: e.target.value }))
                       }}
                     />
                   ) : (
@@ -2434,9 +2440,9 @@ export const OrderDrawer: React.FC = () => {
                       type="text" 
                       placeholder={t('kanban.modal.address') || 'Адрес монтажа'}
                       className="search-input"
-                      style={{width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box'}}
+                      style={{ width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box' }}
                       value={formData.address}
-                      onChange={(e) => setFormData({...formData, address: e.target.value})}
+                      onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                     />
                   )}
                   {formData.address && (
