@@ -827,21 +827,6 @@ export const OrderDrawer: React.FC = () => {
     }));
   };
 
-  const handleSetLeadInstaller = (index: number) => {
-    const currentList = (formData.installers || []).map((it, idx) => ({
-      ...it,
-      isLead: idx === index
-    }));
-    const lead = currentList[index];
-    setFormData(prev => ({
-      ...prev,
-      installers: currentList,
-      installedById: lead?.employeeId ? lead.employeeId.toString() : prev.installedById,
-      installedByName: lead?.employeeName || prev.installedByName,
-      installedByAvatarUrl: lead?.employeeAvatarUrl || prev.installedByAvatarUrl
-    }));
-  };
-
   const handleUpdateInstallerAmount = (index: number, newAmountStr: string) => {
     const amt = parseFloat(newAmountStr) || 0;
     const totalInstPrice = parseFloat(formData.installationPrice || '0') || 0;
@@ -2130,7 +2115,6 @@ export const OrderDrawer: React.FC = () => {
                         const emp = employees.find(e => e.id === inst.employeeId);
                         const empName = inst.employeeName || emp?.name || `Монтажник #${inst.employeeId}`;
                         const avatarUrl = inst.employeeAvatarUrl || emp?.avatarUrl;
-                        const isLead = !!inst.isLead || idx === 0;
 
                         return (
                           <div
@@ -2142,7 +2126,7 @@ export const OrderDrawer: React.FC = () => {
                               gap: '10px',
                               padding: '8px 12px',
                               background: 'var(--card-bg, rgba(255, 255, 255, 0.03))',
-                              border: isLead ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)',
+                              border: '1px solid var(--glass-border)',
                               borderRadius: 'var(--radius-sm)',
                               flexWrap: 'wrap'
                             }}
@@ -2170,40 +2154,9 @@ export const OrderDrawer: React.FC = () => {
                                 )}
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                    {empName}
-                                  </span>
-                                  {isLead ? (
-                                    <span style={{
-                                      fontSize: '0.68rem',
-                                      background: 'rgba(34, 197, 94, 0.15)',
-                                      color: '#22c55e',
-                                      padding: '1px 6px',
-                                      borderRadius: '8px',
-                                      fontWeight: 600
-                                    }}>
-                                      ⭐ Бригадир
-                                    </span>
-                                  ) : (!isWorker && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleSetLeadInstaller(idx)}
-                                      style={{
-                                        background: 'transparent',
-                                        border: 'none',
-                                        color: 'var(--text-secondary)',
-                                        fontSize: '0.72rem',
-                                        cursor: 'pointer',
-                                        padding: 0,
-                                        textDecoration: 'underline'
-                                      }}
-                                      title="Сделать ведущим бригадиром"
-                                    >
-                                      Сделать бригадиром
-                                    </button>
-                                  ))}
-                                </div>
+                                <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                  {empName}
+                                </span>
                                 {(inst.employeePhone || emp?.phone) && (
                                   <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
                                     {inst.employeePhone || emp?.phone}
