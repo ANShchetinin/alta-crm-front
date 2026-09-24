@@ -38,10 +38,12 @@ import {
 } from 'lucide-react';
 import { AddressSuggestions } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
+import '../../../styles/kanban.css';
 import { useTranslation } from 'react-i18next';
 import {
   getOrderStatuses,
   getOrders,
+  getOrderById,
   createOrder,
   updateOrder,
   completeOrder,
@@ -91,6 +93,8 @@ import { QuickClientModal } from './QuickClientModal';
 import { ContractPromptModal } from './ContractPromptModal';
 import { mergeActChecklist, isActFile } from '../constants';
 import { OrderCommentsSection } from './OrderCommentsSection';
+import { AiEstimateModal } from './AiEstimateModal';
+import { type AiEstimateResultDto } from '../../../api/aiEstimate';
 import { useOrderDrawerStore } from '../../../store/useOrderDrawerStore';
 import { toast } from '../../../utils/toast';
 import { confirm } from '../../../utils/confirm';
@@ -141,6 +145,7 @@ export const OrderDrawer: React.FC = () => {
   const hasAiSummary = useFeature('AI_SUMMARY');
   const hasContractTemplates = useFeature('CONTRACT_TEMPLATES');
   const hasDocumentScanner = useFeature('DOCUMENT_SCANNER');
+  const hasAiEstimate = useFeature('AI_ESTIMATE');
   const { fetchLowStockMaterials, tenantSettings } = useAppStore();
 
   const {
@@ -249,6 +254,8 @@ export const OrderDrawer: React.FC = () => {
   const [isContractPromptOpen, setIsContractPromptOpen] = useState(false);
   const [contractPromptLoading, setContractPromptLoading] = useState(false);
   const [isSyncingMeasurement, setIsSyncingMeasurement] = useState(false);
+  const [isAiEstimateModalOpen, setIsAiEstimateModalOpen] = useState(false);
+  const [measurementKey, setMeasurementKey] = useState(0);
   const [isPassportScannerOpen, setIsPassportScannerOpen] = useState(false);
   const [passportScannerTarget, setPassportScannerTarget] = useState<'CONTRACT' | 'NEW_CLIENT' | 'ORDER'>('CONTRACT');
   const [contractPromptData, setContractPromptData] = useState({
@@ -501,6 +508,26 @@ export const OrderDrawer: React.FC = () => {
       initNewOrderFormRef.current();
     }
   }, [isOpen, editingOrderId]);
+
+  const handleEstimateApplied = async (aiResult: AiEstimateResultDto) => {
+    toast.success('Смета успешно обновлена AI-агентом!');
+    setMeasurementKey(k => k + 1);
+    const targetId = editingOrderId || aiResult.orderId;
+    if (targetId) {
+      try {
+        const updated = await getOrderById(targetId);
+        if (updated) {
+          setCurrentOrder(updated);
+          populateOrderDataRef.current(updated);
+          window.dispatchEvent(new CustomEvent('alta:orders-changed', {
+            detail: { action: 'ai_estimate_applied', orderId: targetId }
+          }));
+        }
+      } catch (e) {
+        console.error('Failed to reload order after AI estimate', e);
+      }
+    }
+  };
 
   const isDirty = useMemo(() => {
     if (!initialFormDataJson) {
@@ -2349,6 +2376,7 @@ export const OrderDrawer: React.FC = () => {
             {/* 2. ЗАМЕР И СМЕТА */}
             {orderModalTab === 'MEASUREMENT' && (
               <MeasurementWizard
+                key={`${editingOrderId}-${measurementKey}`}
                 orderId={editingOrderId || undefined}
                 materials={allMaterials}
                 initialContractParams={getContractParams()}
@@ -2795,6 +2823,39 @@ export const OrderDrawer: React.FC = () => {
                       >
                         <Ruler size={13} /> Замер и смета
                       </button>
+                      {hasAiEstimate && editingOrderId && (
+                        <button
+                          type="button"
+                          onClick={() => setIsAiEstimateModalOpen(true)}
+                          className="btn btn-ghost"
+                          style={{
+                            fontSize: '0.8rem',
+                            padding: '4px 10px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            color: '#8b5cf6',
+                            background: 'rgba(139, 92, 246, 0.08)',
+                            border: '1px solid rgba(139, 92, 246, 0.3)'
+                          }}
+                          title="AI-наполнение сметы материалами со склада голосом или текстом"
+                        >
+                          <Sparkles size={14} style={{ color: '#8b5cf6' }} />
+                          <span>AI-Смета</span>
+                          <span style={{
+                            fontSize: '0.62rem',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)',
+                            color: '#ffffff',
+                            lineHeight: 1.2
+                          }}>
+                            beta
+                          </span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
@@ -4540,6 +4601,18 @@ export const OrderDrawer: React.FC = () => {
         onClose={handleClosePreviewAttachment}
         onDownload={handleDownloadAttachment}
       />
+
+      {/* AI Estimate Modal */}
+      {hasAiEstimate && (
+        <AiEstimateModal
+          isOpen={isAiEstimateModalOpen}
+          onClose={() => setIsAiEstimateModalOpen(false)}
+          orderId={editingOrderId || undefined}
+          orderNumber={formData.orderNumber}
+          clientName={currentOrder?.clientName || clients.find(c => c.id === parseInt(formData.clientId))?.name}
+          onEstimateApplied={handleEstimateApplied}
+        />
+      )}
     </>
   );
 };

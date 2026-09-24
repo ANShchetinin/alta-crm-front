@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCircle, Box, Archive, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp, PanelLeftClose, PanelLeftOpen, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, Box, Archive, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp, PanelLeftClose, PanelLeftOpen, ShieldCheck, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -117,6 +117,7 @@ const DashboardLayout = () => {
   const getRouteTitle = () => {
     const path = location.pathname;
     if (path.startsWith('/kanban')) return { title: t('nav.orders') || 'Заказы', icon: LayoutDashboard };
+    if (path.startsWith('/ai-assistant')) return { title: t('nav.aiAssistant') || 'ИИ-Ассистент', icon: Sparkles };
     if (path.startsWith('/site-requests')) return { title: t('nav.siteRequests') || 'Заявки с сайта', icon: Globe };
     if (path.startsWith('/calendar')) return { title: t('nav.calendar') || 'Календарь', icon: CalendarDays };
     if (path.startsWith('/measurements')) return { title: 'Замеры', icon: Ruler };
@@ -151,6 +152,7 @@ const DashboardLayout = () => {
   const hasContractTemplates = useFeature('CONTRACT_TEMPLATES');
   const hasExitIntent = useFeature('EXIT_INTENT_ANALYTICS');
   const hasSiteRequests = useFeature('SITE_REQUESTS');
+  const hasAiEstimate = useFeature('AI_ESTIMATE');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -625,6 +627,13 @@ const DashboardLayout = () => {
                 <Archive size={20} />
                 <span style={{ flex: 1 }}>{t('nav.archive') || 'Архив'}</span>
               </NavLink>
+              {hasAiEstimate && (
+                <NavLink to="/ai-assistant" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <Sparkles size={20} />
+                  <span style={{ flex: 1 }}>{t('nav.aiAssistant') || 'ИИ-Ассистент'}</span>
+                  <span className="nav-badge beta-badge">beta</span>
+                </NavLink>
+              )}
             </>
           )}
           {role !== 'SUPERADMIN' && role !== 'WORKER' && (
@@ -638,6 +647,13 @@ const DashboardLayout = () => {
                   </span>
                 )}
               </NavLink>
+              {hasAiEstimate && (
+                <NavLink to="/ai-assistant" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <Sparkles size={20} />
+                  <span style={{ flex: 1 }}>{t('nav.aiAssistant') || 'ИИ-Ассистент'}</span>
+                  <span className="nav-badge beta-badge">beta</span>
+                </NavLink>
+              )}
               {hasSiteRequests && (
                 <NavLink to="/site-requests" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <Globe size={20} />

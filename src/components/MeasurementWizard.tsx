@@ -54,6 +54,30 @@ const PRESET_ROOMS = [
   'Балкон'
 ];
 
+export const normalizeDisplayUnit = (unit?: string): string => {
+  if (!unit) return 'шт';
+  const u = unit.trim().toLowerCase();
+  if (['м.п.', 'м.пог.', 'м.пог', 'м/п', 'м/п.', 'пог.м', 'пог. м', 'м', 'м.'].includes(u)) {
+    return 'м.пог';
+  }
+  if (['м2', 'м²', 'кв.м', 'кв.м.', 'кв. м', 'кв. м.'].includes(u)) {
+    return 'м²';
+  }
+  if (['уп', 'уп.'].includes(u)) {
+    return 'уп';
+  }
+  if (['компл', 'компл.', 'к-т'].includes(u)) {
+    return 'компл';
+  }
+  if (['рул', 'рул.'].includes(u)) {
+    return 'рул';
+  }
+  if (['шт', 'шт.'].includes(u)) {
+    return 'шт';
+  }
+  return u;
+};
+
 export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   orderId,
   materials = [],
@@ -120,7 +144,18 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
       // Изначально для нового заказа/замера смета пустая, пока пользователь не нажмет на чипсу услуги.
       let calculatedItems: MeasurementCalculationItemDto[] = [];
       if (dto && dto.items && dto.items.length > 0) {
-        calculatedItems = dto.items;
+        calculatedItems = dto.items.map(it => {
+          const qty = it.quantity || 0;
+          const uCost = it.unitCostPrice || 0;
+          const uSale = it.unitSalePrice || 0;
+          const expectedCost = Math.round(qty * uCost * 100) / 100;
+          const expectedSale = Math.round(qty * uSale * 100) / 100;
+          return {
+            ...it,
+            totalCostPrice: (it.totalCostPrice != null && Math.abs(it.totalCostPrice - expectedCost) < 0.01) ? it.totalCostPrice : expectedCost,
+            totalSalePrice: (it.totalSalePrice != null && Math.abs(it.totalSalePrice - expectedSale) < 0.01) ? it.totalSalePrice : expectedSale,
+          };
+        });
       }
 
       if (isMounted) {
@@ -1003,7 +1038,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                       }
 
                       const hasAlternatives = linkedSlot && linkedSlot.materials && linkedSlot.materials.length > 1;
-                      const normUnit = item.unit === 'м.п.' || item.unit === 'м.пог.' ? 'м.пог' : item.unit === 'шт.' ? 'шт' : (item.unit || 'шт');
+                      const normUnit = normalizeDisplayUnit(item.unit);
 
                       return (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--glass-border)' }}>
@@ -1127,6 +1162,11 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                               <option value="м²" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>м²</option>
                               <option value="м.пог" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>м.пог</option>
                               <option value="шт" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>шт</option>
+                              <option value="уп" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>уп</option>
+                              <option value="компл" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>компл</option>
+                              {!['м²', 'м.пог', 'шт', 'уп', 'компл'].includes(normUnit) && (
+                                <option value={normUnit} style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>{normUnit}</option>
+                              )}
                             </select>
                           </td>
                           {/* Колонка 3: Цена за единицу */}
@@ -1261,7 +1301,7 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                   }
 
                   const hasAlternatives = linkedSlot && linkedSlot.materials && linkedSlot.materials.length > 1;
-                  const normUnit = item.unit === 'м.п.' || item.unit === 'м.пог.' ? 'м.пог' : item.unit === 'шт.' ? 'шт' : (item.unit || 'шт');
+                  const normUnit = normalizeDisplayUnit(item.unit);
 
                   return (
                     <div
@@ -1500,6 +1540,11 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
                             <option value="м²" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>м²</option>
                             <option value="м.пог" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>м.пог</option>
                             <option value="шт" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>шт</option>
+                            <option value="уп" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>уп</option>
+                            <option value="компл" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>компл</option>
+                            {!['м²', 'м.пог', 'шт', 'уп', 'компл'].includes(normUnit) && (
+                              <option value={normUnit} style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>{normUnit}</option>
+                            )}
                           </select>
                         </div>
 

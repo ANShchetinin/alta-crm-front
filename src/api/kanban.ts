@@ -176,6 +176,11 @@ export const getArchivedOrders = async (): Promise<Order[]> => {
   return response.data;
 };
 
+export const getOrderById = async (id: number): Promise<Order> => {
+  const response = await api.get(`/orders/${id}`);
+  return response.data;
+};
+
 export const getOrdersByClient = async (clientId: number): Promise<Order[]> => {
   const response = await api.get(`/orders/client/${clientId}`);
   return response.data;
