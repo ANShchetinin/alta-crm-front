@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useAudioRecorder } from './useAudioRecorder';
+import { useAudioRecorder, encodeWavBlob, downsampleBuffer } from './useAudioRecorder';
 
 describe('useAudioRecorder', () => {
   let mockStream: any;
@@ -119,5 +119,22 @@ describe('useAudioRecorder', () => {
     expect(result.current.audioBlob).toBeNull();
     expect(result.current.audioUrl).toBeNull();
     expect(mockTrack.stop).toHaveBeenCalled();
+  });
+
+  it('downsamples buffer from 48000 to 16000', () => {
+    const input = new Float32Array(48000);
+    for (let i = 0; i < input.length; i++) {
+      input[i] = 0.5;
+    }
+    const downsampled = downsampleBuffer(input, 48000, 16000);
+    expect(downsampled.length).toBe(16000);
+    expect(downsampled[0]).toBeCloseTo(0.5, 4);
+  });
+
+  it('encodes WAV blob with 16kHz sample rate from 48000 source', async () => {
+    const chunk = new Float32Array(480);
+    const blob = encodeWavBlob([chunk], 48000, 16000);
+    expect(blob.type).toBe('audio/wav');
+    expect(blob.size).toBe(44 + 160 * 2); // 44 bytes header + 160 samples * 2 bytes
   });
 });

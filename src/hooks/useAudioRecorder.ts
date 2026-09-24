@@ -12,9 +12,37 @@ export interface AudioRecorderState {
 }
 
 /**
- * Кодирует массив Float32 PCM семплов в стандартный 16-битный моно WAV-файл (RIFF WAVE).
+ * Ресэмплирует массив Float32 PCM с исходной частоты дискретизации до целевой (по умолчанию 16 кГц).
  */
-export function encodeWavBlob(chunks: Float32Array[], sampleRate: number): Blob {
+export function downsampleBuffer(buffer: Float32Array, inputSampleRate: number, targetSampleRate: number = 16000): Float32Array {
+  if (inputSampleRate === targetSampleRate || inputSampleRate <= 0) {
+    return buffer;
+  }
+  const sampleRateRatio = inputSampleRate / targetSampleRate;
+  const newLength = Math.round(buffer.length / sampleRateRatio);
+  const result = new Float32Array(newLength);
+  let offsetResult = 0;
+  let offsetBuffer = 0;
+  while (offsetResult < result.length) {
+    const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+    let accum = 0;
+    let count = 0;
+    for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+      accum += buffer[i];
+      count++;
+    }
+    result[offsetResult] = count > 0 ? accum / count : 0;
+    offsetResult++;
+    offsetBuffer = nextOffsetBuffer;
+  }
+  return result;
+}
+
+/**
+ * Кодирует массив Float32 PCM семплов в стандартный 16-битный моно WAV-файл (RIFF WAVE).
+ * Если sourceSampleRate отличается от targetSampleRate, автоматически выполняет качественный ресэмплинг.
+ */
+export function encodeWavBlob(chunks: Float32Array[], sourceSampleRate: number, targetSampleRate: number = 16000): Blob {
   let totalLength = 0;
   for (let i = 0; i < chunks.length; i++) {
     totalLength += chunks[i].length;
@@ -27,12 +55,17 @@ export function encodeWavBlob(chunks: Float32Array[], sampleRate: number): Blob 
     offset += chunks[i].length;
   }
 
-  const buffer = new ArrayBuffer(44 + merged.length * 2);
+  const samples = sourceSampleRate !== targetSampleRate
+    ? downsampleBuffer(merged, sourceSampleRate, targetSampleRate)
+    : merged;
+  const finalSampleRate = targetSampleRate;
+
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
 
   // RIFF chunk descriptor
   writeAscii(view, 0, 'RIFF');
-  view.setUint32(4, 36 + merged.length * 2, true);
+  view.setUint32(4, 36 + samples.length * 2, true);
   writeAscii(view, 8, 'WAVE');
 
   // "fmt " sub-chunk
@@ -40,19 +73,19 @@ export function encodeWavBlob(chunks: Float32Array[], sampleRate: number): Blob 
   view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
   view.setUint16(20, 1, true); // AudioFormat (1 = PCM)
   view.setUint16(22, 1, true); // NumChannels (1 = mono)
-  view.setUint32(24, sampleRate, true); // SampleRate
-  view.setUint32(28, sampleRate * 2, true); // ByteRate (SampleRate * 1 channel * 2 bytes)
+  view.setUint32(24, finalSampleRate, true); // SampleRate
+  view.setUint32(28, finalSampleRate * 2, true); // ByteRate (SampleRate * 1 channel * 2 bytes)
   view.setUint16(32, 2, true); // BlockAlign (1 channel * 2 bytes)
   view.setUint16(34, 16, true); // BitsPerSample (16 bits)
 
   // "data" sub-chunk
   writeAscii(view, 36, 'data');
-  view.setUint32(40, merged.length * 2, true);
+  view.setUint32(40, samples.length * 2, true);
 
   // PCM samples (convert float [-1.0, 1.0] to 16-bit signed integer [-32768, 32767])
   let byteOffset = 44;
-  for (let i = 0; i < merged.length; i++, byteOffset += 2) {
-    const s = Math.max(-1, Math.min(1, merged[i]));
+  for (let i = 0; i < samples.length; i++, byteOffset += 2) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
     view.setInt16(byteOffset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
   }
 
@@ -170,7 +203,13 @@ export const useAudioRecorder = (): AudioRecorderState => {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioCtx) {
         try {
-          const audioCtx = new AudioCtx({ sampleRate: 16000 });
+          let audioCtx: AudioContext;
+          try {
+            audioCtx = new AudioCtx({ sampleRate: 16000 });
+          } catch {
+            // Mobile Safari / Android Chrome don't support custom sample rates in constructor
+            audioCtx = new AudioCtx();
+          }
           audioContextRef.current = audioCtx;
           pcmChunksRef.current = [];
           isRecordingRef.current = true;
@@ -227,12 +266,12 @@ export const useAudioRecorder = (): AudioRecorderState => {
           sourceRef.current.disconnect();
           processorRef.current.disconnect();
         }
-        const actualSampleRate = audioContextRef.current.sampleRate || 16000;
-        const wavBlob = encodeWavBlob(pcmChunksRef.current, actualSampleRate);
+        const actualSampleRate = audioContextRef.current.sampleRate || 48000;
+        const wavBlob = encodeWavBlob(pcmChunksRef.current, actualSampleRate, 16000);
         setAudioBlob(wavBlob);
         const url = URL.createObjectURL(wavBlob);
         setAudioUrl(url);
-        audioContextRef.current.close();
+        audioContextRef.current.close().catch(() => {});
       } catch (e) {
         console.error('Failed to finalize WAV audio recording', e);
       } finally {
