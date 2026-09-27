@@ -316,6 +316,7 @@ export const ContractTemplates = () => {
   const editorRef = useRef<HTMLDivElement>(null);
   const docxMountRef = useRef<HTMLDivElement>(null);
   const lastSavedRangeRef = useRef<Range | null>(null);
+  const loadRequestIdRef = useRef(0);
 
   const renderDocxDirectly = useCallback(async (blob: Blob) => {
     if (!docxMountRef.current) return;
@@ -352,20 +353,29 @@ export const ContractTemplates = () => {
   }, []);
 
   const fetchInitialData = useCallback(async () => {
+    // Ответ по прежней вкладке, пришедший после переключения, не должен попасть в редактор текущей
+    const requestId = ++loadRequestIdRef.current;
+    const isStale = () => requestId !== loadRequestIdRef.current;
     try {
       setLoading(true);
       const [statusRes, htmlContent] = await Promise.all([
         getContractTemplateStatus(),
         getContractTemplateHtml(activeTab)
       ]);
+      if (isStale()) {
+        return;
+      }
       setStatus(statusRes);
-      
+
       const hasTemplate = activeTab === 'INDIVIDUAL' ? statusRes.individual : statusRes.legal;
 
       if (hasTemplate) {
         setViewMode('DOCX_VIEW');
         try {
           const blob = await downloadContractTemplateBlob(activeTab);
+          if (isStale()) {
+            return;
+          }
           setTimeout(() => renderDocxDirectly(blob), 50);
         } catch (e) {
           console.warn('Could not fetch docx binary', e);
@@ -381,7 +391,9 @@ export const ContractTemplates = () => {
     } catch (e) {
       console.error('Failed to load contract template', e);
     } finally {
-      setLoading(false);
+      if (!isStale()) {
+        setLoading(false);
+      }
     }
   }, [activeTab, renderDocxDirectly]);
 

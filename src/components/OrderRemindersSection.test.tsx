@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { renderWithQuery } from '../test-utils/queryWrapper';
 import { OrderRemindersSection } from './OrderRemindersSection';
 import * as remindersApi from '../api/reminders';
 import type { Employee } from '../api/employees';
@@ -52,7 +53,7 @@ describe('OrderRemindersSection', () => {
 
     vi.mocked(remindersApi.getOrderReminders).mockResolvedValue(mockReminders as any);
 
-    render(
+    renderWithQuery(
       <OrderRemindersSection
         orderId={100}
         employees={mockEmployees}
@@ -71,7 +72,7 @@ describe('OrderRemindersSection', () => {
     vi.mocked(remindersApi.getOrderReminders).mockResolvedValue([]);
     vi.mocked(remindersApi.createReminder).mockResolvedValue({ id: 99 } as any);
 
-    render(
+    renderWithQuery(
       <OrderRemindersSection
         orderId={100}
         employees={mockEmployees}
@@ -131,7 +132,7 @@ describe('OrderRemindersSection', () => {
     vi.mocked(remindersApi.getOrderReminders).mockResolvedValue(mockReminders as any);
     vi.mocked(remindersApi.updateReminder).mockResolvedValue({ id: 5 } as any);
 
-    render(
+    renderWithQuery(
       <OrderRemindersSection
         orderId={100}
         employees={mockEmployees}

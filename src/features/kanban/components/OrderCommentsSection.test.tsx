@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { renderWithQuery } from '../../../test-utils/queryWrapper';
 import { OrderCommentsSection } from './OrderCommentsSection';
 import * as kanbanApi from '../../../api/kanban';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -40,7 +41,7 @@ describe('OrderCommentsSection', () => {
     vi.mocked(kanbanApi.getOrderComments).mockResolvedValue(mockComments);
     const onCommentsCountChange = vi.fn();
 
-    render(
+    renderWithQuery(
       <OrderCommentsSection
         orderId={100}
         onCommentsCountChange={onCommentsCountChange}
@@ -79,7 +80,7 @@ describe('OrderCommentsSection', () => {
 
     const onCommentsCountChange = vi.fn();
 
-    render(
+    renderWithQuery(
       <OrderCommentsSection
         orderId={100}
         defaultExpanded={true}
@@ -134,7 +135,7 @@ describe('OrderCommentsSection', () => {
 
     vi.mocked(kanbanApi.getOrderComments).mockResolvedValue(mockComments);
 
-    render(
+    renderWithQuery(
       <OrderCommentsSection
         orderId={100}
         defaultExpanded={true}
@@ -172,7 +173,7 @@ describe('OrderCommentsSection', () => {
 
     vi.mocked(kanbanApi.getOrderComments).mockResolvedValue(mockComments);
 
-    render(
+    renderWithQuery(
       <OrderCommentsSection
         orderId={100}
         defaultExpanded={true}
@@ -213,7 +214,7 @@ describe('OrderCommentsSection', () => {
     vi.mocked(kanbanApi.getOrderComments).mockResolvedValue([originalComment]);
     vi.mocked(kanbanApi.updateOrderComment).mockResolvedValue(updatedComment);
 
-    render(
+    renderWithQuery(
       <OrderCommentsSection
         orderId={100}
         defaultExpanded={true}
@@ -263,7 +264,7 @@ describe('OrderCommentsSection', () => {
 
     vi.mocked(kanbanApi.getOrderComments).mockResolvedValue([originalComment]);
 
-    render(
+    renderWithQuery(
       <OrderCommentsSection
         orderId={100}
         defaultExpanded={true}
@@ -309,7 +310,7 @@ describe('OrderCommentsSection', () => {
 
     vi.mocked(kanbanApi.getOrderComments).mockResolvedValue(mockComments);
 
-    render(
+    renderWithQuery(
       <OrderCommentsSection
         orderId={100}
         defaultExpanded={true}
@@ -344,7 +345,7 @@ describe('OrderCommentsSection', () => {
 
     vi.mocked(kanbanApi.getOrderComments).mockResolvedValue(mockComments);
 
-    render(
+    renderWithQuery(
       <OrderCommentsSection
         orderId={100}
         defaultExpanded={true}

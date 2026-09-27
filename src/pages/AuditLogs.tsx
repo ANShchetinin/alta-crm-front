@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { 
   ShieldCheck, 
   Search, 
@@ -8,6 +9,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { getAuditLogs, type AuditLogItem, type AuditEntityType, type AuditActionType } from '../api/auditLogs';
+import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
 import { formatTimeAgo, formatDateTime } from '../utils/dateUtils';
 import { toast } from '../utils/toast';
 import '../styles/audit-logs.css';
@@ -23,20 +25,64 @@ const ENTITY_LABELS: Record<AuditEntityType, string> = {
   AUTH: 'Безопасность',
 };
 
+type AuditPeriod = 'today' | '7days' | '30days' | 'all';
+
+const AUDIT_LOGS_QUERY_KEY = ['auditLogs'] as const;
+const PAGE_SIZE = 20;
+const EMPTY_LOGS: AuditLogItem[] = [];
+
+const getDateRange = (selectedPeriod: AuditPeriod): { from?: string } => {
+  const now = new Date();
+  if (selectedPeriod === 'today') {
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    return { from: startOfDay.toISOString() };
+  }
+  if (selectedPeriod === '7days') {
+    return { from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString() };
+  }
+  if (selectedPeriod === '30days') {
+    return { from: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() };
+  }
+  return {};
+};
+
 export const AuditLogs: React.FC = () => {
-  const [logs, setLogs] = useState<AuditLogItem[]>([]);
-  const [totalElements, setTotalElements] = useState<number>(0);
-  const [totalPages, setTotalPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(0);
-  const [pageSize] = useState<number>(20);
-  const [loading, setLoading] = useState<boolean>(true);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [selectedEntity, setSelectedEntity] = useState<AuditEntityType | ''>('');
   const [selectedAction, setSelectedAction] = useState<AuditActionType | ''>('');
-  const [period, setPeriod] = useState<'today' | '7days' | '30days' | 'all'>('7days');
+  const [period, setPeriod] = useState<AuditPeriod>('7days');
+
+  const baseKey = useTenantQueryKey(AUDIT_LOGS_QUERY_KEY);
+  const search = debouncedSearch.trim() || undefined;
+  const { data, isFetching: loading, error, refetch } = useQuery({
+    // Период, а не дата «от»: дата вычисляется в момент запроса, иначе ключ менялся бы каждый рендер
+    queryKey: [...baseKey, { page: currentPage, search, selectedEntity, selectedAction, period }],
+    queryFn: () => getAuditLogs({
+      page: currentPage,
+      size: PAGE_SIZE,
+      search,
+      entityType: selectedEntity || undefined,
+      actionType: selectedAction || undefined,
+      from: getDateRange(period).from,
+    }),
+    placeholderData: keepPreviousData,
+    // Журнал пополняется постоянно: при открытии всегда сверяемся с сервером, показывая кеш до ответа
+    staleTime: 0
+  });
+  const logs = data?.content ?? EMPTY_LOGS;
+  const totalElements = data?.totalElements ?? 0;
+  const totalPages = data?.totalPages ?? 0;
+
+  useEffect(() => {
+    if (error) {
+      console.error('Failed to load audit logs', error);
+      toast.error('Не удалось загрузить журнал аудита');
+    }
+  }, [error]);
 
   // Debounce search
   useEffect(() => {
@@ -46,51 +92,6 @@ export const AuditLogs: React.FC = () => {
     }, 400);
     return () => clearTimeout(timer);
   }, [searchTerm]);
-
-  const getDateRange = (selectedPeriod: 'today' | '7days' | '30days' | 'all'): { from?: string; to?: string } => {
-    const now = new Date();
-    if (selectedPeriod === 'today') {
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-      return { from: startOfDay.toISOString() };
-    }
-    if (selectedPeriod === '7days') {
-      const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      return { from: past.toISOString() };
-    }
-    if (selectedPeriod === '30days') {
-      const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      return { from: past.toISOString() };
-    }
-    return {};
-  };
-
-  const fetchLogs = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { from } = getDateRange(period);
-      const data = await getAuditLogs({
-        page: currentPage,
-        size: pageSize,
-        search: debouncedSearch.trim() || undefined,
-        entityType: selectedEntity || undefined,
-        actionType: selectedAction || undefined,
-        from: from || undefined,
-      });
-
-      setLogs(data.content || []);
-      setTotalElements(data.totalElements || 0);
-      setTotalPages(data.totalPages || 0);
-    } catch (err: any) {
-      console.error('Failed to load audit logs', err);
-      toast.error('Не удалось загрузить журнал аудита');
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, pageSize, debouncedSearch, selectedEntity, selectedAction, period]);
-
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
 
   const getActionBadge = (action: AuditActionType) => {
     if (action.includes('CREATED') || action.includes('UPLOADED') || action.includes('SUCCESS')) {
@@ -133,7 +134,7 @@ export const AuditLogs: React.FC = () => {
 
         <button 
           className="btn btn-secondary" 
-          onClick={fetchLogs} 
+          onClick={() => refetch()}
           disabled={loading}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >

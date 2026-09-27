@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithQuery } from '../test-utils/queryWrapper';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Earnings } from './Earnings';
 import * as earningsApi from '../api/earnings';
@@ -44,14 +45,14 @@ describe('Earnings Page', () => {
 
     (earningsApi.getMyEarnings as any).mockResolvedValue(mockData);
 
-    render(<Earnings />);
+    renderWithQuery(<Earnings />);
 
     await waitFor(() => {
       expect(screen.getByText('Мой заработок')).toBeInTheDocument();
     });
 
     // Both orders should be visible because default period is ALL_TIME
-    expect(screen.getByText('Первый Клиент')).toBeInTheDocument();
+    expect(await screen.findByText('Первый Клиент')).toBeInTheDocument();
     expect(screen.getByText('Второй Клиент (Новый)')).toBeInTheDocument();
 
     // Check order of rendered cards: order 102 should come first (latest completed date 2026-09-05)

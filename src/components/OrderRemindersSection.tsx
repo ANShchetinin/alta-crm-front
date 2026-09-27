@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
 import { 
   Clock, 
   CheckCircle2, 
@@ -33,6 +35,9 @@ interface OrderRemindersSectionProps {
   currentUserId?: number;
   onReminderCountChanged?: () => void;
 }
+
+const ORDER_REMINDERS_QUERY_KEY = ['orderReminders'] as const;
+const EMPTY_REMINDERS: OrderReminderDto[] = [];
 
 const QUICK_COMMENTS = [
   'Уточнить решение по смете',
@@ -68,7 +73,6 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
     return effectiveUserId;
   };
 
-  const [reminders, setReminders] = useState<OrderReminderDto[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
   // Modal State for Create / Edit
@@ -80,21 +84,16 @@ export const OrderRemindersSection: React.FC<OrderRemindersSectionProps> = ({
   const [notifyBeforeMinutes, setNotifyBeforeMinutes] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchReminders = useCallback(async () => {
-    if (!orderId) {
-      return;
-    }
-    try {
-      const data = await getOrderReminders(orderId);
-      setReminders(data);
-    } catch (err) {
-      console.error('Failed to fetch reminders', err);
-    }
-  }, [orderId]);
+  const queryClient = useQueryClient();
+  const remindersBaseKey = useTenantQueryKey(ORDER_REMINDERS_QUERY_KEY);
+  const remindersKey = [...remindersBaseKey, orderId];
+  const { data: reminders = EMPTY_REMINDERS } = useQuery({
+    queryKey: remindersKey,
+    queryFn: () => getOrderReminders(orderId),
+    enabled: Boolean(orderId)
+  });
 
-  useEffect(() => {
-    fetchReminders();
-  }, [fetchReminders]);
+  const fetchReminders = () => queryClient.invalidateQueries({ queryKey: remindersKey });
 
   // Quick Preset Helper
   const setPresetTime = (type: '1h' | '3h' | 'tomorrow10' | '3d' | '1w') => {

@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
+import { useInvalidateOnOrdersChanged } from '../hooks/queries/useInvalidateOnOrdersChanged';
 import { 
   Wallet, 
   CheckCircle2, 
@@ -19,30 +22,24 @@ import { formatDateTimeInTimezone, formatDateInTimezone } from '../utils/dateUti
 
 type PeriodFilter = 'THIS_MONTH' | 'PREV_MONTH' | 'ALL_TIME' | 'CUSTOM';
 
+const EARNINGS_QUERY_KEY = ['myEarnings'] as const;
+
 export const Earnings: React.FC = () => {
   const { tenantSettings } = useAppStore();
-  const [data, setData] = useState<WorkerEarnings | null>(null);
-  const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodFilter>('ALL_TIME');
   const [searchQuery, setSearchQuery] = useState('');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
-  const fetchEarnings = async () => {
-    setLoading(true);
-    try {
-      const result = await getMyEarnings();
-      setData(result);
-    } catch (err) {
-      console.error('Failed to fetch earnings', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchEarnings();
-  }, []);
+  const queryKey = useTenantQueryKey(EARNINGS_QUERY_KEY);
+  const { data = null, isLoading: loading, isFetching: refreshing, refetch } = useQuery<WorkerEarnings>({
+    queryKey,
+    queryFn: () => getMyEarnings(),
+    // Заработок считается по заказам, которые меняются на других экранах
+    staleTime: 0
+  });
+  useInvalidateOnOrdersChanged(EARNINGS_QUERY_KEY);
+  const fetchEarnings = () => refetch();
 
   const getYandexMapsUrl = (address: string) => {
     return `https://yandex.ru/maps/?text=${encodeURIComponent(address)}`;
@@ -154,7 +151,7 @@ export const Earnings: React.FC = () => {
           style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px' }}
           title="Обновить данные"
         >
-          <RefreshCw size={16} className={loading ? 'spin' : ''} />
+          <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
           Обновить
         </button>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Plus, Copy, CheckCircle2, Eye, EyeOff, RefreshCcw, Building2, UserCheck, Check, Loader2 } from 'lucide-react';
 import { tenantsApi } from '../api/tenants';
 import type { Tenant, CreateTenantRequest, SuperAdminOwner } from '../api/tenants';
@@ -6,11 +7,24 @@ import { toast } from '../utils/toast';
 import { confirm } from '../utils/confirm';
 import '../styles/clients.css';
 
+// Данные платформы (SUPERADMIN), не зависят от текущей компании
+const PLATFORM_TENANTS_QUERY_KEY = ['platformTenants'] as const;
+const PLATFORM_OWNERS_QUERY_KEY = ['platformOwners'] as const;
+const EMPTY_TENANTS: Tenant[] = [];
+const EMPTY_OWNERS: SuperAdminOwner[] = [];
+
 export const Tenants = () => {
   const [activeTab, setActiveTab] = useState<'tenants' | 'owners'>('tenants');
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [owners, setOwners] = useState<SuperAdminOwner[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: tenants = EMPTY_TENANTS, isLoading: tenantsLoading } = useQuery({
+    queryKey: PLATFORM_TENANTS_QUERY_KEY,
+    queryFn: () => tenantsApi.getAll()
+  });
+  const { data: owners = EMPTY_OWNERS, isLoading: ownersLoading } = useQuery({
+    queryKey: PLATFORM_OWNERS_QUERY_KEY,
+    queryFn: () => tenantsApi.getOwners().catch(() => EMPTY_OWNERS)
+  });
+  const loading = tenantsLoading || ownersLoading;
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showOwnerPassword, setShowOwnerPassword] = useState(false);
@@ -36,29 +50,17 @@ export const Tenants = () => {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const limits: { [userId: number]: number } = {};
+    owners.forEach(o => {
+      limits[o.userId] = o.maxCompaniesLimit;
+    });
+    setLimitEdits(limits);
+  }, [owners]);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [tenantsData, ownersData] = await Promise.all([
-        tenantsApi.getAll(),
-        tenantsApi.getOwners().catch(() => [] as SuperAdminOwner[])
-      ]);
-      setTenants(tenantsData);
-      setOwners(ownersData);
-      const limits: { [userId: number]: number } = {};
-      ownersData.forEach(o => {
-        limits[o.userId] = o.maxCompaniesLimit;
-      });
-      setLimitEdits(limits);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchData = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: PLATFORM_TENANTS_QUERY_KEY }),
+    queryClient.invalidateQueries({ queryKey: PLATFORM_OWNERS_QUERY_KEY })
+  ]);
 
   const filteredTenants = tenants.filter(t => 
     t.name.toLowerCase().includes(search.toLowerCase())

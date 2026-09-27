@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, 
@@ -11,13 +11,18 @@ import {
 } from 'lucide-react';
 import { type CalendarEventDto, getCalendarEvents } from '../api/calendar';
 import type { Employee } from '../api/employees';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useEmployeesQuery } from '../hooks/queries/useEmployeesQuery';
+import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
+import { useInvalidateOnOrdersChanged } from '../hooks/queries/useInvalidateOnOrdersChanged';
 import { useAuthStore } from '../store/useAuthStore';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { parseLocalDateTime } from '../utils/dateUtils';
 import '../styles/calendar.css';
 
 const EMPTY_EMPLOYEES: Employee[] = [];
+const EMPTY_EVENTS: CalendarEventDto[] = [];
+const CALENDAR_EVENTS_QUERY_KEY = ['calendarEvents'] as const;
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
@@ -46,7 +51,6 @@ export const Calendar: React.FC = () => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | undefined>(undefined);
   const { data: employees = EMPTY_EMPLOYEES } = useEmployeesQuery(!isWorker);
 
-  const [events, setEvents] = useState<CalendarEventDto[]>([]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -106,24 +110,18 @@ export const Calendar: React.FC = () => {
     }
   }, [currentDate, viewMode]);
 
-  const fetchEvents = useCallback(async () => {
-    try {
-      const data = await getCalendarEvents({
-        start: rangeStart.toISOString(),
-        end: rangeEnd.toISOString(),
-        types: activeTypes,
-        employeeId: selectedEmployeeId
-      });
-      setEvents(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Failed to fetch calendar events', err);
-      setEvents([]);
-    }
-  }, [rangeStart, rangeEnd, activeTypes, selectedEmployeeId]);
-
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+  const eventsBaseKey = useTenantQueryKey(CALENDAR_EVENTS_QUERY_KEY);
+  const start = rangeStart.toISOString();
+  const end = rangeEnd.toISOString();
+  const { data: eventsData, isError: eventsError } = useQuery({
+    queryKey: [...eventsBaseKey, { start, end, activeTypes, selectedEmployeeId }],
+    queryFn: () => getCalendarEvents({ start, end, types: activeTypes, employeeId: selectedEmployeeId }),
+    placeholderData: keepPreviousData,
+    // События строятся из заказов, которые меняются на других экранах: при открытии всегда сверяемся с сервером
+    staleTime: 0
+  });
+  useInvalidateOnOrdersChanged(CALENDAR_EVENTS_QUERY_KEY);
+  const events = eventsError || !Array.isArray(eventsData) ? EMPTY_EVENTS : eventsData;
 
 
   // Navigation handlers
