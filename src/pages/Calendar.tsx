@@ -10,11 +10,14 @@ import {
   LayoutDashboard
 } from 'lucide-react';
 import { type CalendarEventDto, getCalendarEvents } from '../api/calendar';
-import { getEmployees, type Employee } from '../api/employees';
+import type { Employee } from '../api/employees';
+import { useEmployeesQuery } from '../hooks/queries/useEmployeesQuery';
 import { useAuthStore } from '../store/useAuthStore';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { parseLocalDateTime } from '../utils/dateUtils';
 import '../styles/calendar.css';
+
+const EMPTY_EMPLOYEES: Employee[] = [];
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
@@ -41,8 +44,8 @@ export const Calendar: React.FC = () => {
   const [filterReminder, setFilterReminder] = useState(true);
   
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | undefined>(undefined);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  
+  const { data: employees = EMPTY_EMPLOYEES } = useEmployeesQuery(!isWorker);
+
   const [events, setEvents] = useState<CalendarEventDto[]>([]);
 
   useEffect(() => {
@@ -52,12 +55,6 @@ export const Calendar: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  useEffect(() => {
-    if (!isWorker) {
-      getEmployees().then(data => setEmployees(Array.isArray(data) ? data : [])).catch(console.error);
-    }
-  }, [isWorker]);
 
   const activeTypes = useMemo(() => {
     const types: string[] = [];

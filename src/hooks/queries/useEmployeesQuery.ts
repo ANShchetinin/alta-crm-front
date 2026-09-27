@@ -1,13 +1,21 @@
 ﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee, type Employee } from '../../api/employees';
+import { useTenantQueryKey } from './useTenantQueryKey';
 
 export const EMPLOYEES_QUERY_KEY = ['employees'] as const;
 
-export const useEmployeesQuery = (enabled = true) => {
+/**
+ * @param pollIntervalMs период опроса (статус «в сети»); в фоновой вкладке опрос приостанавливается,
+ *                       при возврате на вкладку список обновляется сразу
+ */
+export const useEmployeesQuery = (enabled = true, pollIntervalMs?: number) => {
+  const queryKey = useTenantQueryKey(EMPLOYEES_QUERY_KEY);
   return useQuery<Employee[]>({
-    queryKey: EMPLOYEES_QUERY_KEY,
+    queryKey,
     queryFn: () => getEmployees(),
-    enabled
+    enabled,
+    refetchInterval: pollIntervalMs,
+    refetchOnWindowFocus: pollIntervalMs !== undefined
   });
 };
 

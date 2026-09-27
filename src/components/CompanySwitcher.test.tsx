@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { renderWithQuery } from '../test-utils/queryWrapper';
 import { BrowserRouter } from 'react-router-dom';
 import DashboardLayout from './DashboardLayout';
 import { useAuthStore } from '../store/useAuthStore';
@@ -60,7 +61,7 @@ describe('DashboardLayout Company Switcher', () => {
       ]
     });
 
-    render(
+    renderWithQuery(
       <BrowserRouter>
         <DashboardLayout />
       </BrowserRouter>

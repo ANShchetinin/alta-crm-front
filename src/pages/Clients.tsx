@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Search, Plus, Edit2, Trash2, FileText, ArrowRight, Phone, 
@@ -6,10 +6,17 @@ import {
   MessageCircle, Send, CheckSquare, Square
 } from 'lucide-react';
 import type { Client, ClientContact } from '../api/clients';
-import { getClients, createClient, updateClient, deleteClient } from '../api/clients';
 import type { Order, OrderStatus } from '../api/kanban';
-import { getOrdersByClient, getOrderStatuses, moveOrder } from '../api/kanban';
-import { getMyTenants, type UserTenant } from '../api/auth';
+import { getOrdersByClient, moveOrder } from '../api/kanban';
+import type { UserTenant } from '../api/auth';
+import {
+  useClientsQuery,
+  useCreateClientMutation,
+  useUpdateClientMutation,
+  useDeleteClientMutation
+} from '../hooks/queries/useClientsQuery';
+import { useOrderStatusesQuery } from '../hooks/queries/useOrderStatusesQuery';
+import { useMyTenantsQuery } from '../hooks/queries/useMyTenantsQuery';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useFeature } from '../hooks/useFeatureToggle';
@@ -24,16 +31,27 @@ import { toast } from '../utils/toast';
 import { confirm } from '../utils/confirm';
 import '../styles/clients.css';
 
+const EMPTY_CLIENTS: Client[] = [];
+const EMPTY_TENANTS: UserTenant[] = [];
+
 export const Clients = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { tenantSettings } = useAppStore();
   const isPassportOcrEnabled = useFeature('PASSPORT_OCR');
-  const [clients, setClients] = useState<Client[]>([]);
-  const [statuses, setStatuses] = useState<OrderStatus[]>([]);
-  const [myTenants, setMyTenants] = useState<UserTenant[]>([]);
-  const [currentTenantId, setCurrentTenantId] = useState<number>(1);
-  const [loading, setLoading] = useState(true);
+  const { data: clients = EMPTY_CLIENTS, isLoading: clientsLoading } = useClientsQuery();
+  const { data: rawStatuses, isLoading: statusesLoading } = useOrderStatusesQuery();
+  const { data: tenantsResp, isLoading: tenantsLoading } = useMyTenantsQuery();
+  const createClientMutation = useCreateClientMutation();
+  const updateClientMutation = useUpdateClientMutation();
+  const deleteClientMutation = useDeleteClientMutation();
+  const statuses = useMemo<OrderStatus[]>(
+    () => [...(rawStatuses ?? [])].sort((a, b) => a.sortOrder - b.sortOrder),
+    [rawStatuses]
+  );
+  const myTenants: UserTenant[] = tenantsResp?.tenants ?? EMPTY_TENANTS;
+  const currentTenantId = tenantsResp?.currentTenantId || 1;
+  const loading = clientsLoading || statusesLoading || tenantsLoading;
   const [search, setSearch] = useState('');
   const [clientTypeFilter, setClientTypeFilter] = useState<'ALL' | 'INDIVIDUAL' | 'LEGAL_ENTITY'>('ALL');
   
@@ -80,33 +98,6 @@ export const Clients = () => {
     allowedTenantIds: [] as number[]
   });
 
-
-
-  useEffect(() => {
-    fetchClients();
-  }, []);
-
-  const fetchClients = async () => {
-    try {
-      setLoading(true);
-      const [data, statusesData, tenantsResp] = await Promise.all([
-        getClients(),
-        getOrderStatuses().catch(() => [] as OrderStatus[]),
-        getMyTenants().catch(() => null)
-      ]);
-      setClients(Array.isArray(data) ? data : []);
-      setStatuses(Array.isArray(statusesData) ? statusesData.sort((a, b) => a.sortOrder - b.sortOrder) : []);
-      if (tenantsResp) {
-        setMyTenants(Array.isArray(tenantsResp.tenants) ? tenantsResp.tenants : []);
-        setCurrentTenantId(tenantsResp.currentTenantId || 1);
-      }
-    } catch (err) {
-      console.error(err);
-      setClients([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filteredClients = (Array.isArray(clients) ? clients : []).filter(c => {
     if (!c) return false;
@@ -302,14 +293,13 @@ export const Clients = () => {
       };
 
       if (editingClient) {
-        await updateClient(editingClient.id, payload);
+        await updateClientMutation.mutateAsync({ id: editingClient.id, data: payload });
         toast.success('Клиент успешно обновлен');
       } else {
-        await createClient(payload);
+        await createClientMutation.mutateAsync(payload);
         toast.success('Клиент успешно создан');
       }
       setIsModalOpen(false);
-      fetchClients();
     } catch (err: any) {
       console.error(err);
       toast.error(err.response?.data?.message || err.message || 'Ошибка при сохранении клиента');
@@ -327,9 +317,8 @@ export const Clients = () => {
     if (!ok) return;
 
     try {
-      await deleteClient(id);
+      await deleteClientMutation.mutateAsync(id);
       toast.success('Клиент удален');
-      fetchClients();
     } catch (err: any) {
       console.error(err);
       toast.error(err.response?.data?.message || err.message || 'Ошибка при удалении клиента');

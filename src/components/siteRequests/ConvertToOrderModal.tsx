@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Check, MapPin, ArrowRight, Loader2 } from 'lucide-react';
-import { getOrderStatuses, type OrderStatus } from '../../api/kanban';
+import type { OrderStatus } from '../../api/kanban';
+import { useOrderStatusesQuery } from '../../hooks/queries/useOrderStatusesQuery';
 import { convertSiteRequestToOrder, type SiteRequestItem } from '../../api/siteRequests';
 import { useOrderDrawerStore } from '../../store/useOrderDrawerStore';
 import { toast } from '../../utils/toast';
@@ -18,37 +19,31 @@ export const ConvertToOrderModal: React.FC<ConvertToOrderModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [statuses, setStatuses] = useState<OrderStatus[]>([]);
-  const [selectedStatusId, setSelectedStatusId] = useState<number | null>(null);
+  const { data: rawStatuses, isLoading: fetchingStatuses, isError: statusesError } = useOrderStatusesQuery(isOpen);
+  const statuses = useMemo<OrderStatus[]>(
+    () => [...(rawStatuses ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    [rawStatuses]
+  );
+  const [pickedStatusId, setPickedStatusId] = useState<number | null>(null);
+  const selectedStatusId = pickedStatusId ?? statuses[0]?.id ?? null;
   const [address, setAddress] = useState('');
   const [additionalComment, setAdditionalComment] = useState('');
   const [loading, setLoading] = useState(false);
-  const [fetchingStatuses, setFetchingStatuses] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
-
-    const fetchStatuses = async () => {
-      try {
-        setFetchingStatuses(true);
-        const data = await getOrderStatuses();
-        const sorted = [...data].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-        setStatuses(sorted);
-        if (sorted.length > 0) {
-          setSelectedStatusId(sorted[0].id);
-        }
-      } catch (err) {
-        console.error('Failed to load statuses', err);
-        toast.error('Не удалось загрузить этапы заказов');
-      } finally {
-        setFetchingStatuses(false);
-      }
-    };
-
-    fetchStatuses();
+    if (!isOpen) {
+      return;
+    }
+    setPickedStatusId(null);
     setAddress('');
     setAdditionalComment('');
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && statusesError) {
+      toast.error('Не удалось загрузить этапы заказов');
+    }
+  }, [isOpen, statusesError]);
 
   // Handle Escape key
   useEffect(() => {
@@ -153,7 +148,7 @@ export const ConvertToOrderModal: React.FC<ConvertToOrderModalProps> = ({
                       <button
                         key={status.id}
                         type="button"
-                        onClick={() => setSelectedStatusId(status.id)}
+                        onClick={() => setPickedStatusId(status.id)}
                         className={`sr-status-option ${isSelected ? 'selected' : ''}`}
                       >
                         <span 

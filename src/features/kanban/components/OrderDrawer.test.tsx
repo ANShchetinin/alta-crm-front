@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { renderWithQuery } from '../../../test-utils/queryWrapper';
 import { OrderDrawer } from './OrderDrawer';
 import * as kanbanApi from '../../../api/kanban';
 import type { Order, OrderStatus } from '../../../api/kanban';
@@ -93,7 +94,7 @@ const waitForSelectMountGuard = () => new Promise(resolve => setTimeout(resolve,
 
 const renderOpenOrder = async (order: Order = baseOrder) => {
   vi.mocked(kanbanApi.getOrderById).mockResolvedValue(order);
-  render(<OrderDrawer />);
+  renderWithQuery(<OrderDrawer />);
   act(() => {
     useOrderDrawerStore.getState().openOrder(order.id);
   });
@@ -192,7 +193,7 @@ describe('OrderDrawer', () => {
 
   it('creates a new order', async () => {
     vi.mocked(kanbanApi.createOrder).mockResolvedValue({ ...baseOrder, id: 77 });
-    render(<OrderDrawer />);
+    renderWithQuery(<OrderDrawer />);
     act(() => {
       useOrderDrawerStore.getState().openCreateOrder();
     });

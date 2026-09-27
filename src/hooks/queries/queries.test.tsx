@@ -1,7 +1,7 @@
-﻿import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, waitFor, act } from '@testing-library/react';
+import { createQueryWrapper as createWrapper, createTestQueryClient } from '../../test-utils/queryWrapper';
+import { useAuthStore } from '../../store/useAuthStore';
 import { useClientsQuery, useCreateClientMutation, useUpdateClientMutation, useDeleteClientMutation } from './useClientsQuery';
 import { useEmployeesQuery, useCreateEmployeeMutation, useUpdateEmployeeMutation, useDeleteEmployeeMutation } from './useEmployeesQuery';
 import { useMaterialsQuery, useCreateMaterialMutation, useUpdateMaterialMutation, useDeleteMaterialMutation } from './useStorageQuery';
@@ -17,20 +17,45 @@ vi.mock('../../api/employees');
 vi.mock('../../api/storage');
 vi.mock('../../api/kanban');
 
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, gcTime: 0 }
-    }
-  });
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-};
-
 describe('React Query Hooks', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe('Tenant scoping', () => {
+    afterEach(() => {
+      act(() => useAuthStore.setState({ tenantId: null }));
+    });
+
+    it('refetches instead of showing the previous company cache after a company switch', async () => {
+      const tenantAClients = [{ id: 1, name: 'Клиент A', phone: '1', createdAt: '2026-01-01' }];
+      const tenantBClients = [{ id: 2, name: 'Клиент B', phone: '2', createdAt: '2026-01-01' }];
+      vi.mocked(clientsApi.getClients).mockResolvedValueOnce(tenantAClients).mockResolvedValueOnce(tenantBClients);
+      act(() => useAuthStore.setState({ tenantId: 1 }));
+
+      const { result } = renderHook(() => useClientsQuery(), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.data).toEqual(tenantAClients));
+
+      act(() => useAuthStore.setState({ tenantId: 2 }));
+
+      await waitFor(() => expect(result.current.data).toEqual(tenantBClients));
+      expect(clientsApi.getClients).toHaveBeenCalledTimes(2);
+    });
+
+    it('invalidates the list of every company by the base key after a mutation', async () => {
+      vi.mocked(clientsApi.getClients).mockResolvedValue([]);
+      vi.mocked(clientsApi.deleteClient).mockResolvedValueOnce();
+      act(() => useAuthStore.setState({ tenantId: 1 }));
+      const client = createTestQueryClient();
+      const wrapper = createWrapper(client);
+
+      const { result: listRes } = renderHook(() => useClientsQuery(), { wrapper });
+      await waitFor(() => expect(listRes.current.isSuccess).toBe(true));
+      const { result: deleteRes } = renderHook(() => useDeleteClientMutation(), { wrapper });
+      await deleteRes.current.mutateAsync(1);
+
+      await waitFor(() => expect(clientsApi.getClients).toHaveBeenCalledTimes(2));
+    });
   });
 
   describe('Clients Query Hooks', () => {

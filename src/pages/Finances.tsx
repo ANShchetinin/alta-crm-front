@@ -31,8 +31,12 @@ import {
   Coins
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { getOrders, getOrderStatuses, updateFinanceStatuses, togglePrepaymentPaid, toggleRemainderPaid, type Order, type OrderStatus } from '../api/kanban';
-import { getEmployees, type Employee } from '../api/employees';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '../store/useAuthStore';
+import { getOrders, updateFinanceStatuses, togglePrepaymentPaid, toggleRemainderPaid, type Order, type OrderStatus } from '../api/kanban';
+import type { Employee } from '../api/employees';
+import { orderStatusesQueryOptions, useOrderStatusesQuery } from '../hooks/queries/useOrderStatusesQuery';
+import { useEmployeesQuery } from '../hooks/queries/useEmployeesQuery';
 import { 
   getExpenses, 
   createExpense, 
@@ -53,15 +57,21 @@ type TabType = 'TRANSACTIONS' | 'RECEIVABLES' | 'EXPENSES' | 'INSTALLERS' | 'PL_
 type PeriodFilter = 'THIS_MONTH' | 'LAST_MONTH' | 'THREE_MONTHS' | 'THIS_YEAR' | 'ALL';
 type PaymentStatusFilter = 'ALL' | 'PAID' | 'PREPAYMENT' | 'UNPAID' | 'DEBT';
 
+const EMPTY_STATUSES: OrderStatus[] = [];
+const EMPTY_EMPLOYEES: Employee[] = [];
+
 export const Finances = () => {
   const navigate = useNavigate();
   const { tenantSettings } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<TabType>('TRANSACTIONS');
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const tenantId = useAuthStore(state => state.tenantId);
+  const { data: statuses = EMPTY_STATUSES, isLoading: statusesLoading } = useOrderStatusesQuery();
+  const { data: employees = EMPTY_EMPLOYEES, isLoading: employeesLoading } = useEmployeesQuery();
+  const [dataLoading, setDataLoading] = useState(true);
+  const loading = dataLoading || statusesLoading || employeesLoading;
   const [orders, setOrders] = useState<Order[]>([]);
-  const [statuses, setStatuses] = useState<OrderStatus[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
   // Mobile KPI collapse state
@@ -111,21 +121,14 @@ export const Finances = () => {
 
   const loadAllData = async () => {
     try {
-      setLoading(true);
-      const [ordersData, statusesData, employeesData, expensesData] = await Promise.all([
-        getOrders(),
-        getOrderStatuses(),
-        getEmployees(),
-        getExpenses()
-      ]);
+      setDataLoading(true);
+      const [ordersData, expensesData] = await Promise.all([getOrders(), getExpenses()]);
       setOrders(ordersData);
-      setStatuses(statusesData);
-      setEmployees(employeesData);
       setExpenses(expensesData);
     } catch (err) {
       console.error('Failed to load finances data', err);
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
@@ -396,7 +399,7 @@ export const Finances = () => {
     setSavingStatusSettings(true);
     try {
       const updated = await updateFinanceStatuses(tempStatusSettings);
-      setStatuses(updated.sort((a, b) => a.sortOrder - b.sortOrder));
+      queryClient.setQueryData(orderStatusesQueryOptions(tenantId).queryKey, updated);
       setIsStatusConfigModalOpen(false);
       toast.success('Настройки статусов сохранены');
     } catch (err) {

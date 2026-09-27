@@ -28,21 +28,28 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import {
-  getOrderStatuses,
   getOrders,
   moveOrder,
   completeOrder,
-  createOrderStatus,
-  updateOrderStatus,
-  deleteOrderStatus,
-  reorderOrderStatuses,
   type OrderStatus,
   type Order
 } from '../api/kanban';
-import { getClients, type Client } from '../api/clients';
+import type { Client } from '../api/clients';
 import { getClientInitials, getEmployeeInitials } from '../utils/avatarUtils';
-import { getEmployees, type Employee } from '../api/employees';
+import type { Employee } from '../api/employees';
+import {
+  ORDER_STATUSES_QUERY_KEY,
+  orderStatusesQueryOptions,
+  useOrderStatusesQuery,
+  useCreateOrderStatusMutation,
+  useUpdateOrderStatusMutation,
+  useDeleteOrderStatusMutation,
+  useReorderOrderStatusesMutation
+} from '../hooks/queries/useOrderStatusesQuery';
+import { useClientsQuery } from '../hooks/queries/useClientsQuery';
+import { useEmployeesQuery } from '../hooks/queries/useEmployeesQuery';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { formatDateTimeInTimezone, formatDateOnly, formatTimeOnly, parseLocalDateTime } from '../utils/dateUtils';
@@ -61,6 +68,9 @@ import { toast } from '../utils/toast';
 import { isCompletedStatus } from '../utils/orderStatus';
 import { confirm } from '../utils/confirm';
 import '../styles/kanban.css';
+
+const EMPTY_CLIENTS: Client[] = [];
+const EMPTY_EMPLOYEES: Employee[] = [];
 
 const sortCardsByStoredOrder = (cardList: Order[]): Order[] => {
   try {
@@ -97,11 +107,23 @@ const Kanban = () => {
   const { setNewOrdersCount } = useAppStore();
   const { isOpen: isOrderDrawerOpen, orderId: activeOrderId, openOrder, openCreateOrder } = useOrderDrawerStore();
 
-  const [columns, setColumns] = useState<OrderStatus[]>([]);
+  const queryClient = useQueryClient();
+  const tenantId = useAuthStore(state => state.tenantId);
+  const statusesQueryOptions = orderStatusesQueryOptions(tenantId);
+  const { data: statuses, isLoading: statusesLoading } = useOrderStatusesQuery();
+  const columns = useMemo<OrderStatus[]>(
+    () => [...(statuses ?? [])].sort((a, b) => a.sortOrder - b.sortOrder),
+    [statuses]
+  );
+  const { data: clients = EMPTY_CLIENTS, isLoading: clientsLoading } = useClientsQuery(!isWorker);
+  const { data: employees = EMPTY_EMPLOYEES, isLoading: employeesLoading } = useEmployeesQuery(!isWorker);
+  const createStatusMutation = useCreateOrderStatusMutation();
+  const updateStatusMutation = useUpdateOrderStatusMutation();
+  const deleteStatusMutation = useDeleteOrderStatusMutation();
+  const reorderStatusesMutation = useReorderOrderStatusesMutation();
   const [cards, setCards] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const loading = ordersLoading || statusesLoading || clientsLoading || employeesLoading;
   const boardRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -177,20 +199,14 @@ const Kanban = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      setLoading(true);
-      const [statuses, orders, clientsData, employeesData, remindersData] = await Promise.all([
-        getOrderStatuses().catch(() => []),
+      setOrdersLoading(true);
+      const [statusesData, orders, remindersData] = await Promise.all([
+        queryClient.fetchQuery(orderStatusesQueryOptions(tenantId)).catch(() => [] as OrderStatus[]),
         getOrders(false).catch(() => []),
-        !isWorker ? getClients().catch(() => []) : Promise.resolve([]),
-        !isWorker ? getEmployees().catch(() => []) : Promise.resolve([]),
         !isWorker ? getMyReminders('all').catch(() => []) : Promise.resolve([])
       ]);
       const activeOrders = (orders || []).filter(o => !o.isArchived);
-      const sortedColumns = statuses.sort((a, b) => a.sortOrder - b.sortOrder);
-      setColumns(sortedColumns);
       setCards(sortCardsByStoredOrder(activeOrders));
-      setClients(clientsData);
-      setEmployees(employeesData);
 
       const rMap: Record<number, OrderReminderDto[]> = {};
       (remindersData as OrderReminderDto[]).forEach(r => {
@@ -203,16 +219,31 @@ const Kanban = () => {
       });
       setRemindersMap(rMap);
 
-      const firstStatus = sortedColumns.find(s => s.sortOrder === 1);
+      const firstStatus = statusesData.find(s => s.sortOrder === 1);
       if (firstStatus) {
         setNewOrdersCount(orders.filter(o => o.statusId === firstStatus.id).length);
       }
     } catch (error) {
       console.error("Failed to fetch kanban data", error);
     } finally {
-      setLoading(false);
+      setOrdersLoading(false);
     }
-  }, [isWorker, setNewOrdersCount]);
+  }, [isWorker, setNewOrdersCount, queryClient, tenantId]);
+
+  const applyColumnOrder = async (newColumns: OrderStatus[]) => {
+    queryClient.setQueryData(statusesQueryOptions.queryKey, newColumns);
+    const firstStatus = newColumns.find(s => s.sortOrder === 1);
+    if (firstStatus) {
+      setNewOrdersCount(cards.filter(o => o.statusId === firstStatus.id).length);
+    }
+    try {
+      await reorderStatusesMutation.mutateAsync(newColumns.map(c => c.id));
+    } catch (err) {
+      console.error('Failed to reorder columns', err);
+      toast.error('Не удалось сохранить порядок этапов');
+      queryClient.invalidateQueries({ queryKey: ORDER_STATUSES_QUERY_KEY });
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -401,18 +432,7 @@ const Kanban = () => {
     handleHandleTouchCancel
   } = useTouchColumnReorder({
     columns,
-    onReorder: async (newColumns) => {
-      setColumns(newColumns);
-      const firstStatus = newColumns.find(s => s.sortOrder === 1);
-      if (firstStatus) {
-        setNewOrdersCount(cards.filter(o => o.statusId === firstStatus.id).length);
-      }
-      try {
-        await reorderOrderStatuses(newColumns.map(c => c.id));
-      } catch (err) {
-        console.error("Failed to reorder columns via touch drag", err);
-      }
-    }
+    onReorder: applyColumnOrder
   });
 
   // Auto-expand collapsed column during touch drag if hovering over it for 350ms
@@ -460,15 +480,18 @@ const Kanban = () => {
     e.preventDefault();
     try {
       if (editingColumnId) {
-        await updateOrderStatus(editingColumnId, {
-          name: newColumnName,
-          color: newColumnColor,
-          includeInFinances: newColumnIncludeInFinances,
-          isCompleted: newColumnIsCompleted
+        await updateStatusMutation.mutateAsync({
+          id: editingColumnId,
+          data: {
+            name: newColumnName,
+            color: newColumnColor,
+            includeInFinances: newColumnIncludeInFinances,
+            isCompleted: newColumnIsCompleted
+          }
         });
         toast.success('Этап обновлен');
       } else {
-        await createOrderStatus({
+        await createStatusMutation.mutateAsync({
           name: newColumnName,
           color: newColumnColor,
           sortOrder: columns.length + 1,
@@ -521,7 +544,7 @@ const Kanban = () => {
     }
 
     try {
-      await deleteOrderStatus(columnId);
+      await deleteStatusMutation.mutateAsync(columnId);
       toast.success('Этап удален');
       fetchData();
     } catch {
@@ -1410,22 +1433,7 @@ const Kanban = () => {
                         const newColumns = [...columns];
                         const [removed] = newColumns.splice(sourceIndex, 1);
                         newColumns.splice(targetIndex, 0, removed);
-                        
-                        newColumns.forEach((c, index) => {
-                          c.sortOrder = index + 1;
-                        });
-                        setColumns(newColumns);
-                        
-                        const firstStatus = newColumns.find(s => s.sortOrder === 1);
-                        if (firstStatus) {
-                          setNewOrdersCount(cards.filter(o => o.statusId === firstStatus.id).length);
-                        }
-                        
-                        try {
-                          await reorderOrderStatuses(newColumns.map(c => c.id));
-                        } catch (err) {
-                          console.error("Failed to reorder columns", err);
-                        }
+                        await applyColumnOrder(newColumns.map((c, index) => ({ ...c, sortOrder: index + 1 })));
                       }
                     }
                   }

@@ -13,7 +13,8 @@ import {
   Layers,
   Check
 } from 'lucide-react';
-import { getMaterials, type Material } from '../api/storage';
+import type { Material } from '../api/storage';
+import { useMaterialsQuery } from '../hooks/queries/useStorageQuery';
 import {
   getMeasurementByOrderId,
   saveOrderMeasurement,
@@ -41,6 +42,8 @@ interface MeasurementWizardProps {
   onSaved?: (savedMeasurement: MeasurementDto, calculated: MeasurementCalculateResponse) => void;
   onDownloadDocx?: () => void;
 }
+
+const EMPTY_MATERIALS: Material[] = [];
 
 const PRESET_ROOMS = [
   'Гостиная',
@@ -86,21 +89,9 @@ export const MeasurementWizard: React.FC<MeasurementWizardProps> = ({
   onSaved,
   onDownloadDocx
 }) => {
-  const [internalMaterials, setInternalMaterials] = useState<Material[]>(materials);
-
-  useEffect(() => {
-    if (materials && materials.length > 0) {
-      setInternalMaterials(materials);
-    } else {
-      getMaterials()
-        .then(mats => {
-          if (mats && mats.length > 0) {
-            setInternalMaterials(mats);
-          }
-        })
-        .catch(err => console.error('Ошибка загрузки материалов в MeasurementWizard:', err));
-    }
-  }, [materials]);
+  const hasMaterialsProp = materials.length > 0;
+  const { data: fetchedMaterials = EMPTY_MATERIALS } = useMaterialsQuery(!hasMaterialsProp);
+  const internalMaterials = hasMaterialsProp ? materials : fetchedMaterials;
 
   const initialContractParamsRef = useRef(initialContractParams);
   initialContractParamsRef.current = initialContractParams;
