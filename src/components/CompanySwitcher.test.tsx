@@ -70,9 +70,8 @@ describe('DashboardLayout Company Switcher', () => {
     // Initial render
     expect(screen.getAllByText('Компания 1').length).toBeGreaterThan(0);
 
-    await waitFor(() => {
-      expect(mockGetMyTenants).toHaveBeenCalled();
-    });
+    // Переключатель открывается только когда список компаний уже загружен
+    expect((await screen.findAllByText(/2 компании/)).length).toBeGreaterThan(0);
 
     // Click trigger to open dropdown
     const trigger = screen.getAllByText('Компания 1')[0].closest('.company-switcher-trigger');

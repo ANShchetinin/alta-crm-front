@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Wallet, 
@@ -34,7 +34,8 @@ import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useAuthStore } from '../store/useAuthStore';
 import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
-import { getOrders, updateFinanceStatuses, togglePrepaymentPaid, toggleRemainderPaid, type Order, type OrderStatus } from '../api/kanban';
+import { updateFinanceStatuses, togglePrepaymentPaid, toggleRemainderPaid, type Order, type OrderStatus } from '../api/kanban';
+import { ordersQueryOptions, ORDERS_QUERY_KEY } from '../hooks/queries/useOrdersQuery';
 import type { Employee } from '../api/employees';
 import { orderStatusesQueryOptions, useOrderStatusesQuery } from '../hooks/queries/useOrderStatusesQuery';
 import { useEmployeesQuery } from '../hooks/queries/useEmployeesQuery';
@@ -59,6 +60,9 @@ type PeriodFilter = 'THIS_MONTH' | 'LAST_MONTH' | 'THREE_MONTHS' | 'THIS_YEAR' |
 type PaymentStatusFilter = 'ALL' | 'PAID' | 'PREPAYMENT' | 'UNPAID' | 'DEBT';
 
 const AI_USAGE_QUERY_KEY = ['companyAiUsage'] as const;
+const EXPENSES_QUERY_KEY = ['expenses'] as const;
+const EMPTY_ORDERS: Order[] = [];
+const EMPTY_EXPENSES: Expense[] = [];
 const EMPTY_STATUSES: OrderStatus[] = [];
 const EMPTY_EMPLOYEES: Employee[] = [];
 
@@ -71,10 +75,24 @@ export const Finances = () => {
   const tenantId = useAuthStore(state => state.tenantId);
   const { data: statuses = EMPTY_STATUSES, isLoading: statusesLoading } = useOrderStatusesQuery();
   const { data: employees = EMPTY_EMPLOYEES, isLoading: employeesLoading } = useEmployeesQuery();
-  const [dataLoading, setDataLoading] = useState(true);
-  const loading = dataLoading || statusesLoading || employeesLoading;
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const allOrdersOptions = ordersQueryOptions(tenantId, 'all');
+  const { data: orders = EMPTY_ORDERS, isLoading: ordersLoading } = useQuery(allOrdersOptions);
+  const expensesKey = useTenantQueryKey(EXPENSES_QUERY_KEY);
+  const { data: expenses = EMPTY_EXPENSES, isLoading: expensesLoading } = useQuery({
+    queryKey: expensesKey,
+    queryFn: () => getExpenses()
+  });
+  const loading = ordersLoading || expensesLoading || statusesLoading || employeesLoading;
+
+  const updateCachedOrder = (orderId: number, patch: Partial<Order>) => {
+    queryClient.setQueryData<Order[]>(allOrdersOptions.queryKey, prev => prev?.map(o => (o.id === orderId ? { ...o, ...patch } : o)));
+    // Доска и архив подтянут отметку об оплате при следующем открытии, без лишних запросов сейчас
+    queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY, refetchType: 'none' });
+  };
+
+  const setExpenses = (updater: (prev: Expense[]) => Expense[]) => {
+    queryClient.setQueryData<Expense[]>(expensesKey, prev => updater(prev ?? EMPTY_EXPENSES));
+  };
 
   // Mobile KPI collapse state
   const [isKpiCollapsedMobile, setIsKpiCollapsedMobile] = useState(true);
@@ -111,24 +129,6 @@ export const Finances = () => {
 
   // Expanded installers state
   const [expandedInstallerId, setExpandedInstallerId] = useState<number | null>(null);
-
-  // Initial Data Fetch
-  useEffect(() => {
-    loadAllData();
-  }, []);
-
-  const loadAllData = async () => {
-    try {
-      setDataLoading(true);
-      const [ordersData, expensesData] = await Promise.all([getOrders(), getExpenses()]);
-      setOrders(ordersData);
-      setExpenses(expensesData);
-    } catch (err) {
-      console.error('Failed to load finances data', err);
-    } finally {
-      setDataLoading(false);
-    }
-  };
 
   // Date Range Calculation
   const dateRange = useMemo(() => {
@@ -278,11 +278,10 @@ export const Finances = () => {
     try {
       const newStatus = !currentStatus;
       const updated = await togglePrepaymentPaid(orderId, newStatus, newStatus ? new Date().toISOString() : undefined);
-      setOrders(prev => prev.map(o => o.id === orderId ? {
-        ...o,
+      updateCachedOrder(orderId, {
         prepaymentPaid: updated.prepaymentPaid,
         prepaymentPaidAt: updated.prepaymentPaidAt
-      } : o));
+      });
       toast.success(newStatus ? 'Аванс отмечен как оплаченный' : 'Оплата аванса отменена');
     } catch (err) {
       console.error('Failed to toggle prepayment status', err);
@@ -294,11 +293,10 @@ export const Finances = () => {
     try {
       const newStatus = !currentStatus;
       const updated = await toggleRemainderPaid(orderId, newStatus, newStatus ? new Date().toISOString() : undefined);
-      setOrders(prev => prev.map(o => o.id === orderId ? {
-        ...o,
+      updateCachedOrder(orderId, {
         remainderPaid: updated.remainderPaid,
         remainderPaidAt: updated.remainderPaidAt
-      } : o));
+      });
       toast.success(newStatus ? 'Остаток отмечен как оплаченный' : 'Оплата остатка отменена');
     } catch (err) {
       console.error('Failed to toggle remainder status', err);

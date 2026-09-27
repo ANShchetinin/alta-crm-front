@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Sparkles,
   Mic,
@@ -22,7 +22,8 @@ import {
   requestAiEstimateVoice,
   type AiEstimateResultDto
 } from '../api/aiEstimate';
-import { getOrders, type Order } from '../api/kanban';
+import type { Order } from '../api/kanban';
+import { useOrdersQuery } from '../hooks/queries/useOrdersQuery';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { toast } from '../utils/toast';
@@ -35,12 +36,14 @@ const EXAMPLE_PROMPTS = [
   'В заказе 13 удали краску и убери светильники'
 ];
 
+const EMPTY_ORDERS: Order[] = [];
+
 export const AiAssistant: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'VOICE' | 'TEXT'>('VOICE');
   const [promptText, setPromptText] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<number | undefined>(undefined);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(false);
+  // Ошибка загрузки не критична: заказ можно указать текстом в запросе
+  const { data: orders = EMPTY_ORDERS, isLoading: loadingOrders } = useOrdersQuery('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AiEstimateResultDto | null>(null);
@@ -57,22 +60,6 @@ export const AiAssistant: React.FC = () => {
     stopRecording,
     resetRecording
   } = useAudioRecorder();
-
-  useEffect(() => {
-    fetchOrdersList();
-  }, []);
-
-  const fetchOrdersList = async () => {
-    try {
-      setLoadingOrders(true);
-      const data = await getOrders();
-      setOrders(data);
-    } catch {
-      // Soft fail, user can still type order number/client in prompt
-    } finally {
-      setLoadingOrders(false);
-    }
-  };
 
   const handleSendText = async () => {
     if (!promptText.trim()) {

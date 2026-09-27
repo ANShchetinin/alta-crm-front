@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Ruler,
@@ -9,7 +9,9 @@ import {
   Calculator,
   MessageCircle
 } from 'lucide-react';
-import { getOrders, type Order } from '../api/kanban';
+import { useQueryClient } from '@tanstack/react-query';
+import type { Order } from '../api/kanban';
+import { useOrdersQuery, ORDERS_QUERY_KEY } from '../hooks/queries/useOrdersQuery';
 import type { Material } from '../api/storage';
 import { useMaterialsQuery } from '../hooks/queries/useStorageQuery';
 import { useAuthStore } from '../store/useAuthStore';
@@ -19,6 +21,7 @@ import { getWhatsAppLink } from '../utils/messengerUtils';
 import { formatDateTime, parseLocalDateTime } from '../utils/dateUtils';
 import '../styles/measurements.css';
 
+const EMPTY_ORDERS: Order[] = [];
 const EMPTY_MATERIALS: Material[] = [];
 
 export const Measurements: React.FC = () => {
@@ -26,9 +29,9 @@ export const Measurements: React.FC = () => {
   const role = useAuthStore(state => state.role);
   const isWorker = role === 'WORKER';
 
-  const [orders, setOrders] = useState<Order[]>([]);
+  const queryClient = useQueryClient();
+  const { data: orders = EMPTY_ORDERS, isLoading: ordersLoading } = useOrdersQuery('all');
   const { data: materials = EMPTY_MATERIALS, isLoading: materialsLoading } = useMaterialsQuery();
-  const [ordersLoading, setOrdersLoading] = useState<boolean>(true);
   const loading = ordersLoading || materialsLoading;
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterMode, setFilterMode] = useState<'today' | 'upcoming' | 'all'>('today');
@@ -37,20 +40,8 @@ export const Measurements: React.FC = () => {
   const [activeOrderId, setActiveOrderId] = useState<number | null>(null);
   const [isExpressCalcOpen, setIsExpressCalcOpen] = useState<boolean>(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    setOrdersLoading(true);
-    try {
-      setOrders(await getOrders());
-    } catch (e) {
-      console.error('Ошибка загрузки данных замерщика:', e);
-    } finally {
-      setOrdersLoading(false);
-    }
-  };
+  // Сохраненный замер меняет сумму и параметры заказа — обновляем все списки заказов
+  const loadData = () => queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY });
 
   // Фильтрация заявок для замера
   const filteredOrders = orders.filter(order => {

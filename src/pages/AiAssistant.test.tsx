@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { renderWithQuery } from '../test-utils/queryWrapper';
 import { AiAssistant } from './AiAssistant';
 import * as aiEstimateApi from '../api/aiEstimate';
 import * as kanbanApi from '../api/kanban';
@@ -40,7 +41,7 @@ describe('AiAssistant Page Component', () => {
   });
 
   it('renders header with beta badge and order selector', async () => {
-    render(<AiAssistant />);
+    renderWithQuery(<AiAssistant />);
 
     expect(screen.getByText('ИИ-Ассистент сметы')).toBeInTheDocument();
     expect(screen.getByText('beta')).toBeInTheDocument();
@@ -54,7 +55,7 @@ describe('AiAssistant Page Component', () => {
   });
 
   it('switches between voice and text tabs and accepts example prompt', () => {
-    render(<AiAssistant />);
+    renderWithQuery(<AiAssistant />);
 
     const textTabBtn = screen.getByRole('button', { name: /Текстовый запрос/i });
     fireEvent.click(textTabBtn);
@@ -132,7 +133,7 @@ describe('AiAssistant Page Component', () => {
 
     (aiEstimateApi.requestAiEstimateText as any).mockResolvedValueOnce(mockResult);
 
-    render(<AiAssistant />);
+    renderWithQuery(<AiAssistant />);
 
     const textTabBtn = screen.getByRole('button', { name: /Текстовый запрос/i });
     fireEvent.click(textTabBtn);
@@ -177,7 +178,7 @@ describe('AiAssistant Page Component', () => {
       new Error('Сетевая ошибка сервера')
     );
 
-    render(<AiAssistant />);
+    renderWithQuery(<AiAssistant />);
 
     const textTabBtn = screen.getByRole('button', { name: /Текстовый запрос/i });
     fireEvent.click(textTabBtn);

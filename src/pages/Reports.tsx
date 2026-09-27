@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Search, BarChart2, FileText, Ruler, Target, TrendingUp, TrendingDown, 
   RussianRuble, Users, Tag, Calendar, ArrowRight
 } from 'lucide-react';
-import { getOrders } from '../api/kanban';
 import type { Order, OrderStatus } from '../api/kanban';
+import { useOrdersQuery } from '../hooks/queries/useOrdersQuery';
 import type { Client } from '../api/clients';
 import type { Material } from '../api/storage';
 import type { Employee } from '../api/employees';
@@ -22,6 +22,7 @@ import { formatDateOnly } from '../utils/dateUtils';
 import '../styles/clients.css'; 
 import '../styles/reports.css'; 
 
+const EMPTY_ORDERS: Order[] = [];
 const EMPTY_CLIENTS: Client[] = [];
 const EMPTY_MATERIALS: Material[] = [];
 const EMPTY_EMPLOYEES: Employee[] = [];
@@ -30,7 +31,7 @@ export const Reports = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   
-  const [orders, setOrders] = useState<Order[]>([]);
+  const { data: orders = EMPTY_ORDERS, isLoading: ordersLoading } = useOrdersQuery('all');
   const { data: rawStatuses, isLoading: statusesLoading } = useOrderStatusesQuery();
   const statuses = useMemo<OrderStatus[]>(
     () => [...(rawStatuses ?? [])].sort((a, b) => a.sortOrder - b.sortOrder),
@@ -39,7 +40,6 @@ export const Reports = () => {
   const { data: clients = EMPTY_CLIENTS, isLoading: clientsLoading } = useClientsQuery();
   const { data: materials = EMPTY_MATERIALS, isLoading: materialsLoading } = useMaterialsQuery();
   const { data: employees = EMPTY_EMPLOYEES, isLoading: employeesLoading } = useEmployeesQuery();
-  const [ordersLoading, setOrdersLoading] = useState(true);
   const loading = ordersLoading || statusesLoading || clientsLoading || materialsLoading || employeesLoading;
 
   // Active view tab
@@ -54,24 +54,6 @@ export const Reports = () => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
-    getOrders()
-      .then(allOrders => {
-        if (!cancelled) {
-          setOrders(allOrders);
-        }
-      })
-      .catch(err => console.error(err))
-      .finally(() => {
-        if (!cancelled) {
-          setOrdersLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Available months for dropdown
   const availableMonths = useMemo(() => {
