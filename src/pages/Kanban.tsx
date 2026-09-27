@@ -58,6 +58,7 @@ import { ColumnModal } from '../features/kanban/components/ColumnModal';
 import { isActFile, formatClientNameLines } from '../features/kanban/constants';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { toast } from '../utils/toast';
+import { isCompletedStatus } from '../utils/orderStatus';
 import { confirm } from '../utils/confirm';
 import '../styles/kanban.css';
 
@@ -228,26 +229,12 @@ const Kanban = () => {
     };
   }, [fetchData]);
 
-  const isCompletedColumn = (col?: OrderStatus | null) => {
-    if (!col) {
-      return false;
-    }
-    if (col.isCompleted !== undefined) {
-      return Boolean(col.isCompleted);
-    }
-    if (!col.name) {
-      return false;
-    }
-    const name = col.name.trim().toLowerCase();
-    return name.includes('заверш') || name.includes('готов') || name.includes('выполнен') || name.includes('complete');
-  };
-
   const checkCanMoveOrder = (orderId: number, targetStatusId: number): boolean => {
     const targetCol = columns.find(c => c.id === targetStatusId);
     if (!targetCol) {
       return true;
     }
-    const isCompleted = isCompletedColumn(targetCol);
+    const isCompleted = isCompletedStatus(targetCol);
     if (isCompleted) {
       const card = cards.find(c => c.id === orderId);
       const hasAct = card ? (card.attachments || []).some(a => isActFile(a.fileName, a.isAct)) : false;
@@ -618,11 +605,7 @@ const Kanban = () => {
     const reminderTimeStr = nearestReminder ? formatTimeOnly(nearestReminder.remindAt) : '';
 
     const col = columns.find(c => c.id === card.statusId);
-    const isCardCompleted = col ? (
-      col.name.toLowerCase().includes('заверш') ||
-      col.name.toLowerCase().includes('готов') ||
-      col.name.toLowerCase().includes('выполнен')
-    ) : false;
+    const isCardCompleted = isCompletedStatus(col);
 
     const hasAct = (card.attachments || []).some(a => isActFile(a.fileName, a.isAct));
     const canComplete = Boolean(instName) && hasAct;
@@ -1380,7 +1363,7 @@ const Kanban = () => {
           }}
         >
           {displayedColumns.map(col => {
-            const isCompleted = isCompletedColumn(col);
+            const isCompleted = isCompletedStatus(col);
             let colCards = filteredCards.filter(c => c.statusId === col.id && (!isCompleted || !c.isArchived));
             if (isCompleted) {
               colCards = [...colCards].sort((a, b) => {
