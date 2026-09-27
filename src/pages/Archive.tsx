@@ -24,8 +24,9 @@ import {
   User,
   Tag
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useOrdersQuery, ORDERS_QUERY_KEY } from '../hooks/queries/useOrdersQuery';
 import {
-  getArchivedOrders,
   updateOrder,
   deleteOrder,
   downloadContractDocx, 
@@ -56,6 +57,7 @@ import '../styles/clients.css';
 type SortField = 'installedAt' | 'createdAt' | 'orderNumber' | 'totalPrice' | 'clientName';
 type SortDirection = 'asc' | 'desc';
 
+const EMPTY_ORDERS: Order[] = [];
 const EMPTY_STATUSES: OrderStatus[] = [];
 const EMPTY_CLIENTS: Client[] = [];
 const EMPTY_EMPLOYEES: Employee[] = [];
@@ -65,11 +67,11 @@ export const Archive = () => {
   const isWorker = role === 'WORKER';
   const { tenantSettings } = useAppStore();
 
-  const [orders, setOrders] = useState<Order[]>([]);
+  const queryClient = useQueryClient();
+  const { data: orders = EMPTY_ORDERS, isLoading: ordersLoading } = useOrdersQuery('archived');
   const { data: statuses = EMPTY_STATUSES, isLoading: statusesLoading } = useOrderStatusesQuery();
   const { data: clients = EMPTY_CLIENTS, isLoading: clientsLoading } = useClientsQuery(!isWorker);
   const { data: employees = EMPTY_EMPLOYEES, isLoading: employeesLoading } = useEmployeesQuery(!isWorker);
-  const [ordersLoading, setOrdersLoading] = useState(true);
   const loading = ordersLoading || statusesLoading || clientsLoading || employeesLoading;
 
   // Filter States
@@ -94,20 +96,8 @@ export const Archive = () => {
   const [previewAttachment, setPreviewAttachment] = useState<PreviewAttachmentData | null>(null);
   const [openingAttachmentId, setOpeningAttachmentId] = useState<number | null>(null);
 
-  const fetchData = useCallback(async () => {
-    try {
-      setOrdersLoading(true);
-      setOrders(await getArchivedOrders().catch(() => []));
-    } catch (err) {
-      console.error("Failed to load archive data", err);
-    } finally {
-      setOrdersLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // Восстановление и удаление меняют и доску, и финансы — обновляем все списки заказов
+  const fetchData = () => queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY });
 
   // Extract available years for filter
   const availableYears = useMemo(() => {

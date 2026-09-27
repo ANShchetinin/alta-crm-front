@@ -152,7 +152,7 @@ describe('Archive Page Component', () => {
     });
 
     // Check order content in both desktop table and mobile cards
-    expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
+    expect((await screen.findAllByText('А0101_1')).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('А0102_2').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Иван Иванов').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Анна Смирнова').length).toBeGreaterThanOrEqual(1);
@@ -248,9 +248,7 @@ describe('Archive Page Component', () => {
 
     renderWithQuery(<Archive />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Экспорт CSV')).toBeInTheDocument();
-    });
+    await screen.findAllByText('А0101_1');
 
     const exportBtn = screen.getByText('Экспорт CSV');
     fireEvent.click(exportBtn);

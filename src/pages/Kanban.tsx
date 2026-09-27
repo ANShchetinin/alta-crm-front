@@ -28,9 +28,11 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOrdersQuery, ORDERS_QUERY_KEY } from '../hooks/queries/useOrdersQuery';
+import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
+import { useInvalidateOnOrdersChanged } from '../hooks/queries/useInvalidateOnOrdersChanged';
 import {
-  getOrders,
   moveOrder,
   completeOrder,
   type OrderStatus,
@@ -69,6 +71,7 @@ import { isCompletedStatus } from '../utils/orderStatus';
 import { confirm } from '../utils/confirm';
 import '../styles/kanban.css';
 
+const MY_REMINDERS_QUERY_KEY = ['myReminders'] as const;
 const EMPTY_CLIENTS: Client[] = [];
 const EMPTY_EMPLOYEES: Employee[] = [];
 
@@ -121,8 +124,16 @@ const Kanban = () => {
   const updateStatusMutation = useUpdateOrderStatusMutation();
   const deleteStatusMutation = useDeleteOrderStatusMutation();
   const reorderStatusesMutation = useReorderOrderStatusesMutation();
+  const { data: activeOrders, isLoading: ordersLoading } = useOrdersQuery('active');
+  const remindersKey = useTenantQueryKey(MY_REMINDERS_QUERY_KEY);
+  const { data: reminders } = useQuery({
+    queryKey: remindersKey,
+    queryFn: () => getMyReminders('all'),
+    enabled: !isWorker
+  });
+  useInvalidateOnOrdersChanged(MY_REMINDERS_QUERY_KEY);
+  // Локальная копия для оптимистичных перемещений; каждый ответ сервера пересобирает её заново
   const [cards, setCards] = useState<Order[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(true);
   const loading = ordersLoading || statusesLoading || clientsLoading || employeesLoading;
   const boardRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -169,7 +180,18 @@ const Kanban = () => {
     localStorage.setItem('kanban_collapsed_columns', JSON.stringify(updated));
   };
 
-  const [remindersMap, setRemindersMap] = useState<Record<number, OrderReminderDto[]>>({});
+  const remindersMap = useMemo(() => {
+    const rMap: Record<number, OrderReminderDto[]> = {};
+    (reminders ?? []).forEach(r => {
+      if (r.orderId) {
+        if (!rMap[r.orderId]) {
+          rMap[r.orderId] = [];
+        }
+        rMap[r.orderId].push(r);
+      }
+    });
+    return rMap;
+  }, [reminders]);
   const [reminderFilter, setReminderFilter] = useState<'all' | 'today' | 'overdue'>('all');
   const [hideEmptyColumns, setHideEmptyColumns] = useState<boolean>(() => localStorage.getItem('kanban_hide_empty_columns') === 'true');
 
@@ -197,38 +219,23 @@ const Kanban = () => {
   const [newColumnIsCompleted, setNewColumnIsCompleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchData = useCallback(async () => {
-    try {
-      setOrdersLoading(true);
-      const [statusesData, orders, remindersData] = await Promise.all([
-        queryClient.fetchQuery(orderStatusesQueryOptions(tenantId)).catch(() => [] as OrderStatus[]),
-        getOrders(false).catch(() => []),
-        !isWorker ? getMyReminders('all').catch(() => []) : Promise.resolve([])
-      ]);
-      const activeOrders = (orders || []).filter(o => !o.isArchived);
-      setCards(sortCardsByStoredOrder(activeOrders));
-
-      const rMap: Record<number, OrderReminderDto[]> = {};
-      (remindersData as OrderReminderDto[]).forEach(r => {
-        if (r.orderId) {
-          if (!rMap[r.orderId]) {
-            rMap[r.orderId] = [];
-          }
-          rMap[r.orderId].push(r);
-        }
-      });
-      setRemindersMap(rMap);
-
-      const firstStatus = statusesData.find(s => s.sortOrder === 1);
-      if (firstStatus) {
-        setNewOrdersCount(orders.filter(o => o.statusId === firstStatus.id).length);
-      }
-    } catch (error) {
-      console.error("Failed to fetch kanban data", error);
-    } finally {
-      setOrdersLoading(false);
+  useEffect(() => {
+    if (activeOrders) {
+      setCards(sortCardsByStoredOrder(activeOrders.filter(o => !o.isArchived)));
     }
-  }, [isWorker, setNewOrdersCount, queryClient, tenantId]);
+  }, [activeOrders]);
+
+  useEffect(() => {
+    const firstStatus = columns.find(s => s.sortOrder === 1);
+    if (activeOrders && firstStatus) {
+      setNewOrdersCount(activeOrders.filter(o => o.statusId === firstStatus.id).length);
+    }
+  }, [activeOrders, columns, setNewOrdersCount]);
+
+  const fetchData = useCallback(() => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY }),
+    queryClient.invalidateQueries({ queryKey: MY_REMINDERS_QUERY_KEY })
+  ]), [queryClient]);
 
   const applyColumnOrder = async (newColumns: OrderStatus[]) => {
     queryClient.setQueryData(statusesQueryOptions.queryKey, newColumns);
@@ -245,20 +252,6 @@ const Kanban = () => {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Listen to global order changes from drawer
-  useEffect(() => {
-    const handleOrdersChanged = () => {
-      fetchData();
-    };
-    window.addEventListener('alta:orders-changed', handleOrdersChanged);
-    return () => {
-      window.removeEventListener('alta:orders-changed', handleOrdersChanged);
-    };
-  }, [fetchData]);
 
   const checkCanMoveOrder = (orderId: number, targetStatusId: number): boolean => {
     const targetCol = columns.find(c => c.id === targetStatusId);

@@ -1,18 +1,21 @@
 import { Outlet, NavLink, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Users, UserCircle, Box, Archive, LogOut, Settings, Sun, Moon, Globe, Bell, PieChart, Building2, Menu, X, Smartphone, Download, Share, FileText, Wallet, CalendarDays, Sliders, ChevronDown, Check, Plus, Ruler, TrendingUp, PanelLeftClose, PanelLeftOpen, ShieldCheck, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { useFeature } from '../hooks/useFeatureToggle';
-import { getOrders } from '../api/kanban';
 import { orderStatusesQueryOptions } from '../hooks/queries/useOrderStatusesQuery';
+import { ordersQueryOptions, ORDERS_QUERY_KEY } from '../hooks/queries/useOrdersQuery';
+import { useInvalidateOnOrdersChanged } from '../hooks/queries/useInvalidateOnOrdersChanged';
 import { getProfile } from '../api/settings';
-import { getMyTenants, switchTenant, type MyTenantsResponse } from '../api/auth';
+import { switchTenant, type MyTenantsResponse } from '../api/auth';
 import { getRecentNotifications, markNotificationAsRead, markAllNotificationsAsRead, type AppNotificationItem } from '../api/notifications';
 import { sendHeartbeat } from '../api/presence';
-import { queryClient } from '../lib/queryClient';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
+import { useMyTenantsQuery, MY_TENANTS_QUERY_KEY } from '../hooks/queries/useMyTenantsQuery';
 import { PushNotificationSettings } from './PushNotificationSettings';
 import { FeatureGate } from './FeatureGate';
 import { CreateCompanyModal } from './CreateCompanyModal';
@@ -21,13 +24,20 @@ import { formatTimeAgo } from '../utils/dateUtils';
 import { toast } from '../utils/toast';
 import '../styles/dashboard.css';
 
+const NOTIFICATIONS_QUERY_KEY = ['recentNotifications'] as const;
+const NOTIFICATIONS_POLL_MS = 25000;
+const EMPTY_NOTIFICATIONS: AppNotificationItem[] = [];
+
 const DashboardLayout = () => {
+  const queryClient = useQueryClient();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { theme, setTheme, language, setLanguage, newOrdersCount, setNewOrdersCount, newSiteRequestsCount, fetchNewSiteRequestsCount, lowStockMaterials, fetchLowStockMaterials, tenantSettings, setTenantSettings, fetchTenantSettings } = useAppStore();
   const { logout, role, token, tenantId, setToken } = useAuthStore();
+  // Любое изменение заказа (шторка, доска, комментарии, файлы) обновляет все списки заказов разом
+  useInvalidateOnOrdersChanged(ORDERS_QUERY_KEY);
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -139,7 +149,9 @@ const DashboardLayout = () => {
   };
 
   // Multi-Company State
-  const [myTenantsData, setMyTenantsData] = useState<MyTenantsResponse | null>(null);
+  const isTenantUser = role !== 'SUPERADMIN' && Boolean(token);
+  const { data: myTenantsQueryData } = useMyTenantsQuery(isTenantUser);
+  const myTenantsData: MyTenantsResponse | null = myTenantsQueryData ?? null;
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const [isCreateCompanyModalOpen, setIsCreateCompanyModalOpen] = useState(false);
   const [isSwitchingCompany, setIsSwitchingCompany] = useState(false);
@@ -172,42 +184,32 @@ const DashboardLayout = () => {
     };
   }, []);
 
-  const fetchMyTenantsData = async () => {
-    try {
-      const data = await getMyTenants();
-      setMyTenantsData(data);
-    } catch (err) {
-      console.error("Failed to fetch my tenants", err);
-    }
+  const fetchMyTenantsData = () => queryClient.invalidateQueries({ queryKey: MY_TENANTS_QUERY_KEY });
+
+  const notificationsKey = useTenantQueryKey(NOTIFICATIONS_QUERY_KEY);
+  const { data: recentNotifications = EMPTY_NOTIFICATIONS } = useQuery({
+    queryKey: notificationsKey,
+    queryFn: () => getRecentNotifications(),
+    enabled: isTenantUser,
+    // В фоновой вкладке опрос приостанавливается, при возврате — сразу обновляется
+    refetchInterval: NOTIFICATIONS_POLL_MS,
+    refetchOnWindowFocus: true,
+    staleTime: 0
+  });
+  const unreadNotifCount = useMemo(() => recentNotifications.filter(n => !n.isRead).length, [recentNotifications]);
+
+  const setRecentNotifications = (updater: (prev: AppNotificationItem[]) => AppNotificationItem[]) => {
+    queryClient.setQueryData<AppNotificationItem[]>(notificationsKey, prev => updater(prev ?? EMPTY_NOTIFICATIONS));
   };
-
-  useEffect(() => {
-    if (role !== 'SUPERADMIN' && token) {
-      fetchMyTenantsData();
-    }
-  }, [token, role]);
-
-  const [recentNotifications, setRecentNotifications] = useState<AppNotificationItem[]>([]);
-  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
-
-  const fetchNotificationsList = useCallback(async () => {
-    try {
-      const list = await getRecentNotifications();
-      setRecentNotifications(list);
-      const unread = list.filter(n => !n.isRead).length;
-      setUnreadNotifCount(unread);
-    } catch (err) {
-      console.error("Failed to fetch recent notifications", err);
-    }
-  }, []);
 
   const fetchNewOrdersCount = useCallback(async () => {
     try {
       // Компанию берем из стора в момент вызова: после переключения замыкание еще хранит прежнюю
-      const statuses = await queryClient.fetchQuery(orderStatusesQueryOptions(useAuthStore.getState().tenantId));
+      const currentTenantId = useAuthStore.getState().tenantId;
+      const statuses = await queryClient.fetchQuery(orderStatusesQueryOptions(currentTenantId));
       const firstStatus = statuses.find(s => s.sortOrder === 1 || s.sortOrder === 0);
       if (firstStatus) {
-        const orders = await getOrders();
+        const orders = await queryClient.fetchQuery(ordersQueryOptions(currentTenantId, 'all'));
         const count = orders.filter(o => o.statusId === firstStatus.id).length;
         setNewOrdersCount(count);
       }
@@ -218,7 +220,7 @@ const DashboardLayout = () => {
       fetchLowStockMaterials();
       fetchNewSiteRequestsCount();
     }
-  }, [role, setNewOrdersCount, fetchLowStockMaterials, fetchNewSiteRequestsCount]);
+  }, [role, setNewOrdersCount, fetchLowStockMaterials, fetchNewSiteRequestsCount, queryClient]);
 
   const fetchUserProfile = useCallback(async () => {
     try {
@@ -259,11 +261,10 @@ const DashboardLayout = () => {
         setTenantSettings(res.tenantSettings);
       }
       if (res?.myTenants) {
-        setMyTenantsData(res.myTenants);
+        queryClient.setQueryData([...MY_TENANTS_QUERY_KEY, useAuthStore.getState().tenantId], res.myTenants);
       }
       fetchUserProfile();
       fetchNewOrdersCount();
-      fetchNotificationsList();
       window.dispatchEvent(new CustomEvent('alta:tenant-changed', { detail: { tenantId: targetTenantId } }));
     } catch (err) {
       console.error("Failed to switch company", err);
@@ -282,8 +283,7 @@ const DashboardLayout = () => {
       fetchTenantSettings(),
       fetchMyTenantsData(),
       fetchUserProfile(),
-      fetchNewOrdersCount(),
-      fetchNotificationsList()
+      fetchNewOrdersCount()
     ]);
     window.dispatchEvent(new CustomEvent('alta:tenant-changed'));
   };
@@ -353,25 +353,22 @@ const DashboardLayout = () => {
 
     fetchNewOrdersCount();
     fetchUserProfile();
-    fetchNotificationsList();
     if (role !== 'WORKER' && hasSiteRequests) {
       fetchNewSiteRequestsCount();
     }
     const interval = setInterval(() => {
-      fetchNotificationsList();
       if (role !== 'WORKER' && hasSiteRequests) {
         fetchNewSiteRequestsCount();
       }
     }, 25000);
     return () => clearInterval(interval);
-  }, [role, hasSiteRequests, fetchNewOrdersCount, fetchUserProfile, fetchNotificationsList, fetchNewSiteRequestsCount]);
+  }, [role, hasSiteRequests, fetchNewOrdersCount, fetchUserProfile, fetchNewSiteRequestsCount]);
 
   const handleNotificationClick = async (notif: AppNotificationItem) => {
     if (!notif.isRead) {
       try {
         await markNotificationAsRead(notif.id);
         setRecentNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
-        setUnreadNotifCount(prev => Math.max(0, prev - 1));
       } catch (e) {
         console.error('Failed to mark read', e);
       }
@@ -392,7 +389,6 @@ const DashboardLayout = () => {
     try {
       await markAllNotificationsAsRead();
       setRecentNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      setUnreadNotifCount(0);
     } catch (e) {
       console.error('Failed to mark all read', e);
     }
