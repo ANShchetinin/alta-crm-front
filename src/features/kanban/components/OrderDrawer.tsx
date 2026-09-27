@@ -42,7 +42,6 @@ import '../../../styles/kanban.css';
 import { useTranslation } from 'react-i18next';
 import {
   getOrderStatuses,
-  getOrders,
   getOrderById,
   createOrder,
   updateOrder,
@@ -97,6 +96,7 @@ import { OrderCommentsSection } from './OrderCommentsSection';
 import { AiEstimateModal } from './AiEstimateModal';
 import { type AiEstimateResultDto } from '../../../api/aiEstimate';
 import { useOrderDrawerStore } from '../../../store/useOrderDrawerStore';
+import { useOrderLoader } from '../hooks/useOrderLoader';
 import { toast } from '../../../utils/toast';
 import { confirm } from '../../../utils/confirm';
 
@@ -158,6 +158,10 @@ export const OrderDrawer: React.FC = () => {
     setExpandComments,
     closeOrder
   } = useOrderDrawerStore();
+  // id заказа, данные которого сейчас в форме; до завершения загрузки отличается от editingOrderId
+  const [loadedOrderId, setLoadedOrderId] = useState<number | null>(null);
+  const activeOrderIdRef = useRef(editingOrderId);
+  activeOrderIdRef.current = editingOrderId;
 
   const [columns, setColumns] = useState<OrderStatus[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -483,16 +487,25 @@ export const OrderDrawer: React.FC = () => {
     setPendingFiles([]);
 
     if (hasAiSummary && order.id) {
+      const isStillActive = () => activeOrderIdRef.current === order.id;
       getAiSummary(order.id).then(summary => {
-        setAiSummary(summary);
+        if (isStillActive()) {
+          setAiSummary(summary);
+        }
       }).catch(() => {
-        setAiSummary(null);
+        if (isStillActive()) {
+          setAiSummary(null);
+        }
       });
 
       getOrderAiUsage(order.id).then(cost => {
-        setOrderAiCost(cost);
+        if (isStillActive()) {
+          setOrderAiCost(cost);
+        }
       }).catch(() => {
-        setOrderAiCost(null);
+        if (isStillActive()) {
+          setOrderAiCost(null);
+        }
       });
 
       if (orderChatCacheRef.current[order.id]) {
@@ -508,27 +521,21 @@ export const OrderDrawer: React.FC = () => {
   const populateOrderDataRef = useRef(populateOrderData);
   populateOrderDataRef.current = populateOrderData;
 
-  // Load order data when orderId changes
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    if (editingOrderId) {
-      getOrders().then(orders => {
-        const order = orders.find(o => o.id === editingOrderId);
-        if (order) {
-          setCurrentOrder(order);
-          populateOrderDataRef.current(order);
-        }
-      }).catch(err => {
-        console.error("Failed to load order details", err);
-      });
-    } else {
+  useOrderLoader(isOpen, editingOrderId, {
+    onLoaded: order => {
+      setCurrentOrder(order);
+      populateOrderDataRef.current(order);
+      setLoadedOrderId(order.id);
+    },
+    onNew: () => {
       setCurrentOrder(null);
       initNewOrderFormRef.current();
+      setLoadedOrderId(null);
+    },
+    onError: () => {
+      toast.error('Не удалось загрузить заказ. Закройте и откройте его снова');
     }
-  }, [isOpen, editingOrderId]);
+  });
 
   const handleEstimateApplied = async (aiResult: AiEstimateResultDto) => {
     toast.success('Смета успешно обновлена AI-агентом!');
@@ -868,6 +875,10 @@ export const OrderDrawer: React.FC = () => {
 
   // Submission / Save logic
   const doSaveOrder = async (shouldClose = false) => {
+    if (editingOrderId && loadedOrderId !== editingOrderId) {
+      toast.warning('Заказ ещё загружается, попробуйте через секунду');
+      return;
+    }
     try {
       const selectedStatus = columns.find(c => c.id.toString() === formData.statusId);
       const isCompleted = selectedStatus ? (
