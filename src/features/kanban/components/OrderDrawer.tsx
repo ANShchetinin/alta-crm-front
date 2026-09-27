@@ -146,7 +146,7 @@ export const OrderDrawer: React.FC = () => {
   const hasAiSummary = useFeature('AI_SUMMARY');
   const hasContractTemplates = useFeature('CONTRACT_TEMPLATES');
   const hasDocumentScanner = useFeature('DOCUMENT_SCANNER');
-  const hasAiEstimate = useFeature('AI_ESTIMATE');
+  const hasAiEstimate = useFeature('AI_ESTIMATE') && !isWorker;
   const { fetchLowStockMaterials, tenantSettings } = useAppStore();
 
   const {

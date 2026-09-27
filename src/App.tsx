@@ -184,7 +184,7 @@ function App() {
               <Route path="feature-flags" element={<RoleRoute allowedRoles={['SUPERADMIN']}><FeatureFlags /></RoleRoute>} />
 
               <Route path="kanban" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><Kanban /></RoleRoute>} />
-              <Route path="ai-assistant" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><FeatureRoute feature="AI_ESTIMATE"><AiAssistant /></FeatureRoute></RoleRoute>} />
+              <Route path="ai-assistant" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="AI_ESTIMATE"><AiAssistant /></FeatureRoute></RoleRoute>} />
               <Route path="site-requests" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="SITE_REQUESTS"><SiteRequests /></FeatureRoute></RoleRoute>} />
               <Route path="calendar" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><FeatureRoute feature="CALENDAR"><Calendar /></FeatureRoute></RoleRoute>} />
               <Route path="measurements" element={<MeasurementRoute><Measurements /></MeasurementRoute>} />
