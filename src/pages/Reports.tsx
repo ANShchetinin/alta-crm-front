@@ -4,14 +4,15 @@ import {
   Search, BarChart2, FileText, Ruler, Target, TrendingUp, TrendingDown, 
   RussianRuble, Users, Tag, Calendar, ArrowRight
 } from 'lucide-react';
-import { getOrders, getOrderStatuses } from '../api/kanban';
+import { getOrders } from '../api/kanban';
 import type { Order, OrderStatus } from '../api/kanban';
-import { getClients } from '../api/clients';
 import type { Client } from '../api/clients';
-import { getMaterials } from '../api/storage';
 import type { Material } from '../api/storage';
-import { getEmployees } from '../api/employees';
 import type { Employee } from '../api/employees';
+import { useOrderStatusesQuery } from '../hooks/queries/useOrderStatusesQuery';
+import { useClientsQuery } from '../hooks/queries/useClientsQuery';
+import { useMaterialsQuery } from '../hooks/queries/useStorageQuery';
+import { useEmployeesQuery } from '../hooks/queries/useEmployeesQuery';
 import { getEmployeeInitials, getAvatarGradient } from '../utils/avatarUtils';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -21,16 +22,25 @@ import { formatDateOnly } from '../utils/dateUtils';
 import '../styles/clients.css'; 
 import '../styles/reports.css'; 
 
+const EMPTY_CLIENTS: Client[] = [];
+const EMPTY_MATERIALS: Material[] = [];
+const EMPTY_EMPLOYEES: Employee[] = [];
+
 export const Reports = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   
   const [orders, setOrders] = useState<Order[]>([]);
-  const [statuses, setStatuses] = useState<OrderStatus[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [materials, setMaterials] = useState<Material[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: rawStatuses, isLoading: statusesLoading } = useOrderStatusesQuery();
+  const statuses = useMemo<OrderStatus[]>(
+    () => [...(rawStatuses ?? [])].sort((a, b) => a.sortOrder - b.sortOrder),
+    [rawStatuses]
+  );
+  const { data: clients = EMPTY_CLIENTS, isLoading: clientsLoading } = useClientsQuery();
+  const { data: materials = EMPTY_MATERIALS, isLoading: materialsLoading } = useMaterialsQuery();
+  const { data: employees = EMPTY_EMPLOYEES, isLoading: employeesLoading } = useEmployeesQuery();
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const loading = ordersLoading || statusesLoading || clientsLoading || materialsLoading || employeesLoading;
 
   // Active view tab
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'LEAD_SOURCES' | 'EMPLOYEES' | 'ORDERS'>('OVERVIEW');
@@ -45,31 +55,23 @@ export const Reports = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    fetchData();
+    let cancelled = false;
+    getOrders()
+      .then(allOrders => {
+        if (!cancelled) {
+          setOrders(allOrders);
+        }
+      })
+      .catch(err => console.error(err))
+      .finally(() => {
+        if (!cancelled) {
+          setOrdersLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [allOrders, statusesData, allClients, allMaterials, allEmployees] = await Promise.all([
-        getOrders(),
-        getOrderStatuses(),
-        getClients(),
-        getMaterials(),
-        getEmployees()
-      ]);
-
-      setOrders(allOrders);
-      setStatuses(statusesData.sort((a, b) => a.sortOrder - b.sortOrder));
-      setClients(allClients);
-      setMaterials(allMaterials);
-      setEmployees(allEmployees);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Available months for dropdown
   const availableMonths = useMemo(() => {

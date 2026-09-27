@@ -107,10 +107,7 @@ export const useTouchColumnReorder = ({
         const newColumns = [...columns];
         const [removed] = newColumns.splice(sourceIndex, 1);
         newColumns.splice(targetIndex, 0, removed);
-        newColumns.forEach((c, index) => {
-          c.sortOrder = index + 1;
-        });
-        onReorder(newColumns);
+        onReorder(newColumns.map((c, index) => ({ ...c, sortOrder: index + 1 })));
         try {
           if (typeof navigator !== 'undefined' && navigator.vibrate) {
             navigator.vibrate([30, 40]);

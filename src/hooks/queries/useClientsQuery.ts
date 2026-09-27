@@ -1,11 +1,13 @@
 ﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getClients, createClient, updateClient, deleteClient, type Client, type ClientCreateRequest } from '../../api/clients';
+import { useTenantQueryKey } from './useTenantQueryKey';
 
 export const CLIENTS_QUERY_KEY = ['clients'] as const;
 
 export const useClientsQuery = (enabled = true) => {
+  const queryKey = useTenantQueryKey(CLIENTS_QUERY_KEY);
   return useQuery<Client[]>({
-    queryKey: CLIENTS_QUERY_KEY,
+    queryKey,
     queryFn: () => getClients(),
     enabled
   });

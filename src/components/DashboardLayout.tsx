@@ -6,7 +6,8 @@ import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { useFeature } from '../hooks/useFeatureToggle';
-import { getOrders, getOrderStatuses } from '../api/kanban';
+import { getOrders } from '../api/kanban';
+import { orderStatusesQueryOptions } from '../hooks/queries/useOrderStatusesQuery';
 import { getProfile } from '../api/settings';
 import { getMyTenants, switchTenant, type MyTenantsResponse } from '../api/auth';
 import { getRecentNotifications, markNotificationAsRead, markAllNotificationsAsRead, type AppNotificationItem } from '../api/notifications';
@@ -202,7 +203,8 @@ const DashboardLayout = () => {
 
   const fetchNewOrdersCount = useCallback(async () => {
     try {
-      const statuses = await getOrderStatuses();
+      // Компанию берем из стора в момент вызова: после переключения замыкание еще хранит прежнюю
+      const statuses = await queryClient.fetchQuery(orderStatusesQueryOptions(useAuthStore.getState().tenantId));
       const firstStatus = statuses.find(s => s.sortOrder === 1 || s.sortOrder === 0);
       if (firstStatus) {
         const orders = await getOrders();
@@ -248,10 +250,11 @@ const DashboardLayout = () => {
     useOrderDrawerStore.getState().closeOrder();
     try {
       const res = await switchTenant(targetTenantId);
+      // Сначала очищаем кеш, потом меняем компанию: иначе clear() может удалить уже начатые запросы новой компании
+      queryClient.clear();
       if (res?.token) {
         setToken(res.token);
       }
-      queryClient.clear();
       if (res?.tenantSettings) {
         setTenantSettings(res.tenantSettings);
       }
@@ -270,8 +273,8 @@ const DashboardLayout = () => {
   };
 
   const handleCompanyCreated = async (newToken: string) => {
-    setToken(newToken);
     queryClient.clear();
+    setToken(newToken);
     useOrderDrawerStore.getState().closeOrder();
     setIsCreateCompanyModalOpen(false);
     setIsCompanyDropdownOpen(false);

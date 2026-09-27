@@ -11,7 +11,8 @@ import type { TenantRequisites, ContractFieldDefinition } from '../api/settings'
 import { useState, useRef, useEffect } from 'react';
 import { PushNotificationSettings } from '../components/PushNotificationSettings';
 import { EstimationServiceBuilder } from '../components/EstimationServiceBuilder';
-import { getMaterials, type Material } from '../api/storage';
+import type { Material } from '../api/storage';
+import { useMaterialsQuery } from '../hooks/queries/useStorageQuery';
 import { TIMEZONE_OPTIONS } from '../utils/dateUtils';
 import { Sliders } from 'lucide-react';
 import { toast } from '../utils/toast';
@@ -19,6 +20,8 @@ import { useFeature, setDevFeatureOverride } from '../hooks/useFeatureToggle';
 import { updateTenantFeature } from '../api/features';
 import '../styles/clients.css'; // Reusing standard wrapper/header styles
 import '../styles/contract-fields-settings.css';
+
+const EMPTY_MATERIALS: Material[] = [];
 
 export const Settings = () => {
   const { t } = useTranslation();
@@ -238,7 +241,7 @@ export const Settings = () => {
     }
   };
 
-  const [materials, setMaterials] = useState<Material[]>([]);
+  const { data: materials = EMPTY_MATERIALS } = useMaterialsQuery();
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'ESTIMATION' | 'CONTRACT_CONFIG'>('GENERAL');
 
   const handleSaveContractConfig = async () => {
@@ -318,12 +321,6 @@ export const Settings = () => {
   const handleDeleteChecklistItem = (index: number) => {
     setActChecklist(prev => prev.filter((_, i) => i !== index));
   };
-
-  useEffect(() => {
-    getMaterials()
-      .then(setMaterials)
-      .catch(err => console.error('Ошибка загрузки материалов:', err));
-  }, []);
 
   return (
     <div className="clients-wrapper">

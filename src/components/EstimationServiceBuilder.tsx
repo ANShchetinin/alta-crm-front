@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Plus,
   Trash2,
@@ -13,8 +14,9 @@ import {
   RefreshCw
 } from 'lucide-react';
 import type { Material } from '../api/storage';
+import { useEstimationServicesQuery, ESTIMATION_SERVICES_QUERY_KEY } from '../hooks/queries/useEstimationServicesQuery';
+import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
 import {
-  getEstimationServices,
   createEstimationService,
   updateEstimationService,
   deleteEstimationService,
@@ -33,33 +35,27 @@ interface Props {
   materials: Material[];
 }
 
+const EMPTY_SERVICES: EstimationService[] = [];
+
 export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
-  const [services, setServices] = useState<EstimationService[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const queryClient = useQueryClient();
+  const servicesQueryKey = useTenantQueryKey(ESTIMATION_SERVICES_QUERY_KEY);
+  const { data: services = EMPTY_SERVICES, isLoading: servicesLoading } = useEstimationServicesQuery();
+  const [initializing, setInitializing] = useState<boolean>(false);
+  const loading = servicesLoading || initializing;
   const [saving, setSaving] = useState<boolean>(false);
   const [expandedServiceId, setExpandedServiceId] = useState<number | null>(null);
 
   // Модалка создания/редактирования услуги
   const [editingService, setEditingService] = useState<EstimationService | null>(null);
 
-  const loadServices = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getEstimationServices();
-      setServices(data);
-      if (data.length > 0) {
-        setExpandedServiceId(prev => (prev === null ? (data[0].id || null) : prev));
-      }
-    } catch (err) {
-      console.error('Ошибка загрузки сметных услуг:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const refreshServices = () => queryClient.invalidateQueries({ queryKey: ESTIMATION_SERVICES_QUERY_KEY });
 
   useEffect(() => {
-    loadServices();
-  }, [loadServices]);
+    if (services.length > 0) {
+      setExpandedServiceId(prev => (prev === null ? (services[0].id || null) : prev));
+    }
+  }, [services]);
 
   const handleInitDefaults = async () => {
     const ok = await confirm({
@@ -72,17 +68,19 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
       return;
     }
 
-    setLoading(true);
+    setInitializing(true);
     try {
       const res = await initDefaultEstimationServices();
-      setServices(res);
-      if (res.length > 0) setExpandedServiceId(res[0].id || null);
+      queryClient.setQueryData(servicesQueryKey, res);
+      if (res.length > 0) {
+        setExpandedServiceId(res[0].id || null);
+      }
       toast.success('Стандартные шаблоны успешно загружены');
     } catch (e) {
       console.error(e);
       toast.error('Ошибка при инициализации шаблонов');
     } finally {
-      setLoading(false);
+      setInitializing(false);
     }
   };
 
@@ -124,7 +122,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
 
     try {
       await deleteEstimationService(id);
-      setServices(prev => prev.filter(s => s.id !== id));
+      await refreshServices();
       if (expandedServiceId === id) setExpandedServiceId(null);
       toast.success('Услуга удалена');
     } catch (e) {
@@ -172,7 +170,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
         toast.success('Услуга успешно создана');
       }
 
-      await loadServices();
+      await refreshServices();
       setEditingService(null);
     } catch (err: any) {
       console.error('Ошибка сохранения услуги:', err);

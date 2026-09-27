@@ -24,10 +24,9 @@ import {
   User,
   Tag
 } from 'lucide-react';
-import { 
-  getArchivedOrders, 
-  getOrderStatuses, 
-  updateOrder, 
+import {
+  getArchivedOrders,
+  updateOrder,
   deleteOrder,
   downloadContractDocx, 
   downloadContractPdf, 
@@ -37,8 +36,11 @@ import {
   type OrderAttachment
 } from '../api/kanban';
 import { Sheet } from '../components/ui/Sheet';
-import { getClients, type Client } from '../api/clients';
-import { getEmployees, type Employee } from '../api/employees';
+import type { Client } from '../api/clients';
+import type { Employee } from '../api/employees';
+import { useOrderStatusesQuery } from '../hooks/queries/useOrderStatusesQuery';
+import { useClientsQuery } from '../hooks/queries/useClientsQuery';
+import { useEmployeesQuery } from '../hooks/queries/useEmployeesQuery';
 import { getMeasurementByOrderId, type MeasurementDto } from '../api/measurements';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -54,16 +56,21 @@ import '../styles/clients.css';
 type SortField = 'installedAt' | 'createdAt' | 'orderNumber' | 'totalPrice' | 'clientName';
 type SortDirection = 'asc' | 'desc';
 
+const EMPTY_STATUSES: OrderStatus[] = [];
+const EMPTY_CLIENTS: Client[] = [];
+const EMPTY_EMPLOYEES: Employee[] = [];
+
 export const Archive = () => {
   const { role } = useAuthStore();
   const isWorker = role === 'WORKER';
   const { tenantSettings } = useAppStore();
 
   const [orders, setOrders] = useState<Order[]>([]);
-  const [statuses, setStatuses] = useState<OrderStatus[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: statuses = EMPTY_STATUSES, isLoading: statusesLoading } = useOrderStatusesQuery();
+  const { data: clients = EMPTY_CLIENTS, isLoading: clientsLoading } = useClientsQuery(!isWorker);
+  const { data: employees = EMPTY_EMPLOYEES, isLoading: employeesLoading } = useEmployeesQuery(!isWorker);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const loading = ordersLoading || statusesLoading || clientsLoading || employeesLoading;
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,23 +96,14 @@ export const Archive = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      setLoading(true);
-      const [archivedData, statusesData, clientsData, employeesData] = await Promise.all([
-        getArchivedOrders().catch(() => []),
-        getOrderStatuses().catch(() => []),
-        !isWorker ? getClients().catch(() => []) : Promise.resolve([]),
-        !isWorker ? getEmployees().catch(() => []) : Promise.resolve([])
-      ]);
-      setOrders(archivedData);
-      setStatuses(statusesData);
-      setClients(clientsData);
-      setEmployees(employeesData);
+      setOrdersLoading(true);
+      setOrders(await getArchivedOrders().catch(() => []));
     } catch (err) {
       console.error("Failed to load archive data", err);
     } finally {
-      setLoading(false);
+      setOrdersLoading(false);
     }
-  }, [isWorker]);
+  }, []);
 
   useEffect(() => {
     fetchData();

@@ -1,11 +1,13 @@
 ﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMaterials, createMaterial, updateMaterial, deleteMaterial, type Material } from '../../api/storage';
+import { useTenantQueryKey } from './useTenantQueryKey';
 
 export const MATERIALS_QUERY_KEY = ['materials'] as const;
 
 export const useMaterialsQuery = (enabled = true) => {
+  const queryKey = useTenantQueryKey(MATERIALS_QUERY_KEY);
   return useQuery<Material[]>({
-    queryKey: MATERIALS_QUERY_KEY,
+    queryKey,
     queryFn: () => getMaterials(),
     enabled
   });

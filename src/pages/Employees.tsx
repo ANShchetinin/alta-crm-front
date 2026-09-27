@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Plus, Edit2, Trash2, User, Key, Shield, CheckSquare, Square, Eye, EyeOff, FileText, Wallet, Ruler, Building2, Phone } from 'lucide-react';
 import type { Employee } from '../api/employees';
-import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../api/employees';
-import { getOrderStatuses } from '../api/kanban';
 import type { OrderStatus } from '../api/kanban';
-import { getMyTenants, type UserTenant } from '../api/auth';
+import type { UserTenant } from '../api/auth';
+import {
+  useEmployeesQuery,
+  useCreateEmployeeMutation,
+  useUpdateEmployeeMutation,
+  useDeleteEmployeeMutation
+} from '../hooks/queries/useEmployeesQuery';
+import { useOrderStatusesQuery } from '../hooks/queries/useOrderStatusesQuery';
+import { useMyTenantsQuery } from '../hooks/queries/useMyTenantsQuery';
 import { useAuthStore } from '../store/useAuthStore';
 import { AvatarUpload } from '../components/AvatarUpload';
 import { getEmployeeInitials, getAvatarGradient } from '../utils/avatarUtils';
@@ -15,16 +21,25 @@ import { toast } from '../utils/toast';
 import { confirm } from '../utils/confirm';
 import '../styles/clients.css';
 
+const PRESENCE_POLL_MS = 10000;
+const EMPTY_EMPLOYEES: Employee[] = [];
+const EMPTY_STATUSES: OrderStatus[] = [];
+const EMPTY_TENANTS: UserTenant[] = [];
+
 export const Employees = () => {
   const { t } = useTranslation();
   const { role: currentUserRole } = useAuthStore();
   const canManageEmployees = currentUserRole === 'OWNER' || currentUserRole === 'SUPERADMIN';
 
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [statuses, setStatuses] = useState<OrderStatus[]>([]);
-  const [myTenants, setMyTenants] = useState<UserTenant[]>([]);
-  const [currentTenantId, setCurrentTenantId] = useState<number>(1);
-  const [loading, setLoading] = useState(true);
+  const { data: employees = EMPTY_EMPLOYEES, isLoading: employeesLoading } = useEmployeesQuery(true, PRESENCE_POLL_MS);
+  const { data: statuses = EMPTY_STATUSES, isLoading: statusesLoading } = useOrderStatusesQuery();
+  const { data: tenantsResp, isLoading: tenantsLoading } = useMyTenantsQuery();
+  const createEmployeeMutation = useCreateEmployeeMutation();
+  const updateEmployeeMutation = useUpdateEmployeeMutation();
+  const deleteEmployeeMutation = useDeleteEmployeeMutation();
+  const myTenants: UserTenant[] = tenantsResp?.tenants ?? EMPTY_TENANTS;
+  const currentTenantId = tenantsResp?.currentTenantId || 1;
+  const loading = employeesLoading || statusesLoading || tenantsLoading;
   const [search, setSearch] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,61 +67,6 @@ export const Employees = () => {
     canAccessMeasurements: false
   });
 
-
-
-  useEffect(() => {
-    fetchInitialData();
-
-    // Auto-refresh employees and presence status periodically while page is open
-    const interval = setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        fetchEmployeesList();
-      }
-    }, 10000);
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchEmployeesList();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  const fetchInitialData = async () => {
-    try {
-      setLoading(true);
-      const [empData, statusData, tenantsResp] = await Promise.all([
-        getEmployees(),
-        getOrderStatuses().catch(() => [] as OrderStatus[]),
-        getMyTenants().catch(() => null)
-      ]);
-      setEmployees(Array.isArray(empData) ? empData : []);
-      setStatuses(Array.isArray(statusData) ? statusData : []);
-      if (tenantsResp) {
-        setMyTenants(Array.isArray(tenantsResp.tenants) ? tenantsResp.tenants : []);
-        setCurrentTenantId(tenantsResp.currentTenantId || 1);
-      }
-    } catch (err) {
-      console.error('Failed to load initial data', err);
-      setEmployees([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchEmployeesList = async () => {
-    try {
-      const data = await getEmployees();
-      setEmployees(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const filteredEmployees = (Array.isArray(employees) ? employees : []).filter(c => {
     if (!c) return false;
@@ -224,15 +184,14 @@ export const Employees = () => {
       }
 
       if (editingEmployee) {
-        await updateEmployee(editingEmployee.id, payload);
+        await updateEmployeeMutation.mutateAsync({ id: editingEmployee.id, data: payload });
         toast.success(`Данные сотрудника «${payload.name}» обновлены`);
       } else {
-        await createEmployee(payload);
+        await createEmployeeMutation.mutateAsync(payload);
         toast.success(`Сотрудник «${payload.name}» успешно добавлен`);
       }
 
       setIsModalOpen(false);
-      fetchEmployeesList();
     } catch (err: any) {
       console.error(err);
       toast.error('Ошибка при сохранении сотрудника: ' + (err.response?.data?.message || err.message));
@@ -249,8 +208,7 @@ export const Employees = () => {
     if (!ok) return;
 
     try {
-      await deleteEmployee(id);
-      fetchEmployeesList();
+      await deleteEmployeeMutation.mutateAsync(id);
       toast.success('Сотрудник успешно удален');
     } catch (err: any) {
       console.error(err);

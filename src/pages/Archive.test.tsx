@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { renderWithQuery } from '../test-utils/queryWrapper';
 import { Archive } from './Archive';
 import * as kanbanApi from '../api/kanban';
 import * as clientsApi from '../api/clients';
@@ -41,11 +42,12 @@ vi.mock('../utils/toast', () => ({
   }
 }));
 
-vi.mock('../store/useAuthStore', () => ({
-  useAuthStore: () => ({
-    role: 'OWNER'
-  })
-}));
+vi.mock('../store/useAuthStore', () => {
+  const state = { role: 'OWNER', tenantId: 1 };
+  return {
+    useAuthStore: (selector?: (s: typeof state) => unknown) => (selector ? selector(state) : state)
+  };
+});
 
 vi.mock('../store/useAppStore', () => ({
   useAppStore: () => ({
@@ -141,7 +143,7 @@ describe('Archive Page Component', () => {
   });
 
   it('renders archive header without count badge and renders order list', async () => {
-    render(<Archive />);
+    renderWithQuery(<Archive />);
 
     expect(screen.getByText('Загрузка архивных заявок...')).toBeInTheDocument();
 
@@ -159,7 +161,7 @@ describe('Archive Page Component', () => {
   });
 
   it('filters orders by search query', async () => {
-    render(<Archive />);
+    renderWithQuery(<Archive />);
 
     await waitFor(() => {
       expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
@@ -175,7 +177,7 @@ describe('Archive Page Component', () => {
   it('opens detail modal on order row click, displays estimate, and allows return to kanban', async () => {
     (kanbanApi.updateOrder as any).mockResolvedValue({ ...mockOrders[0], statusId: 1 });
 
-    render(<Archive />);
+    renderWithQuery(<Archive />);
 
     await waitFor(() => {
       expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
@@ -206,7 +208,7 @@ describe('Archive Page Component', () => {
   it('allows deleting an order from archive', async () => {
     (kanbanApi.deleteOrder as any).mockResolvedValue(undefined);
 
-    render(<Archive />);
+    renderWithQuery(<Archive />);
 
     await waitFor(() => {
       expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
@@ -226,7 +228,7 @@ describe('Archive Page Component', () => {
     window.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/fake-url');
     window.URL.revokeObjectURL = vi.fn();
 
-    render(<Archive />);
+    renderWithQuery(<Archive />);
 
     await waitFor(() => {
       expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
@@ -244,7 +246,7 @@ describe('Archive Page Component', () => {
     window.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/csv-url');
     window.URL.revokeObjectURL = vi.fn();
 
-    render(<Archive />);
+    renderWithQuery(<Archive />);
 
     await waitFor(() => {
       expect(screen.getByText('Экспорт CSV')).toBeInTheDocument();
@@ -257,7 +259,7 @@ describe('Archive Page Component', () => {
   });
 
   it('opens detail modal on mobile card click', async () => {
-    render(<Archive />);
+    renderWithQuery(<Archive />);
 
     await waitFor(() => {
       expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
@@ -282,7 +284,7 @@ describe('Archive Page Component', () => {
     window.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/att-url');
     window.URL.revokeObjectURL = vi.fn();
 
-    render(<Archive />);
+    renderWithQuery(<Archive />);
 
     await waitFor(() => {
       expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);
@@ -326,7 +328,7 @@ describe('Archive Page Component', () => {
     window.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/img-url');
     window.URL.revokeObjectURL = vi.fn();
 
-    render(<Archive />);
+    renderWithQuery(<Archive />);
 
     await waitFor(() => {
       expect(screen.getAllByText('А0101_1').length).toBeGreaterThanOrEqual(1);

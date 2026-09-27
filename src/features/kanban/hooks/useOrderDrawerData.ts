@@ -1,50 +1,51 @@
-import { useCallback, useEffect, useState } from 'react';
-import { getOrderStatuses, type OrderStatus } from '../../../api/kanban';
-import { getClients, type Client } from '../../../api/clients';
-import { getMaterials, type Material } from '../../../api/storage';
-import { getEmployees, type Employee } from '../../../api/employees';
-import { getContractTemplateStatus, type ContractTemplateStatus } from '../../../api/settings';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { OrderStatus } from '../../../api/kanban';
+import type { Client } from '../../../api/clients';
+import type { Material } from '../../../api/storage';
+import type { Employee } from '../../../api/employees';
+import { getContractTemplateStatus } from '../../../api/settings';
+import { useOrderStatusesQuery } from '../../../hooks/queries/useOrderStatusesQuery';
+import { useClientsQuery, CLIENTS_QUERY_KEY } from '../../../hooks/queries/useClientsQuery';
+import { useMaterialsQuery } from '../../../hooks/queries/useStorageQuery';
+import { useEmployeesQuery } from '../../../hooks/queries/useEmployeesQuery';
+import { useTenantQueryKey } from '../../../hooks/queries/useTenantQueryKey';
+
+const CONTRACT_TEMPLATE_STATUS_QUERY_KEY = ['contractTemplateStatus'] as const;
+const EMPTY_CLIENTS: Client[] = [];
+const EMPTY_EMPLOYEES: Employee[] = [];
+const EMPTY_MATERIALS: Material[] = [];
 
 /**
  * Справочники шторки заказа: статусы (по порядку), а для сотрудников офиса — клиенты, материалы, сотрудники
  * и наличие шаблонов договоров. Монтажнику справочники с персональными и финансовыми данными не запрашиваются.
  */
 export const useOrderDrawerData = (isOpen: boolean, isWorker: boolean, hasContractTemplates: boolean) => {
-  const [columns, setColumns] = useState<OrderStatus[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [materials, setMaterials] = useState<Material[]>([]);
-  const [templateStatus, setTemplateStatus] = useState<ContractTemplateStatus | null>(null);
+  const queryClient = useQueryClient();
+  const officeDataEnabled = isOpen && !isWorker;
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-    let cancelled = false;
-    Promise.all([
-      getOrderStatuses().catch(() => []),
-      !isWorker ? getClients().catch(() => []) : Promise.resolve([]),
-      !isWorker ? getMaterials().catch(() => []) : Promise.resolve([]),
-      !isWorker ? getEmployees().catch(() => []) : Promise.resolve([]),
-      !isWorker && hasContractTemplates ? getContractTemplateStatus().catch(() => null) : Promise.resolve(null)
-    ]).then(([statuses, clientsData, materialsData, employeesData, templateStatusData]) => {
-      if (cancelled) {
-        return;
-      }
-      setColumns([...statuses].sort((a, b) => a.sortOrder - b.sortOrder));
-      setClients(clientsData);
-      setMaterials(materialsData);
-      setEmployees(employeesData);
-      setTemplateStatus(templateStatusData);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, isWorker, hasContractTemplates]);
+  const { data: statuses } = useOrderStatusesQuery(isOpen);
+  const { data: clients = EMPTY_CLIENTS } = useClientsQuery(officeDataEnabled);
+  const { data: materials = EMPTY_MATERIALS } = useMaterialsQuery(officeDataEnabled);
+  const { data: employees = EMPTY_EMPLOYEES } = useEmployeesQuery(officeDataEnabled);
+  const templateStatusKey = useTenantQueryKey(CONTRACT_TEMPLATE_STATUS_QUERY_KEY);
+  const { data: templateStatus = null } = useQuery({
+    queryKey: templateStatusKey,
+    queryFn: () => getContractTemplateStatus(),
+    enabled: officeDataEnabled && hasContractTemplates,
+    // Шаблоны меняются на другой странице — при каждом открытии шторки сверяемся с сервером
+    staleTime: 0
+  });
 
-  const reloadClients = useCallback(async () => {
-    setClients(await getClients());
-  }, []);
+  const columns = useMemo<OrderStatus[]>(
+    () => [...(statuses ?? [])].sort((a, b) => a.sortOrder - b.sortOrder),
+    [statuses]
+  );
+
+  const reloadClients = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY }),
+    [queryClient]
+  );
 
   return { columns, clients, employees, materials, templateStatus, reloadClients };
 };

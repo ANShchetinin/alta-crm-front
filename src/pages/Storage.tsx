@@ -1,21 +1,32 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Plus, Package, Wrench, Layers, Trash2, Check, Tag } from 'lucide-react';
 import type { Material, MaterialType } from '../api/storage';
-import { getMaterials, createMaterial, updateMaterial, deleteMaterial } from '../api/storage';
-import { getEstimationServices, type EstimationService } from '../api/estimationServices';
+import type { EstimationService } from '../api/estimationServices';
+import {
+  useMaterialsQuery,
+  useCreateMaterialMutation,
+  useUpdateMaterialMutation,
+  useDeleteMaterialMutation
+} from '../hooks/queries/useStorageQuery';
+import { useEstimationServicesQuery } from '../hooks/queries/useEstimationServicesQuery';
 import { useAppStore } from '../store/useAppStore';
 import { Sheet } from '../components/ui/Sheet';
 import { toast } from '../utils/toast';
 import { confirm } from '../utils/confirm';
 import '../styles/clients.css';
 
+const EMPTY_MATERIALS: Material[] = [];
+const EMPTY_SERVICES: EstimationService[] = [];
+
 export const Storage = () => {
   const { t } = useTranslation();
   const { fetchLowStockMaterials } = useAppStore();
-  const [materials, setMaterials] = useState<Material[]>([]);
-  const [estimationServices, setEstimationServices] = useState<EstimationService[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: materials = EMPTY_MATERIALS, isLoading: loading } = useMaterialsQuery();
+  const { data: estimationServices = EMPTY_SERVICES } = useEstimationServicesQuery();
+  const createMaterialMutation = useCreateMaterialMutation();
+  const updateMaterialMutation = useUpdateMaterialMutation();
+  const deleteMaterialMutation = useDeleteMaterialMutation();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<'ALL' | 'MATERIAL' | 'SERVICE'>('ALL');
   
@@ -44,25 +55,6 @@ export const Storage = () => {
     globalServiceIds: [],
     isDefault: false
   });
-
-  useEffect(() => {
-    fetchMaterials();
-    getEstimationServices()
-      .then(setEstimationServices)
-      .catch(err => console.error('Ошибка загрузки глобальных услуг:', err));
-  }, []);
-
-  const fetchMaterials = async () => {
-    try {
-      setLoading(true);
-      const data = await getMaterials();
-      setMaterials(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filteredMaterials = materials.filter(m => {
     const matchesSearch = m.name.toLowerCase().includes(search.toLowerCase()) || (m.category || '').toLowerCase().includes(search.toLowerCase());
@@ -147,14 +139,13 @@ export const Storage = () => {
       };
       
       if (editingId) {
-        await updateMaterial(editingId, payload);
+        await updateMaterialMutation.mutateAsync({ id: editingId, data: payload });
         toast.success('Позиция успешно обновлена');
       } else {
-        await createMaterial(payload);
+        await createMaterialMutation.mutateAsync(payload);
         toast.success('Позиция успешно добавлена на склад');
       }
       setIsModalOpen(false);
-      fetchMaterials();
       fetchLowStockMaterials();
     } catch (err: any) {
       console.error(err);
@@ -172,8 +163,7 @@ export const Storage = () => {
     if (!ok) return;
 
     try {
-      await deleteMaterial(id);
-      setMaterials(prev => prev.filter(m => m.id !== id));
+      await deleteMaterialMutation.mutateAsync(id);
       if (editingId === id) {
         setIsModalOpen(false);
       }

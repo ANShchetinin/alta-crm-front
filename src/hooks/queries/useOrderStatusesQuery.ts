@@ -1,14 +1,18 @@
-﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, queryOptions } from '@tanstack/react-query';
 import { getOrderStatuses, createOrderStatus, updateOrderStatus, deleteOrderStatus, reorderOrderStatuses, type OrderStatus } from '../../api/kanban';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export const ORDER_STATUSES_QUERY_KEY = ['orderStatuses'] as const;
 
+/** Параметры запроса статусов компании — общие для хука и императивного {@code queryClient.fetchQuery}. */
+export const orderStatusesQueryOptions = (tenantId: number | null) => queryOptions<OrderStatus[]>({
+  queryKey: [...ORDER_STATUSES_QUERY_KEY, tenantId],
+  queryFn: () => getOrderStatuses()
+});
+
 export const useOrderStatusesQuery = (enabled = true) => {
-  return useQuery<OrderStatus[]>({
-    queryKey: ORDER_STATUSES_QUERY_KEY,
-    queryFn: () => getOrderStatuses(),
-    enabled
-  });
+  const tenantId = useAuthStore(state => state.tenantId);
+  return useQuery({ ...orderStatusesQueryOptions(tenantId), enabled });
 };
 
 export const useCreateOrderStatusMutation = () => {

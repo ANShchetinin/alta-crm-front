@@ -10,7 +10,8 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { getOrders, type Order } from '../api/kanban';
-import { getMaterials, type Material } from '../api/storage';
+import type { Material } from '../api/storage';
+import { useMaterialsQuery } from '../hooks/queries/useStorageQuery';
 import { useAuthStore } from '../store/useAuthStore';
 import { MeasurementWizard } from '../components/MeasurementWizard';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
@@ -18,14 +19,17 @@ import { getWhatsAppLink } from '../utils/messengerUtils';
 import { formatDateTime, parseLocalDateTime } from '../utils/dateUtils';
 import '../styles/measurements.css';
 
+const EMPTY_MATERIALS: Material[] = [];
+
 export const Measurements: React.FC = () => {
   const userId = useAuthStore(state => state.userId);
   const role = useAuthStore(state => state.role);
   const isWorker = role === 'WORKER';
 
   const [orders, setOrders] = useState<Order[]>([]);
-  const [materials, setMaterials] = useState<Material[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { data: materials = EMPTY_MATERIALS, isLoading: materialsLoading } = useMaterialsQuery();
+  const [ordersLoading, setOrdersLoading] = useState<boolean>(true);
+  const loading = ordersLoading || materialsLoading;
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterMode, setFilterMode] = useState<'today' | 'upcoming' | 'all'>('today');
 
@@ -38,18 +42,13 @@ export const Measurements: React.FC = () => {
   }, []);
 
   const loadData = async () => {
-    setLoading(true);
+    setOrdersLoading(true);
     try {
-      const [ordersData, materialsData] = await Promise.all([
-        getOrders(),
-        getMaterials()
-      ]);
-      setOrders(ordersData);
-      setMaterials(materialsData);
+      setOrders(await getOrders());
     } catch (e) {
       console.error('Ошибка загрузки данных замерщика:', e);
     } finally {
-      setLoading(false);
+      setOrdersLoading(false);
     }
   };
 
