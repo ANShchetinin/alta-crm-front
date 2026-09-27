@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach } from 'vitest';
+﻿import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { hasFeature, setDevFeatureOverride, getDevFeatureOverrides } from './useFeatureToggle';
 import { useAppStore } from '../store/useAppStore';
 
@@ -41,5 +41,32 @@ describe('Feature Toggle System (useFeatureToggle / hasFeature)', () => {
     expect(hasFeature('FINANCES')).toBe(false);
     setDevFeatureOverride('FINANCES', null);
     expect(hasFeature('FINANCES')).toBe(true);
+  });
+
+  describe('in production build', () => {
+    beforeEach(() => {
+      vi.stubEnv('DEV', false);
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      window.history.replaceState({}, '', '/');
+    });
+
+    it('does not let a local override enable a feature the tenant has not paid for', () => {
+      setDevFeatureOverride('STORAGE', true);
+      expect(hasFeature('STORAGE')).toBe(false);
+    });
+
+    it('still lets a local override hide an active feature', () => {
+      setDevFeatureOverride('FINANCES', false);
+      expect(hasFeature('FINANCES')).toBe(false);
+    });
+
+    it('ignores ?ft_ URL parameters and does not persist them', () => {
+      window.history.replaceState({}, '', '/?ft_storage=true');
+      expect(hasFeature('STORAGE')).toBe(false);
+      expect(localStorage.getItem('altacrm_ft_overrides')).toBeNull();
+    });
   });
 });

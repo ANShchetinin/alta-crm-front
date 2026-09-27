@@ -1,5 +1,6 @@
 ﻿import { describe, it, expect, beforeEach } from 'vitest';
 import { useAuthStore } from './useAuthStore';
+import { queryClient } from '../lib/queryClient';
 
 // Helper to create a dummy JWT with payload
 const createMockJwt = (payload: Record<string, any>) => {
@@ -60,5 +61,13 @@ describe('useAuthStore', () => {
     const state = useAuthStore.getState();
     expect(state.role).toBeNull();
     expect(state.email).toBeNull();
+  });
+
+  it('clears cached queries of the previous user upon logout', () => {
+    queryClient.setQueryData(['orders'], [{ id: 1 }]);
+
+    useAuthStore.getState().logout();
+
+    expect(queryClient.getQueryData(['orders'])).toBeUndefined();
   });
 });

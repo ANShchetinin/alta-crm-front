@@ -627,13 +627,6 @@ const DashboardLayout = () => {
                 <Archive size={20} />
                 <span style={{ flex: 1 }}>{t('nav.archive') || 'Архив'}</span>
               </NavLink>
-              {hasAiEstimate && (
-                <NavLink to="/ai-assistant" onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                  <Sparkles size={20} />
-                  <span style={{ flex: 1 }}>{t('nav.aiAssistant') || 'ИИ-Ассистент'}</span>
-                  <span className="nav-badge beta-badge">beta</span>
-                </NavLink>
-              )}
             </>
           )}
           {role !== 'SUPERADMIN' && role !== 'WORKER' && (

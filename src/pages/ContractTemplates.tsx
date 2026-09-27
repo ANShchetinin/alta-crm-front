@@ -16,6 +16,7 @@ import type { ContractTemplateStatus } from '../api/settings';
 import { useAppStore } from '../store/useAppStore';
 import { toast } from '../utils/toast';
 import { confirm } from '../utils/confirm';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 import '../styles/contract-templates.css';
 
 interface TagItem {
@@ -373,7 +374,7 @@ export const ContractTemplates = () => {
         setViewMode('HTML_EDITOR');
         const defaultPreset = activeTab === 'INDIVIDUAL' ? STARTER_TEMPLATE_INDIVIDUAL : STARTER_TEMPLATE_LEGAL;
         if (editorRef.current) {
-          editorRef.current.innerHTML = htmlContent || defaultPreset;
+          editorRef.current.innerHTML = sanitizeHtml(htmlContent || defaultPreset);
         }
       }
       setIsModified(false);

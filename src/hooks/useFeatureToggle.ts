@@ -1,16 +1,16 @@
 import { useAppStore } from '../store/useAppStore';
 import type { FeatureKey } from '../api/features';
+import type { TenantDto } from '../api/settings';
 
 const STORAGE_KEY = 'altacrm_ft_overrides';
 
-// Read dev overrides from localStorage and parse URL query parameters
+// Read dev overrides from localStorage; URL query parameters (?ft_finances=true) are honoured only in dev builds
 const getDevOverrides = (): Record<string, boolean> => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     const overrides: Record<string, boolean> = stored ? JSON.parse(stored) : {};
 
-    // Check URL parameters for overrides, e.g. ?ft_finances=true or ?ft_ai_summary=false
-    if (typeof window !== 'undefined' && window.location) {
+    if (import.meta.env.DEV && typeof window !== 'undefined' && window.location) {
       const params = new URLSearchParams(window.location.search);
       let changed = false;
       params.forEach((value, key) => {
@@ -48,23 +48,26 @@ export const getDevFeatureOverrides = (): Record<string, boolean> => {
 };
 
 /**
+ * Итоговое состояние фичи. Локальный override в dev-сборке может и включить, и выключить фичу;
+ * в production — только выключить (скрыть модуль у себя), иначе через localStorage открывались бы неоплаченные модули.
+ */
+const resolveFeature = (featureKey: FeatureKey, tenantSettings: TenantDto | null): boolean => {
+  // Нет настроек тенанта — opt-out модель: всё включено
+  const tenantEnabled = tenantSettings?.activeFeatures ? tenantSettings.activeFeatures.includes(featureKey) : true;
+
+  const devOverrides = getDevOverrides();
+  if (!(featureKey in devOverrides)) {
+    return tenantEnabled;
+  }
+  const override = devOverrides[featureKey];
+  return import.meta.env.DEV ? override : tenantEnabled && override;
+};
+
+/**
  * Pure helper function to check if a feature is enabled
  */
 export const hasFeature = (featureKey: FeatureKey): boolean => {
-  // 1. Check developer local overrides
-  const devOverrides = getDevOverrides();
-  if (featureKey in devOverrides) {
-    return devOverrides[featureKey];
-  }
-
-  // 2. Check active features from tenant settings
-  const tenantSettings = useAppStore.getState().tenantSettings;
-  if (tenantSettings && tenantSettings.activeFeatures) {
-    return tenantSettings.activeFeatures.includes(featureKey);
-  }
-
-  // 3. Default to true (Opt-out model)
-  return true;
+  return resolveFeature(featureKey, useAppStore.getState().tenantSettings);
 };
 
 /**
@@ -72,18 +75,5 @@ export const hasFeature = (featureKey: FeatureKey): boolean => {
  */
 export const useFeature = (featureKey: FeatureKey): boolean => {
   const tenantSettings = useAppStore((state) => state.tenantSettings);
-
-  // 1. Check developer local overrides
-  const devOverrides = getDevOverrides();
-  if (featureKey in devOverrides) {
-    return devOverrides[featureKey];
-  }
-
-  // 2. Check active features from tenant settings
-  if (tenantSettings && tenantSettings.activeFeatures) {
-    return tenantSettings.activeFeatures.includes(featureKey);
-  }
-
-  // 3. Default to true
-  return true;
+  return resolveFeature(featureKey, tenantSettings);
 };
