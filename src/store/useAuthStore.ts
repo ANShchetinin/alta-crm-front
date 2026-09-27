@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { queryClient } from '../lib/queryClient';
 
 interface AuthState {
   token: string | null;
@@ -97,6 +98,8 @@ export const useAuthStore = create<AuthState>((set) => {
 
     logout: () => {
       localStorage.removeItem('altacrm_token');
+      // Кэш запросов — данные прошлого пользователя; без очистки их увидит следующий на общем устройстве
+      queryClient.clear();
       set({ 
         token: null, 
         role: null, 
