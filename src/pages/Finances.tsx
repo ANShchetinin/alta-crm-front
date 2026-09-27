@@ -31,8 +31,9 @@ import {
   Coins
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useAuthStore } from '../store/useAuthStore';
+import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
 import { getOrders, updateFinanceStatuses, togglePrepaymentPaid, toggleRemainderPaid, type Order, type OrderStatus } from '../api/kanban';
 import type { Employee } from '../api/employees';
 import { orderStatusesQueryOptions, useOrderStatusesQuery } from '../hooks/queries/useOrderStatusesQuery';
@@ -57,6 +58,7 @@ type TabType = 'TRANSACTIONS' | 'RECEIVABLES' | 'EXPENSES' | 'INSTALLERS' | 'PL_
 type PeriodFilter = 'THIS_MONTH' | 'LAST_MONTH' | 'THREE_MONTHS' | 'THIS_YEAR' | 'ALL';
 type PaymentStatusFilter = 'ALL' | 'PAID' | 'PREPAYMENT' | 'UNPAID' | 'DEBT';
 
+const AI_USAGE_QUERY_KEY = ['companyAiUsage'] as const;
 const EMPTY_STATUSES: OrderStatus[] = [];
 const EMPTY_EMPLOYEES: Employee[] = [];
 
@@ -110,10 +112,6 @@ export const Finances = () => {
   // Expanded installers state
   const [expandedInstallerId, setExpandedInstallerId] = useState<number | null>(null);
 
-  // AI Usage State
-  const [aiUsageSummary, setAiUsageSummary] = useState<AiUsageSummaryDto | null>(null);
-  const [loadingAiUsage, setLoadingAiUsage] = useState(false);
-
   // Initial Data Fetch
   useEffect(() => {
     loadAllData();
@@ -158,23 +156,22 @@ export const Finances = () => {
     return { from, to };
   }, [period]);
 
-  const loadAiUsage = useCallback(async () => {
-    try {
-      setLoadingAiUsage(true);
-      const fromStr = dateRange.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
-      const toStr = dateRange.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
-      const data = await getCompanyAiUsageSummary(fromStr, toStr);
-      setAiUsageSummary(data);
-    } catch (err) {
-      console.error('Failed to load AI usage summary', err);
-    } finally {
-      setLoadingAiUsage(false);
-    }
-  }, [dateRange]);
-
-  useEffect(() => {
-    loadAiUsage();
-  }, [loadAiUsage]);
+  const aiUsageBaseKey = useTenantQueryKey(AI_USAGE_QUERY_KEY);
+  const aiFrom = dateRange.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
+  const aiTo = dateRange.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
+  const {
+    data: aiUsageData,
+    isFetching: loadingAiUsage,
+    refetch: refetchAiUsage
+  } = useQuery<AiUsageSummaryDto>({
+    queryKey: [...aiUsageBaseKey, aiFrom, aiTo],
+    queryFn: () => getCompanyAiUsageSummary(aiFrom, aiTo),
+    placeholderData: keepPreviousData,
+    // Расходы на ИИ растут с каждым обращением: при открытии всегда сверяемся с сервером
+    staleTime: 0
+  });
+  const aiUsageSummary: AiUsageSummaryDto | null = aiUsageData ?? null;
+  const loadAiUsage = () => refetchAiUsage();
 
   // Filter helper: check if date is within selected range
   const isDateInRange = useCallback((dateStr?: string | null) => {

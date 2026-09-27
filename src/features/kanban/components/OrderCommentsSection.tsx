@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTenantQueryKey } from '../../../hooks/queries/useTenantQueryKey';
 import {
   MessageSquare,
   Send,
@@ -30,6 +32,9 @@ export interface OrderCommentsSectionProps {
   onCommentsCountChange?: (count: number) => void;
   defaultExpanded?: boolean;
 }
+
+const ORDER_COMMENTS_QUERY_KEY = ['orderComments'] as const;
+const EMPTY_COMMENTS: OrderComment[] = [];
 
 const getAvatarGradient = (name: string) => {
   const gradients = [
@@ -66,8 +71,6 @@ export const OrderCommentsSection: React.FC<OrderCommentsSectionProps> = ({
   onCommentsCountChange,
   defaultExpanded = false
 }) => {
-  const [comments, setComments] = useState<OrderComment[]>([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [newCommentText, setNewCommentText] = useState('');
   const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -95,25 +98,33 @@ export const OrderCommentsSection: React.FC<OrderCommentsSectionProps> = ({
     }
   }, [defaultExpanded]);
 
-  const fetchComments = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await getOrderComments(orderId);
-      setComments(data);
-      if (onCommentsCountChangeRef.current) {
-        onCommentsCountChangeRef.current(data.length);
-      }
-    } catch (err) {
-      console.error('Failed to load comments', err);
-      toast.error('Не удалось загрузить комментарии');
-    } finally {
-      setLoading(false);
+  const queryClient = useQueryClient();
+  const commentsBaseKey = useTenantQueryKey(ORDER_COMMENTS_QUERY_KEY);
+  const commentsKey = [...commentsBaseKey, orderId];
+  const { data: comments = EMPTY_COMMENTS, isLoading: loading, error } = useQuery({
+    queryKey: commentsKey,
+    queryFn: () => getOrderComments(orderId)
+  });
+
+  const setComments = (updater: OrderComment[] | ((prev: OrderComment[]) => OrderComment[])) => {
+    queryClient.setQueryData<OrderComment[]>(commentsKey, prev => (
+      typeof updater === 'function' ? updater(prev ?? EMPTY_COMMENTS) : updater
+    ));
+  };
+
+  const commentsCount = comments.length;
+  useEffect(() => {
+    if (!loading && onCommentsCountChangeRef.current) {
+      onCommentsCountChangeRef.current(commentsCount);
     }
-  }, [orderId]);
+  }, [loading, commentsCount]);
 
   useEffect(() => {
-    fetchComments();
-  }, [fetchComments]);
+    if (error) {
+      console.error('Failed to load comments', error);
+      toast.error('Не удалось загрузить комментарии');
+    }
+  }, [error]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -136,13 +147,9 @@ export const OrderCommentsSection: React.FC<OrderCommentsSectionProps> = ({
     try {
       setSubmitting(true);
       const created = await addOrderComment(orderId, trimmed);
-      const updated = [...comments, created];
-      setComments(updated);
+      setComments(prev => [...prev, created]);
       setNewCommentText('');
       setIsExpanded(true);
-      if (onCommentsCountChangeRef.current) {
-        onCommentsCountChangeRef.current(updated.length);
-      }
       window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'comment', orderId } }));
       scrollToBottom();
       toast.success('Комментарий добавлен');
@@ -172,11 +179,7 @@ export const OrderCommentsSection: React.FC<OrderCommentsSectionProps> = ({
 
     try {
       await deleteOrderComment(orderId, commentId);
-      const updated = comments.filter(c => c.id !== commentId);
-      setComments(updated);
-      if (onCommentsCountChangeRef.current) {
-        onCommentsCountChangeRef.current(updated.length);
-      }
+      setComments(prev => prev.filter(c => c.id !== commentId));
       window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'comment', orderId } }));
       toast.success('Комментарий удален');
     } catch (err: any) {

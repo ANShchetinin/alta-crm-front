@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sliders, Search, CheckCircle2, XCircle, AlertCircle, RefreshCw, Layers, ShieldCheck, Power, Wrench } from 'lucide-react';
 import { getFeatureMatrix, updateSystemFeature, updateTenantFeature, bulkUpdateTenantFeatures } from '../api/features';
 import type { TenantFeatureMatrix, FeatureKey } from '../api/features';
@@ -6,31 +7,37 @@ import { getDevFeatureOverrides } from '../hooks/useFeatureToggle';
 import { useAppStore } from '../store/useAppStore';
 import '../styles/clients.css';
 
+// Матрица платформы (SUPERADMIN), не зависит от текущей компании
+const FEATURE_MATRIX_QUERY_KEY = ['featureMatrix'] as const;
+
 export const FeatureFlags = () => {
-  const [matrix, setMatrix] = useState<TenantFeatureMatrix | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data, isFetching: loading, error, refetch } = useQuery({
+    queryKey: FEATURE_MATRIX_QUERY_KEY,
+    queryFn: () => getFeatureMatrix()
+  });
+  const matrix: TenantFeatureMatrix | null = data ?? null;
   const [search, setSearch] = useState('');
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
   const [devOverrides, setDevOverrides] = useState<Record<string, boolean>>({});
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  const setMatrix = (updater: (prev: TenantFeatureMatrix | null) => TenantFeatureMatrix | null) => {
+    queryClient.setQueryData<TenantFeatureMatrix>(FEATURE_MATRIX_QUERY_KEY, prev => updater(prev ?? null) ?? undefined);
+  };
+
+  const fetchMatrix = () => refetch();
+
   useEffect(() => {
-    fetchMatrix();
     setDevOverrides(getDevFeatureOverrides());
   }, []);
 
-  const fetchMatrix = async () => {
-    try {
-      setLoading(true);
-      const data = await getFeatureMatrix();
-      setMatrix(data);
-    } catch (err: any) {
-      console.error('Failed to fetch feature matrix', err);
+  useEffect(() => {
+    if (error) {
+      console.error('Failed to fetch feature matrix', error);
       showToast('Ошибка при загрузке матрицы фичей', 'error');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [error]);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setStatusMessage({ text, type });

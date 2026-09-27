@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
 import { 
   Globe, Search, RefreshCw, Phone, MessageSquare, 
   Trash2, Edit3, ArrowRight, Loader2, Inbox 
@@ -17,11 +19,16 @@ import { toast } from '../utils/toast';
 import { confirm } from '../utils/confirm';
 import '../styles/site-requests.css';
 
+const SITE_REQUESTS_QUERY_KEY = ['siteRequests'] as const;
+const POLL_INTERVAL_MS = 10000;
+const EMPTY_REQUESTS: SiteRequestItem[] = [];
+
 export const SiteRequests: React.FC = () => {
-  const [siteRequests, setSiteRequests] = useState<SiteRequestItem[]>([]);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
-  
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+
   // Modals state
   const [selectedRequest, setSelectedRequest] = useState<SiteRequestItem | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -30,45 +37,47 @@ export const SiteRequests: React.FC = () => {
 
   const { setNewSiteRequestsCount } = useAppStore();
 
-  const fetchRequests = useCallback(async (silent = false) => {
-    try {
-      if (!silent) setLoading(true);
-      const data = await getSiteRequests(searchQuery);
-      setSiteRequests(data);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const baseKey = useTenantQueryKey(SITE_REQUESTS_QUERY_KEY);
+  // Опрос для синхронизации между устройствами; в фоновой вкладке приостанавливается, при возврате — сразу обновляется
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: [...baseKey, debouncedSearch],
+    queryFn: () => getSiteRequests(debouncedSearch),
+    placeholderData: keepPreviousData,
+    refetchInterval: POLL_INTERVAL_MS,
+    refetchOnWindowFocus: true,
+    staleTime: 0
+  });
+  const siteRequests = data ?? EMPTY_REQUESTS;
+  const loading = isLoading || manualRefreshing;
+
+  useEffect(() => {
+    // Бейдж меню — число всех необработанных заявок, а не отфильтрованных поиском
+    if (data && !debouncedSearch) {
       setNewSiteRequestsCount(data.length);
-    } catch (err: any) {
-      console.error('Failed to load site requests', err);
-      if (!silent) toast.error('Не удалось загрузить заявки с сайта');
-    } finally {
-      if (!silent) setLoading(false);
     }
-  }, [searchQuery, setNewSiteRequestsCount]);
+  }, [data, debouncedSearch, setNewSiteRequestsCount]);
 
   useEffect(() => {
-    fetchRequests(false);
-  }, [fetchRequests]);
+    if (isError && !data) {
+      toast.error('Не удалось загрузить заявки с сайта');
+    }
+  }, [isError, data]);
 
-  // Periodic polling & focus/visibility sync for multi-device real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchRequests(true);
-    }, 10000);
+  const fetchRequests = () => queryClient.invalidateQueries({ queryKey: SITE_REQUESTS_QUERY_KEY });
 
-    const handleVisibilityChange = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        fetchRequests(true);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleVisibilityChange);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleVisibilityChange);
-    };
-  }, [fetchRequests]);
+  const handleManualRefresh = async () => {
+    setManualRefreshing(true);
+    const result = await refetch();
+    setManualRefreshing(false);
+    if (result.isError) {
+      toast.error('Не удалось загрузить заявки с сайта');
+    }
+  };
 
   const handleDelete = async (id: number) => {
     const isConfirmed = await confirm({
@@ -142,7 +151,7 @@ export const SiteRequests: React.FC = () => {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => fetchRequests(false)}
+            onClick={handleManualRefresh}
             disabled={loading}
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             title="Обновить список"

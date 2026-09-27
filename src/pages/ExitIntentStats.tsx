@@ -1,4 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
 import {
   Eye,
   Calculator,
@@ -35,22 +37,95 @@ import '../styles/dashboard.css';
 
 type DateFilterType = 'today' | 'yesterday' | '7days' | '30days' | 'all' | 'custom';
 
+const EXIT_INTENT_QUERY_KEY = ['exitIntent'] as const;
+const PAGE_SIZE = 15;
+const EMPTY_SESSIONS: ExitIntentSessionItem[] = [];
+
+const computeDateRange = (filterType: DateFilterType, customFrom: string, customTo: string): { from?: string; to?: string } => {
+  const today = new Date();
+  const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+  if (filterType === 'today') {
+    const todayStr = formatDate(today);
+    return { from: todayStr, to: todayStr };
+  }
+  if (filterType === 'yesterday') {
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const yStr = formatDate(yesterday);
+    return { from: yStr, to: yStr };
+  }
+  if (filterType === '7days') {
+    const past = new Date(today);
+    past.setDate(today.getDate() - 6);
+    return { from: formatDate(past), to: formatDate(today) };
+  }
+  if (filterType === '30days') {
+    const past = new Date(today);
+    past.setDate(today.getDate() - 29);
+    return { from: formatDate(past), to: formatDate(today) };
+  }
+  if (filterType === 'custom') {
+    return {
+      from: customFrom || undefined,
+      to: customTo || undefined
+    };
+  }
+  return {};
+};
+
 export const ExitIntentStats: React.FC = () => {
+  const queryClient = useQueryClient();
   const [filterType, setFilterType] = useState<DateFilterType>('7days');
   const [customFrom, setCustomFrom] = useState<string>('');
   const [customTo, setCustomTo] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
-
-  const [summary, setSummary] = useState<ExitIntentSummary | null>(null);
-  const [sessions, setSessions] = useState<ExitIntentSessionItem[]>([]);
-  const [totalSessions, setTotalSessions] = useState<number>(0);
-  const [totalPages, setTotalPages] = useState<number>(1);
+  const [appliedSearch, setAppliedSearch] = useState<string>('');
   const [page, setPage] = useState<number>(0);
-  const pageSize = 15;
-
-  const [isLoadingSummary, setIsLoadingSummary] = useState<boolean>(false);
-  const [isLoadingSessions, setIsLoadingSessions] = useState<boolean>(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const baseKey = useTenantQueryKey(EXIT_INTENT_QUERY_KEY);
+  const dateFilter = { filterType, customFrom, customTo };
+  const search = appliedSearch.trim() || undefined;
+
+  // Аналитика пополняется постоянно: при открытии всегда сверяемся с сервером, показывая кеш до ответа
+  const summaryQuery = useQuery({
+    queryKey: [...baseKey, 'summary', dateFilter],
+    queryFn: () => getExitIntentSummary(computeDateRange(filterType, customFrom, customTo)),
+    staleTime: 0
+  });
+  const sessionsQuery = useQuery({
+    queryKey: [...baseKey, 'sessions', dateFilter, search, page],
+    queryFn: () => getExitIntentSessions({
+      ...computeDateRange(filterType, customFrom, customTo),
+      search,
+      page,
+      size: PAGE_SIZE
+    }),
+    placeholderData: keepPreviousData,
+    staleTime: 0
+  });
+  const summary: ExitIntentSummary | null = summaryQuery.data ?? null;
+  const sessions = sessionsQuery.data?.content ?? EMPTY_SESSIONS;
+  const totalSessions = sessionsQuery.data?.totalElements ?? 0;
+  const totalPages = sessionsQuery.data?.totalPages || 1;
+  const isLoadingSummary = summaryQuery.isFetching;
+  const isLoadingSessions = sessionsQuery.isFetching;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppliedSearch(searchQuery);
+      setPage(0);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const changeFilterType = (type: DateFilterType) => {
+    setFilterType(type);
+    setPage(0);
+  };
+
+  const refreshAll = () => queryClient.invalidateQueries({ queryKey: baseKey });
 
   // Modal for viewing detailed calc data
   const [selectedCalcData, setSelectedCalcData] = useState<{
@@ -58,82 +133,10 @@ export const ExitIntentStats: React.FC = () => {
     calc: ExitIntentCalcData;
   } | null>(null);
 
-  const getDateRange = useCallback((): { from?: string; to?: string } => {
-    const today = new Date();
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
-
-    if (filterType === 'today') {
-      const todayStr = formatDate(today);
-      return { from: todayStr, to: todayStr };
-    }
-    if (filterType === 'yesterday') {
-      const yesterday = new Date(today);
-      yesterday.setDate(today.getDate() - 1);
-      const yStr = formatDate(yesterday);
-      return { from: yStr, to: yStr };
-    }
-    if (filterType === '7days') {
-      const past = new Date(today);
-      past.setDate(today.getDate() - 6);
-      return { from: formatDate(past), to: formatDate(today) };
-    }
-    if (filterType === '30days') {
-      const past = new Date(today);
-      past.setDate(today.getDate() - 29);
-      return { from: formatDate(past), to: formatDate(today) };
-    }
-    if (filterType === 'custom') {
-      return {
-        from: customFrom || undefined,
-        to: customTo || undefined
-      };
-    }
-    return {}; // 'all'
-  }, [filterType, customFrom, customTo]);
-
-  const loadSummary = useCallback(async () => {
-    setIsLoadingSummary(true);
-    try {
-      const dateRange = getDateRange();
-      const data = await getExitIntentSummary(dateRange);
-      setSummary(data);
-    } catch (err) {
-      console.error('Failed to load exit-intent summary', err);
-    } finally {
-      setIsLoadingSummary(false);
-    }
-  }, [getDateRange]);
-
-  const loadSessions = useCallback(async (targetPage = page) => {
-    setIsLoadingSessions(true);
-    try {
-      const dateRange = getDateRange();
-      const data = await getExitIntentSessions({
-        ...dateRange,
-        search: searchQuery.trim() || undefined,
-        page: targetPage,
-        size: pageSize
-      });
-      setSessions(data.content || []);
-      setTotalSessions(data.totalElements || 0);
-      setTotalPages(data.totalPages || 1);
-    } catch (err) {
-      console.error('Failed to load exit-intent sessions', err);
-    } finally {
-      setIsLoadingSessions(false);
-    }
-  }, [getDateRange, searchQuery, page]);
-
-  useEffect(() => {
-    setPage(0);
-    loadSummary();
-    loadSessions(0);
-  }, [filterType, customFrom, customTo, loadSummary, loadSessions]);
-
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setAppliedSearch(searchQuery);
     setPage(0);
-    loadSessions(0);
   };
 
   const handleDeleteSession = async (id: number) => {
@@ -149,8 +152,7 @@ export const ExitIntentStats: React.FC = () => {
     setDeletingId(id);
     try {
       await deleteExitIntentSession(id);
-      // Reload sessions and summary
-      await Promise.all([loadSummary(), loadSessions(page)]);
+      await refreshAll();
       toast.success('Запись аналитики удалена');
     } catch (err) {
       console.error('Failed to delete session', err);
@@ -220,7 +222,7 @@ export const ExitIntentStats: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => { loadSummary(); loadSessions(page); }}
+          onClick={() => refreshAll()}
           className="btn btn-secondary"
           style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '10px' }}
           disabled={isLoadingSummary || isLoadingSessions}
@@ -251,7 +253,7 @@ export const ExitIntentStats: React.FC = () => {
             <button
               key={type}
               type="button"
-              onClick={() => setFilterType(type)}
+              onClick={() => changeFilterType(type)}
               style={{
                 padding: '6px 12px',
                 borderRadius: '8px',
@@ -271,7 +273,7 @@ export const ExitIntentStats: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => setFilterType('custom')}
+          onClick={() => changeFilterType('custom')}
           style={{
             padding: '6px 12px',
             borderRadius: '8px',
@@ -292,7 +294,7 @@ export const ExitIntentStats: React.FC = () => {
             <input
               type="date"
               value={customFrom}
-              onChange={e => setCustomFrom(e.target.value)}
+              onChange={e => { setCustomFrom(e.target.value); setPage(0); }}
               className="form-control"
               style={{ padding: '4px 8px', fontSize: '0.82rem', width: 'auto' }}
             />
@@ -300,7 +302,7 @@ export const ExitIntentStats: React.FC = () => {
             <input
               type="date"
               value={customTo}
-              onChange={e => setCustomTo(e.target.value)}
+              onChange={e => { setCustomTo(e.target.value); setPage(0); }}
               className="form-control"
               style={{ padding: '4px 8px', fontSize: '0.82rem', width: 'auto' }}
             />
@@ -774,7 +776,7 @@ export const ExitIntentStats: React.FC = () => {
             <div style={{ display: 'flex', gap: '6px' }}>
               <button
                 type="button"
-                onClick={() => { const p = Math.max(0, page - 1); setPage(p); loadSessions(p); }}
+                onClick={() => setPage(Math.max(0, page - 1))}
                 disabled={page === 0 || isLoadingSessions}
                 className="btn btn-secondary"
                 style={{ padding: '4px 10px', fontSize: '0.8rem', borderRadius: '8px' }}
@@ -783,7 +785,7 @@ export const ExitIntentStats: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => { const p = Math.min(totalPages - 1, page + 1); setPage(p); loadSessions(p); }}
+                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
                 disabled={page >= totalPages - 1 || isLoadingSessions}
                 className="btn btn-secondary"
                 style={{ padding: '4px 10px', fontSize: '0.8rem', borderRadius: '8px' }}

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { renderWithQuery } from '../test-utils/queryWrapper';
 import { AuditLogs } from './AuditLogs';
 import * as auditLogsApi from '../api/auditLogs';
 
@@ -59,7 +60,7 @@ describe('AuditLogs Page Component', () => {
   });
 
   it('renders page header and audit log entries', async () => {
-    render(<AuditLogs />);
+    renderWithQuery(<AuditLogs />);
 
     expect(screen.getByText('Журнал важных событий')).toBeInTheDocument();
 
@@ -72,7 +73,7 @@ describe('AuditLogs Page Component', () => {
   });
 
   it('filters by search input', async () => {
-    render(<AuditLogs />);
+    renderWithQuery(<AuditLogs />);
 
     await waitFor(() => {
       expect(screen.getAllByText('Создана заявка № 101 для клиента Тест').length).toBeGreaterThan(0);
@@ -91,7 +92,7 @@ describe('AuditLogs Page Component', () => {
   });
 
   it('filters by period pill buttons', async () => {
-    render(<AuditLogs />);
+    renderWithQuery(<AuditLogs />);
 
     await waitFor(() => {
       expect(screen.getAllByText('Создана заявка № 101 для клиента Тест').length).toBeGreaterThan(0);
@@ -109,6 +110,30 @@ describe('AuditLogs Page Component', () => {
     });
   });
 
+  it('keeps the latest filter results when an older request resolves later', async () => {
+    let resolveStale: (value: auditLogsApi.PageResponse<auditLogsApi.AuditLogItem>) => void = () => {};
+    const staleResponse = new Promise<auditLogsApi.PageResponse<auditLogsApi.AuditLogItem>>(resolve => {
+      resolveStale = resolve;
+    });
+    const freshData = {
+      ...mockAuditData,
+      content: [{ ...mockAuditData.content[0], id: 3, description: 'Свежий результат за сегодня' }],
+      totalElements: 1
+    };
+    (auditLogsApi.getAuditLogs as any)
+      .mockReturnValueOnce(staleResponse)
+      .mockResolvedValueOnce(freshData);
+
+    renderWithQuery(<AuditLogs />);
+    fireEvent.click(screen.getByText('Сегодня'));
+    expect(await screen.findAllByText('Свежий результат за сегодня')).not.toHaveLength(0);
+
+    resolveStale(mockAuditData);
+
+    await waitFor(() => expect(screen.queryAllByText('Создана заявка № 101 для клиента Тест')).toHaveLength(0));
+    expect(screen.getAllByText('Свежий результат за сегодня').length).toBeGreaterThan(0);
+  });
+
   it('renders empty state when no events exist', async () => {
     (auditLogsApi.getAuditLogs as any).mockResolvedValueOnce({
       content: [],
@@ -118,7 +143,7 @@ describe('AuditLogs Page Component', () => {
       number: 0,
     });
 
-    render(<AuditLogs />);
+    renderWithQuery(<AuditLogs />);
 
     await waitFor(() => {
       expect(screen.getByText('Событий не найдено')).toBeInTheDocument();
