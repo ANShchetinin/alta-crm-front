@@ -9,6 +9,7 @@ import { getEmployees, type Employee } from '../../../api/employees';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useAppStore } from '../../../store/useAppStore';
 import { useOrderDrawerStore } from '../../../store/useOrderDrawerStore';
+import { toast } from '../../../utils/toast';
 
 vi.mock('../../../api/kanban', async () => {
   const actual = await vi.importActual<typeof import('../../../api/kanban')>('../../../api/kanban');
@@ -237,14 +238,29 @@ describe('OrderDrawer', () => {
   });
 
   it('sets installedAt when saving into a status flagged as completed', async () => {
-    vi.mocked(kanbanApi.updateOrder).mockResolvedValue(baseOrder);
-    await renderOpenOrder();
+    const withAct = { ...baseOrder, attachments: [...(baseOrder.attachments ?? []), { id: 102, fileName: 'Акт.pdf', contentType: 'application/pdf', isAct: true }] };
+    vi.mocked(kanbanApi.updateOrder).mockResolvedValue(withAct);
+    await renderOpenOrder(withAct);
 
     fireEvent.change(screen.getByTitle('Статус заказа'), { target: { value: '3' } });
     fireEvent.click(await screen.findByRole('button', { name: /Сохранить/ }));
 
     await waitFor(() => expect(kanbanApi.updateOrder).toHaveBeenCalledTimes(1));
     expect(vi.mocked(kanbanApi.updateOrder).mock.calls[0][1].installedAt).toEqual(expect.any(String));
+  });
+
+  it('does not complete the order from the card without an act, like the board', async () => {
+    const warning = vi.spyOn(toast, 'warning');
+    await renderOpenOrder();
+
+    fireEvent.change(screen.getByTitle('Статус заказа'), { target: { value: '3' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Сохранить/ }));
+
+    await waitFor(() => expect(warning).toHaveBeenCalledWith(
+      'Для перевода заявки в «Сдан» прикрепите Акт выполненных работ во вкладке «Файлы».'
+    ));
+    expect(kanbanApi.updateOrder).not.toHaveBeenCalled();
+    expect(screen.getByText('Акт выполненных работ')).toBeInTheDocument();
   });
 
   it('does not treat a status as completed by its name when the flag says otherwise', async () => {
