@@ -1,6 +1,6 @@
 import { AlertTriangle, CheckCircle2, Phone } from 'lucide-react';
 import type { Order } from '../../../api/kanban';
-import { getOrderDebt, getOrderRemainder } from '../utils/financeCalculations';
+import { getOrderDebt, getOrderRemainder } from '../../../utils/orderPayments';
 
 interface ReceivablesTabProps {
   debtors: Order[];

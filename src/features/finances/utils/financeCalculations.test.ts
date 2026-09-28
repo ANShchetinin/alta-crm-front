@@ -8,8 +8,6 @@ import {
   filterFinanceOrders,
   filterTransactions,
   getDebtorOrders,
-  getOrderDebt,
-  getOrderRemainder,
   getPeriodRange,
   isCompletedStatus,
   isDateInRange,
@@ -63,18 +61,6 @@ describe('isDateInRange', () => {
 });
 
 describe('order helpers', () => {
-  it('derives the remainder from the total when it is not set', () => {
-    expect(getOrderRemainder(order(1, { totalPrice: 100, prepayment: 30 }))).toBe(70);
-    expect(getOrderRemainder(order(1, { totalPrice: 100, prepayment: 30, remainder: 50 }))).toBe(50);
-    expect(getOrderRemainder(order(1, { totalPrice: 10, prepayment: 30 }))).toBe(0);
-  });
-
-  it('sums only unpaid parts into the debt', () => {
-    expect(getOrderDebt(order(1, { totalPrice: 100, prepayment: 30 }))).toBe(100);
-    expect(getOrderDebt(order(1, { totalPrice: 100, prepayment: 30, prepaymentPaid: true }))).toBe(70);
-    expect(getOrderDebt(order(1, { totalPrice: 100, prepayment: 30, prepaymentPaid: true, remainderPaid: true }))).toBe(0);
-  });
-
   it('recognizes completed statuses by name', () => {
     expect(isCompletedStatus(status(1, 'Монтаж завершен'))).toBe(true);
     expect(isCompletedStatus(status(2, 'Готово'))).toBe(true);

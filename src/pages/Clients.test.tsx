@@ -165,4 +165,52 @@ describe('Clients page', () => {
     fireEvent.click(screen.getByText('Перейти'));
     expect(navigate).toHaveBeenCalledWith('/kanban?orderId=10');
   });
+
+  it('does not show a late answer for the previous client after switching', async () => {
+    let resolveFirst: (orders: kanbanApi.Order[]) => void = () => {};
+    vi.mocked(kanbanApi.getOrdersByClient).mockImplementation(clientId => (clientId === 1
+      ? new Promise(resolve => { resolveFirst = resolve; })
+      : Promise.resolve([{ id: 20, orderNumber: 'Б-20', statusId: 1, totalPrice: 1000 } as kanbanApi.Order])));
+    renderWithQuery(<Clients />);
+
+    await screen.findByText('Все (2)');
+    fireEvent.click(within(table()).getAllByTitle('История заявок')[0]);
+    fireEvent.click(within(table()).getAllByTitle('История заявок')[1]);
+    expect((await screen.findAllByText('№ Б-20')).length).toBeGreaterThan(0);
+
+    resolveFirst([{ id: 10, orderNumber: 'А-10', statusId: 1, totalPrice: 50000 } as kanbanApi.Order]);
+
+    await waitFor(() => expect(screen.getByText('История заявок: ООО Альфа')).toBeInTheDocument());
+    expect(screen.queryByText('№ А-10')).not.toBeInTheDocument();
+  });
+
+  it('reports a failed history load instead of an empty history', async () => {
+    vi.mocked(kanbanApi.getOrdersByClient).mockRejectedValue(new Error('500'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    renderWithQuery(<Clients />);
+
+    await screen.findByText('Все (2)');
+    fireEvent.click(within(table()).getAllByTitle('История заявок')[0]);
+
+    expect(await screen.findByText(/Не удалось загрузить историю заявок/)).toBeInTheDocument();
+    expect(screen.queryByText('У клиента нет заявок.')).not.toBeInTheDocument();
+  });
+
+  it('reports a failed status change and derives the remainder from the total', async () => {
+    vi.mocked(kanbanApi.getOrdersByClient).mockResolvedValue([
+      { id: 10, orderNumber: 'А-10', statusId: 1, totalPrice: 50000, prepayment: 20000, createdAt: '2026-09-03T10:00:00' } as kanbanApi.Order
+    ]);
+    vi.mocked(kanbanApi.moveOrder).mockRejectedValue(new Error('Статус недоступен'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    renderWithQuery(<Clients />);
+
+    await screen.findByText('Все (2)');
+    fireEvent.click(within(table()).getAllByTitle('История заявок')[0]);
+
+    expect((await screen.findAllByText(/Ост:\s30\s000\s₽/)).length).toBeGreaterThan(0);
+    fireEvent.change(screen.getAllByDisplayValue('Новая')[0], { target: { value: '2' } });
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Статус недоступен'));
+    expect(screen.getAllByDisplayValue('Новая').length).toBeGreaterThan(0);
+  });
 });

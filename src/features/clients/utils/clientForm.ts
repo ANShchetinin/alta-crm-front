@@ -168,22 +168,20 @@ export const addContact = (contacts: ClientContact[]): ClientContact[] => [
   { name: '', position: '', phone: '', email: '', isPrimary: contacts.length === 0 }
 ];
 
-/** Изменение поля представителя; отметка «основной» снимается с остальных. */
+/**
+ * Изменение поля представителя; отметка «основной» снимается с остальных. Возвращает новые объекты:
+ * исходные принадлежат кешу списка клиентов, и их изменение было бы видно до сохранения.
+ */
 export const updateContact = <K extends keyof ClientContact>(
   contacts: ClientContact[],
   index: number,
   field: K,
   value: ClientContact[K]
 ): ClientContact[] => {
-  const updated = [...contacts];
   if (field === 'isPrimary' && value === true) {
-    updated.forEach((c, i) => {
-      c.isPrimary = i === index;
-    });
-  } else {
-    updated[index] = { ...updated[index], [field]: value };
+    return contacts.map((c, i) => ({ ...c, isPrimary: i === index }));
   }
-  return updated;
+  return contacts.map((c, i) => (i === index ? { ...c, [field]: value } : c));
 };
 
 export const removeContact = (contacts: ClientContact[], index: number): ClientContact[] =>

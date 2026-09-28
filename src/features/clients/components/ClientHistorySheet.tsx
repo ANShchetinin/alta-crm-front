@@ -2,6 +2,7 @@ import { ArrowRight, MapPin } from 'lucide-react';
 import type { Order, OrderStatus } from '../../../api/kanban';
 import { Sheet } from '../../../components/ui/Sheet';
 import { formatDateInTimezone } from '../../../utils/dateUtils';
+import { getOrderRemainder } from '../../../utils/orderPayments';
 import type { ClientHistory } from '../hooks/useClientHistory';
 
 interface ClientHistorySheetProps {
@@ -46,12 +47,12 @@ const StatusSelect = ({ order, statuses, onChange, compact }: {
   </div>
 );
 
-const remainderOf = (order: Order) => ((order.remainder != null ? order.remainder : order.totalPrice) || 0).toLocaleString('ru-RU');
+const remainderOf = (order: Order) => getOrderRemainder(order).toLocaleString('ru-RU');
 const hasPaymentSplit = (order: Order) => order.prepayment != null || order.remainder != null;
 
 /** Боковая панель истории заявок клиента: таблица (десктоп) и карточки (телефон). */
 export const ClientHistorySheet = ({ history, statuses, timezone, onOpenOrder }: ClientHistorySheetProps) => {
-  const { client, orders, loading, changeStatus } = history;
+  const { client, orders, loading, loadFailed, changeStatus } = history;
   const formatDate = (order: Order) => (order.createdAt ? formatDateInTimezone(order.createdAt, timezone) : '-');
   const openOrder = (orderId: number) => {
     history.close();
@@ -69,6 +70,8 @@ export const ClientHistorySheet = ({ history, statuses, timezone, onOpenOrder }:
       <div>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>Загрузка истории...</div>
+        ) : loadFailed ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--danger)' }}>Не удалось загрузить историю заявок. Попробуйте открыть ее еще раз.</div>
         ) : (
           <>
             <div className="clients-table-container glass-panel desktop-table-view" style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>

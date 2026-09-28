@@ -67,6 +67,15 @@ describe('clientForm', () => {
     expect(removeContact(two, 0)).toHaveLength(1);
   });
 
+  it('does not modify the original contacts, which belong to the cached client list', () => {
+    const original = [{ name: 'Петров', isPrimary: true }, { name: 'Сидоров', isPrimary: false }];
+
+    const updated = updateContact(original, 1, 'isPrimary', true);
+
+    expect(updated.map(c => c.isPrimary)).toEqual([false, true]);
+    expect(original.map(c => c.isPrimary)).toEqual([true, false]);
+  });
+
   it('toggles company access but never leaves the client without a company', () => {
     expect(toggleTenant([1, 2], 2)).toEqual([1]);
     expect(toggleTenant([1], 3)).toEqual([1, 3]);
