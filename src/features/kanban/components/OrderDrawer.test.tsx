@@ -39,7 +39,7 @@ vi.mock('../../../api/settings', () => ({
 }));
 vi.mock('../../../api/aiUsage', () => ({ getOrderAiUsage: vi.fn().mockResolvedValue(null) }));
 vi.mock('../../../components/OrderRemindersSection', () => ({ OrderRemindersSection: () => null }));
-vi.mock('../../../components/MeasurementWizard', () => ({
+vi.mock('../../measurements/components/MeasurementWizard', () => ({
   MeasurementWizard: () => <div data-testid="measurement-wizard" />
 }));
 

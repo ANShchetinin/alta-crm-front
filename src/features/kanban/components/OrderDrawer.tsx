@@ -16,7 +16,7 @@ import { useAppStore } from '../../../store/useAppStore';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useOrderDrawerStore } from '../../../store/useOrderDrawerStore';
 import { useFeature } from '../../../hooks/useFeatureToggle';
-import { MeasurementWizard } from '../../../components/MeasurementWizard';
+import { MeasurementWizard } from '../../measurements/components/MeasurementWizard';
 import { PassportScannerModal, type PassportApplyResult } from '../../../components/PassportScannerModal';
 import { isCompletedStatus } from '../../../utils/orderStatus';
 import { toast } from '../../../utils/toast';
