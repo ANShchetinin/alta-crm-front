@@ -206,6 +206,14 @@ export const OrderDrawer: React.FC = () => {
       toast.warning('Заказ ещё загружается, попробуйте через секунду');
       return;
     }
+    // Как и перенос на доске: в завершающий этап — только с актом (уже завершенные заказы не проверяются)
+    const wasCompleted = isCompletedStatus(columns.find(c => c.id === currentOrder?.statusId));
+    if (editingOrderId && isCompleted && !wasCompleted && !hasAct) {
+      const statusName = columns.find(c => c.id.toString() === formData.statusId)?.name;
+      toast.warning(`Для перевода заявки в «${statusName}» прикрепите Акт выполненных работ во вкладке «Файлы».`);
+      setActiveTab('FILES');
+      return;
+    }
     try {
       const payload = buildOrderPayload(formData, contract.contractParams, isCompleted);
       const savedOrder = editingOrderId ? await updateOrder(editingOrderId, payload) : await createOrder(payload);

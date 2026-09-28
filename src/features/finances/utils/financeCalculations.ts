@@ -85,17 +85,6 @@ export const toLocalDateString = (date: Date): string => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 
-/** Завершающий статус: отмечен флагом в настройках или назван как завершающий (правило совпадает с бэкендом). */
-export const isCompletedStatus = (status: OrderStatus | undefined): boolean => {
-  if (!status) {
-    return false;
-  }
-  if (status.isCompleted) {
-    return true;
-  }
-  const name = (status.name || '').toLowerCase();
-  return name.includes('заверш') || name.includes('готов') || name.includes('выполнен') || name.includes('complete');
-};
 
 /** Заказы в статусах, которые учитываются в финансах (заказы без статуса учитываются). */
 export const filterFinanceOrders = (orders: Order[], statuses: OrderStatus[]): Order[] => {

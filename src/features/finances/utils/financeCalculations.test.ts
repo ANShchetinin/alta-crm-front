@@ -9,7 +9,6 @@ import {
   filterTransactions,
   getDebtorOrders,
   getPeriodRange,
-  isCompletedStatus,
   isDateInRange,
   summarizeInstallers,
   toLocalDateString,
@@ -61,17 +60,6 @@ describe('isDateInRange', () => {
 });
 
 describe('order helpers', () => {
-  it('recognizes completed statuses by name', () => {
-    expect(isCompletedStatus(status(1, 'Монтаж завершен'))).toBe(true);
-    expect(isCompletedStatus(status(2, 'Готово'))).toBe(true);
-    expect(isCompletedStatus(status(3, 'Новая заявка'))).toBe(false);
-    expect(isCompletedStatus(undefined)).toBe(false);
-  });
-
-  it('treats a status flagged as completed in settings as completed whatever its name', () => {
-    expect(isCompletedStatus(status(4, 'Сделка закрыта', { isCompleted: true }))).toBe(true);
-  });
-
   it('formats a date by local calendar day, not by UTC', () => {
     expect(toLocalDateString(new Date(2026, 8, 1, 0, 30))).toBe('2026-09-01');
     expect(toLocalDateString(new Date(2026, 11, 31, 23, 59))).toBe('2026-12-31');

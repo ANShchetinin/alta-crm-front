@@ -44,7 +44,7 @@ vi.mock('react-router-dom', async (importOriginal) => ({
 
 const statuses: kanbanApi.OrderStatus[] = [
   { id: 1, name: 'Новая заявка', color: '#3b82f6', sortOrder: 1, includeInFinances: true },
-  { id: 2, name: 'Монтаж завершен', color: '#22c55e', sortOrder: 2, includeInFinances: true },
+  { id: 2, name: 'Монтаж завершен', color: '#22c55e', sortOrder: 2, includeInFinances: true, isCompleted: true },
   { id: 3, name: 'Спам', color: '#ef4444', sortOrder: 3, includeInFinances: false }
 ];
 
