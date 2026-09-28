@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { MeasurementWizard } from './MeasurementWizard';
-import { renderWithQuery } from '../test-utils/queryWrapper';
-import { getMaterials } from '../api/storage';
+import { renderWithQuery } from '../../../test-utils/queryWrapper';
+import { getMaterials } from '../../../api/storage';
+import { saveOrderMeasurement } from '../../../api/measurements';
 
-vi.mock('../api/storage', () => ({
+vi.mock('../../../api/storage', () => ({
   getMaterials: vi.fn().mockResolvedValue([])
 }));
 
-vi.mock('../api/estimationServices', () => ({
+vi.mock('../../../api/estimationServices', () => ({
   getActiveEstimationServices: vi.fn().mockResolvedValue([
     {
       id: 1,
@@ -31,7 +32,7 @@ vi.mock('../api/estimationServices', () => ({
   ])
 }));
 
-vi.mock('../api/measurements', () => ({
+vi.mock('../../../api/measurements', () => ({
   getMeasurementByOrderId: vi.fn().mockResolvedValue({
     orderId: 1,
     rooms: [
@@ -142,5 +143,53 @@ describe('MeasurementWizard Component', () => {
 
     await waitFor(() => expect(screen.getByText('+ Спальня')).toBeInTheDocument());
     expect(getMaterials).not.toHaveBeenCalled();
+  });
+
+  it('adds a service to the estimate and recalculates it when the area changes', async () => {
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewFinances />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Монтаж натяжного потолка/i }));
+    // 20 м² × отход 1.05 = 21 м² по 500 ₽
+    expect(screen.getAllByText(/10\s500\s₽/).length).toBeGreaterThan(0);
+
+    fireEvent.change(screen.getByDisplayValue('20'), { target: { value: '30' } });
+    // 30 × 1.05 = 31.5 м²
+    expect(screen.getAllByText(/15\s750\s₽/).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /Монтаж натяжного потолка/i }));
+    expect(screen.getAllByText(/Нет позиций в смете/).length).toBeGreaterThan(0);
+  });
+
+  it('saves rooms and items to the order and reports the totals', async () => {
+    const onSaved = vi.fn();
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewFinances onSaved={onSaved} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Монтаж натяжного потолка/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Особые указания/), { target: { value: 'Скрытая проводка' } });
+    fireEvent.click(screen.getByText('Сохранить смету в заказ'));
+
+    await waitFor(() => expect(saveOrderMeasurement).toHaveBeenCalledWith(1, expect.objectContaining({
+      orderId: 1,
+      notes: 'Скрытая проводка',
+      totalPrice: 10500,
+      totalCostPrice: 4200
+    })));
+    const dto = vi.mocked(saveOrderMeasurement).mock.calls[0][1];
+    expect(dto.rooms).toHaveLength(1);
+    expect(dto.items).toHaveLength(1);
+    expect(onSaved).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ totalSalePrice: 10500, expectedProfit: 6300, totalArea: 20 }));
+  });
+
+  it('removes a room together with its estimate items', async () => {
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewFinances />);
+
+    fireEvent.click(await screen.findByText('+ Спальня'));
+    fireEvent.click(screen.getAllByText('+ Своя позиция')[0]);
+    expect(screen.getAllByDisplayValue('Дополнительная позиция / работа').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByText('Удалить комнату'));
+
+    expect(screen.queryByDisplayValue('Спальня')).not.toBeInTheDocument();
+    expect(screen.queryAllByDisplayValue('Дополнительная позиция / работа')).toHaveLength(0);
   });
 });
