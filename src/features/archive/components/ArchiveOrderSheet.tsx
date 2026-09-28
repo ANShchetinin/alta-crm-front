@@ -4,6 +4,8 @@ import type { OrderAttachment, OrderStatus } from '../../../api/kanban';
 import { Sheet } from '../../../components/ui/Sheet';
 import { formatDateInTimezone, formatDateTimeInTimezone } from '../../../utils/dateUtils';
 import { get2GisUrl, getYandexMapsUrl } from '../../../utils/navigation';
+import { getOrderRemainder } from '../../../utils/orderPayments';
+import { firstActiveStatus } from '../utils/archiveOrders';
 import type { ArchiveOrderDetail } from '../hooks/useArchiveOrderDetail';
 import { MessengerButtons } from './ArchiveBadges';
 import { OrderEstimateSection } from './OrderEstimateSection';
@@ -49,7 +51,7 @@ export const ArchiveOrderSheet = ({
   onDownloadAttachment
 }: ArchiveOrderSheetProps) => {
   const order = detail.order;
-  const firstActiveStatus = statuses.find(s => !s.isCompleted) || statuses[0];
+  const returnStatus = firstActiveStatus(statuses);
 
   return (
     <Sheet
@@ -148,7 +150,7 @@ export const ArchiveOrderSheet = ({
             }}>
               <Money label="Сумма сделки" value={rub(order.totalPrice, '—')} strong color="#22c55e" />
               <Money label="Предоплата" value={rub(order.prepayment)} />
-              <Money label="Остаток" value={rub(order.remainder)} />
+              <Money label="Остаток" value={rub(getOrderRemainder(order))} />
               {order.installationPrice != null && order.installationPrice > 0 && (
                 <Money label="Монтаж" value={rub(order.installationPrice)} color="var(--accent-primary)" />
               )}
@@ -196,12 +198,12 @@ export const ArchiveOrderSheet = ({
             <div style={{ marginTop: '6px', borderTop: '1px solid var(--glass-border)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Управление архивной заявкой:</div>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                {firstActiveStatus && (
+                {returnStatus && (
                   <button
                     type="button"
                     className="btn btn-ghost"
                     disabled={detail.actionLoading}
-                    onClick={() => detail.returnToKanban(firstActiveStatus.id)}
+                    onClick={() => detail.returnToKanban(returnStatus.id)}
                     style={{
                       flex: 1,
                       color: 'var(--accent-primary)',

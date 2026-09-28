@@ -2,6 +2,8 @@ import type { Order, OrderStatus } from '../../../api/kanban';
 import type { Client } from '../../../api/clients';
 import type { Employee } from '../../../api/employees';
 import { formatDateTimeInTimezone } from '../../../utils/dateUtils';
+import { getOrderRemainder } from '../../../utils/orderPayments';
+import { isCompletedStatus } from '../../../utils/orderStatus';
 
 export type SortField = 'installedAt' | 'createdAt' | 'orderNumber' | 'totalPrice' | 'clientName';
 export type SortDirection = 'asc' | 'desc';
@@ -123,6 +125,21 @@ export const clientViewOf = (order: Order, clients: Client[]) => {
 
 export const installerNameOf = (order: Order) => order.installedByName || order.assigneeName || '—';
 
+const PLAIN_NUMBER = /^[+-]?[\d\s().-]+$/;
+
+/**
+ * Ячейка CSV: текст в кавычках с удвоением кавычек (разделитель «;» и переносы внутри не ломают строку).
+ * Значение, которое Excel выполнит как формулу (=, +, -, @, табуляция), экранируется апострофом;
+ * телефоны и числа вида «+7 999 …» не трогаются.
+ */
+export const csvCell = (value: string | number): string => {
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  const isFormula = /^[=@\t\r]/.test(value) || (/^[+-]/.test(value) && !PLAIN_NUMBER.test(value));
+  return `"${(isFormula ? `'${value}` : value).replace(/"/g, '""')}"`;
+};
+
 /** CSV архива для Excel: BOM, разделитель «;», строки через CRLF. */
 export const buildArchiveCsv = (orders: Order[], statuses: OrderStatus[], timezone?: string): string => {
   const headers = ['№', 'Номер заявки', 'Дата завершения', 'Клиент', 'Телефон', 'Адрес', 'Сумма (₽)', 'Предоплата (₽)', 'Остаток (₽)', 'Исполнитель', 'Статус'];
@@ -132,12 +149,16 @@ export const buildArchiveCsv = (orders: Order[], statuses: OrderStatus[], timezo
     o.installedAt ? formatDateTimeInTimezone(o.installedAt, timezone) : '',
     o.clientName || '',
     o.clientPhone || '',
-    `"${(o.address || '').replace(/"/g, '""')}"`,
+    o.address || '',
     o.totalPrice || 0,
     o.prepayment || 0,
-    o.remainder || 0,
+    getOrderRemainder(o),
     o.installedByName || o.assigneeName || '',
     statuses.find(s => s.id === o.statusId)?.name || ''
-  ]);
-  return '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
+  ].map(csvCell));
+  return '\uFEFF' + [headers.map(csvCell).join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
 };
+
+/** Статус для возврата заявки в работу: первый по порядку на доске, который не является завершающим. */
+export const firstActiveStatus = (statuses: OrderStatus[]): OrderStatus | undefined =>
+  [...statuses].sort((a, b) => a.sortOrder - b.sortOrder).find(s => !isCompletedStatus(s));

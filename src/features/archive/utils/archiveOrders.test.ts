@@ -1,13 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import type { Order } from '../../../api/kanban';
+import type { Order, OrderStatus } from '../../../api/kanban';
 import type { Client } from '../../../api/clients';
 import type { Employee } from '../../../api/employees';
 import {
   EMPTY_FILTERS,
   activeFiltersCount,
   availableYears,
+  buildArchiveCsv,
   clientViewOf,
+  csvCell,
   filterArchiveOrders,
+  firstActiveStatus,
   installerNameOf,
   sortArchiveOrders
 } from './archiveOrders';
@@ -66,5 +69,40 @@ describe('archiveOrders', () => {
     expect(clientViewOf(orders[2], clients)).toMatchObject({ name: 'ООО Альфа', phone: '+74950000000', isLegal: true });
     expect(clientViewOf(order(9, { clientId: 99 }), clients).name).toBe('Клиент #99');
     expect(installerNameOf(orders[1])).toBe('—');
+  });
+});
+
+describe('archive CSV and return to work', () => {
+  it('quotes text cells and neutralizes spreadsheet formulas, but keeps phones and numbers', () => {
+    expect(csvCell('ООО "Альфа"; филиал')).toBe('"ООО ""Альфа""; филиал"');
+    expect(csvCell('=HYPERLINK("http://evil")')).toBe('"\'=HYPERLINK(""http://evil"")"');
+    expect(csvCell('@SUM(A1)')).toBe('"\'@SUM(A1)"');
+    expect(csvCell('-2+3+cmd|x')).toBe('"\'-2+3+cmd|x"');
+    expect(csvCell('+7 (999) 000-11-22')).toBe('"+7 (999) 000-11-22"');
+    expect(csvCell(1500)).toBe('1500');
+  });
+
+  it('keeps columns aligned when values contain the separator and derives the remainder', () => {
+    const csv = buildArchiveCsv(
+      [order(5, { clientName: 'Петров; Иван', address: 'ул. Мира, 1', totalPrice: 100000, prepayment: 30000 })],
+      [],
+      'Europe/Moscow'
+    );
+    const [header, row] = csv.replace('\uFEFF', '').split('\r\n');
+
+    expect(header.split(';')).toHaveLength(11);
+    expect(row).toContain('"Петров; Иван"');
+    expect(row).toContain(';100000;30000;70000;');
+  });
+
+  it('returns an order to the first non-completed status of the board', () => {
+    const statuses = [
+      { id: 3, name: 'Готово', sortOrder: 3, isCompleted: true },
+      { id: 2, name: 'Монтаж', sortOrder: 2, isCompleted: false },
+      { id: 1, name: 'Завершен', sortOrder: 1, isCompleted: true }
+    ] as OrderStatus[];
+
+    expect(firstActiveStatus(statuses)?.id).toBe(2);
+    expect(firstActiveStatus([statuses[0]])).toBeUndefined();
   });
 });
