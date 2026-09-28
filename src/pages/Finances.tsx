@@ -4,6 +4,7 @@ import { RefreshCw } from 'lucide-react';
 import type { Order } from '../api/kanban';
 import { useAppStore } from '../store/useAppStore';
 import { useFinanceData, useAiUsageSummary } from '../features/finances/hooks/useFinanceData';
+import { isCompletedStatus } from '../utils/orderStatus';
 import { usePaymentToggles } from '../features/finances/hooks/usePaymentToggles';
 import { useExpenseEditor } from '../features/finances/hooks/useExpenseEditor';
 import { useFinanceStatusSettings } from '../features/finances/hooks/useFinanceStatusSettings';
@@ -14,7 +15,6 @@ import {
   filterTransactions,
   getDebtorOrders,
   getPeriodRange,
-  isCompletedStatus,
   summarizeInstallers,
   type PaymentStatusFilter,
   type PeriodFilter
