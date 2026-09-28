@@ -22,6 +22,7 @@ import {
   nextRoomName,
   normalizeLoadedItems,
   recalcRoomItems,
+  renameRoomItems,
   serviceItemsForRoom,
   switchItemMaterial,
   warehouseItem,
@@ -32,10 +33,8 @@ import {
 interface UseMeasurementEstimateOptions {
   orderId?: number;
   initialContractParams?: InitialContractParams;
-  /** Материалы для пакетов работ и замены материала позиции. */
-  serviceMaterials: Material[];
-  /** Номенклатура склада для добавления позиций. */
-  warehouseMaterials: Material[];
+  /** Номенклатура склада: материалы пакетов работ, замена материала позиции и добавление со склада. */
+  materials: Material[];
   onSaved?: (savedMeasurement: MeasurementDto, calculated: MeasurementCalculateResponse) => void;
 }
 
@@ -46,8 +45,7 @@ interface UseMeasurementEstimateOptions {
 export const useMeasurementEstimate = ({
   orderId,
   initialContractParams,
-  serviceMaterials,
-  warehouseMaterials,
+  materials,
   onSaved
 }: UseMeasurementEstimateOptions) => {
   const initialParamsRef = useRef(initialContractParams);
@@ -61,15 +59,20 @@ export const useMeasurementEstimate = ({
   const [services, setServices] = useState<EstimationService[]>([]);
   const [items, setItems] = useState<MeasurementCalculationItemDto[]>([]);
   const [isManualEditMode, setIsManualEditMode] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
-  // Загрузка пакетов работ и сохраненной сметы (только при смене заказа)
+  // Загрузка пакетов работ и сохраненной сметы (при смене заказа и по кнопке «Повторить»)
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
+    setLoadFailed(false);
 
+    // Без пакетов работ мастер работает (смета вручную), а без сохраненного замера — нет: его нельзя перезаписать
+    // пустой сметой. Бэкенд отвечает пустым замером, если его еще нет, поэтому ошибка здесь — сбой загрузки.
     Promise.all([
       getActiveEstimationServices().catch(() => [] as EstimationService[]),
-      orderId ? getMeasurementByOrderId(orderId).catch(() => null) : Promise.resolve(null)
+      orderId ? getMeasurementByOrderId(orderId) : Promise.resolve(null)
     ]).then(([loadedServices, dto]) => {
       if (!isMounted) {
         return;
@@ -81,9 +84,9 @@ export const useMeasurementEstimate = ({
       setItems(normalizeLoadedItems(dto?.items));
       setLoading(false);
     }).catch(err => {
-      console.error('Ошибка инициализации замера:', err);
+      console.error('Ошибка загрузки замера:', err);
       if (isMounted) {
-        setRooms([createDefaultRoom(DEFAULT_ROOM_NAME, initialParamsRef.current)]);
+        setLoadFailed(true);
         setLoading(false);
       }
     });
@@ -91,7 +94,9 @@ export const useMeasurementEstimate = ({
     return () => {
       isMounted = false;
     };
-  }, [orderId]);
+  }, [orderId, loadAttempt]);
+
+  const retryLoad = () => setLoadAttempt(attempt => attempt + 1);
 
   const currentRoom: MeasurementRoomDto | undefined = rooms[activeRoomIdx] || rooms[0];
 
@@ -108,16 +113,22 @@ export const useMeasurementEstimate = ({
     if (isServiceActive(service)) {
       setItems(prev => withoutServiceInRoom(prev, service, roomName));
     } else {
-      const added = serviceItemsForRoom(service, currentRoom, roomName, serviceMaterials);
+      const added = serviceItemsForRoom(service, currentRoom, roomName, materials);
       setItems(prev => [...prev, ...added]);
     }
   };
 
-  /** Изменение помещения; при смене площади или периметра пересчитываются зависящие от них позиции. */
+  /**
+   * Изменение помещения. Позиции сметы привязаны к помещению по названию, поэтому при переименовании
+   * они переходят на новое название; при смене площади или периметра пересчитываются зависящие от них позиции.
+   */
   const updateRoom = (idx: number, patch: Partial<MeasurementRoomDto>) => {
     const oldRoom = rooms[idx];
     const updated = { ...oldRoom, ...patch };
     setRooms(prev => prev.map((room, i) => (i === idx ? { ...room, ...patch } : room)));
+    if (patch.roomName !== undefined && patch.roomName !== oldRoom.roomName) {
+      setItems(prev => renameRoomItems(prev, oldRoom.roomName, updated.roomName));
+    }
     const geometryChanged = (patch.area !== undefined && patch.area !== oldRoom.area)
       || (patch.perimeter !== undefined && patch.perimeter !== oldRoom.perimeter);
     if (geometryChanged) {
@@ -155,7 +166,7 @@ export const useMeasurementEstimate = ({
 
   const switchItemMaterialTo = (index: number, materialId: number) => {
     setIsManualEditMode(true);
-    const material = serviceMaterials.find(m => m.id === materialId);
+    const material = materials.find(m => m.id === materialId);
     if (!material) {
       return;
     }
@@ -173,7 +184,7 @@ export const useMeasurementEstimate = ({
 
   /** Добавляет позицию со склада; возвращает false, если материал не найден. */
   const addWarehouseItem = (materialId: number): boolean => {
-    const material = warehouseMaterials.find(m => m.id === materialId);
+    const material = materials.find(m => m.id === materialId);
     if (!material) {
       return false;
     }
@@ -186,7 +197,7 @@ export const useMeasurementEstimate = ({
   const totals = estimateTotals(items, rooms);
 
   const save = async () => {
-    if (!orderId) {
+    if (!orderId || loadFailed) {
       return;
     }
     setSaving(true);
@@ -211,6 +222,8 @@ export const useMeasurementEstimate = ({
 
   return {
     loading,
+    loadFailed,
+    retryLoad,
     saving,
     rooms,
     currentRoom,

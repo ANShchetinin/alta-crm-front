@@ -132,23 +132,29 @@ export const findLinkedSlot = (services: EstimationService[], item: MeasurementC
   return undefined;
 };
 
-const slotIdsOf = (service: EstimationService) => (service.slots || []).map(s => s.id);
+/**
+ * Позиция пакета работ в помещении: слот пакета и это помещение. Позиции без помещения (из старых замеров)
+ * относятся к любому помещению — и при проверке, и при исключении пакета, иначе пакет нельзя было бы выключить.
+ */
+const isServiceItemInRoom = (item: MeasurementCalculationItemDto, service: EstimationService, roomName: string) =>
+  (item.roomName === roomName || !item.roomName)
+  && item.slotId != null
+  && (service.slots || []).some(s => s.id === item.slotId);
 
-/** Пакет работ включен в помещении, если в смете есть позиции его слотов для этого помещения (или без помещения). */
-export const isServiceActiveInRoom = (items: MeasurementCalculationItemDto[], service: EstimationService, roomName: string): boolean => {
-  const slotIds = slotIdsOf(service);
-  return items.some(it => (it.roomName === roomName || !it.roomName) && it.slotId != null && slotIds.includes(it.slotId));
-};
+/** Пакет работ включен в помещении, если в смете есть его позиции для этого помещения. */
+export const isServiceActiveInRoom = (items: MeasurementCalculationItemDto[], service: EstimationService, roomName: string): boolean =>
+  items.some(it => isServiceItemInRoom(it, service, roomName));
 
 /** Позиции сметы без позиций пакета в помещении. */
 export const withoutServiceInRoom = (
   items: MeasurementCalculationItemDto[],
   service: EstimationService,
   roomName: string
-): MeasurementCalculationItemDto[] => {
-  const slotIds = slotIdsOf(service);
-  return items.filter(it => !(it.roomName === roomName && it.slotId != null && slotIds.includes(it.slotId)));
-};
+): MeasurementCalculationItemDto[] => items.filter(it => !isServiceItemInRoom(it, service, roomName));
+
+/** Переносит позиции переименованного помещения на новое название. */
+export const renameRoomItems = (items: MeasurementCalculationItemDto[], oldName: string, newName: string): MeasurementCalculationItemDto[] =>
+  items.map(it => (it.roomName === oldName ? { ...it, roomName: newName } : it));
 
 /** Количество по базе расчета слота: площадь или периметр помещения с учетом отхода, иначе 1. */
 const slotQuantity = (slot: EstimationServiceSlot, room: MeasurementRoomDto): number => {

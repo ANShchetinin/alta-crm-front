@@ -14,6 +14,7 @@ import {
   normalizeLoadedItems,
   parseQuantityInput,
   recalcRoomItems,
+  renameRoomItems,
   serviceItemsForRoom,
   switchItemMaterial,
   unitChange,
@@ -112,6 +113,19 @@ describe('measurementEstimate', () => {
     expect(isServiceActiveInRoom(items, service, 'Кухня')).toBe(true);
     expect(isServiceActiveInRoom(items, service, 'Ванная')).toBe(false);
     expect(withoutServiceInRoom(items, service, 'Кухня').map(i => i.roomName)).toEqual(['Спальня', 'Кухня']);
+  });
+
+  it('turns off a service whose items have no room (older measurements)', () => {
+    const items = [item({ slotId: 10 }), item({ slotId: 11, roomName: 'Спальня' })];
+
+    expect(isServiceActiveInRoom(items, service, 'Кухня')).toBe(true);
+    expect(withoutServiceInRoom(items, service, 'Кухня').map(i => i.slotId)).toEqual([11]);
+  });
+
+  it('moves the items of a renamed room to the new name', () => {
+    const items = [item({ roomName: 'Кухня' }), item({ roomName: 'Спальня' }), item({})];
+
+    expect(renameRoomItems(items, 'Кухня', 'Кухня-гостиная').map(i => i.roomName)).toEqual(['Кухня-гостиная', 'Спальня', undefined]);
   });
 
   it('recalculates area- and perimeter-based items of the changed room only', () => {

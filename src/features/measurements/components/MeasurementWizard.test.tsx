@@ -3,7 +3,7 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { MeasurementWizard } from './MeasurementWizard';
 import { renderWithQuery } from '../../../test-utils/queryWrapper';
 import { getMaterials } from '../../../api/storage';
-import { saveOrderMeasurement } from '../../../api/measurements';
+import { getMeasurementByOrderId, saveOrderMeasurement } from '../../../api/measurements';
 
 vi.mock('../../../api/storage', () => ({
   getMaterials: vi.fn().mockResolvedValue([])
@@ -191,5 +191,43 @@ describe('MeasurementWizard Component', () => {
 
     expect(screen.queryByDisplayValue('Спальня')).not.toBeInTheDocument();
     expect(screen.queryAllByDisplayValue('Дополнительная позиция / работа')).toHaveLength(0);
+  });
+
+  it('does not offer to save when the saved measurement failed to load, and retries', async () => {
+    vi.mocked(getMeasurementByOrderId).mockRejectedValueOnce(new Error('Network Error'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewFinances />);
+
+    expect(await screen.findByText('Не удалось загрузить сохраненный замер')).toBeInTheDocument();
+    expect(screen.queryByText('Сохранить смету в заказ')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Повторить'));
+
+    expect(await screen.findByText('Сохранить смету в заказ')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('20')).toBeInTheDocument();
+  });
+
+  it('keeps the estimate items of a room when it is renamed', async () => {
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewFinances />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Монтаж натяжного потолка/i }));
+    fireEvent.change(screen.getByDisplayValue('Гостиная'), { target: { value: 'Зал' } });
+    fireEvent.change(screen.getByDisplayValue('20'), { target: { value: '30' } });
+
+    // Пакет остается включенным, позиция пересчитана по новой площади
+    expect(screen.getByRole('button', { name: /Монтаж натяжного потолка/i })).toHaveClass('active');
+    expect(screen.getAllByText(/15\s750\s₽/).length).toBeGreaterThan(0);
+  });
+
+  it('takes service material names from the loaded warehouse when none are passed', async () => {
+    vi.mocked(getMaterials).mockResolvedValueOnce([
+      { id: 100, name: 'MSD Premium матовое 3.2 м', unit: 'м²', quantityInStock: 50, costPrice: 200, salePrice: 500 }
+    ]);
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewFinances />);
+
+    await waitFor(() => expect(getMaterials).toHaveBeenCalled());
+    fireEvent.click(await screen.findByRole('button', { name: /Монтаж натяжного потолка/i }));
+
+    await waitFor(() => expect(screen.getAllByDisplayValue('MSD Premium матовое 3.2 м').length).toBeGreaterThan(0));
   });
 });

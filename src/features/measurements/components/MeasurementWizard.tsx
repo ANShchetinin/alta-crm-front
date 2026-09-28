@@ -43,8 +43,7 @@ export const MeasurementWizard = ({
   const estimate = useMeasurementEstimate({
     orderId,
     initialContractParams,
-    serviceMaterials: materials,
-    warehouseMaterials,
+    materials: warehouseMaterials,
     onSaved
   });
   useIosKeyboardScrollFix();
@@ -56,6 +55,20 @@ export const MeasurementWizard = ({
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
         Загрузка параметров замера...
+      </div>
+    );
+  }
+
+  if (estimate.loadFailed) {
+    return (
+      <div style={{ padding: '32px 16px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+        <div style={{ color: 'var(--danger)', fontWeight: 600 }}>Не удалось загрузить сохраненный замер</div>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', maxWidth: '420px' }}>
+          Смета не показана, чтобы ее нельзя было случайно перезаписать пустой. Проверьте соединение и повторите.
+        </div>
+        <button type="button" onClick={estimate.retryLoad} className="btn btn-primary">
+          Повторить
+        </button>
       </div>
     );
   }
