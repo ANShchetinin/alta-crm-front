@@ -15,7 +15,7 @@ import { useOrdersQuery, ORDERS_QUERY_KEY } from '../hooks/queries/useOrdersQuer
 import type { Material } from '../api/storage';
 import { useMaterialsQuery } from '../hooks/queries/useStorageQuery';
 import { useAuthStore } from '../store/useAuthStore';
-import { MeasurementWizard } from '../components/MeasurementWizard';
+import { MeasurementWizard } from '../features/measurements/components/MeasurementWizard';
 import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import { getWhatsAppLink } from '../utils/messengerUtils';
 import { formatDateTime, parseLocalDateTime } from '../utils/dateUtils';

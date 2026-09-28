@@ -7,9 +7,8 @@ import type {
   OrderInstaller,
   OrderMaterial
 } from '../../../api/kanban';
-import type { MeasurementCalculateResponse, MeasurementCalculationItemDto } from '../../../api/measurements';
+import type { MeasurementCalculationItemDto } from '../../../api/measurements';
 import { mergeActChecklist, isActFile } from '../constants';
-import { distributeInstallerAmounts } from './installers';
 
 /**
  * Состояние формы заказа в шторке. Числа и id хранятся строками — как значения input'ов.
@@ -293,38 +292,29 @@ export const specItemsFromMeasurement = (items: MeasurementCalculationItemDto[])
   total: item.totalSalePrice
 }));
 
+/** Параметры договора, которые бэкенд заполняет из замера при сохранении сметы. */
+const MEASUREMENT_CONTRACT_PARAMS = [
+  'area', 'perimeter', 'canvasesCount', 'lightsCount', 'pipeCount', 'timberLength', 'canvasArticle', 'specItems'
+] as const;
+
 /**
- * Применяет сохраненный расчет замера к форме: итог и остаток, стоимость монтажа (сумма услуг) с перераспределением
- * между монтажниками, сводные параметры потолка и спецификация договора.
+ * Переносит в форму результат сохранения сметы из заказа, перечитанного с сервера: суммы, стоимость монтажа
+ * с долями монтажников, материалы и параметры договора из замера. Остальные поля формы (в том числе
+ * несохраненные правки пользователя) не трогаются.
  */
-export const applyMeasurementToForm = (
-  form: OrderFormData,
-  calc: MeasurementCalculateResponse,
-  contractParams: ContractParams
-): OrderFormData => {
-  const installationSum = calc.items
-    .filter(item => item.type === 'SERVICE')
-    .reduce((sum, item) => sum + (item.totalSalePrice || 0), 0);
-
-  const updatedParams: ContractParams = {
-    ...contractParams,
-    area: calc.totalArea.toString(),
-    perimeter: calc.totalPerimeter.toString(),
-    lightsCount: calc.totalLightsCount.toString(),
-    pipeCount: calc.totalPipesCount.toString(),
-    specItems: specItemsFromMeasurement(calc.items)
-  };
-  if (calc.totalCorniceLength > 0) {
-    updatedParams.timberLength = calc.totalCorniceLength.toString();
-  }
-
+export const withMeasurementResult = (form: OrderFormData, saved: OrderFormData): OrderFormData => {
+  const contractParams: ContractParams = { ...form.contractParams };
+  MEASUREMENT_CONTRACT_PARAMS.forEach(key => {
+    Object.assign(contractParams, { [key]: saved.contractParams?.[key] });
+  });
   return {
     ...form,
-    totalPrice: calc.totalSalePrice.toString(),
-    remainder: Math.max(0, calc.totalSalePrice - toNumber(form.prepayment)).toString(),
-    installationPrice: installationSum.toString(),
-    installers: distributeInstallerAmounts(form.installers, installationSum),
-    contractParams: updatedParams
+    totalPrice: saved.totalPrice,
+    remainder: saved.remainder,
+    installationPrice: saved.installationPrice,
+    installers: saved.installers,
+    materials: saved.materials,
+    contractParams
   };
 };
 

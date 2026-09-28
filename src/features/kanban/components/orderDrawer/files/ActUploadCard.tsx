@@ -2,7 +2,8 @@ import React from 'react';
 import { Camera, Download, Eye, FileCheck, RefreshCw } from 'lucide-react';
 import type { OrderAttachment } from '../../../../../api/kanban';
 import { isActFile } from '../../../constants';
-import { isViewableInBrowser, type OrderAttachmentsState } from '../../../hooks/useOrderAttachments';
+import type { OrderAttachmentsState } from '../../../hooks/useOrderAttachments';
+import { isViewableInBrowser } from '../../../../../utils/attachments';
 
 interface ActUploadCardProps {
   attachments: OrderAttachment[];

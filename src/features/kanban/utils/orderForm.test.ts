@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  applyMeasurementToForm,
   buildContractOrderPayload,
   buildOrderPayload,
   calcOrderProfitability,
@@ -8,10 +7,10 @@ import {
   hasActAttachment,
   orderToFormData,
   resolveContractParams,
-  specItemsFromMeasurement
+  specItemsFromMeasurement,
+  withMeasurementResult
 } from './orderForm';
 import type { Order } from '../../../api/kanban';
-import type { MeasurementCalculateResponse } from '../../../api/measurements';
 
 const order: Order = {
   id: 5,
@@ -100,28 +99,29 @@ describe('orderForm', () => {
     expect(calcOrderProfitability(createEmptyOrderForm(undefined)).marginPercent).toBe(0);
   });
 
-  it('applies a measurement calculation to the form', () => {
-    const form = { ...orderToFormData(order), prepayment: '5000' };
-    const calc = {
-      totalSalePrice: 42000,
-      totalArea: 20.5,
-      totalPerimeter: 18,
-      totalLightsCount: 6,
-      totalPipesCount: 1,
-      totalCorniceLength: 0,
-      items: [
-        { name: 'Полотно', type: 'MATERIAL', quantity: 20.5, unit: 'м²', unitSalePrice: 1000, totalSalePrice: 20500, roomName: 'Зал' },
-        { name: 'Монтаж', type: 'SERVICE', quantity: 1, unit: '', unitSalePrice: 6000, totalSalePrice: 6000 }
-      ]
-    } as unknown as MeasurementCalculateResponse;
+  it('takes the saved measurement result from the reloaded order and keeps other unsaved edits', () => {
+    const edited = {
+      ...orderToFormData(order),
+      address: 'Новый адрес (не сохранен)',
+      contractParams: { ...resolveContractParams(undefined), discount: '5%', area: '10' }
+    };
+    const saved = orderToFormData({
+      ...order,
+      totalPrice: 42000,
+      remainder: 22000,
+      installationPrice: 6000,
+      installers: [{ employeeId: 7, amount: 6000, splitType: 'EQUAL' }],
+      materials: [{ materialId: 100, materialName: 'Полотно', quantity: 20.5 }],
+      contractParams: { area: '20.5', lightsCount: '6', specItems: [{ idx: 1, name: 'Полотно (Зал)', quantity: '20.5', unit: 'м²', price: 1000, total: 20500 }] }
+    } as Order);
 
-    const result = applyMeasurementToForm(form, calc, resolveContractParams(form.contractParams));
+    const result = withMeasurementResult(edited, saved);
 
-    expect(result).toMatchObject({ totalPrice: '42000', remainder: '37000', installationPrice: '6000' });
-    expect(result.installers[0].amount).toBe(6000);
-    expect(result.contractParams).toMatchObject({ area: '20.5', perimeter: '18', lightsCount: '6', pipeCount: '1', timberLength: '17' });
-    expect(result.contractParams?.specItems?.[0]).toEqual({ idx: 1, name: 'Полотно (Зал)', quantity: '20.5', unit: 'м²', price: 1000, total: 20500 });
-    expect(result.contractParams?.specItems?.[1].unit).toBe('шт.');
+    expect(result).toMatchObject({ address: 'Новый адрес (не сохранен)', totalPrice: '42000', remainder: '22000', installationPrice: '6000' });
+    expect(result.installers).toEqual(saved.installers);
+    expect(result.materials).toEqual(saved.materials);
+    expect(result.contractParams).toMatchObject({ area: '20.5', lightsCount: '6', discount: '5%' });
+    expect(result.contractParams?.specItems).toHaveLength(1);
   });
 
   it('maps measurement items to contract spec rows', () => {

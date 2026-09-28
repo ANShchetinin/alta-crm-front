@@ -11,12 +11,11 @@ import {
   type Order
 } from '../../../api/kanban';
 import type { AiEstimateResultDto } from '../../../api/aiEstimate';
-import type { MeasurementCalculateResponse } from '../../../api/measurements';
 import { useAppStore } from '../../../store/useAppStore';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useOrderDrawerStore } from '../../../store/useOrderDrawerStore';
 import { useFeature } from '../../../hooks/useFeatureToggle';
-import { MeasurementWizard } from '../../../components/MeasurementWizard';
+import { MeasurementWizard } from '../../measurements/components/MeasurementWizard';
 import { PassportScannerModal, type PassportApplyResult } from '../../../components/PassportScannerModal';
 import { isCompletedStatus } from '../../../utils/orderStatus';
 import { toast } from '../../../utils/toast';
@@ -32,11 +31,11 @@ import { useOrderContract } from '../hooks/useOrderContract';
 import { useQuickClient } from '../hooks/useQuickClient';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import {
-  applyMeasurementToForm,
   buildOrderPayload,
   createEmptyOrderForm,
   hasActAttachment,
   orderToFormData,
+  withMeasurementResult,
   type OrderFormData
 } from '../utils/orderForm';
 import { OrderDrawerHeader } from './orderDrawer/OrderDrawerHeader';
@@ -112,6 +111,10 @@ export const OrderDrawer: React.FC = () => {
   ), [formData, files.pendingFiles.length, initialFormDataJson]);
 
   // Смена компании закрывает шторку: открытый заказ принадлежит другому тенанту
+  // Актуальный открытый заказ для асинхронных ответов: ответ по заказу, с которого ушли, не применяется
+  const editingOrderIdRef = useRef(editingOrderId);
+  editingOrderIdRef.current = editingOrderId;
+
   const prevTenantIdRef = useRef<number | null>(authTenantId);
   useEffect(() => {
     if (prevTenantIdRef.current !== null && prevTenantIdRef.current !== authTenantId) {
@@ -203,6 +206,14 @@ export const OrderDrawer: React.FC = () => {
       toast.warning('Заказ ещё загружается, попробуйте через секунду');
       return;
     }
+    // Как и перенос на доске: в завершающий этап — только с актом (уже завершенные заказы не проверяются)
+    const wasCompleted = isCompletedStatus(columns.find(c => c.id === currentOrder?.statusId));
+    if (editingOrderId && isCompleted && !wasCompleted && !hasAct) {
+      const statusName = columns.find(c => c.id.toString() === formData.statusId)?.name;
+      toast.warning(`Для перевода заявки в «${statusName}» прикрепите Акт выполненных работ во вкладке «Файлы».`);
+      setActiveTab('FILES');
+      return;
+    }
     try {
       const payload = buildOrderPayload(formData, contract.contractParams, isCompleted);
       const savedOrder = editingOrderId ? await updateOrder(editingOrderId, payload) : await createOrder(payload);
@@ -283,12 +294,37 @@ export const OrderDrawer: React.FC = () => {
     }
   };
 
-  const handleMeasurementSaved = (calc: MeasurementCalculateResponse) => {
-    setFormData(prev => applyMeasurementToForm(prev, calc, contract.contractParams));
-    if (editingOrderId) {
-      notifyOrdersChanged('measurement_saved', editingOrderId);
+  /**
+   * Смета уже сохранена в заказ на сервере (суммы, монтажники, материалы, параметры договора). Перечитываем
+   * заказ и переносим эти поля и в форму, и в ее исходное состояние: повторно сохранять шторку не нужно,
+   * а другие несохраненные правки пользователя остаются несохраненными.
+   */
+  const handleMeasurementSaved = async () => {
+    const orderId = editingOrderId;
+    if (!orderId) {
+      return;
     }
+    notifyOrdersChanged('measurement_saved', orderId);
     toast.success('Замер и смета успешно сохранены в заказ!');
+    try {
+      const updated = await getOrderById(orderId);
+      if (editingOrderIdRef.current !== orderId) {
+        return;
+      }
+      const saved = orderToFormData(updated, actChecklistTemplate);
+      setCurrentOrder(updated);
+      setFormData(prev => withMeasurementResult(prev, saved));
+      setInitialFormDataJson(prev => {
+        if (!prev) {
+          return prev;
+        }
+        const snapshot = JSON.parse(prev);
+        return JSON.stringify({ ...snapshot, formData: withMeasurementResult(snapshot.formData, saved) });
+      });
+    } catch (err) {
+      console.error('Failed to reload order after saving the measurement', err);
+      toast.warning('Смета сохранена, но шторка не обновилась. Закройте и откройте заказ заново');
+    }
   };
 
   const handleEstimateApplied = async (aiResult: AiEstimateResultDto) => {
@@ -397,7 +433,7 @@ export const OrderDrawer: React.FC = () => {
                     initialContractParams={contract.contractParams}
                     canViewFinances={role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER'}
                     onDownloadDocx={contract.startGenerate}
-                    onSaved={(_, calc) => handleMeasurementSaved(calc)}
+                    onSaved={handleMeasurementSaved}
                   />
                 )}
 
