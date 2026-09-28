@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { useState } from 'react';
-import { useOrderAttachments, isViewableInBrowser } from './useOrderAttachments';
+import { useOrderAttachments } from './useOrderAttachments';
+import { isViewableInBrowser } from '../../../utils/attachments';
 import { uploadAttachment, renameAttachment } from '../../../api/kanban';
 import { createEmptyOrderForm } from '../utils/orderForm';
 import { toast } from '../../../utils/toast';

@@ -40,7 +40,11 @@ vi.mock('../../../api/settings', () => ({
 vi.mock('../../../api/aiUsage', () => ({ getOrderAiUsage: vi.fn().mockResolvedValue(null) }));
 vi.mock('../../../components/OrderRemindersSection', () => ({ OrderRemindersSection: () => null }));
 vi.mock('../../measurements/components/MeasurementWizard', () => ({
-  MeasurementWizard: () => <div data-testid="measurement-wizard" />
+  MeasurementWizard: ({ onSaved }: { onSaved?: () => void }) => (
+    <div data-testid="measurement-wizard">
+      <button type="button" onClick={() => onSaved?.()}>Сохранить смету (мок)</button>
+    </div>
+  )
 }));
 
 const statuses: OrderStatus[] = [
@@ -264,6 +268,37 @@ describe('OrderDrawer', () => {
     expect(screen.getByText('Остаток к оплате по договору:')).toBeInTheDocument();
     expect(screen.queryByText('Финансы и оплата')).not.toBeInTheDocument();
     expect(getClients).not.toHaveBeenCalled();
+  });
+
+  it('takes the estimate saved in the measurement tab without a second save of the drawer', async () => {
+    await renderOpenOrder();
+    vi.mocked(kanbanApi.getOrderById).mockResolvedValue({ ...baseOrder, totalPrice: 42000, remainder: 22000 });
+
+    clickTab('Замер и смета');
+    fireEvent.click(screen.getByText('Сохранить смету (мок)'));
+
+    await waitFor(() => expect(kanbanApi.getOrderById).toHaveBeenCalledTimes(2));
+    clickTab('Основное');
+    expect(await screen.findByDisplayValue('22000')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Close'));
+    await act(() => new Promise(resolve => setTimeout(resolve, 50)));
+    expect(screen.queryByText('Несохраненные изменения')).not.toBeInTheDocument();
+    expect(kanbanApi.updateOrder).not.toHaveBeenCalled();
+  });
+
+  it('keeps other unsaved edits after the estimate is saved', async () => {
+    await renderOpenOrder();
+    fireEvent.change(screen.getByDisplayValue('Натяжной потолок в зале'), { target: { value: 'Изменено' } });
+    vi.mocked(kanbanApi.getOrderById).mockResolvedValue({ ...baseOrder, totalPrice: 42000 });
+
+    clickTab('Замер и смета');
+    fireEvent.click(screen.getByText('Сохранить смету (мок)'));
+    await waitFor(() => expect(kanbanApi.getOrderById).toHaveBeenCalledTimes(2));
+    clickTab('Основное');
+
+    expect(await screen.findByDisplayValue('Изменено')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Close'));
+    expect(await screen.findByText('Несохраненные изменения')).toBeInTheDocument();
   });
 
   it('asks for confirmation before closing with unsaved changes', async () => {

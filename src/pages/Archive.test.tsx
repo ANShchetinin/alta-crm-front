@@ -10,7 +10,7 @@ import * as measurementsApi from '../api/measurements';
 vi.mock('../api/kanban', () => ({
   getArchivedOrders: vi.fn(),
   getOrderStatuses: vi.fn(),
-  updateOrder: vi.fn(),
+  moveOrder: vi.fn(),
   deleteOrder: vi.fn(),
   downloadContractDocx: vi.fn(),
   downloadContractPdf: vi.fn(),
@@ -175,7 +175,7 @@ describe('Archive Page Component', () => {
   });
 
   it('opens detail modal on order row click, displays estimate, and allows return to kanban', async () => {
-    (kanbanApi.updateOrder as any).mockResolvedValue({ ...mockOrders[0], statusId: 1 });
+    vi.mocked(kanbanApi.moveOrder).mockResolvedValue({ ...mockOrders[0], statusId: 1 });
 
     renderWithQuery(<Archive />);
 
@@ -199,9 +199,7 @@ describe('Archive Page Component', () => {
     fireEvent.click(returnBtn);
 
     await waitFor(() => {
-      expect(kanbanApi.updateOrder).toHaveBeenCalledWith(101, expect.objectContaining({
-        statusId: 1
-      }));
+      expect(kanbanApi.moveOrder).toHaveBeenCalledWith(101, 1);
     });
   });
 
