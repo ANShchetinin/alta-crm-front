@@ -7,7 +7,8 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { useFeature } from '../hooks/useFeatureToggle';
 import { orderStatusesQueryOptions } from '../hooks/queries/useOrderStatusesQuery';
-import { ordersQueryOptions, ORDERS_QUERY_KEY } from '../hooks/queries/useOrdersQuery';
+import { ORDERS_QUERY_KEY } from '../hooks/queries/useOrdersQuery';
+import { getOrdersCountByStatus } from '../api/kanban';
 import { useInvalidateOnOrdersChanged } from '../hooks/queries/useInvalidateOnOrdersChanged';
 import { getProfile } from '../api/settings';
 import { switchTenant, type MyTenantsResponse } from '../api/auth';
@@ -209,9 +210,7 @@ const DashboardLayout = () => {
       const statuses = await queryClient.fetchQuery(orderStatusesQueryOptions(currentTenantId));
       const firstStatus = statuses.find(s => s.sortOrder === 1 || s.sortOrder === 0);
       if (firstStatus) {
-        const orders = await queryClient.fetchQuery(ordersQueryOptions(currentTenantId, 'all'));
-        const count = orders.filter(o => o.statusId === firstStatus.id).length;
-        setNewOrdersCount(count);
+        setNewOrdersCount(await getOrdersCountByStatus(firstStatus.id));
       }
     } catch (err) {
       console.error("Failed to fetch new orders count", err);
