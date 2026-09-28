@@ -128,6 +128,12 @@ describe('Finances page', () => {
     expect(screen.getByText('2 из 3')).toBeInTheDocument();
   });
 
+  it('requests AI costs for the local calendar month', async () => {
+    renderWithQuery(<Finances />);
+
+    await waitFor(() => expect(aiUsageApi.getCompanyAiUsageSummary).toHaveBeenCalledWith('2026-09-01', '2026-09-30'));
+  });
+
   it('marks the remainder as received from the transactions table', async () => {
     vi.mocked(kanbanApi.toggleRemainderPaid).mockResolvedValue({ ...orders[0], remainderPaid: true });
     renderWithQuery(<Finances />);

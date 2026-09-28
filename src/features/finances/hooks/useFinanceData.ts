@@ -8,7 +8,7 @@ import { getExpenses, type Expense } from '../../../api/finances';
 import { getCompanyAiUsageSummary, type AiUsageSummaryDto } from '../../../api/aiUsage';
 import type { Order, OrderStatus } from '../../../api/kanban';
 import type { Employee } from '../../../api/employees';
-import type { DateRange } from '../utils/financeCalculations';
+import { toLocalDateString, type DateRange } from '../utils/financeCalculations';
 
 const AI_USAGE_QUERY_KEY = ['companyAiUsage'] as const;
 const EXPENSES_QUERY_KEY = ['expenses'] as const;
@@ -60,8 +60,9 @@ export const useFinanceData = () => {
 /** Сводка расходов компании на ИИ за период; при открытии всегда сверяется с сервером. */
 export const useAiUsageSummary = (range: DateRange) => {
   const baseKey = useTenantQueryKey(AI_USAGE_QUERY_KEY);
-  const from = range.from ? range.from.toISOString().slice(0, 10) : undefined;
-  const to = range.to ? range.to.toISOString().slice(0, 10) : undefined;
+  // Границы периода — локальные даты: toISOString сдвинул бы начало месяца на день назад (UTC)
+  const from = range.from ? toLocalDateString(range.from) : undefined;
+  const to = range.to ? toLocalDateString(range.to) : undefined;
   const { data, isFetching, refetch } = useQuery<AiUsageSummaryDto>({
     queryKey: [...baseKey, from, to],
     queryFn: () => getCompanyAiUsageSummary(from, to),

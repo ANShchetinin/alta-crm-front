@@ -14,6 +14,7 @@ import {
   isCompletedStatus,
   isDateInRange,
   summarizeInstallers,
+  toLocalDateString,
   type DateRange
 } from './financeCalculations';
 
@@ -79,6 +80,15 @@ describe('order helpers', () => {
     expect(isCompletedStatus(status(2, 'Готово'))).toBe(true);
     expect(isCompletedStatus(status(3, 'Новая заявка'))).toBe(false);
     expect(isCompletedStatus(undefined)).toBe(false);
+  });
+
+  it('treats a status flagged as completed in settings as completed whatever its name', () => {
+    expect(isCompletedStatus(status(4, 'Сделка закрыта', { isCompleted: true }))).toBe(true);
+  });
+
+  it('formats a date by local calendar day, not by UTC', () => {
+    expect(toLocalDateString(new Date(2026, 8, 1, 0, 30))).toBe('2026-09-01');
+    expect(toLocalDateString(new Date(2026, 11, 31, 23, 59))).toBe('2026-12-31');
   });
 
   it('keeps orders of statuses included in finances and orders without a known status', () => {
@@ -169,6 +179,15 @@ describe('getDebtorOrders', () => {
     ];
 
     expect(getDebtorOrders(orders).map(o => o.id)).toEqual([3, 2]);
+  });
+
+  it('sorts by the displayed debt, including a remainder derived from the total', () => {
+    const orders = [
+      order(1, { totalPrice: 500, prepayment: 100, remainder: 400, prepaymentPaid: true }),
+      order(2, { totalPrice: 1000, prepayment: 100, prepaymentPaid: true })
+    ];
+
+    expect(getDebtorOrders(orders).map(o => o.id)).toEqual([2, 1]);
   });
 });
 

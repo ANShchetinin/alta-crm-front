@@ -78,10 +78,19 @@ export const isDateInRange = (dateStr: string | null | undefined, range: DateRan
   return true;
 };
 
-/** Завершающий статус (определяется по названию). */
+/** Дата в формате YYYY-MM-DD по локальному времени (toISOString дал бы дату по UTC). */
+export const toLocalDateString = (date: Date): string => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+/** Завершающий статус: отмечен флагом в настройках или назван как завершающий (правило совпадает с бэкендом). */
 export const isCompletedStatus = (status: OrderStatus | undefined): boolean => {
   if (!status) {
     return false;
+  }
+  if (status.isCompleted) {
+    return true;
   }
   const name = (status.name || '').toLowerCase();
   return name.includes('заверш') || name.includes('готов') || name.includes('выполнен') || name.includes('complete');
@@ -219,14 +228,11 @@ export const filterTransactions = (
   });
 };
 
-const sortableDebt = (order: Order): number =>
-  (order.prepaymentPaid ? 0 : (order.prepayment || 0)) + (order.remainderPaid ? 0 : (order.remainder || 0));
-
 /** Должники: заказы с неоплаченной суммой, от самого большого долга к меньшему. */
 export const getDebtorOrders = (orders: Order[]): Order[] => {
   return orders
     .filter(order => getOrderDebt(order) > 0)
-    .sort((a, b) => sortableDebt(b) - sortableDebt(a));
+    .sort((a, b) => getOrderDebt(b) - getOrderDebt(a));
 };
 
 /**

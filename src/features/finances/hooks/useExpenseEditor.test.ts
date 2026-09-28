@@ -81,6 +81,17 @@ describe('useExpenseEditor', () => {
     expect(current()[0].amount).toBe(16000);
   });
 
+  it('defaults the expense date to the local calendar day', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 15, 0, 30));
+    const { hook } = setup();
+
+    act(() => hook.result.current.openCreate());
+
+    expect(hook.result.current.form.expenseDate).toBe('2026-09-15');
+    vi.useRealTimers();
+  });
+
   it('does not save a form without a title or amount', async () => {
     const { hook } = setup();
 

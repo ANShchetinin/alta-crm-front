@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createExpense, updateExpense, deleteExpense, type Expense, type ExpenseCategory } from '../../../api/finances';
 import { toast } from '../../../utils/toast';
 import { confirm } from '../../../utils/confirm';
+import { toLocalDateString } from '../utils/financeCalculations';
 
 export interface ExpenseFormData {
   title: string;
@@ -16,7 +17,7 @@ const emptyForm = (): ExpenseFormData => ({
   title: '',
   category: 'OTHER',
   amount: '',
-  expenseDate: new Date().toISOString().split('T')[0],
+  expenseDate: toLocalDateString(new Date()),
   orderId: '',
   comment: ''
 });
