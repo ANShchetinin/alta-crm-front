@@ -13,6 +13,9 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  /* Страница — flex-колонка фиксированной высоты: при высоком содержимом вкладки блок с прокруткой
+     (у него min-height: 0) иначе сжимается и обрезает кнопки */
+  flex-shrink: 0;
 }
 
 .settings-tabs-nav::-webkit-scrollbar {
