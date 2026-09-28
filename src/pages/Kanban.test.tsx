@@ -39,6 +39,8 @@ const orders = [
     clientName: 'Анна Смирнова',
     statusId: 2,
     totalPrice: 80000,
+    prepayment: 30000,
+    clientWhatsapp: '+79990001122',
     installedByName: 'Олег',
     attachments: [{ id: 1, fileName: 'Акт.pdf', isAct: true }]
   },
@@ -128,6 +130,20 @@ describe('Kanban board', () => {
 
     await waitFor(() => expect(kanbanApi.completeOrder).toHaveBeenCalledWith(12));
     await waitFor(() => expect(column('Завершен')).toContainElement(cardElement(12)));
+  });
+
+  it('shows the remainder derived from the contract sum when it is not set', async () => {
+    await renderBoard();
+
+    expect(within(cardElement(12)).getByText(/50\s000\s₽/)).toBeInTheDocument();
+  });
+
+  it('shows client messengers from the order to a worker, who has no client directory', async () => {
+    useAuthStore.setState({ role: 'WORKER', tenantId: 1 });
+    await renderBoard();
+
+    expect(getClients).not.toHaveBeenCalled();
+    expect(within(cardElement(12)).getByTitle('Написать в WhatsApp: +79990001122')).toBeInTheDocument();
   });
 
   it('opens the order drawer on card click', async () => {

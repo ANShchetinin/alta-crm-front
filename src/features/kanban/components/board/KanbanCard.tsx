@@ -6,6 +6,7 @@ import type { Employee } from '../../../../api/employees';
 import type { OrderReminderDto } from '../../../../api/reminders';
 import { getClientInitials } from '../../../../utils/avatarUtils';
 import { isCompletedStatus } from '../../../../utils/orderStatus';
+import { getOrderRemainder } from '../../../../utils/orderPayments';
 import { formatClientNameLines, isActFile } from '../../constants';
 import { reminderStateOf, type CardDropPosition } from '../../utils/board';
 import {
@@ -141,8 +142,8 @@ export const KanbanCard = ({ card, clients, employees, columns, reminders, drag,
 
           <CardContacts
             phone={card.clientPhone || client?.phone}
-            whatsapp={client?.whatsapp}
-            telegram={client?.telegram}
+            whatsapp={card.clientWhatsapp || client?.whatsapp}
+            telegram={card.clientTelegram || client?.telegram}
             assignee={assignee}
           />
         </div>
@@ -210,7 +211,7 @@ export const KanbanCard = ({ card, clients, employees, columns, reminders, drag,
             <span style={{ margin: '0 8px', opacity: 0.35 }}>|</span>
             <span>
               Остаток: <strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
-                {((card.remainder != null ? card.remainder : card.totalPrice) || 0).toLocaleString('ru-RU')} ₽
+                {getOrderRemainder(card).toLocaleString('ru-RU')} ₽
               </strong>
             </span>
           </div>
