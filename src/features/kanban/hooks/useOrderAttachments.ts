@@ -1,30 +1,18 @@
 import { useRef, useState } from 'react';
 import {
   deleteAttachment,
-  fetchAttachmentBlob,
   renameAttachment,
   uploadAttachment,
   type OrderAttachment
 } from '../../../api/kanban';
-import type { PreviewAttachmentData } from '../../../components/AttachmentPreviewModal';
-import { downloadBlob, readApiErrorMessage } from '../../../utils/download';
+import { readApiErrorMessage } from '../../../utils/download';
+import { useAttachmentPreview } from '../../../hooks/useAttachmentPreview';
 import { toast } from '../../../utils/toast';
 import { confirm } from '../../../utils/confirm';
 import type { SetOrderFormData } from '../utils/orderForm';
 
 const notifyAttachmentsChanged = (orderId: number | null) => {
   window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action: 'attachment', orderId } }));
-};
-
-/**
- * Можно ли показать файл во встроенном просмотрщике (изображения, PDF, аудио/видео, текст).
- */
-export const isViewableInBrowser = (name: string, contentType?: string): boolean => {
-  const type = (contentType || '').toLowerCase();
-  if (type.startsWith('image/') || type.startsWith('audio/') || type.startsWith('video/') || type.startsWith('text/') || type.includes('pdf')) {
-    return true;
-  }
-  return /\.(pdf|png|jpe?g|gif|webp|svg|bmp|txt|csv|log|mp3|wav|ogg|mp4|webm)$/i.test((name || '').toLowerCase());
 };
 
 export type AttachmentSheetMode = 'ACT' | 'GENERAL';
@@ -39,8 +27,7 @@ export const useOrderAttachments = (orderId: number | null, setFormData: SetOrde
   const [editingAttachmentId, setEditingAttachmentId] = useState<number | null>(null);
   const [editingAttachmentName, setEditingAttachmentName] = useState('');
   const [renamingAttachment, setRenamingAttachment] = useState(false);
-  const [previewAttachment, setPreviewAttachment] = useState<PreviewAttachmentData | null>(null);
-  const [openingAttachmentId, setOpeningAttachmentId] = useState<number | null>(null);
+  const preview = useAttachmentPreview();
   const [sheetMode, setSheetMode] = useState<AttachmentSheetMode>('ACT');
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isDocScannerOpen, setIsDocScannerOpen] = useState(false);
@@ -139,45 +126,6 @@ export const useOrderAttachments = (orderId: number | null, setFormData: SetOrde
     (sheetMode === 'ACT' ? actFileInputRef : generalFileInputRef).current?.click();
   };
 
-  const handleOpenAttachment = async (att: OrderAttachment) => {
-    try {
-      setOpeningAttachmentId(att.id);
-      const blob = await fetchAttachmentBlob(att.id, false);
-      const name = (att.fileName || '').toLowerCase();
-      const type = (att.contentType || blob.type || '').toLowerCase();
-      setPreviewAttachment({
-        url: URL.createObjectURL(blob),
-        fileName: att.fileName,
-        contentType: att.contentType || blob.type,
-        isImage: type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(name),
-        isPdf: type.includes('pdf') || /\.pdf$/i.test(name),
-        attachment: att
-      });
-    } catch (err) {
-      console.error('Failed to open attachment', err);
-      toast.error(await readApiErrorMessage(err, 'Не удалось открыть файл'));
-    } finally {
-      setOpeningAttachmentId(null);
-    }
-  };
-
-  const handleClosePreview = () => {
-    if (previewAttachment?.url) {
-      URL.revokeObjectURL(previewAttachment.url);
-    }
-    setPreviewAttachment(null);
-  };
-
-  const handleDownloadAttachment = async (att: OrderAttachment) => {
-    try {
-      downloadBlob(await fetchAttachmentBlob(att.id, true), att.fileName);
-      toast.success('Файл скачивается');
-    } catch (err) {
-      console.error('Failed to download attachment', err);
-      toast.error(await readApiErrorMessage(err, 'Не удалось скачать файл'));
-    }
-  };
-
   const handleDeleteAttachment = async (attachmentId: number) => {
     const ok = await confirm({
       title: 'Удалить файл?',
@@ -251,11 +199,11 @@ export const useOrderAttachments = (orderId: number | null, setFormData: SetOrde
     isDocScannerOpen,
     docScannerIsAct,
     closeDocScanner: () => setIsDocScannerOpen(false),
-    previewAttachment,
-    openingAttachmentId,
-    handleOpenAttachment,
-    handleClosePreview,
-    handleDownloadAttachment,
+    previewAttachment: preview.previewAttachment,
+    openingAttachmentId: preview.openingAttachmentId,
+    handleOpenAttachment: preview.openAttachment,
+    handleClosePreview: preview.closePreview,
+    handleDownloadAttachment: preview.downloadAttachment,
     handleDeleteAttachment,
     editingAttachmentId,
     editingAttachmentName,
