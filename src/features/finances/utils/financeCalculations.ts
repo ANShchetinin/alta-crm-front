@@ -1,6 +1,7 @@
 import type { Order, OrderStatus } from '../../../api/kanban';
 import type { Employee } from '../../../api/employees';
 import type { Expense } from '../../../api/finances';
+import { getOrderDebt, getOrderRemainder } from '../../../utils/orderPayments';
 
 export type PeriodFilter = 'THIS_MONTH' | 'LAST_MONTH' | 'THREE_MONTHS' | 'THIS_YEAR' | 'ALL';
 export type PaymentStatusFilter = 'ALL' | 'PAID' | 'PREPAYMENT' | 'UNPAID' | 'DEBT';
@@ -94,21 +95,6 @@ export const isCompletedStatus = (status: OrderStatus | undefined): boolean => {
   }
   const name = (status.name || '').toLowerCase();
   return name.includes('заверш') || name.includes('готов') || name.includes('выполнен') || name.includes('complete');
-};
-
-/** Остаток по договору: заданный явно или сумма договора за вычетом аванса. */
-export const getOrderRemainder = (order: Order): number => {
-  if (order.remainder != null) {
-    return order.remainder;
-  }
-  return Math.max(0, (order.totalPrice || 0) - (order.prepayment || 0));
-};
-
-/** Сколько клиент еще должен по заказу: неоплаченные аванс и остаток. */
-export const getOrderDebt = (order: Order): number => {
-  const prepaymentDebt = order.prepaymentPaid ? 0 : (order.prepayment || 0);
-  const remainderDebt = order.remainderPaid ? 0 : getOrderRemainder(order);
-  return prepaymentDebt + remainderDebt;
 };
 
 /** Заказы в статусах, которые учитываются в финансах (заказы без статуса учитываются). */

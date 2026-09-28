@@ -1,5 +1,5 @@
 import { ExternalLink, Phone } from 'lucide-react';
-import { getOrderRemainder } from '../../utils/financeCalculations';
+import { getOrderRemainder } from '../../../../utils/orderPayments';
 import { OrderStatusBadge } from '../OrderStatusBadge';
 import { PaymentTileToggle } from './PaymentToggle';
 import type { TransactionsViewProps } from './TransactionsTab';

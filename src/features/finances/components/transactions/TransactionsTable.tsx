@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2, Clock, ExternalLink } from 'lucide-react';
 import type { Order } from '../../../../api/kanban';
 import { formatDateTimeInTimezone } from '../../../../utils/dateUtils';
-import { getOrderRemainder } from '../../utils/financeCalculations';
+import { getOrderRemainder } from '../../../../utils/orderPayments';
 import { OrderStatusBadge } from '../OrderStatusBadge';
 import { PaymentCellToggle } from './PaymentToggle';
 import type { TransactionsViewProps } from './TransactionsTab';
