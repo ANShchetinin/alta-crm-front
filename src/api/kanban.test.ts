@@ -1,6 +1,7 @@
 ﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getOrders,
+  getOrdersCountByStatus,
   getOrderStatuses,
   createOrderStatus,
   updateOrderStatus,
@@ -37,6 +38,14 @@ describe('Kanban API', () => {
     const result = await getOrders();
     expect(api.get).toHaveBeenCalledWith('/orders', { params: {} });
     expect(result).toEqual(mockOrders);
+  });
+
+  it('getOrdersCountByStatus calls GET /orders/count and returns the number', async () => {
+    (api.get as any).mockResolvedValueOnce({ data: { count: 3 } });
+
+    const result = await getOrdersCountByStatus(7);
+    expect(api.get).toHaveBeenCalledWith('/orders/count', { params: { statusId: 7 } });
+    expect(result).toBe(3);
   });
 
   it('getOrderStatuses calls GET /order-statuses', async () => {

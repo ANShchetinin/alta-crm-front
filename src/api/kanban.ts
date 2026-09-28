@@ -191,6 +191,12 @@ export const getArchivedOrders = async (): Promise<Order[]> => {
   return response.data;
 };
 
+/** Количество заказов в статусе (бейдж новых заказов) — без загрузки самих заказов. */
+export const getOrdersCountByStatus = async (statusId: number): Promise<number> => {
+  const response = await api.get<{ count: number }>('/orders/count', { params: { statusId } });
+  return response.data.count;
+};
+
 export const getOrderById = async (id: number): Promise<Order> => {
   const response = await api.get(`/orders/${id}`);
   return response.data;

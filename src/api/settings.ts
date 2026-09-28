@@ -79,8 +79,6 @@ export interface TenantDto {
 export interface ContractTemplateStatus {
   individual: boolean;
   legal: boolean;
-  individualTemplateUrl?: string;
-  legalTemplateUrl?: string;
 }
 
 export const getCurrentTenant = async (): Promise<TenantDto> => {
