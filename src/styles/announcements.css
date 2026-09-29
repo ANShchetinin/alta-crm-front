@@ -1,0 +1,429 @@
+/* Объявления платформы (баннер под верхней панелью и на странице входа).
+   Цвет задается важностью через --announcement-accent; фон и рамка смешиваются с фоном темы,
+   текст — цвет темы, поэтому баннер читается и в светлой, и в темной теме. */
+
+.announcements {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.announcement {
+  --announcement-accent: var(--accent-primary);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid color-mix(in srgb, var(--announcement-accent) 35%, transparent);
+  border-left: 4px solid var(--announcement-accent);
+  background: color-mix(in srgb, var(--announcement-accent) 12%, var(--bg-secondary));
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.announcement--warning {
+  --announcement-accent: var(--warning);
+}
+
+.announcement--critical {
+  --announcement-accent: var(--danger);
+}
+
+.announcement__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--announcement-accent);
+}
+
+.announcement__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.announcement__title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.announcement__message {
+  margin: 2px 0 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.announcement__message--expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
+
+.announcement__more {
+  margin-top: 2px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--announcement-accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.announcement__dismiss {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid color-mix(in srgb, var(--announcement-accent) 45%, transparent);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast, 0.15s ease);
+}
+
+.announcement__dismiss:hover {
+  background: color-mix(in srgb, var(--announcement-accent) 18%, transparent);
+}
+
+.announcement__dismiss-icon {
+  display: none;
+}
+
+/* Страница входа: над карточкой входа, той же ширины */
+.login-column {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  /* Под верхней панелью на телефоне: отступы как у содержимого страницы */
+  .dashboard-announcements {
+    margin: 10px 12px 0;
+    /* Объявления не прокручиваются вместе со страницей: не даем им вытеснить содержимое */
+    max-height: 40vh;
+    max-height: 40dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .announcement__message {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  /* На телефоне — только крестик с зоной нажатия 44px */
+  .announcement__dismiss {
+    min-width: 44px;
+    min-height: 44px;
+    margin: -10px -8px -10px 0;
+    padding: 0;
+    border: none;
+  }
+
+  .announcement__dismiss-text {
+    display: none;
+  }
+
+  .announcement__dismiss-icon {
+    display: block;
+  }
+}
+
+/* ---------- Управление объявлениями (SUPERADMIN) ---------- */
+
+.announcements-page__subtitle {
+  margin: 4px 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.announcements-page__state {
+  padding: 24px 0;
+  color: var(--text-secondary);
+}
+
+.announcement-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: 12px;
+}
+
+.announcement-card {
+  --announcement-accent: var(--accent-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--glass-border);
+  border-left: 4px solid var(--announcement-accent);
+  background: var(--card-bg);
+  min-width: 0;
+}
+
+.announcement-card--warning {
+  --announcement-accent: var(--warning);
+}
+
+.announcement-card--critical {
+  --announcement-accent: var(--danger);
+}
+
+.announcement-card.is-finished {
+  opacity: 0.65;
+}
+
+.announcement-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.announcement-card__badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.announcement-card__severity {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--announcement-accent);
+}
+
+.announcement-card__actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.announcement-card__actions .btn-icon {
+  min-width: 36px;
+  min-height: 36px;
+}
+
+.announcement-card__delete:hover {
+  color: var(--danger);
+}
+
+.announcement-card__title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.announcement-card__message {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.announcement-card__period {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+/* Форма объявления */
+.announcement-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.announcement-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.announcement-form label {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.announcement-form textarea {
+  height: auto;
+  min-height: 96px;
+  resize: vertical;
+}
+
+.announcement-form__hint {
+  margin: -6px 0 0;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.announcement-form .form-group .announcement-form__hint {
+  margin: 0;
+}
+
+.announcement-form__severity {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(max-content, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.announcement-form__severity legend {
+  grid-column: 1 / -1;
+  float: left;
+  width: 100%;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.severity-option {
+  --announcement-accent: var(--accent-primary);
+  position: relative;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--glass-border);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--transition-fast, 0.15s ease), background var(--transition-fast, 0.15s ease);
+}
+
+.severity-option--warning {
+  --announcement-accent: var(--warning);
+}
+
+.severity-option--critical {
+  --announcement-accent: var(--danger);
+}
+
+.severity-option svg {
+  flex-shrink: 0;
+  color: var(--announcement-accent);
+}
+
+.severity-option span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.severity-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.severity-option.is-selected {
+  border-color: var(--announcement-accent);
+  background: color-mix(in srgb, var(--announcement-accent) 14%, var(--input-bg));
+}
+
+.severity-option:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--announcement-accent) 60%, transparent);
+  outline-offset: 2px;
+}
+
+.announcement-form__period {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.announcement-form__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.announcement-form__preview-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.announcement-form__error {
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 10px);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.announcement-form__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .announcement-card__actions .btn-icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .announcement-form__period,
+  .announcement-form__severity {
+    grid-template-columns: 1fr;
+  }
+
+  /* Без автоматического увеличения страницы в iOS при фокусе */
+  .announcement-form input,
+  .announcement-form textarea {
+    font-size: 16px;
+  }
+
+  .announcement-form__footer > * {
+    flex: 1;
+    min-height: 44px;
+  }
+}

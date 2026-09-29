@@ -34,6 +34,8 @@ vi.mock('../api/features', () => ({
   }
 }));
 
+vi.mock('../api/announcements', () => ({ getActiveAnnouncements: vi.fn().mockResolvedValue([]), dismissAnnouncement: vi.fn() }));
+
 describe('DashboardLayout Company Switcher', () => {
   beforeEach(() => {
     vi.clearAllMocks();

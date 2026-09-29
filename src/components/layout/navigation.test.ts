@@ -73,8 +73,8 @@ describe('getSidebarItems', () => {
     ]);
   });
 
-  it('shows the platform admin only companies and feature flags', () => {
-    expect(paths(getSidebarItems(access({ role: 'SUPERADMIN' })))).toEqual(['/tenants', '/feature-flags']);
+  it('shows the platform admin companies, feature flags and announcements', () => {
+    expect(paths(getSidebarItems(access({ role: 'SUPERADMIN' })))).toEqual(['/tenants', '/feature-flags', '/announcements']);
   });
 
   it('marks the orders and site requests items with counters and the AI assistant as beta', () => {
@@ -107,9 +107,9 @@ describe('getBottomNav', () => {
       .toEqual(['/kanban', '/calendar', '/earnings', '/archive']);
   });
 
-  it('gives the platform admin companies and flags', () => {
+  it('gives the platform admin companies, flags and announcements', () => {
     const nav = getBottomNav(access({ role: 'SUPERADMIN' }));
-    expect(paths(nav.items)).toEqual(['/tenants', '/feature-flags']);
+    expect(paths(nav.items)).toEqual(['/tenants', '/feature-flags', '/announcements']);
     expect(nav.items[1].label).toBe('Flags');
     expect(nav.menuLabel).toBe('Меню');
   });

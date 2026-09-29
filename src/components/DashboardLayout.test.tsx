@@ -7,6 +7,7 @@ import { getProfile } from '../api/settings';
 import { getRecentNotifications, markNotificationAsRead } from '../api/notifications';
 import { getOrdersCountByStatus, getOrderStatuses } from '../api/kanban';
 import { getNewSiteRequestsCount } from '../api/siteRequests';
+import { dismissAnnouncement, getActiveAnnouncements } from '../api/announcements';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
@@ -29,6 +30,7 @@ vi.mock('../api/kanban', async (importOriginal) => ({
 }));
 vi.mock('../api/storage', () => ({ getLowStockMaterials: vi.fn().mockResolvedValue([]) }));
 vi.mock('../api/siteRequests', () => ({ getNewSiteRequestsCount: vi.fn().mockResolvedValue(0) }));
+vi.mock('../api/announcements', () => ({ getActiveAnnouncements: vi.fn(), dismissAnnouncement: vi.fn() }));
 vi.mock('../features/kanban/components/OrderDrawer', () => ({ OrderDrawer: () => null }));
 vi.mock('./PushNotificationSettings', () => ({ PushNotificationSettings: () => <div>Push settings</div> }));
 
@@ -68,6 +70,41 @@ describe('DashboardLayout', () => {
     vi.mocked(getRecentNotifications).mockResolvedValue([]);
     vi.mocked(getOrderStatuses).mockResolvedValue([{ id: 1, name: 'Новые', color: '#000', sortOrder: 1, isCompleted: false }]);
     vi.mocked(getOrdersCountByStatus).mockResolvedValue(3);
+    vi.mocked(getActiveAnnouncements).mockResolvedValue([]);
+  });
+
+  it('shows platform announcements under the top bar and hides one for good', async () => {
+    loginAs('WORKER');
+    const base = { message: 'С 22:00 до 23:00 сервис недоступен', showFrom: '2026-09-29T10:00:00Z', showUntil: null, createdAt: '', updatedAt: '' };
+    vi.mocked(getActiveAnnouncements).mockResolvedValue([
+      { ...base, id: 1, title: 'Работы сегодня', severity: 'CRITICAL', dismissible: false },
+      { ...base, id: 2, title: 'Обновление', severity: 'WARNING', dismissible: true }
+    ]);
+    vi.mocked(dismissAnnouncement).mockResolvedValue();
+    renderLayout();
+
+    const banner = await screen.findByText('Работы сегодня');
+    expect(banner.closest('.dashboard-announcements')?.previousElementSibling).toHaveClass('topbar');
+    fireEvent.click(screen.getByRole('button', { name: 'Скрыть объявление' }));
+
+    await waitFor(() => expect(screen.queryByText('Обновление')).not.toBeInTheDocument());
+    expect(dismissAnnouncement).toHaveBeenCalledWith(2);
+    expect(screen.getByText('Работы сегодня')).toBeInTheDocument();
+  });
+
+  it('brings the announcement back when hiding fails', async () => {
+    loginAs('MANAGER');
+    vi.mocked(getActiveAnnouncements).mockResolvedValue([{
+      id: 2, title: 'Обновление', message: 'Текст', severity: 'INFO', dismissible: true,
+      showFrom: '2026-09-29T10:00:00Z', showUntil: null, createdAt: '', updatedAt: ''
+    }]);
+    vi.mocked(dismissAnnouncement).mockRejectedValue(new Error('offline'));
+    renderLayout();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Скрыть объявление' }));
+
+    await waitFor(() => expect(dismissAnnouncement).toHaveBeenCalledWith(2));
+    expect(await screen.findByText('Обновление')).toBeInTheDocument();
   });
 
   it('shows the owner menu with the new orders counter and the page title', async () => {
@@ -93,11 +130,11 @@ describe('DashboardLayout', () => {
     expect(within(bottomNav()).getByText('Меню')).toBeInTheDocument();
   });
 
-  it('shows the platform admin only companies and flags, without the new order button', () => {
+  it('shows the platform admin companies, flags and announcements, without the new order button', () => {
     loginAs('SUPERADMIN');
     renderLayout('/tenants');
 
-    expect(within(sidebar()).getAllByRole('link').map(link => link.textContent)).toEqual(['Компании', 'Feature Flags']);
+    expect(within(sidebar()).getAllByRole('link').map(link => link.textContent)).toEqual(['Компании', 'Feature Flags', 'Объявления']);
     expect(screen.queryByTitle('Создать новый заказ')).not.toBeInTheDocument();
     expect(getProfile).not.toHaveBeenCalled();
   });
