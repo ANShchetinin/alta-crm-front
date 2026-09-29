@@ -16,6 +16,7 @@ import { useMaterialsQuery } from '../hooks/queries/useStorageQuery';
 import { TIMEZONE_OPTIONS } from '../utils/dateUtils';
 import { Sliders } from 'lucide-react';
 import { toast } from '../utils/toast';
+import { formatErrorWithReason } from '../utils/errorMessage';
 import { useFeature, setDevFeatureOverride } from '../hooks/useFeatureToggle';
 import { updateTenantFeature } from '../api/features';
 import '../styles/clients.css'; // Reusing standard wrapper/header styles
@@ -199,12 +200,8 @@ export const Settings = () => {
     try {
       await updateProfile({ email: newEmail, firstName, lastName, currentPassword, password: newPassword });
       toast.success('Профиль обновлен (чтобы изменения email вступили в силу, перезайдите в систему)');
-    } catch (err: any) {
-      if (err.response?.data?.message) {
-        toast.error('Ошибка при обновлении профиля: ' + err.response.data.message);
-      } else {
-        toast.error('Ошибка при обновлении профиля');
-      }
+    } catch (err) {
+      toast.error(formatErrorWithReason('Ошибка при обновлении профиля', err));
     } finally {
       setProfileSaving(false);
     }
@@ -222,8 +219,8 @@ export const Settings = () => {
       });
       updateTenantSettingsLocally(res);
       toast.success('Реквизиты и настройки компании успешно сохранены');
-    } catch {
-      toast.error('Ошибка при сохранении настроек компании');
+    } catch (err) {
+      toast.error(formatErrorWithReason('Ошибка при сохранении настроек компании', err));
     } finally {
       setTenantSaving(false);
     }
@@ -236,8 +233,8 @@ export const Settings = () => {
       const res = await uploadTenantLogo(file);
       updateTenantSettingsLocally(res);
       toast.success('Логотип загружен');
-    } catch {
-      toast.error('Ошибка при загрузке логотипа');
+    } catch (err) {
+      toast.error(formatErrorWithReason('Ошибка при загрузке логотипа', err));
     }
   };
 
@@ -273,8 +270,8 @@ export const Settings = () => {
       });
       updateTenantSettingsLocally(res);
       toast.success('Параметры договора и шаблон чек-листа успешно сохранены!');
-    } catch {
-      toast.error('Ошибка при сохранении параметров договора');
+    } catch (err) {
+      toast.error(formatErrorWithReason('Ошибка при сохранении параметров договора', err));
     } finally {
       setTenantSaving(false);
     }

@@ -17,6 +17,7 @@ import { useAppStore } from '../store/useAppStore';
 import { toast } from '../utils/toast';
 import { confirm } from '../utils/confirm';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
+import { formatErrorWithReason } from '../utils/errorMessage';
 import '../styles/contract-templates.css';
 
 interface TagItem {
@@ -477,8 +478,8 @@ export const ContractTemplates = () => {
       setStatus(updatedStatus);
       setIsModified(false);
       toast.success('Шаблон договора успешно сохранен в CRM!');
-    } catch (e: any) {
-      toast.error('Ошибка сохранения шаблона: ' + (e.response?.data?.error || e.message));
+    } catch (e) {
+      toast.error(formatErrorWithReason('Ошибка сохранения шаблона', e));
     } finally {
       setSaving(false);
     }
@@ -523,8 +524,8 @@ export const ContractTemplates = () => {
       setStatus(updatedStatus);
       setIsModified(false);
       toast.success('DOCX файл успешно загружен со 100% версткой и картинками!');
-    } catch (e: any) {
-      toast.error('Ошибка при чтении DOCX файла: ' + (e.message || e));
+    } catch (e) {
+      toast.error(formatErrorWithReason('Ошибка при загрузке DOCX шаблона', e));
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -547,8 +548,8 @@ export const ContractTemplates = () => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       toast.success('Шаблон скачивается');
-    } catch (e: any) {
-      toast.error('Не удалось скачать DOCX: ' + (e.response?.data?.error || e.message));
+    } catch (e) {
+      toast.error(formatErrorWithReason('Не удалось скачать DOCX', e));
     }
   };
 
@@ -574,8 +575,8 @@ export const ContractTemplates = () => {
       if (docxMountRef.current) docxMountRef.current.innerHTML = '';
       setIsModified(false);
       toast.success(`Шаблон ${typeLabel} удален.`);
-    } catch (e: any) {
-      toast.error('Ошибка при удалении шаблона: ' + (e.response?.data?.error || e.message));
+    } catch (e) {
+      toast.error(formatErrorWithReason('Ошибка при удалении шаблона', e));
     } finally {
       setLoading(false);
     }
@@ -598,8 +599,8 @@ export const ContractTemplates = () => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       toast.success('Тестовый договор (Word) успешно сформирован и скачан!');
-    } catch (e: any) {
-      toast.error('Ошибка тестовой генерации: ' + (e.response?.data?.error || e.message));
+    } catch (e) {
+      toast.error(formatErrorWithReason('Ошибка тестовой генерации', e));
     } finally {
       setTestGenerating(false);
     }
