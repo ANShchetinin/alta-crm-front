@@ -1,7 +1,9 @@
 import { NavLink } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useWhatsNew } from '../../features/whatsNew/hooks/useWhatsNew';
 import { useAppStore } from '../../store/useAppStore';
+import '../../styles/whats-new.css';
 import { getNavLabel, type BottomNav } from './navigation';
 
 interface MobileBottomNavProps {
@@ -15,6 +17,7 @@ interface MobileBottomNavProps {
 export const MobileBottomNav = ({ nav, isMenuOpen, onToggleMenu, onNavigate }: MobileBottomNavProps) => {
   const { t } = useTranslation();
   const newOrdersCount = useAppStore(state => state.newOrdersCount);
+  const { hasUnseen: hasWhatsNew } = useWhatsNew();
   const menuLabel = nav.menuLabelKey ? t(nav.menuLabelKey, nav.menuLabel) : nav.menuLabel;
 
   return (
@@ -36,6 +39,8 @@ export const MobileBottomNav = ({ nav, isMenuOpen, onToggleMenu, onNavigate }: M
       <button type="button" className={`bottom-nav-item ${isMenuOpen ? 'active' : ''}`} onClick={onToggleMenu}>
         <div className="bottom-nav-icon-wrapper">
           <Menu size={20} />
+          {/* «Что нового» лежит внизу меню — подсказываем, что там есть новое */}
+          {hasWhatsNew && <span className="whats-new-dot" aria-label="есть новое" />}
         </div>
         <span>{menuLabel}</span>
       </button>
