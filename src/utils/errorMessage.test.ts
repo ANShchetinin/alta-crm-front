@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { AxiosError, type AxiosResponse } from 'axios';
-import { getErrorMessage } from './errorMessage';
+import { formatErrorWithReason, getErrorMessage } from './errorMessage';
 
 const axiosError = (data: unknown) => {
   const error = new AxiosError('Request failed with status code 400');
@@ -18,5 +18,17 @@ describe('getErrorMessage', () => {
     expect(getErrorMessage(new Error('Network Error'), 'Ошибка')).toBe('Network Error');
     expect(getErrorMessage('boom', 'Ошибка')).toBe('Ошибка');
     expect(getErrorMessage(null, 'Ошибка')).toBe('Ошибка');
+  });
+});
+
+describe('formatErrorWithReason', () => {
+  it('appends the backend message to the title', () => {
+    expect(formatErrorWithReason('Ошибка при загрузке логотипа', axiosError({ message: 'Логотип должен быть изображением' })))
+      .toBe('Ошибка при загрузке логотипа: Логотип должен быть изображением');
+  });
+
+  it('shows only the title without a backend message', () => {
+    expect(formatErrorWithReason('Ошибка при загрузке логотипа', axiosError({}))).toBe('Ошибка при загрузке логотипа');
+    expect(formatErrorWithReason('Ошибка при загрузке логотипа', new Error('Network Error'))).toBe('Ошибка при загрузке логотипа');
   });
 });
