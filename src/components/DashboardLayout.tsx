@@ -8,6 +8,7 @@ import { CreateCompanyModal } from './CreateCompanyModal';
 import { OrderDrawer } from '../features/kanban/components/OrderDrawer';
 import { AnnouncementBanner } from '../features/announcements/components/AnnouncementBanner';
 import { useActiveAnnouncements } from '../features/announcements/hooks/useAnnouncements';
+import { WhatsNewModal } from '../features/whatsNew/components/WhatsNewModal';
 import { useCompanySwitcher } from './layout/hooks/useCompanySwitcher';
 import { useNavAccess } from './layout/hooks/useNavAccess';
 import { useNavCounters } from './layout/hooks/useNavCounters';
@@ -112,6 +113,8 @@ const DashboardLayout = () => {
       {pwa.showIosGuide && <IosInstallGuide onClose={pwa.closeIosGuide} />}
 
       <OrderDrawer />
+
+      <WhatsNewModal />
 
       <CreateCompanyModal
         isOpen={switcher.isCreateModalOpen}

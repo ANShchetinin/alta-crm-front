@@ -1,0 +1,162 @@
+/* «Что нового»: окно со списком изменений и пункт внизу бокового меню.
+   Цвета — только переменные темы, чтобы одинаково читалось в светлой и темной теме. */
+
+.whats-new {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.whats-new__release + .whats-new__release {
+  padding-top: 16px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.whats-new__release-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-bottom: 10px;
+}
+
+.whats-new__version {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.whats-new__date {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.whats-new__new-badge {
+  align-self: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--accent-primary);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.whats-new__changes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.whats-new__change {
+  --change-accent: var(--accent-primary);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.whats-new__change--improvement {
+  --change-accent: var(--success);
+}
+
+.whats-new__change--fix {
+  --change-accent: var(--warning);
+}
+
+.whats-new__change-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm, 8px);
+  background: color-mix(in srgb, var(--change-accent) 15%, transparent);
+  color: var(--change-accent);
+}
+
+.whats-new__change-body {
+  min-width: 0;
+}
+
+.whats-new__change-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.whats-new__kind {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.whats-new__change-text {
+  margin: 2px 0 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* Пункт внизу бокового меню и номер версии */
+.whats-new-btn {
+  position: relative;
+  width: 100%;
+  justify-content: flex-start;
+  padding: 8px 12px;
+  font-size: 0.84rem;
+}
+
+.whats-new-btn__icon {
+  position: relative;
+  display: inline-flex;
+}
+
+.whats-new-dot {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--bg-secondary);
+}
+
+button.app-version-badge {
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+button.app-version-badge:hover {
+  color: var(--text-primary);
+}
+
+.sidebar.sidebar-collapsed .whats-new-btn {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+/* В свернутом меню подписи внизу скрыты (dashboard.css прячет все span) — иконку и точку оставляем */
+.sidebar.sidebar-collapsed .sidebar-footer .whats-new-btn__icon {
+  display: inline-flex !important;
+}
+
+.sidebar.sidebar-collapsed .sidebar-footer .whats-new-dot {
+  display: block !important;
+}
+
+@media (max-width: 768px) {
+  .whats-new-btn {
+    min-height: 44px;
+  }
+}

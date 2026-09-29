@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { LogOut, PanelLeftClose, PanelLeftOpen, Smartphone, X } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { CompanyDropdown, SidebarCompanyTrigger } from './CompanySwitcher';
 import type { CompanySwitcher } from './hooks/useCompanySwitcher';
 import { getNavLabel, type NavItem } from './navigation';
+import { SidebarFooter } from './SidebarFooter';
 
 interface SidebarProps {
   role: string | null;
@@ -18,8 +19,6 @@ interface SidebarProps {
   onInstallPwa: () => void;
   onLogout: () => void;
 }
-
-const APP_VERSION = import.meta.env.VITE_APP_VERSION || 'v1.0.0';
 
 const NavItemBadge = ({ item }: { item: NavItem }) => {
   const newOrdersCount = useAppStore(state => state.newOrdersCount);
@@ -44,22 +43,6 @@ const SuperAdminBrand = () => (
     </div>
   </div>
 );
-
-const installButtonStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px',
-  width: '100%',
-  padding: '10px 14px',
-  color: 'var(--accent-primary)',
-  background: 'rgba(59, 130, 246, 0.08)',
-  border: '1px solid rgba(59, 130, 246, 0.2)',
-  borderRadius: 'var(--radius-md)',
-  marginBottom: '8px',
-  fontSize: '0.88rem',
-  fontWeight: 500,
-  cursor: 'pointer'
-};
 
 /** Боковое меню: на десктопе сворачивается, на телефоне выезжает шторкой с переключателем компаний. */
 export const Sidebar = ({
@@ -109,25 +92,12 @@ export const Sidebar = ({
         ))}
       </nav>
 
-      <div className="sidebar-footer">
-        {canInstallPwa && (
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={onInstallPwa}
-            style={installButtonStyle}
-            title="Установить Alta CRM на телефон или рабочий стол"
-          >
-            <Smartphone size={18} />
-            <span>Установить PWA</span>
-          </button>
-        )}
-        <button className="btn btn-ghost logout-btn" onClick={onLogout}>
-          <LogOut size={20} />
-          <span>{t('nav.signout')}</span>
-        </button>
-        <div className="app-version-badge">{APP_VERSION}</div>
-      </div>
+      <SidebarFooter
+        canInstallPwa={canInstallPwa}
+        onInstallPwa={onInstallPwa}
+        onLogout={onLogout}
+        onCloseMobile={onCloseMobile}
+      />
     </aside>
   );
 };
