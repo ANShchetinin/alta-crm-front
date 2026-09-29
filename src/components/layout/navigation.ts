@@ -1,6 +1,6 @@
 import {
-  Archive, Box, Building2, CalendarDays, FileText, Globe, LayoutDashboard, PieChart, Ruler, Settings, ShieldCheck,
-  Sliders, Sparkles, TrendingUp, UserCircle, Users, Wallet, type LucideIcon
+  Archive, Box, Building2, CalendarDays, FileText, Globe, LayoutDashboard, Megaphone, PieChart, Ruler, Settings,
+  ShieldCheck, Sliders, Sparkles, TrendingUp, UserCircle, Users, Wallet, type LucideIcon
 } from 'lucide-react';
 import type { TFunction } from 'i18next';
 
@@ -51,7 +51,8 @@ const ROUTES = {
   settings: { to: '/settings', icon: Settings, labelKey: 'nav.settings', label: 'Настройки' },
   auditLogs: { to: '/audit-logs', icon: ShieldCheck, label: 'Журнал аудита' },
   tenants: { to: '/tenants', icon: Building2, label: 'Компании' },
-  featureFlags: { to: '/feature-flags', icon: Sliders, label: 'Feature Flags' }
+  featureFlags: { to: '/feature-flags', icon: Sliders, label: 'Feature Flags' },
+  announcements: { to: '/announcements', icon: Megaphone, label: 'Объявления' }
 } satisfies Record<string, NavItem>;
 
 const DEFAULT_TITLE: NavItem = { to: '/', icon: LayoutDashboard, label: 'Alta CRM' };
@@ -76,7 +77,7 @@ export const getRouteTitle = (pathname: string): NavItem =>
 export const getSidebarItems = (access: NavAccess): NavItem[] => {
   const { role, features } = access;
   if (role === 'SUPERADMIN') {
-    return [ROUTES.tenants, ROUTES.featureFlags];
+    return [ROUTES.tenants, ROUTES.featureFlags, ROUTES.announcements];
   }
   if (role === 'WORKER') {
     return [
@@ -118,7 +119,7 @@ export const getBottomNav = (access: NavAccess): BottomNav => {
   const { role, features } = access;
   if (role === 'SUPERADMIN') {
     return {
-      items: [ROUTES.tenants, { ...ROUTES.featureFlags, label: 'Flags' }],
+      items: [ROUTES.tenants, { ...ROUTES.featureFlags, label: 'Flags' }, ROUTES.announcements],
       menuLabel: 'Меню'
     };
   }

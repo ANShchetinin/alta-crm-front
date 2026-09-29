@@ -27,6 +27,7 @@ const Calendar = lazy(() => import('./pages/Calendar').then(m => ({ default: m.C
 const Measurements = lazy(() => import('./pages/Measurements').then(m => ({ default: m.Measurements })));
 const Finances = lazy(() => import('./pages/Finances').then(m => ({ default: m.Finances })));
 const FeatureFlags = lazy(() => import('./pages/FeatureFlags').then(m => ({ default: m.FeatureFlags })));
+const Announcements = lazy(() => import('./pages/Announcements').then(m => ({ default: m.Announcements })));
 const ExitIntentStats = lazy(() => import('./pages/ExitIntentStats').then(m => ({ default: m.ExitIntentStats })));
 const Archive = lazy(() => import('./pages/Archive').then(m => ({ default: m.Archive })));
 const AuditLogs = lazy(() => import('./pages/AuditLogs').then(m => ({ default: m.AuditLogs })));
@@ -182,6 +183,7 @@ function App() {
               <Route index element={<IndexRedirect />} />
               <Route path="tenants" element={<RoleRoute allowedRoles={['SUPERADMIN']}><Tenants /></RoleRoute>} />
               <Route path="feature-flags" element={<RoleRoute allowedRoles={['SUPERADMIN']}><FeatureFlags /></RoleRoute>} />
+              <Route path="announcements" element={<RoleRoute allowedRoles={['SUPERADMIN']}><Announcements /></RoleRoute>} />
 
               <Route path="kanban" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER', 'WORKER']}><Kanban /></RoleRoute>} />
               <Route path="ai-assistant" element={<RoleRoute allowedRoles={['OWNER', 'MANAGER']}><FeatureRoute feature="AI_ESTIMATE"><AiAssistant /></FeatureRoute></RoleRoute>} />

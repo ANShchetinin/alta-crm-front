@@ -106,6 +106,8 @@
 @media (max-width: 480px) {
   .login-container {
     padding: 12px;
+    /* Кнопки темы и языка закреплены сверху: объявление над карточкой не должно уходить под них */
+    padding-top: calc(64px + env(safe-area-inset-top, 0px));
   }
 
   .login-card {

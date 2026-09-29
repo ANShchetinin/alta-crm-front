@@ -6,6 +6,8 @@ import { ORDERS_QUERY_KEY } from '../hooks/queries/useOrdersQuery';
 import { useInvalidateOnOrdersChanged } from '../hooks/queries/useInvalidateOnOrdersChanged';
 import { CreateCompanyModal } from './CreateCompanyModal';
 import { OrderDrawer } from '../features/kanban/components/OrderDrawer';
+import { AnnouncementBanner } from '../features/announcements/components/AnnouncementBanner';
+import { useActiveAnnouncements } from '../features/announcements/hooks/useAnnouncements';
 import { useCompanySwitcher } from './layout/hooks/useCompanySwitcher';
 import { useNavAccess } from './layout/hooks/useNavAccess';
 import { useNavCounters } from './layout/hooks/useNavCounters';
@@ -44,6 +46,7 @@ const DashboardLayout = () => {
   const switcher = useCompanySwitcher(isTenantUser, refreshUserData);
   const pwa = usePwaInstall();
   const sidebar = useSidebarCollapsed();
+  const { announcements, dismiss: dismissAnnouncement } = useActiveAnnouncements(Boolean(token));
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -89,6 +92,7 @@ const DashboardLayout = () => {
           onInstallPwa={pwa.install}
           onOpenProfile={() => setIsProfileModalOpen(true)}
         />
+        <AnnouncementBanner className="dashboard-announcements" announcements={announcements} onDismiss={dismissAnnouncement} />
         <div className="content-area animate-fade-in" key={tenantId ?? 'default'}>
           <Outlet />
         </div>

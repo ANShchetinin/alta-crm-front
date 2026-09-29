@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { loginCall } from '../api/auth';
+import { AnnouncementBanner } from '../features/announcements/components/AnnouncementBanner';
+import { usePublicAnnouncements } from '../features/announcements/hooks/useAnnouncements';
 import '../styles/login.css';
 
 const Login = () => {
@@ -17,6 +19,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const announcements = usePublicAnnouncements();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,57 +51,60 @@ const Login = () => {
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
          </button>
       </div>
-      <div className="glass-panel login-card">
-        <div className="login-header">
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-            <img src="/logo.png" alt="Alta CRM" style={{ width: 64, height: 64, objectFit: 'contain', background: 'transparent' }} />
-          </div>
-          <h1>{t('app.name')}</h1>
-          <p>{t('login.title')}</p>
-        </div>
-
-        <form onSubmit={handleLogin} className="login-form">
-          {errorMsg && <div className="error-message" style={{color: 'var(--danger)', fontSize: '0.85rem', textAlign: 'center'}}>{errorMsg}</div>}
-          <div className="input-group">
-            <Mail className="input-icon" size={18} />
-            <input
-              type="email"
-              className="input-field with-icon"
-              placeholder={t('login.email')}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+      <div className="login-column">
+        <AnnouncementBanner announcements={announcements} />
+        <div className="glass-panel login-card">
+          <div className="login-header">
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+              <img src="/logo.png" alt="Alta CRM" style={{ width: 64, height: 64, objectFit: 'contain', background: 'transparent' }} />
+            </div>
+            <h1>{t('app.name')}</h1>
+            <p>{t('login.title')}</p>
           </div>
 
-          <div className="input-group" style={{ position: 'relative' }}>
-            <Key className="input-icon" size={18} />
-            <input
-              type={showPassword ? 'text' : 'password'}
-              className="input-field with-icon"
-              placeholder={t('login.password')}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{ paddingRight: '40px' }}
-            />
-            <button 
-              type="button"
-              className="btn-icon"
-              style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          <form onSubmit={handleLogin} className="login-form">
+            {errorMsg && <div className="error-message" style={{color: 'var(--danger)', fontSize: '0.85rem', textAlign: 'center'}}>{errorMsg}</div>}
+            <div className="input-group">
+              <Mail className="input-icon" size={18} />
+              <input
+                type="email"
+                className="input-field with-icon"
+                placeholder={t('login.email')}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="input-group" style={{ position: 'relative' }}>
+              <Key className="input-icon" size={18} />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="input-field with-icon"
+                placeholder={t('login.password')}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                style={{ paddingRight: '40px' }}
+              />
+              <button 
+                type="button"
+                className="btn-icon"
+                style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+
+            <button type="submit" className="btn btn-primary login-btn" disabled={isLoading}>
+              {isLoading ? <span className="spinner"></span> : <><LogIn size={18} /> {t('login.button')}</>}
             </button>
-          </div>
-
-          <button type="submit" className="btn btn-primary login-btn" disabled={isLoading}>
-            {isLoading ? <span className="spinner"></span> : <><LogIn size={18} /> {t('login.button')}</>}
-          </button>
-        </form>
+          </form>
         
-        <div className="login-footer">
-          <p>{t('login.noAccount')} <a href="#">{t('login.requestAccess')}</a></p>
+          <div className="login-footer">
+            <p>{t('login.noAccount')} <a href="#">{t('login.requestAccess')}</a></p>
+          </div>
         </div>
       </div>
     </div>
