@@ -1,4 +1,4 @@
-import { LogOut, Smartphone, Sparkles } from 'lucide-react';
+import { Gift, LogOut, Smartphone } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWhatsNew } from '../../features/whatsNew/hooks/useWhatsNew';
 import '../../styles/whats-new.css';
@@ -60,7 +60,7 @@ export const SidebarFooter = ({ canInstallPwa, onInstallPwa, onLogout, onCloseMo
         title={whatsNew.hasUnseen ? 'Что нового — есть обновления' : 'Что нового'}
       >
         <span className="whats-new-btn__icon">
-          <Sparkles size={20} />
+          <Gift size={20} />
           {whatsNew.hasUnseen && <span className="whats-new-dot" aria-label="есть новое" />}
         </span>
         <span>Что нового</span>
