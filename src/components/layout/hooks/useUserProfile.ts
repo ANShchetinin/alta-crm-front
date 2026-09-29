@@ -21,11 +21,12 @@ export const useUserProfile = (role: string | null) => {
     try {
       const data = await getProfile();
       const fullName = [data.firstName, data.lastName].filter(Boolean).join(' ');
-      setProfile(prev => ({
+      setProfile({
         name: fullName || data.email || 'User',
         email: data.email || '',
-        avatarUrl: data.avatarUrl || prev.avatarUrl
-      }));
+        // Без фото — первая буква имени, а не фото из прошлой компании или до удаления
+        avatarUrl: data.avatarUrl || null
+      });
       useAuthStore.getState().setPermissions({
         canViewFinances: data.canViewFinances,
         canAccessMeasurements: data.canAccessMeasurements

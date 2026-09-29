@@ -17,6 +17,8 @@ export const useNavCounters = (role: string | null, hasSiteRequests: boolean) =>
   const fetchLowStockMaterials = useAppStore(state => state.fetchLowStockMaterials);
   const fetchNewSiteRequestsCount = useAppStore(state => state.fetchNewSiteRequestsCount);
 
+  const pollsSiteRequests = role !== 'WORKER' && hasSiteRequests;
+
   const refresh = useCallback(async () => {
     try {
       // Компанию берем из стора в момент вызова: после переключения замыкание еще хранит прежнюю
@@ -31,26 +33,23 @@ export const useNavCounters = (role: string | null, hasSiteRequests: boolean) =>
     }
     if (role !== 'WORKER') {
       fetchLowStockMaterials();
+    }
+    if (pollsSiteRequests) {
       fetchNewSiteRequestsCount();
     }
-  }, [role, setNewOrdersCount, fetchLowStockMaterials, fetchNewSiteRequestsCount, queryClient]);
+  }, [role, pollsSiteRequests, setNewOrdersCount, fetchLowStockMaterials, fetchNewSiteRequestsCount, queryClient]);
 
   useEffect(() => {
     if (role === 'SUPERADMIN') {
       return;
     }
     refresh();
-    const pollsSiteRequests = role !== 'WORKER' && hasSiteRequests;
-    if (pollsSiteRequests) {
-      fetchNewSiteRequestsCount();
+    if (!pollsSiteRequests) {
+      return;
     }
-    const interval = setInterval(() => {
-      if (pollsSiteRequests) {
-        fetchNewSiteRequestsCount();
-      }
-    }, SITE_REQUESTS_POLL_MS);
+    const interval = setInterval(fetchNewSiteRequestsCount, SITE_REQUESTS_POLL_MS);
     return () => clearInterval(interval);
-  }, [role, hasSiteRequests, refresh, fetchNewSiteRequestsCount]);
+  }, [role, pollsSiteRequests, refresh, fetchNewSiteRequestsCount]);
 
   return { refresh };
 };

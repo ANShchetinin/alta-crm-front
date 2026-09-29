@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { renderWithQuery } from '../test-utils/queryWrapper';
 import DashboardLayout from './DashboardLayout';
 import { getProfile } from '../api/settings';
 import { getRecentNotifications, markNotificationAsRead } from '../api/notifications';
 import { getOrdersCountByStatus, getOrderStatuses } from '../api/kanban';
+import { getNewSiteRequestsCount } from '../api/siteRequests';
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
@@ -147,6 +148,34 @@ describe('DashboardLayout', () => {
 
     expect(screen.getByText('Push settings')).toBeInTheDocument();
     expect(screen.getByText(/anna@test\.ru/)).toBeInTheDocument();
+  });
+
+  it('asks for new site requests once on start and not at all when the module is off', async () => {
+    loginAs('OWNER');
+    useAppStore.setState({ tenantSettings: { name: 'Эколайн', activeFeatures: ['SITE_REQUESTS'] } as never });
+    const { unmount } = renderLayout();
+    await waitFor(() => expect(getNewSiteRequestsCount).toHaveBeenCalledTimes(1));
+    unmount();
+
+    vi.mocked(getNewSiteRequestsCount).mockClear();
+    useAppStore.setState({ tenantSettings: { name: 'Эколайн', activeFeatures: [] } as never });
+    renderLayout();
+    await waitFor(() => expect(getOrdersCountByStatus).toHaveBeenCalled());
+    expect(getNewSiteRequestsCount).not.toHaveBeenCalled();
+  });
+
+  it('shows the initial instead of the previous photo when the profile has none', async () => {
+    loginAs('OWNER');
+    vi.mocked(getProfile).mockResolvedValueOnce({ firstName: 'Анна', avatarUrl: '/a.png' } as never);
+    renderLayout();
+    expect(await screen.findByAltText('Анна')).toBeInTheDocument();
+
+    // Профиль перечитывается при смене роли (как после перехода в другую компанию)
+    vi.mocked(getProfile).mockResolvedValueOnce({ firstName: 'Анна' } as never);
+    act(() => useAuthStore.setState({ role: 'MANAGER' }));
+
+    await waitFor(() => expect(screen.queryByAltText('Анна')).not.toBeInTheDocument());
+    expect(document.querySelector('.avatar')).toHaveTextContent('А');
   });
 
   it('remembers the collapsed sidebar', () => {

@@ -12,8 +12,9 @@ const STANDALONE_QUERY = '(display-mode: standalone)';
 const isRunningStandalone = () =>
   window.matchMedia(STANDALONE_QUERY).matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-const isIosDevice = () =>
-  /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
+/** iPhone / iPad; iPadOS 13+ представляется как Mac, но в отличие от него сенсорный. */
+export const isIosDevice = () =>
+  /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 
 /**
  * Установка приложения (PWA): запущено ли оно уже как приложение, системный диалог установки,
@@ -27,7 +28,8 @@ export const usePwaInstall = () => {
   useEffect(() => {
     const checkStandalone = () => setIsStandalone(isRunningStandalone());
     checkStandalone();
-    window.matchMedia(STANDALONE_QUERY).addEventListener('change', checkStandalone);
+    const standaloneQuery = window.matchMedia(STANDALONE_QUERY);
+    standaloneQuery.addEventListener('change', checkStandalone);
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -35,6 +37,7 @@ export const usePwaInstall = () => {
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     return () => {
+      standaloneQuery.removeEventListener('change', checkStandalone);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
