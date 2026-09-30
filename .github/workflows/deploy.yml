@@ -18,13 +18,18 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      # Тег не должен деплоить код с ошибками линтера или красными тестами, даже если он поставлен мимо PR
+      - name: Install, lint and test
+        run: |
+          npm ci
+          npm run lint
+          npm test
+
       - name: Build frontend
         env:
           VITE_APP_VERSION: ${{ github.ref_name }}
           VITE_DADATA_API_KEY: ${{ secrets.VITE_DADATA_API_KEY }}
-        run: |
-          npm ci
-          npm run build
+        run: npm run build
 
       - name: Deploy to VPS
         run: |

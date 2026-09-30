@@ -154,3 +154,5 @@ npm test
 npx vitest
 ```
 
+CI (`.github/workflows/ci.yml`): на каждый PR в `master` и push в `master` запускаются `npm run lint` (oxlint), `npm test` (Vitest) и `npm run build` (`tsc -b` + сборка Vite). `deploy.yml` перед сборкой тоже прогоняет линтер и тесты — при ошибках деплой не выполняется.
+
