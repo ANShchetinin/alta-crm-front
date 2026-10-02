@@ -496,25 +496,34 @@
   font-weight: bold;
 }
 
-.add-column-btn {
-  min-width: 320px;
-  height: 56px;
+.kanban-add-column-wrapper {
+  flex-shrink: 0;
+  width: 320px;
+}
+
+.kanban-add-column-btn {
+  width: 100%;
+  min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px dashed rgba(255, 255, 255, 0.2);
-  color: var(--text-secondary);
+  padding: 0 16px;
+  background: transparent;
+  border: 1.5px dashed var(--accent-primary);
+  border-radius: var(--radius-md);
+  color: var(--accent-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
-  border-radius: var(--radius-lg);
+  box-sizing: border-box;
+  transition: background var(--transition-fast);
 }
 
-.add-column-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.4);
+.kanban-add-column-btn:hover,
+.kanban-add-column-btn:focus-visible {
+  background: rgba(59, 130, 246, 0.1);
 }
 
 /* Modal Header Status Badge styling */
@@ -1050,12 +1059,9 @@ body.light-theme .order-drawer-content {
     box-sizing: border-box;
   }
 
-  .add-column-btn {
-    min-width: 82vw;
+  .kanban-add-column-wrapper {
     width: 82vw;
-    max-width: 82vw;
     scroll-snap-align: center;
-    box-sizing: border-box;
   }
 
   /* Order Slide-Over Drawer as Bottom Sheet on Mobile / PWA */

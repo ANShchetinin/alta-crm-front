@@ -236,7 +236,8 @@ const Kanban = () => {
       onTouchMove: columnReorder.handleHandleTouchMove,
       onTouchEnd: columnReorder.handleHandleTouchEnd,
       onTouchCancel: columnReorder.handleHandleTouchCancel
-    }
+    },
+    onAddColumn: columnEditor.openAdd
   };
 
   return (
@@ -287,7 +288,6 @@ const Kanban = () => {
           }}
           onEditColumn={columnEditor.openEdit}
           onDeleteColumn={columnEditor.remove}
-          onAddColumn={columnEditor.openAdd}
         />
       )}
 
