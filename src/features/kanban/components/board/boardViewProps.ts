@@ -21,6 +21,8 @@ export interface BoardViewProps {
     onTouchEnd: (e: TouchEvent) => void;
     onTouchCancel: () => void;
   };
+  /** Открывает окно создания этапа (кнопка скрыта у монтажника). */
+  onAddColumn: () => void;
 }
 
 /** Перетаскивание мышью на десктопе: карточек между колонками и самих колонок. */

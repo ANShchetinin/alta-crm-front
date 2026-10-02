@@ -1,5 +1,6 @@
 import { ArrowDownCircle, ChevronDown, ChevronsDown, ChevronsUp, GripVertical } from 'lucide-react';
 import type { BoardViewProps } from './boardViewProps';
+import { AddColumnButton } from './AddColumnButton';
 
 interface KanbanMobileListProps extends BoardViewProps {
   collapsedColumns: Record<number, boolean>;
@@ -20,7 +21,8 @@ export const KanbanMobileList = ({
   columnReorder,
   collapsedColumns,
   onToggleColumn,
-  onToggleAll
+  onToggleAll,
+  onAddColumn
 }: KanbanMobileListProps) => {
   const allExpanded = columns.length > 0 && columns.every(col => collapsedColumns[col.id] === false);
 
@@ -126,6 +128,8 @@ export const KanbanMobileList = ({
           </div>
         );
       })}
+
+      {!isWorker && <AddColumnButton onClick={onAddColumn} />}
     </div>
   );
 };

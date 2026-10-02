@@ -1,9 +1,10 @@
 import type { WheelEvent } from 'react';
-import { ArrowDownCircle, Edit2, Plus, Trash2 } from 'lucide-react';
+import { ArrowDownCircle, Edit2, Trash2 } from 'lucide-react';
 import type { Order, OrderStatus } from '../../../../api/kanban';
 import { isCompletedStatus } from '../../../../utils/orderStatus';
 import { columnCardsOf, type ReminderFilter } from '../../utils/board';
 import type { BoardViewProps, DesktopDragBindings } from './boardViewProps';
+import { AddColumnButton } from './AddColumnButton';
 
 interface KanbanColumnsProps extends BoardViewProps {
   isMobile: boolean;
@@ -14,7 +15,6 @@ interface KanbanColumnsProps extends BoardViewProps {
   desktopDrag: DesktopDragBindings;
   onEditColumn: (column: OrderStatus) => void;
   onDeleteColumn: (columnId: number) => void;
-  onAddColumn: () => void;
 }
 
 /** Колесо мыши листает доску вбок, если колонка под курсором уже не прокручивается дальше. */
@@ -151,9 +151,7 @@ export const KanbanColumns = ({
 
     {!isWorker && (
       <div className="kanban-add-column-wrapper">
-        <button type="button" className="btn btn-secondary kanban-add-column-btn" onClick={onAddColumn}>
-          <Plus size={16} /> Добавить колонку
-        </button>
+        <AddColumnButton onClick={onAddColumn} />
       </div>
     )}
   </div>
