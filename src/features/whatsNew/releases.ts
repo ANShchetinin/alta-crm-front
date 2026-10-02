@@ -25,6 +25,19 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.12.1',
+    date: '2026-10-02',
+    changes: [
+      {
+        kind: 'fix',
+        title: 'Кнопка «Добавить колонку» на телефоне',
+        description: 'На доске заявок кнопку добавления этапа теперь хорошо видно и до неё можно долистать, '
+          + 'а в режиме «Список» она появилась под последним этапом.',
+        roles: ['OWNER', 'MANAGER']
+      }
+    ]
+  },
+  {
     version: '1.12.0',
     date: '2026-09-30',
     changes: [
