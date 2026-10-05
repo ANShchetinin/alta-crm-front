@@ -20,6 +20,8 @@ import { Sheet } from '../components/ui/Sheet';
 import { toast } from '../utils/toast';
 import { formatPhone, PHONE_DEFAULT, phoneForSave, phoneHref, phoneMatches } from '../utils/phone';
 import { PhoneInput } from '../components/ui/PhoneInput';
+import { DateInput } from '../components/ui/DateInput';
+import { dateForSave, normalizeDate } from '../utils/dateInput';
 import { confirm } from '../utils/confirm';
 import '../styles/clients.css';
 
@@ -158,10 +160,10 @@ export const Employees = () => {
         phone: phoneForSave(formData.phone),
         position: formData.position.trim(),
         avatarUrl: formData.avatarUrl ? formData.avatarUrl : null,
-        birthDate: formData.birthDate.trim() || undefined,
+        birthDate: dateForSave(formData.birthDate) || undefined,
         passportSeriesNumber: formData.passportSeriesNumber.trim() || undefined,
         passportIssuedBy: formData.passportIssuedBy.trim() || undefined,
-        passportIssuedDate: formData.passportIssuedDate.trim() || undefined,
+        passportIssuedDate: dateForSave(formData.passportIssuedDate) || undefined,
         passportDepartmentCode: formData.passportDepartmentCode.trim() || undefined,
         registrationAddress: formData.registrationAddress.trim() || undefined,
         allowedStatusIds: formData.allowedStatusIds,
@@ -356,7 +358,7 @@ export const Employees = () => {
                             )}
                           </div>
                           <div className="client-meta" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            {employee.birthDate ? `Д.Р.: ${employee.birthDate}` : formatPhone(employee.phone)}
+                            {employee.birthDate ? `Д.Р.: ${normalizeDate(employee.birthDate)}` : formatPhone(employee.phone)}
                           </div>
                         </div>
                       </div>
@@ -891,11 +893,11 @@ export const Employees = () => {
 
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label style={{ fontSize: '0.8rem' }}>Дата рождения</label>
-                <input 
-                  type="date" 
+                <DateInput
+                  className=""
                   disabled={!canManageEmployees}
                   value={formData.birthDate}
-                  onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                  onChange={(birthDate) => setFormData({ ...formData, birthDate })}
                 />
               </div>
             </div>
@@ -903,11 +905,11 @@ export const Employees = () => {
             <div className="employee-form-grid-2" style={{ marginTop: '12px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label style={{ fontSize: '0.8rem' }}>Дата выдачи паспорта</label>
-                <input 
-                  type="date" 
+                <DateInput
+                  className=""
                   disabled={!canManageEmployees}
                   value={formData.passportIssuedDate}
-                  onChange={(e) => setFormData({ ...formData, passportIssuedDate: e.target.value })}
+                  onChange={(passportIssuedDate) => setFormData({ ...formData, passportIssuedDate })}
                 />
               </div>
 

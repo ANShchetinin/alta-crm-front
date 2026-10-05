@@ -1,3 +1,5 @@
+import { applyMaskedEdit, countDigits, type MaskedEdit } from './maskedInput';
+
 /** Код России, подставляемый в пустое поле телефона. */
 export const PHONE_DEFAULT = '+7';
 export const PHONE_PLACEHOLDER = '+7 (999) 123-45-67';
@@ -117,61 +119,16 @@ export const phoneMatches = (value: string | null | undefined, query: string): b
   return value.toLowerCase().includes(q.toLowerCase());
 };
 
-const countDigits = (value: string) => onlyDigits(value).length;
-
-/** Позиция курсора сразу после n-й цифры (n = 0 — после ведущего «+»). */
-const indexAfterDigits = (value: string, n: number) => {
-  if (n <= 0) {
-    return value.startsWith('+') ? 1 : 0;
-  }
-  let seen = 0;
-  for (let i = 0; i < value.length; i++) {
-    if (/\d/.test(value[i])) {
-      seen++;
-      if (seen === n) {
-        return i + 1;
-      }
-    }
-  }
-  return value.length;
-};
-
-export interface PhoneEdit {
-  value: string;
-  caret: number;
-}
-
 /**
  * Применяет правку поля телефона и вычисляет курсор в отформатированном значении.
- * Стертый разделитель маски удаляет соседнюю цифру (иначе маска вернула бы его на место),
- * а вставка полного номера в поле с «+7» не дублирует код страны.
+ * Стертый разделитель маски удаляет соседнюю цифру, а вставка полного номера в поле с «+7» не дублирует код страны.
  */
-export const editPhone = (previous: string, raw: string, caret: number, forward = false): PhoneEdit => {
-  let text = raw;
-  let position = caret;
-  const rawDigits = countDigits(raw);
-
-  if (raw.length < previous.length && rawDigits === countDigits(previous) && rawDigits > 0) {
-    const digitsBefore = countDigits(raw.slice(0, caret));
-    const target = forward ? digitsBefore + 1 : digitsBefore;
-    if (target > 0 && target <= rawDigits) {
-      const index = indexAfterDigits(raw, target) - 1;
-      text = raw.slice(0, index) + raw.slice(index + 1);
-      position = forward ? caret : index;
-    }
-  }
-
+export const editPhone = (previous: string, raw: string, caret: number, forward = false): MaskedEdit => {
+  const digits = onlyDigits(raw);
   const isPaste = raw.length - previous.length > 1;
-  const digits = onlyDigits(text);
-  if (isPaste && text.trim().startsWith(PHONE_DEFAULT) && digits.length === RU_LENGTH + 1 && /^7[78]/.test(digits)) {
-    const pasted = text.slice(text.indexOf(PHONE_DEFAULT) + PHONE_DEFAULT.length);
+  if (isPaste && raw.trim().startsWith(PHONE_DEFAULT) && digits.length === RU_LENGTH + 1 && /^7[78]/.test(digits)) {
+    const pasted = raw.slice(raw.indexOf(PHONE_DEFAULT) + PHONE_DEFAULT.length);
     return editPhone('', pasted, pasted.length);
   }
-
-  const formatted = formatPhoneInput(text);
-  if (position >= text.length) {
-    return { value: formatted, caret: formatted.length };
-  }
-  const added = Math.max(0, phoneDigits(text).length - countDigits(text));
-  return { value: formatted, caret: indexAfterDigits(formatted, countDigits(text.slice(0, position)) + added) };
+  return applyMaskedEdit(previous, raw, caret, forward, formatPhoneInput, text => phoneDigits(text).length - countDigits(text));
 };

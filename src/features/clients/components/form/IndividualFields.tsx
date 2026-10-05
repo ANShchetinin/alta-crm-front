@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { FileText } from 'lucide-react';
-import { FieldGrid, FormSection, MessengerFields, PhoneField, TextField } from './FormFields';
+import { DateField, FieldGrid, FormSection, MessengerFields, PhoneField, TextField } from './FormFields';
 import { bindTextField, type ClientFormProps } from './formBinding';
 
 interface IndividualFieldsProps extends ClientFormProps {
@@ -48,12 +48,12 @@ export const IndividualFields = ({ onScanPassport, ...props }: IndividualFieldsP
         )}
       >
         <FieldGrid minColumnWidth={200} style={{ marginBottom: '12px' }}>
-          <TextField inGrid label="Дата рождения" placeholder="ДД.ММ.ГГГГ" {...bind('birthDate')} />
+          <DateField inGrid label="Дата рождения" {...bind('birthDate')} />
           <TextField inGrid label="Серия и номер паспорта" placeholder="63 10 123456" {...bind('passportSeriesNumber')} />
         </FieldGrid>
         <FieldGrid minColumnWidth={200} style={{ marginBottom: '12px' }}>
           <TextField inGrid label="Кем выдан" placeholder="Отделом УФМС России по..." {...bind('passportIssuedBy')} />
-          <TextField inGrid label="Когда выдан" placeholder="ДД.ММ.ГГГГ" {...bind('passportIssuedDate')} />
+          <DateField inGrid label="Когда выдан" {...bind('passportIssuedDate')} />
           <TextField inGrid label="Код подразделения" placeholder="770-001" {...bind('passportDepartmentCode')} />
         </FieldGrid>
         <TextField

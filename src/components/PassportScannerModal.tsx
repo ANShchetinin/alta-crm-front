@@ -20,6 +20,8 @@ import {
 import { scanPassportOnBackend } from '../api/passportOcr';
 import { normalizeRegistrationAddress } from '../utils/addressNormalizer';
 import { toast } from '../utils/toast';
+import { dateForSave } from '../utils/dateInput';
+import { DateInput } from './ui/DateInput';
 import '../styles/passportScanner.css';
 
 export interface PassportApplyResult {
@@ -209,11 +211,11 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
 
     const result: PassportApplyResult = {
       name: formData.name.trim(),
-      birthDate: formData.birthDate.trim(),
+      birthDate: dateForSave(formData.birthDate),
       gender: formData.gender,
       passportSeriesNumber: formData.passportSeriesNumber.trim(),
       passportIssuedBy: formData.passportIssuedBy.trim(),
-      passportIssuedDate: formData.passportIssuedDate.trim(),
+      passportIssuedDate: dateForSave(formData.passportIssuedDate),
       passportDepartmentCode: formData.passportDepartmentCode.trim(),
       registrationAddress: formData.registrationAddress.trim(),
       installationAddress: addressSameAsInstallation ? formData.registrationAddress.trim() : undefined,
@@ -589,11 +591,9 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
                       </span>
                     )}
                   </div>
-                  <input
-                    type="text"
+                  <DateInput
                     value={formData.birthDate}
-                    onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                    placeholder="ДД.ММ.ГГГГ"
+                    onChange={(value) => setFormData({ ...formData, birthDate: value })}
                     className="passport-input font-mono"
                   />
                 </div>
@@ -628,11 +628,9 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
                       </span>
                     )}
                   </div>
-                  <input
-                    type="text"
+                  <DateInput
                     value={formData.passportIssuedDate}
-                    onChange={(e) => setFormData({ ...formData, passportIssuedDate: e.target.value })}
-                    placeholder="ДД.ММ.ГГГГ"
+                    onChange={(value) => setFormData({ ...formData, passportIssuedDate: value })}
                     className="passport-input font-mono"
                   />
                 </div>

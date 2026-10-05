@@ -3,6 +3,7 @@ import { Tag } from 'lucide-react';
 import type { ContractFieldDefinition } from '../../../../../api/settings';
 import type { ContractParams } from '../../../../../api/kanban';
 import type { OrderContractState } from '../../../hooks/useOrderContract';
+import { DateInput } from '../../../../../components/ui/DateInput';
 
 interface ContractParamsSectionProps {
   contract: OrderContractState;
@@ -101,12 +102,14 @@ export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({ co
             onChange={setParam('canvasArticle')}
           />
         )}
-        <ParamInput
-          label="Дата сдачи объекта"
-          placeholder="« 20 » августа 2026г."
-          value={contractParams.handoverDate}
-          onChange={setParam('handoverDate')}
-        />
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label style={{ fontSize: '0.78rem' }}>Дата сдачи объекта</label>
+          <DateInput
+            value={contractParams.handoverDate || ''}
+            onChange={setParam('handoverDate')}
+            style={{ width: '100%', paddingLeft: '10px' }}
+          />
+        </div>
       </div>
     </div>
   );
