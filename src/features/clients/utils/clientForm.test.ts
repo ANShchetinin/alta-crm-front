@@ -28,7 +28,7 @@ describe('clientForm', () => {
     expect(custom).toMatchObject({ leadSource: 'custom', customLeadSource: 'Листовка', allowedTenantIds: [7] });
   });
 
-  it('builds the request: trims, empties to null, drops nameless contacts, takes the decision maker from the primary contact', () => {
+  it('builds the request: trims, formats phones, empties to null, drops nameless contacts, takes the decision maker from the primary contact', () => {
     const form = {
       ...emptyClientForm('LEGAL_ENTITY', 7),
       name: '  ООО Альфа ',
@@ -37,7 +37,7 @@ describe('clientForm', () => {
       leadSource: 'custom',
       customLeadSource: ' Выставка ',
       contacts: [
-        { name: 'Петров', position: 'Директор', isPrimary: true },
+        { name: 'Петров', position: 'Директор', phone: '84950001122', isPrimary: true },
         { name: '  ', phone: '123' }
       ],
       allowedTenantIds: []
@@ -47,14 +47,14 @@ describe('clientForm', () => {
 
     expect(request).toMatchObject({
       name: 'ООО Альфа',
-      phone: '+7 495 000',
+      phone: '+7 (495) 000',
       inn: null,
       leadSource: 'Выставка',
       contactPerson: 'Петров',
       contactPosition: 'Директор',
       allowedTenantIds: [7]
     });
-    expect(request.contacts).toEqual([{ name: 'Петров', position: 'Директор', isPrimary: true }]);
+    expect(request.contacts).toEqual([{ name: 'Петров', position: 'Директор', phone: '+7 (495) 000-11-22', isPrimary: true }]);
   });
 
   it('adds contacts with the first one primary, updates and removes them', () => {

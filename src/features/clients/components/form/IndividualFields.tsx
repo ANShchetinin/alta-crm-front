@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { FileText } from 'lucide-react';
-import { FieldGrid, FormSection, MessengerFields, TextField } from './FormFields';
+import { FieldGrid, FormSection, MessengerFields, PhoneField, TextField } from './FormFields';
 import { bindTextField, type ClientFormProps } from './formBinding';
 
 interface IndividualFieldsProps extends ClientFormProps {
@@ -17,7 +17,7 @@ export const IndividualFields = ({ onScanPassport, ...props }: IndividualFieldsP
   return (
     <>
       <TextField label={`${t('clients.modal.name')} *`} required placeholder="Иван Иванов" {...bind('name')} />
-      <TextField label={`${t('clients.modal.phone')} *`} required placeholder="+7 (999) 000-00-00" {...bind('phone')} />
+      <PhoneField label={`${t('clients.modal.phone')} *`} required {...bind('phone')} />
       <div className="form-row">
         <MessengerFields whatsapp={form.whatsapp} telegram={form.telegram} onChange={patch} />
       </div>

@@ -4,6 +4,7 @@ import { ClientAvatar } from './ClientAvatar';
 import { ClientTenantTags } from './ClientTenantTags';
 import { MessengerLinks } from './MessengerLinks';
 import type { ClientListProps } from './clientListProps';
+import { formatPhone, phoneHref } from '../../../utils/phone';
 
 const ACTION_BUTTON_STYLE = { fontSize: '0.78rem', padding: '4px 8px', height: '28px', display: 'inline-flex', alignItems: 'center', gap: '4px' } as const;
 
@@ -51,7 +52,7 @@ export const ClientCards = ({ clients, tenants, currentTenantId, timezone, onEdi
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
                   {client.phone ? (
                     <a
-                      href={`tel:${client.phone.replace(/[^\d+]/g, '')}`}
+                      href={phoneHref(client.phone)}
                       onClick={(e) => e.stopPropagation()}
                       style={{
                         display: 'inline-flex',
@@ -68,7 +69,7 @@ export const ClientCards = ({ clients, tenants, currentTenantId, timezone, onEdi
                       }}
                     >
                       <Phone size={13} />
-                      <span>{client.phone}</span>
+                      <span>{formatPhone(client.phone)}</span>
                     </a>
                   ) : (
                     <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Без телефона</span>

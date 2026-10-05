@@ -5,6 +5,7 @@ import { useOrderStatusesQuery } from '../../hooks/queries/useOrderStatusesQuery
 import { convertSiteRequestToOrder, type SiteRequestItem } from '../../api/siteRequests';
 import { useOrderDrawerStore } from '../../store/useOrderDrawerStore';
 import { toast } from '../../utils/toast';
+import { formatPhone } from '../../utils/phone';
 
 interface ConvertToOrderModalProps {
   siteRequest: SiteRequestItem;
@@ -112,7 +113,7 @@ export const ConvertToOrderModal: React.FC<ConvertToOrderModalProps> = ({
               Создать заказ
             </h3>
             <p style={{ margin: '4px 0 0', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-              {siteRequest.clientName} ({siteRequest.phone})
+              {siteRequest.clientName} ({formatPhone(siteRequest.phone)})
             </p>
           </div>
           <button 

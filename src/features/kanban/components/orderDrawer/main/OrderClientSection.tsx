@@ -6,6 +6,7 @@ import type { Client } from '../../../../../api/clients';
 import { getAvatarGradient, getClientInitials } from '../../../../../utils/avatarUtils';
 import { getTelegramLink, getWhatsAppLink } from '../../../../../utils/messengerUtils';
 import { ClientSearchSelect } from '../../ClientSearchSelect';
+import { formatPhone, phoneHref } from '../../../../../utils/phone';
 
 interface OrderClientSectionProps {
   orderId: number | null;
@@ -16,8 +17,6 @@ interface OrderClientSectionProps {
   isWorker: boolean;
   onAddNewClient: () => void;
 }
-
-const toTelHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, '')}`;
 
 /**
  * Клиент заказа: карточка с быстрым звонком для сохраненного заказа, выбор клиента и контакты — для нового.
@@ -137,7 +136,7 @@ export const OrderClientSection: React.FC<OrderClientSectionProps> = ({
             </div>
             {cPhone && (
               <a
-                href={toTelHref(cPhone)}
+                href={phoneHref(cPhone)}
                 style={{
                   color: '#22c55e',
                   padding: '5px 12px',
@@ -151,9 +150,9 @@ export const OrderClientSection: React.FC<OrderClientSectionProps> = ({
                   fontSize: '0.85rem',
                   fontWeight: 600
                 }}
-                title={`Позвонить клиенту: ${cPhone}`}
+                title={`Позвонить клиенту: ${formatPhone(cPhone)}`}
               >
-                <Phone size={14} /> {cPhone}
+                <Phone size={14} /> {formatPhone(cPhone)}
               </a>
             )}
           </div>
@@ -179,7 +178,7 @@ export const OrderClientSection: React.FC<OrderClientSectionProps> = ({
                 }}>
                   {selectedClient.phone && (
                     <a
-                      href={toTelHref(selectedClient.phone)}
+                      href={phoneHref(selectedClient.phone)}
                       style={{
                         fontSize: '0.84rem',
                         color: '#22c55e',
@@ -193,9 +192,9 @@ export const OrderClientSection: React.FC<OrderClientSectionProps> = ({
                         borderRadius: 'var(--radius-sm)',
                         fontWeight: 600
                       }}
-                      title={`Позвонить клиенту: ${selectedClient.phone}`}
+                      title={`Позвонить клиенту: ${formatPhone(selectedClient.phone)}`}
                     >
-                      <Phone size={14} /> {selectedClient.phone}
+                      <Phone size={14} /> {formatPhone(selectedClient.phone)}
                     </a>
                   )}
                   {selectedClient.whatsapp && (

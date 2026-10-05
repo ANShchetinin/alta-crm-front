@@ -8,6 +8,7 @@ import { formatDateOnly, formatDateTimeInTimezone, formatTimeOnly } from '../../
 import { getTelegramLink, getWhatsAppLink } from '../../../../utils/messengerUtils';
 import { get2GisUrl, getYandexMapsUrl } from '../../../../utils/navigation';
 import { stopCardGesture } from './cardGestures';
+import { formatPhone, phoneHref } from '../../../../utils/phone';
 
 export const ContractNumberBadge = ({ orderNumber }: { orderNumber: string }) => (
   <span
@@ -79,9 +80,9 @@ export const CardContacts = ({ phone, whatsapp, telegram, assignee }: {
   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
     {phone && (
       <a
-        href={`tel:${phone.replace(/[^\d+]/g, '')}`}
+        href={phoneHref(phone)}
         {...stopCardGesture}
-        title={`Позвонить клиенту: ${phone}`}
+        title={`Позвонить клиенту: ${formatPhone(phone)}`}
         className="card-phone-btn"
         style={{
           borderRadius: '50%',

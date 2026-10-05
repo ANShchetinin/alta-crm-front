@@ -2,6 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { X, User, Building2, MessageCircle, Send, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { PhoneInput } from '../../../components/ui/PhoneInput';
 import { PRESET_LEAD_SOURCES } from '../../../constants/clients';
 
 export interface QuickClientModalProps {
@@ -179,13 +180,10 @@ export const QuickClientModal: React.FC<QuickClientModalProps> = ({
             </div>
             <div className="form-group">
               <label>{clientType === 'LEGAL_ENTITY' ? 'Рабочий телефон' : t('clients.modal.phone')} *</label>
-              <input 
-                type="tel" 
+              <PhoneInput
                 required
-                placeholder={t('clients.modal.phonePlaceholder') || '+7 (999) 000-00-00'}
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="search-input"
+                onChange={setPhone}
                 style={{ width: '100%', paddingLeft: '12px' }}
               />
             </div>

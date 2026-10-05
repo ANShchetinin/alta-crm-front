@@ -5,6 +5,7 @@ import { getAvatarGradient, getClientInitials } from '../../../utils/avatarUtils
 import { clientViewOf, installerNameOf, type SortDirection, type SortField } from '../utils/archiveOrders';
 import { MessengerButtons, StatusPill } from './ArchiveBadges';
 import type { ArchiveListProps } from './archiveListProps';
+import { formatPhone, phoneHref } from '../../../utils/phone';
 
 interface ArchiveTableProps extends ArchiveListProps {
   sortField: SortField;
@@ -123,11 +124,11 @@ export const ArchiveTable = ({
                       {client.phone && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
                           <a
-                            href={`tel:${client.phone.replace(/[^\d+]/g, '')}`}
+                            href={phoneHref(client.phone)}
                             onClick={(e) => e.stopPropagation()}
                             style={{ color: '#22c55e', textDecoration: 'none', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                           >
-                            <Phone size={10} /> {client.phone}
+                            <Phone size={10} /> {formatPhone(client.phone)}
                           </a>
                           <MessengerButtons whatsapp={order.clientWhatsapp} telegram={order.clientTelegram} size={18} iconSize={10} />
                         </div>

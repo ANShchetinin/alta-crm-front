@@ -18,6 +18,8 @@ import { getEmployeeInitials, getAvatarGradient } from '../utils/avatarUtils';
 import { formatLastSeen } from '../utils/dateUtils';
 import { Sheet } from '../components/ui/Sheet';
 import { toast } from '../utils/toast';
+import { formatPhone, PHONE_DEFAULT, phoneForSave, phoneHref, phoneMatches } from '../utils/phone';
+import { PhoneInput } from '../components/ui/PhoneInput';
 import { confirm } from '../utils/confirm';
 import '../styles/clients.css';
 
@@ -74,7 +76,7 @@ export const Employees = () => {
     if (!q) return true;
     return (
       (c.name && typeof c.name === 'string' && c.name.toLowerCase().includes(q)) || 
-      (c.phone && typeof c.phone === 'string' && c.phone.includes(q)) ||
+      phoneMatches(c.phone, q) ||
       (c.position && typeof c.position === 'string' && c.position.toLowerCase().includes(q)) ||
       (c.email && typeof c.email === 'string' && c.email.toLowerCase().includes(q)) ||
       (c.passportSeriesNumber && typeof c.passportSeriesNumber === 'string' && c.passportSeriesNumber.includes(q)) ||
@@ -87,7 +89,7 @@ export const Employees = () => {
     setShowPassword(false);
     setFormData({ 
       name: '', 
-      phone: '+7', 
+      phone: PHONE_DEFAULT, 
       position: '', 
       avatarUrl: '',
       birthDate: '',
@@ -153,7 +155,7 @@ export const Employees = () => {
     try {
       const payload: Partial<Employee> = {
         name: formData.name.trim(),
-        phone: formData.phone.trim(),
+        phone: phoneForSave(formData.phone),
         position: formData.position.trim(),
         avatarUrl: formData.avatarUrl ? formData.avatarUrl : null,
         birthDate: formData.birthDate.trim() || undefined,
@@ -354,7 +356,7 @@ export const Employees = () => {
                             )}
                           </div>
                           <div className="client-meta" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            {employee.birthDate ? `Д.Р.: ${employee.birthDate}` : (employee.phone || '')}
+                            {employee.birthDate ? `Д.Р.: ${employee.birthDate}` : formatPhone(employee.phone)}
                           </div>
                         </div>
                       </div>
@@ -425,7 +427,7 @@ export const Employees = () => {
                       )}
                     </td>
                     <td>
-                      <div className="client-phone">{employee.phone || '—'}</div>
+                      <div className="client-phone">{formatPhone(employee.phone) || '—'}</div>
                     </td>
                     <td>
                       {(() => {
@@ -712,7 +714,7 @@ export const Employees = () => {
                     {employee.phone ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <a 
-                          href={`tel:${employee.phone.replace(/[^\d+]/g, '')}`} 
+                          href={phoneHref(employee.phone)} 
                           onClick={(e) => e.stopPropagation()}
                           style={{
                             display: 'inline-flex',
@@ -729,7 +731,7 @@ export const Employees = () => {
                           }}
                         >
                           <Phone size={13} />
-                          <span>{employee.phone}</span>
+                          <span>{formatPhone(employee.phone)}</span>
                         </a>
                       </div>
                     ) : null}
@@ -859,12 +861,11 @@ export const Employees = () => {
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>{t('employees.modal.phone') || 'Телефон'}</label>
-              <input 
-                type="text" 
+              <PhoneInput
+                className=""
                 disabled={!canManageEmployees}
-                placeholder="+7 (999) 000-00-00"
                 value={formData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                onChange={(phone) => setFormData({...formData, phone})}
               />
             </div>
           </div>

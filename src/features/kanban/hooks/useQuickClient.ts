@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createClient, type Client } from '../../../api/clients';
 import type { PassportApplyResult } from '../../../components/PassportScannerModal';
+import { phoneForSave } from '../../../utils/phone';
 import { toast } from '../../../utils/toast';
 
 type ClientType = 'INDIVIDUAL' | 'LEGAL_ENTITY';
@@ -57,7 +58,7 @@ export const useQuickClient = (onCreated: (client: Client) => Promise<void> | vo
       const created = await createClient({
         name: fields.name.trim(),
         clientType: fields.clientType,
-        phone: fields.phone.trim() || '',
+        phone: phoneForSave(fields.phone),
         whatsapp: optional(fields.whatsapp),
         telegram: optional(fields.telegram),
         inn: isLegal ? optional(fields.inn) : undefined,

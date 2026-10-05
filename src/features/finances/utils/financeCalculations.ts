@@ -2,6 +2,7 @@ import type { Order, OrderStatus } from '../../../api/kanban';
 import type { Employee } from '../../../api/employees';
 import type { Expense } from '../../../api/finances';
 import { getOrderDebt, getOrderRemainder } from '../../../utils/orderPayments';
+import { phoneMatches } from '../../../utils/phone';
 
 export type PeriodFilter = 'THIS_MONTH' | 'LAST_MONTH' | 'THREE_MONTHS' | 'THIS_YEAR' | 'ALL';
 export type PaymentStatusFilter = 'ALL' | 'PAID' | 'PREPAYMENT' | 'UNPAID' | 'DEBT';
@@ -179,8 +180,8 @@ const matchesSearch = (order: Order, query: string): boolean => {
   if (!q) {
     return true;
   }
-  return [order.orderNumber, order.clientName, order.clientPhone, order.address]
-    .some(value => (value || '').toLowerCase().includes(q));
+  return phoneMatches(order.clientPhone, q)
+    || [order.orderNumber, order.clientName, order.address].some(value => (value || '').toLowerCase().includes(q));
 };
 
 /** Сделки вкладки взаиморасчетов: поиск, статус оплаты и хотя бы одна дата (создание, монтаж, оплаты) в периоде. */

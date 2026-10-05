@@ -1,7 +1,8 @@
 import { Building2, ChevronDown, CreditCard, FileText, MapPin, PlusCircle, Trash2, Users } from 'lucide-react';
 import type { ClientContact } from '../../../../api/clients';
 import { PRESET_VAT_STATUSES } from '../../../../constants/clients';
-import { FieldGrid, FormSection, MessengerFields, TextField } from './FormFields';
+import { PhoneInput } from '../../../../components/ui/PhoneInput';
+import { FieldGrid, FormSection, MessengerFields, PhoneField, TextField } from './FormFields';
 import { bindTextField, type ClientFormProps } from './formBinding';
 
 interface ContactsEditor {
@@ -27,7 +28,7 @@ export const LegalEntityFields = ({ contacts, ...props }: LegalEntityFieldsProps
         <FieldGrid minColumnWidth={240}>
           <TextField inGrid required label="Краткое наименование *" placeholder="ООО «Альфа» или ИП Иванов И.И." {...bind('name')} />
           <TextField inGrid label="Полное наименование (по уставу)" placeholder="Общество с ограниченной ответственностью «Альфа»" {...bind('legalName')} />
-          <TextField inGrid required label="Рабочий телефон организации *" placeholder="+7 (495) 000-00-00" {...bind('phone')} />
+          <PhoneField inGrid required label="Рабочий телефон организации *" {...bind('phone')} />
           <TextField inGrid type="email" label="Корпоративный Email" placeholder="info@company.ru" {...bind('email')} />
           <MessengerFields inGrid whatsapp={form.whatsapp} telegram={form.telegram} onChange={patch} />
         </FieldGrid>
@@ -155,12 +156,10 @@ export const LegalEntityFields = ({ contacts, ...props }: LegalEntityFieldsProps
                     className="search-input"
                     style={contactInputStyle}
                   />
-                  <input
-                    type="tel"
-                    placeholder="Телефон"
+                  <PhoneInput
+                    aria-label="Телефон представителя"
                     value={contact.phone || ''}
-                    onChange={(e) => contacts.update(index, 'phone', e.target.value)}
-                    className="search-input"
+                    onChange={(value) => contacts.update(index, 'phone', value)}
                     style={contactInputStyle}
                   />
                   <input

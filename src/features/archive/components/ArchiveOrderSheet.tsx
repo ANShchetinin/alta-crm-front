@@ -10,6 +10,7 @@ import type { ArchiveOrderDetail } from '../hooks/useArchiveOrderDetail';
 import { MessengerButtons } from './ArchiveBadges';
 import { OrderEstimateSection } from './OrderEstimateSection';
 import { OrderAttachmentsList } from './OrderAttachmentsList';
+import { formatPhone, phoneHref } from '../../../utils/phone';
 
 interface ArchiveOrderSheetProps {
   detail: ArchiveOrderDetail;
@@ -100,10 +101,10 @@ export const ArchiveOrderSheet = ({
                 <div style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>{order.clientName || 'Без имени'}</div>
                 {order.clientPhone && (
                   <a
-                    href={`tel:${order.clientPhone.replace(/[^\d+]/g, '')}`}
+                    href={phoneHref(order.clientPhone)}
                     style={{ color: '#22c55e', textDecoration: 'none', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}
                   >
-                    <Phone size={12} /> {order.clientPhone}
+                    <Phone size={12} /> {formatPhone(order.clientPhone)}
                   </a>
                 )}
               </div>

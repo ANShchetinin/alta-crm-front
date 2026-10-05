@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { FileCheck, X, AlertCircle, FileText } from 'lucide-react';
 import { AddressSuggestions, type DaDataSuggestion, type DaDataAddress } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
+import { PhoneInput } from '../../../components/ui/PhoneInput';
 
 export interface ContractPromptData {
   clientId: number;
@@ -134,24 +135,18 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
               <div className="form-group">
                 <label>Телефон 1 *</label>
-                <input
-                  type="text"
+                <PhoneInput
                   required
-                  placeholder="+7 (917) 000-00-00"
                   value={contractPromptData.phone}
-                  onChange={(e) => setContractPromptData(prev => ({ ...prev, phone: e.target.value }))}
-                  className="search-input"
+                  onChange={(value) => setContractPromptData(prev => ({ ...prev, phone: value }))}
                   style={{ width: '100%', paddingLeft: '12px' }}
                 />
               </div>
               <div className="form-group">
                 <label>Телефон 2 (дополнительный)</label>
-                <input
-                  type="text"
-                  placeholder="+7 (987) 000-00-00"
+                <PhoneInput
                   value={contractPromptData.secondPhone}
-                  onChange={(e) => setContractPromptData(prev => ({ ...prev, secondPhone: e.target.value }))}
-                  className="search-input"
+                  onChange={(value) => setContractPromptData(prev => ({ ...prev, secondPhone: value }))}
                   style={{ width: '100%', paddingLeft: '12px' }}
                 />
               </div>

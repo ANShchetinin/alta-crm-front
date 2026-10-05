@@ -4,6 +4,7 @@ export * from './Sheet';
 export * from './Card';
 export * from './Badge';
 export * from './Input';
+export * from './PhoneInput';
 export * from './FilterPill';
 export * from './ConfirmDialog';
 export * from './ToastContainer';
