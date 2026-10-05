@@ -6,6 +6,7 @@ import { convertSiteRequestToOrder, type SiteRequestItem } from '../../api/siteR
 import { useOrderDrawerStore } from '../../store/useOrderDrawerStore';
 import { toast } from '../../utils/toast';
 import { formatPhone } from '../../utils/phone';
+import { AddressInput } from '../ui/AddressInput';
 
 interface ConvertToOrderModalProps {
   siteRequest: SiteRequestItem;
@@ -175,13 +176,11 @@ export const ConvertToOrderModal: React.FC<ConvertToOrderModalProps> = ({
                 Адрес объекта (необязательно)
               </label>
               <div style={{ position: 'relative' }}>
-                <input
-                  type="text"
+                <AddressInput
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={setAddress}
                   placeholder="Например: ул. Пушкина 12, кв 45"
-                  className="search-input"
-                  style={{ width: '100%', paddingLeft: '34px', boxSizing: 'border-box' }}
+                  style={{ paddingLeft: '34px' }}
                 />
                 <MapPin size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
               </div>

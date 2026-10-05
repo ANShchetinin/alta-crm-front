@@ -6,6 +6,7 @@ export * from './Badge';
 export * from './Input';
 export * from './PhoneInput';
 export * from './DateInput';
+export * from './AddressInput';
 export * from './FilterPill';
 export * from './ConfirmDialog';
 export * from './ToastContainer';

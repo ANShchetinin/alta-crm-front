@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { FileText } from 'lucide-react';
-import { DateField, FieldGrid, FormSection, MessengerFields, PhoneField, TextField } from './FormFields';
+import { AddressField, DateField, FieldGrid, FormSection, MessengerFields, PhoneField, TextField } from './FormFields';
 import { bindTextField, type ClientFormProps } from './formBinding';
 
 interface IndividualFieldsProps extends ClientFormProps {
@@ -56,10 +56,10 @@ export const IndividualFields = ({ onScanPassport, ...props }: IndividualFieldsP
           <DateField inGrid label="Когда выдан" {...bind('passportIssuedDate')} />
           <TextField inGrid label="Код подразделения" placeholder="770-001" {...bind('passportDepartmentCode')} />
         </FieldGrid>
-        <TextField
+        <AddressField
           inGrid
           label="Адрес по прописке (регистрации)"
-          placeholder="101000, г. Москва, ул. Ленина, д. 10, кв. 5"
+          placeholder="г. Москва, ул. Ленина, д. 10, кв. 5"
           {...bind('registrationAddress')}
         />
       </FormSection>

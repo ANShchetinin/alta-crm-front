@@ -1,8 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { FileCheck, X, AlertCircle, FileText } from 'lucide-react';
-import { AddressSuggestions, type DaDataSuggestion, type DaDataAddress } from 'react-dadata';
-import 'react-dadata/dist/react-dadata.css';
+import { AddressInput } from '../../../components/ui/AddressInput';
 import { DateInput } from '../../../components/ui/DateInput';
 import { PhoneInput } from '../../../components/ui/PhoneInput';
 
@@ -49,12 +48,6 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
   onOpenPassportScanner,
   onSubmit
 }) => {
-  const installationAddressValue = React.useMemo<DaDataSuggestion<DaDataAddress> | undefined>(() => {
-    return contractPromptData.installationAddress
-      ? ({ value: contractPromptData.installationAddress, unrestricted_value: contractPromptData.installationAddress, data: {} as DaDataAddress })
-      : undefined;
-  }, [contractPromptData.installationAddress]);
-
   if (!isOpen) return null;
 
   return createPortal(
@@ -214,43 +207,22 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
 
             <div className="form-group">
               <label>Адрес по прописке (регистрации) *</label>
-              <input
-                type="text"
+              <AddressInput
                 required
                 placeholder="г. Саратов, ул. Чернышевского, д. 10, кв. 5"
                 value={contractPromptData.registrationAddress}
-                onChange={(e) => setContractPromptData(prev => ({ ...prev, registrationAddress: e.target.value }))}
-                className="search-input"
-                style={{ width: '100%', paddingLeft: '12px' }}
+                onChange={(value) => setContractPromptData(prev => ({ ...prev, registrationAddress: value }))}
               />
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Адрес установки (монтажа) *</label>
-              {import.meta.env.VITE_DADATA_API_KEY ? (
-                <AddressSuggestions
-                  token={import.meta.env.VITE_DADATA_API_KEY}
-                  value={installationAddressValue}
-                  onChange={(suggestion) => setContractPromptData(prev => ({ ...prev, installationAddress: suggestion?.value || prev.installationAddress }))}
-                  inputProps={{
-                    required: true,
-                    placeholder: "г. Саратов, 1-й проезд Степана Разина, 3/7 кв. 222",
-                    className: "search-input",
-                    style: { width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box' },
-                    onChange: (e: any) => setContractPromptData(prev => ({ ...prev, installationAddress: e.target.value }))
-                  }}
-                />
-              ) : (
-                <input
-                  type="text"
-                  required
-                  placeholder="г. Саратов, 1-й проезд Степана Разина, 3/7 кв. 222"
-                  value={contractPromptData.installationAddress}
-                  onChange={(e) => setContractPromptData(prev => ({ ...prev, installationAddress: e.target.value }))}
-                  className="search-input"
-                  style={{ width: '100%', paddingLeft: '12px' }}
-                />
-              )}
+              <AddressInput
+                required
+                placeholder="г. Саратов, 1-й проезд Степана Разина, 3/7 кв. 222"
+                value={contractPromptData.installationAddress}
+                onChange={(value) => setContractPromptData(prev => ({ ...prev, installationAddress: value }))}
+              />
             </div>
           </div>
           <div className="modal-actions">

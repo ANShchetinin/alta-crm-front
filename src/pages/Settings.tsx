@@ -18,6 +18,7 @@ import { Sliders } from 'lucide-react';
 import { toast } from '../utils/toast';
 import { phoneForSave } from '../utils/phone';
 import { PhoneInput } from '../components/ui/PhoneInput';
+import { AddressInput } from '../components/ui/AddressInput';
 import { formatErrorWithReason } from '../utils/errorMessage';
 import { useFeature, setDevFeatureOverride } from '../hooks/useFeatureToggle';
 import { updateTenantFeature } from '../api/features';
@@ -1130,26 +1131,22 @@ export const Settings = () => {
                           <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
                             Юридический адрес (с индексом)
                           </label>
-                          <input
-                            type="text"
-                            className="search-input"
-                            style={{ width: '100%' }}
+                          <AddressInput
+                            withPostalCode
                             placeholder="123456, г. Москва, ул. Ленина, д. 10, оф. 5"
                             value={requisites.legalAddress || ''}
-                            onChange={e => updateRequisiteField('legalAddress', e.target.value)}
+                            onChange={value => updateRequisiteField('legalAddress', value)}
                           />
                         </div>
                         <div>
                           <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
                             Фактический адрес (если отличается)
                           </label>
-                          <input
-                            type="text"
-                            className="search-input"
-                            style={{ width: '100%' }}
+                          <AddressInput
+                            withPostalCode
                             placeholder="123456, г. Москва, ул. Мира, д. 20"
                             value={requisites.actualAddress || ''}
-                            onChange={e => updateRequisiteField('actualAddress', e.target.value)}
+                            onChange={value => updateRequisiteField('actualAddress', value)}
                           />
                         </div>
                       </div>
@@ -1388,13 +1385,11 @@ export const Settings = () => {
                           <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
                             Адрес регистрации (место жительства с индексом)
                           </label>
-                          <input
-                            type="text"
-                            className="search-input"
-                            style={{ width: '100%' }}
+                          <AddressInput
+                            withPostalCode
                             placeholder="123456, г. Москва, ул. Пушкина, д. 5, кв. 12"
                             value={requisites.legalAddress || ''}
-                            onChange={e => updateRequisiteField('legalAddress', e.target.value)}
+                            onChange={value => updateRequisiteField('legalAddress', value)}
                           />
                         </div>
                       </div>
