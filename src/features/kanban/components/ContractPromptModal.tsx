@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { FileCheck, X, AlertCircle, FileText } from 'lucide-react';
 import { AddressSuggestions, type DaDataSuggestion, type DaDataAddress } from 'react-dadata';
 import 'react-dadata/dist/react-dadata.css';
+import { DateInput } from '../../../components/ui/DateInput';
 import { PhoneInput } from '../../../components/ui/PhoneInput';
 
 export interface ContractPromptData {
@@ -155,13 +156,10 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
               <div className="form-group">
                 <label>Дата рождения *</label>
-                <input
-                  type="text"
+                <DateInput
                   required
-                  placeholder="21.05.1985"
                   value={contractPromptData.birthDate}
-                  onChange={(e) => setContractPromptData(prev => ({ ...prev, birthDate: e.target.value }))}
-                  className="search-input"
+                  onChange={(value) => setContractPromptData(prev => ({ ...prev, birthDate: value }))}
                   style={{ width: '100%', paddingLeft: '12px' }}
                 />
               </div>
@@ -194,13 +192,10 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
               </div>
               <div className="form-group">
                 <label>Дата выдачи паспорта *</label>
-                <input
-                  type="text"
+                <DateInput
                   required
-                  placeholder="11.06.2015"
                   value={contractPromptData.passportIssuedDate}
-                  onChange={(e) => setContractPromptData(prev => ({ ...prev, passportIssuedDate: e.target.value }))}
-                  className="search-input"
+                  onChange={(value) => setContractPromptData(prev => ({ ...prev, passportIssuedDate: value }))}
                   style={{ width: '100%', paddingLeft: '12px' }}
                 />
               </div>

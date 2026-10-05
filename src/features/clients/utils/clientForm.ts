@@ -1,5 +1,6 @@
 import type { Client, ClientContact, ClientCreateRequest } from '../../../api/clients';
 import { PRESET_LEAD_SOURCES } from '../../../constants/clients';
+import { dateForSave } from '../../../utils/dateInput';
 import { PHONE_DEFAULT, phoneForSave, phoneMatches } from '../../../utils/phone';
 
 export type ClientType = 'INDIVIDUAL' | 'LEGAL_ENTITY';
@@ -138,10 +139,10 @@ export const formToRequest = (form: ClientFormData, tenantId: number): ClientCre
     name: form.name.trim(),
     legalName: optional(form.legalName),
     phone: phoneForSave(form.phone),
-    birthDate: optional(form.birthDate),
+    birthDate: optional(dateForSave(form.birthDate)),
     passportSeriesNumber: optional(form.passportSeriesNumber),
     passportIssuedBy: optional(form.passportIssuedBy),
-    passportIssuedDate: optional(form.passportIssuedDate),
+    passportIssuedDate: optional(dateForSave(form.passportIssuedDate)),
     passportDepartmentCode: optional(form.passportDepartmentCode),
     registrationAddress: optional(form.registrationAddress),
     email: optional(form.email),

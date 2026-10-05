@@ -12,6 +12,7 @@ import { getMeasurementByOrderId } from '../../../api/measurements';
 import type { PassportApplyResult } from '../../../components/PassportScannerModal';
 import type { ContractPromptData } from '../components/ContractPromptModal';
 import { downloadBlob } from '../../../utils/download';
+import { dateForSave } from '../../../utils/dateInput';
 import { formatPhone, isValidPhone, phoneForSave } from '../../../utils/phone';
 import { toast } from '../../../utils/toast';
 import { mergeActChecklist } from '../constants';
@@ -219,10 +220,10 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
         await updateClient(promptData.clientId, {
           name: promptData.name,
           phone: phoneForSave(promptData.phone),
-          birthDate: promptData.birthDate || undefined,
+          birthDate: dateForSave(promptData.birthDate) || undefined,
           passportSeriesNumber: promptData.passportSeriesNumber || undefined,
           passportIssuedBy: promptData.passportIssuedBy || undefined,
-          passportIssuedDate: promptData.passportIssuedDate || undefined,
+          passportIssuedDate: dateForSave(promptData.passportIssuedDate) || undefined,
           passportDepartmentCode: promptData.passportDepartmentCode || undefined,
           registrationAddress: promptData.registrationAddress || undefined
         });
@@ -239,7 +240,7 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
         timberLength: promptData.timberLength,
         canvasArticle: promptData.canvasArticle,
         discount: promptData.discount,
-        handoverDate: promptData.handoverDate
+        handoverDate: dateForSave(promptData.handoverDate)
       };
 
       await updateOrder(orderId, buildContractOrderPayload(formData, currentOrder, updatedParams, promptData.installationAddress));

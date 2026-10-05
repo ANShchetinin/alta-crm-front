@@ -922,8 +922,8 @@ body.light-theme .crm-toast-close:hover {
 
 
 
-/* Поле телефона (PhoneInput): неполный номер подсвечивается после того, как пользователь его изменил */
-.phone-input:user-invalid {
+/* Поля с маской (PhoneInput, DateInput): неполное значение подсвечивается после того, как пользователь его изменил */
+.masked-input:user-invalid {
   border-color: var(--danger) !important;
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 35%, transparent);
 }
