@@ -21,6 +21,7 @@ import { toast } from '../utils/toast';
 import { formatPhone, PHONE_DEFAULT, phoneForSave, phoneHref, phoneMatches } from '../utils/phone';
 import { PhoneInput } from '../components/ui/PhoneInput';
 import { DateInput } from '../components/ui/DateInput';
+import { AddressInput } from '../components/ui/AddressInput';
 import { dateForSave, normalizeDate } from '../utils/dateInput';
 import { confirm } from '../utils/confirm';
 import '../styles/clients.css';
@@ -938,23 +939,12 @@ export const Employees = () => {
 
             <div className="form-group" style={{ marginTop: '12px', marginBottom: 0 }}>
               <label style={{ fontSize: '0.8rem' }}>Адрес регистрации (прописка)</label>
-              <textarea 
-                rows={2}
+              <AddressInput
+                className=""
                 disabled={!canManageEmployees}
                 placeholder="г. Саратов, ул. Московская, д. 10, кв. 25"
                 value={formData.registrationAddress}
-                onChange={(e) => setFormData({ ...formData, registrationAddress: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'var(--input-bg)',
-                  border: '1px solid var(--glass-border)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.875rem',
-                  resize: 'vertical',
-                  boxSizing: 'border-box'
-                }}
+                onChange={(registrationAddress) => setFormData({ ...formData, registrationAddress })}
               />
             </div>
           </div>

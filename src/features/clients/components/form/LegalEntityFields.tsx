@@ -1,6 +1,7 @@
 import { Building2, ChevronDown, CreditCard, FileText, MapPin, PlusCircle, Trash2, Users } from 'lucide-react';
 import type { ClientContact } from '../../../../api/clients';
 import { PRESET_VAT_STATUSES } from '../../../../constants/clients';
+import { AddressInput } from '../../../../components/ui/AddressInput';
 import { PhoneInput } from '../../../../components/ui/PhoneInput';
 import { FieldGrid, FormSection, MessengerFields, PhoneField, TextField } from './FormFields';
 import { bindTextField, type ClientFormProps } from './formBinding';
@@ -56,13 +57,11 @@ export const LegalEntityFields = ({ contacts, ...props }: LegalEntityFieldsProps
       <FormSection icon={<MapPin size={16} />} title="Адреса">
         <div className="form-group" style={{ marginBottom: '10px' }}>
           <label>Юридический адрес</label>
-          <input
-            type="text"
+          <AddressInput
+            withPostalCode
             placeholder="101000, г. Москва, ул. Ленина, д. 10, оф. 101"
             value={form.legalAddress}
-            onChange={(e) => patch({ legalAddress: e.target.value })}
-            className="search-input"
-            style={{ width: '100%', paddingLeft: '12px' }}
+            onChange={(legalAddress) => patch({ legalAddress })}
           />
         </div>
         <div className="form-group" style={{ margin: 0 }}>
@@ -76,13 +75,11 @@ export const LegalEntityFields = ({ contacts, ...props }: LegalEntityFieldsProps
               Скопировать из юридического
             </button>
           </div>
-          <input
-            type="text"
+          <AddressInput
+            withPostalCode
             placeholder="101000, г. Москва, ул. Ленина, д. 10, оф. 101"
             value={form.actualAddress}
-            onChange={(e) => patch({ actualAddress: e.target.value })}
-            className="search-input"
-            style={{ width: '100%', paddingLeft: '12px' }}
+            onChange={(actualAddress) => patch({ actualAddress })}
           />
         </div>
       </FormSection>

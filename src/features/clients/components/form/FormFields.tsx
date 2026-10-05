@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
+import { AddressInput } from '../../../../components/ui/AddressInput';
 import { DateInput } from '../../../../components/ui/DateInput';
 import { PhoneInput } from '../../../../components/ui/PhoneInput';
 
@@ -43,6 +44,14 @@ export const DateField = ({ label, value, onChange, required, inGrid = false }: 
   <div className="form-group" style={inGrid ? { margin: 0 } : undefined}>
     <label>{label}</label>
     <DateInput required={required} value={value} onChange={onChange} style={{ width: '100%', paddingLeft: '12px' }} />
+  </div>
+);
+
+/** Подпись и поле адреса карточки клиента с подсказками DaData. */
+export const AddressField = ({ label, value, onChange, placeholder, inGrid = false }: Omit<TextFieldProps, 'type' | 'required'>) => (
+  <div className="form-group" style={inGrid ? { margin: 0 } : undefined}>
+    <label>{label}</label>
+    <AddressInput value={value} onChange={onChange} placeholder={placeholder} />
   </div>
 );
 

@@ -1,7 +1,6 @@
-import React, { useMemo } from 'react';
-import { AddressSuggestions, type DaDataAddress, type DaDataSuggestion } from 'react-dadata';
-import 'react-dadata/dist/react-dadata.css';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { AddressInput } from '../../../../../components/ui/AddressInput';
 import { get2GisUrl, getYandexMapsUrl } from '../../../../../utils/navigation';
 import type { SetOrderFormData } from '../../../utils/orderForm';
 
@@ -19,38 +18,18 @@ interface OrderAddressSectionProps {
  */
 export const OrderAddressSection: React.FC<OrderAddressSectionProps> = ({ addressKey, address, entrance, floor, setFormData }) => {
   const { t } = useTranslation();
-  const dadataAddressValue = useMemo<DaDataSuggestion<DaDataAddress> | undefined>(() => (
-    address ? { value: address, unrestricted_value: address, data: {} as DaDataAddress } : undefined
-  ), [address]);
 
   return (
     <>
-      {/* Адрес с DaData и навигаторами */}
+      {/* Адрес с подсказками DaData и навигаторами */}
       <div className="form-group">
         <label>{t('kanban.modal.address') || 'Адрес монтажа'}</label>
-        {import.meta.env.VITE_DADATA_API_KEY ? (
-          <AddressSuggestions
-            key={addressKey}
-            token={import.meta.env.VITE_DADATA_API_KEY}
-            value={dadataAddressValue}
-            onChange={(suggestion) => setFormData(prev => ({ ...prev, address: suggestion?.value || prev.address }))}
-            inputProps={{
-              placeholder: t('kanban.modal.address') || 'Адрес монтажа',
-              className: "search-input",
-              style: { width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box' },
-              onChange: (e: any) => setFormData(prev => ({ ...prev, address: e.target.value }))
-            }}
-          />
-        ) : (
-          <input 
-            type="text" 
-            placeholder={t('kanban.modal.address') || 'Адрес монтажа'}
-            className="search-input"
-            style={{ width: '100%', paddingLeft: '12px', paddingRight: '12px', boxSizing: 'border-box' }}
-            value={address}
-            onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-          />
-        )}
+        <AddressInput
+          key={addressKey}
+          placeholder={t('kanban.modal.address') || 'Адрес монтажа'}
+          value={address}
+          onChange={(value) => setFormData(prev => ({ ...prev, address: value }))}
+        />
         {address && (
           <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>

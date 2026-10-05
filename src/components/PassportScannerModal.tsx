@@ -22,6 +22,7 @@ import { normalizeRegistrationAddress } from '../utils/addressNormalizer';
 import { toast } from '../utils/toast';
 import { dateForSave } from '../utils/dateInput';
 import { DateInput } from './ui/DateInput';
+import { AddressInput } from './ui/AddressInput';
 import '../styles/passportScanner.css';
 
 export interface PassportApplyResult {
@@ -665,12 +666,11 @@ export const PassportScannerModal: React.FC<PassportScannerModalProps> = ({
                     </span>
                   )}
                 </div>
-                <textarea
-                  rows={2}
+                <AddressInput
                   value={formData.registrationAddress}
-                  onChange={(e) => setFormData({ ...formData, registrationAddress: e.target.value })}
+                  onChange={(registrationAddress) => setFormData({ ...formData, registrationAddress })}
                   placeholder="г. Москва, ул. Ленина, д. 10, кв. 25"
-                  className="passport-textarea"
+                  className="passport-input"
                 />
               </div>
 
