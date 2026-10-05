@@ -5,6 +5,7 @@ import { getOrderRemainder } from '../../../../utils/orderPayments';
 import { OrderStatusBadge } from '../OrderStatusBadge';
 import { PaymentCellToggle } from './PaymentToggle';
 import type { TransactionsViewProps } from './TransactionsTab';
+import { formatPhone, phoneHref } from '../../../../utils/phone';
 
 const orderProfit = (order: Order) =>
   order.profit ?? (order.totalPrice || 0) - (order.materialsCost || 0) - (order.installationPrice || 0);
@@ -65,8 +66,8 @@ export const TransactionsTable = ({
                 <td>
                   <div style={{ fontWeight: 500 }}>{order.clientName || 'Клиент'}</div>
                   {order.clientPhone && (
-                    <a href={`tel:${order.clientPhone}`} style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', textDecoration: 'none' }}>
-                      {order.clientPhone}
+                    <a href={phoneHref(order.clientPhone)} style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', textDecoration: 'none' }}>
+                      {formatPhone(order.clientPhone)}
                     </a>
                   )}
                 </td>

@@ -19,6 +19,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { parseLocalDateTime } from '../utils/dateUtils';
 import '../styles/calendar.css';
+import { formatPhone, phoneHref } from '../utils/phone';
 
 const EMPTY_EMPLOYEES: Employee[] = [];
 const EMPTY_EVENTS: CalendarEventDto[] = [];
@@ -382,7 +383,7 @@ export const Calendar: React.FC = () => {
               {ev.clientPhone && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <a
-                    href={`tel:${ev.clientPhone}`}
+                    href={phoneHref(ev.clientPhone)}
                     onClick={e => e.stopPropagation()}
                     style={{
                       display: 'inline-flex',
@@ -397,7 +398,7 @@ export const Calendar: React.FC = () => {
                       fontWeight: 600
                     }}
                   >
-                    <Phone size={13} /> {ev.clientPhone}
+                    <Phone size={13} /> {formatPhone(ev.clientPhone)}
                   </a>
                 </div>
               )}
@@ -608,7 +609,7 @@ export const Calendar: React.FC = () => {
                               key={ev.id}
                               onClick={(e) => { e.stopPropagation(); handleEventClick(ev); }}
                               className={`calendar-event-item ${typeClass} ${overdueClass}`}
-                              title={`${ev.title || ''}\nКлиент: ${ev.clientName || ''}${ev.clientPhone ? ` (${ev.clientPhone})` : ''}\nАдрес: ${ev.address || '—'}`}
+                              title={`${ev.title || ''}\nКлиент: ${ev.clientName || ''}${ev.clientPhone ? ` (${formatPhone(ev.clientPhone)})` : ''}\nАдрес: ${ev.address || '—'}`}
                             >
                               <span>{ev.type === 'MEASUREMENT' ? '📏' : (ev.type === 'INSTALLATION' ? '🔨' : '⏰')}</span>
                               {timeStr && <span style={{ opacity: 0.9 }}>{timeStr}</span>}

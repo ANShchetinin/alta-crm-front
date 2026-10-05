@@ -18,6 +18,7 @@ import { formatTimeAgo, formatDateTime } from '../utils/dateUtils';
 import { toast } from '../utils/toast';
 import { confirm } from '../utils/confirm';
 import '../styles/site-requests.css';
+import { formatPhone, phoneDigits } from '../utils/phone';
 
 const SITE_REQUESTS_QUERY_KEY = ['siteRequests'] as const;
 const POLL_INTERVAL_MS = 10000;
@@ -196,7 +197,7 @@ export const SiteRequests: React.FC = () => {
               <tbody>
                 {siteRequests.map((req) => {
                   const calc = parseCalc(req.calcData);
-                  const cleanPhone = req.phone ? req.phone.replace(/[^0-9]/g, '') : '';
+                  const cleanPhone = phoneDigits(req.phone);
                   return (
                     <tr 
                       key={req.id}
@@ -219,7 +220,7 @@ export const SiteRequests: React.FC = () => {
                         <div className="sr-client-cell">
                           <span className="sr-client-name">{req.clientName}</span>
                           <div className="sr-client-phone-row">
-                            <span>{req.phone}</span>
+                            <span>{formatPhone(req.phone)}</span>
                             {cleanPhone && (
                               <div style={{ display: 'inline-flex', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
                                 <a
@@ -357,7 +358,7 @@ export const SiteRequests: React.FC = () => {
           <div className="site-requests-mobile-list">
             {siteRequests.map((req) => {
               const calc = parseCalc(req.calcData);
-              const cleanPhone = req.phone ? req.phone.replace(/[^0-9]/g, '') : '';
+              const cleanPhone = phoneDigits(req.phone);
               return (
                 <div 
                   key={req.id} 
@@ -382,7 +383,7 @@ export const SiteRequests: React.FC = () => {
 
                   <div className="sr-card-body">
                     <div className="sr-client-phone-row" style={{ justifyContent: 'space-between' }}>
-                      <span style={{ fontWeight: 500 }}>{req.phone}</span>
+                      <span style={{ fontWeight: 500 }}>{formatPhone(req.phone)}</span>
                       {cleanPhone && (
                         <div style={{ display: 'flex', gap: '6px' }} onClick={(e) => e.stopPropagation()}>
                           <a

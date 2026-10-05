@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
+import { PhoneInput } from '../../../../components/ui/PhoneInput';
 
 interface TextFieldProps {
   label: string;
@@ -25,6 +26,14 @@ export const TextField = ({ label, value, onChange, placeholder, required, type 
       className="search-input"
       style={{ width: '100%', paddingLeft: '12px' }}
     />
+  </div>
+);
+
+/** Подпись и поле телефона карточки клиента с маской +7 (999) 123-45-67. */
+export const PhoneField = ({ label, value, onChange, required, inGrid = false }: Omit<TextFieldProps, 'type' | 'placeholder'>) => (
+  <div className="form-group" style={inGrid ? { margin: 0 } : undefined}>
+    <label>{label}</label>
+    <PhoneInput required={required} value={value} onChange={onChange} style={{ width: '100%', paddingLeft: '12px' }} />
   </div>
 );
 

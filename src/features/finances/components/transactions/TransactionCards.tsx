@@ -3,6 +3,7 @@ import { getOrderRemainder } from '../../../../utils/orderPayments';
 import { OrderStatusBadge } from '../OrderStatusBadge';
 import { PaymentTileToggle } from './PaymentToggle';
 import type { TransactionsViewProps } from './TransactionsTab';
+import { formatPhone, phoneHref } from '../../../../utils/phone';
 
 /** Карточки взаиморасчетов для телефонов и планшетов. */
 export const TransactionCards = ({ orders, statuses, onTogglePrepayment, onToggleRemainder, onOpenOrder }: TransactionsViewProps) => (
@@ -51,7 +52,7 @@ export const TransactionCards = ({ orders, statuses, onTogglePrepayment, onToggl
                 <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{order.clientName || 'Клиент'}</span>
                 {order.clientPhone && (
                   <a
-                    href={`tel:${order.clientPhone}`}
+                    href={phoneHref(order.clientPhone)}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -64,7 +65,7 @@ export const TransactionCards = ({ orders, statuses, onTogglePrepayment, onToggl
                       borderRadius: '6px'
                     }}
                   >
-                    <Phone size={13} /> {order.clientPhone}
+                    <Phone size={13} /> {formatPhone(order.clientPhone)}
                   </a>
                 )}
               </div>

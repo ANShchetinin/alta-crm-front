@@ -16,6 +16,8 @@ import { useMaterialsQuery } from '../hooks/queries/useStorageQuery';
 import { TIMEZONE_OPTIONS } from '../utils/dateUtils';
 import { Sliders } from 'lucide-react';
 import { toast } from '../utils/toast';
+import { phoneForSave } from '../utils/phone';
+import { PhoneInput } from '../components/ui/PhoneInput';
 import { formatErrorWithReason } from '../utils/errorMessage';
 import { useFeature, setDevFeatureOverride } from '../hooks/useFeatureToggle';
 import { updateTenantFeature } from '../api/features';
@@ -213,7 +215,7 @@ export const Settings = () => {
     try {
       const res = await updateTenantSettings({ 
         primaryColor, 
-        requisites, 
+        requisites: { ...requisites, phone: phoneForSave(requisites.phone), landlinePhone: phoneForSave(requisites.landlinePhone) },
         orderNumberFormat: orderNumberFormat.trim() || 'А{ddMMyy}_{INDEX}',
         timezone: timezone || 'Europe/Moscow'
       });
@@ -1328,26 +1330,20 @@ export const Settings = () => {
                           <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
                             Городской телефон (для шапки договора)
                           </label>
-                          <input
-                            type="text"
-                            className="search-input"
+                          <PhoneInput
                             style={{ width: '100%' }}
-                            placeholder="+7 (8452) 323-989"
                             value={requisites.landlinePhone || ''}
-                            onChange={e => updateRequisiteField('landlinePhone', e.target.value)}
+                            onChange={value => updateRequisiteField('landlinePhone', value)}
                           />
                         </div>
                         <div>
                           <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
                             Мобильный телефон
                           </label>
-                          <input
-                            type="text"
-                            className="search-input"
+                          <PhoneInput
                             style={{ width: '100%' }}
-                            placeholder="+7 (999) 000-00-00"
                             value={requisites.phone || ''}
-                            onChange={e => updateRequisiteField('phone', e.target.value)}
+                            onChange={value => updateRequisiteField('phone', value)}
                           />
                         </div>
                         <div>
@@ -1517,26 +1513,20 @@ export const Settings = () => {
                           <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
                             Городской телефон (для шапки договора)
                           </label>
-                          <input
-                            type="text"
-                            className="search-input"
+                          <PhoneInput
                             style={{ width: '100%' }}
-                            placeholder="+7 (8452) 323-989"
                             value={requisites.landlinePhone || ''}
-                            onChange={e => updateRequisiteField('landlinePhone', e.target.value)}
+                            onChange={value => updateRequisiteField('landlinePhone', value)}
                           />
                         </div>
                         <div>
                           <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-secondary)' }}>
                             Мобильный телефон
                           </label>
-                          <input
-                            type="text"
-                            className="search-input"
+                          <PhoneInput
                             style={{ width: '100%' }}
-                            placeholder="+7 (999) 000-00-00"
                             value={requisites.phone || ''}
-                            onChange={e => updateRequisiteField('phone', e.target.value)}
+                            onChange={value => updateRequisiteField('phone', value)}
                           />
                         </div>
                         <div>

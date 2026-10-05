@@ -19,6 +19,7 @@ import { getMyEarnings } from '../api/earnings';
 import type { WorkerEarnings } from '../api/earnings';
 import { useAppStore } from '../store/useAppStore';
 import { formatDateTimeInTimezone, formatDateInTimezone } from '../utils/dateUtils';
+import { formatPhone, phoneHref, phoneMatches } from '../utils/phone';
 
 type PeriodFilter = 'THIS_MONTH' | 'PREV_MONTH' | 'ALL_TIME' | 'CUSTOM';
 
@@ -88,7 +89,7 @@ export const Earnings: React.FC = () => {
           const q = searchQuery.toLowerCase();
           const matchesAddress = item.address?.toLowerCase().includes(q);
           const matchesClient = item.clientName?.toLowerCase().includes(q);
-          const matchesPhone = item.clientPhone?.toLowerCase().includes(q);
+          const matchesPhone = phoneMatches(item.clientPhone, q);
           const matchesOrderNum = item.orderNumber?.toLowerCase().includes(q);
           const matchesDesc = item.description?.toLowerCase().includes(q);
           const matchesId = item.orderId.toString().includes(q);
@@ -522,7 +523,7 @@ export const Earnings: React.FC = () => {
 
                   {item.clientPhone && (
                     <a
-                      href={`tel:${item.clientPhone}`}
+                      href={phoneHref(item.clientPhone)}
                       style={{
                         color: 'var(--success)',
                         textDecoration: 'none',
@@ -532,7 +533,7 @@ export const Earnings: React.FC = () => {
                         fontWeight: 500
                       }}
                     >
-                      <Phone size={13} /> {item.clientPhone}
+                      <Phone size={13} /> {formatPhone(item.clientPhone)}
                     </a>
                   )}
 

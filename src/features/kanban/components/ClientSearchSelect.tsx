@@ -3,6 +3,7 @@ import { Search, ChevronDown, Plus, Check, X, Phone, Building2, User, MessageCir
 import type { Client } from '../../../api/clients';
 import { getAvatarGradient, getClientInitials } from '../../../utils/avatarUtils';
 import { getWhatsAppLink, getTelegramLink } from '../../../utils/messengerUtils';
+import { formatPhone, phoneHref, phoneMatches } from '../../../utils/phone';
 
 export interface ClientSearchSelectProps {
   value: string;
@@ -47,7 +48,7 @@ export const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({
     const q = search.toLowerCase().trim();
     return clients.filter(c => 
       c.name.toLowerCase().includes(q) ||
-      (c.phone && c.phone.toLowerCase().includes(q)) ||
+      phoneMatches(c.phone, q) ||
       (c.inn && c.inn.toLowerCase().includes(q)) ||
       (c.contactPerson && c.contactPerson.toLowerCase().includes(q))
     );
@@ -138,12 +139,12 @@ export const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1px', flexWrap: 'wrap' }}>
                   {selectedClient.phone && (
                     <a
-                      href={`tel:${selectedClient.phone.replace(/[^\d+]/g, '')}`}
+                      href={phoneHref(selectedClient.phone)}
                       onClick={(e) => e.stopPropagation()}
                       style={{ color: '#22c55e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}
-                      title={`Позвонить клиенту: ${selectedClient.phone}`}
+                      title={`Позвонить клиенту: ${formatPhone(selectedClient.phone)}`}
                     >
-                      <Phone size={12} /> {selectedClient.phone}
+                      <Phone size={12} /> {formatPhone(selectedClient.phone)}
                     </a>
                   )}
                   {selectedClient.inn && <span>ИНН: {selectedClient.inn}</span>}
@@ -353,12 +354,12 @@ export const ClientSearchSelect: React.FC<ClientSearchSelectProps> = ({
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1px' }}>
                           {c.phone && (
                             <a
-                              href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}
+                              href={phoneHref(c.phone)}
                               onClick={(e) => e.stopPropagation()}
                               style={{ color: '#22c55e', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}
-                              title={`Позвонить клиенту: ${c.phone}`}
+                              title={`Позвонить клиенту: ${formatPhone(c.phone)}`}
                             >
-                              <Phone size={11} /> {c.phone}
+                              <Phone size={11} /> {formatPhone(c.phone)}
                             </a>
                           )}
                           {c.inn && <span>ИНН: {c.inn}</span>}

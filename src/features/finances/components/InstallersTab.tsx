@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { Order, OrderStatus } from '../../../api/kanban';
 import { formatDateOnly } from '../../../utils/dateUtils';
 import type { InstallerSummary } from '../utils/financeCalculations';
+import { formatPhone } from '../../../utils/phone';
 
 interface InstallersTabProps {
   installers: InstallerSummary[];
@@ -52,7 +53,7 @@ export const InstallersTab = ({ installers, statuses, isCompleted }: InstallersT
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{item.employee.name}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    {item.employee.position || 'Монтажник'} {item.employee.phone ? `• ${item.employee.phone}` : ''}
+                    {item.employee.position || 'Монтажник'} {item.employee.phone ? `• ${formatPhone(item.employee.phone)}` : ''}
                   </div>
                 </div>
               </div>

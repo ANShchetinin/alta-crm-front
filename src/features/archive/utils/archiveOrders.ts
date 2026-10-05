@@ -4,6 +4,7 @@ import type { Employee } from '../../../api/employees';
 import { formatDateTimeInTimezone } from '../../../utils/dateUtils';
 import { getOrderRemainder } from '../../../utils/orderPayments';
 import { isCompletedStatus } from '../../../utils/orderStatus';
+import { phoneMatches } from '../../../utils/phone';
 
 export type SortField = 'installedAt' | 'createdAt' | 'orderNumber' | 'totalPrice' | 'clientName';
 export type SortDirection = 'asc' | 'desc';
@@ -65,7 +66,7 @@ const matchesSearch = (order: Order, query: string, clients: Client[], employees
     || order.id.toString() === q
     || `№${order.id}` === q
     || (order.clientName || client?.name || '').toLowerCase().includes(q)
-    || (order.clientPhone || client?.phone || '').includes(q)
+    || phoneMatches(order.clientPhone || client?.phone, q)
     || (order.address || '').toLowerCase().includes(q)
     || (order.description || '').toLowerCase().includes(q)
     || (order.installedByName || order.assigneeName || employee?.name || '').toLowerCase().includes(q);

@@ -95,13 +95,13 @@ describe('Clients page', () => {
 
     fireEvent.click(await screen.findByText('clients.addClient'));
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: '  Анна Смирнова ' } });
-    fireEvent.change(screen.getByPlaceholderText('+7 (999) 000-00-00'), { target: { value: '+79995554433' } });
+    fireEvent.change(screen.getByPlaceholderText('+7 (999) 123-45-67'), { target: { value: '+79995554433' } });
     fireEvent.click(screen.getByText('Создать клиента'));
 
     await waitFor(() => expect(clientsApi.createClient).toHaveBeenCalledWith(expect.objectContaining({
       clientType: 'INDIVIDUAL',
       name: 'Анна Смирнова',
-      phone: '+79995554433',
+      phone: '+7 (999) 555-44-33',
       allowedTenantIds: [1]
     })));
     expect(toast.success).toHaveBeenCalledWith('Клиент успешно создан');

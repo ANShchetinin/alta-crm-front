@@ -3,6 +3,7 @@ import type { Client } from '../../../api/clients';
 import type { Employee } from '../../../api/employees';
 import type { OrderReminderDto } from '../../../api/reminders';
 import { parseLocalDateTime } from '../../../utils/dateUtils';
+import { phoneMatches } from '../../../utils/phone';
 
 export type ReminderFilter = 'all' | 'today' | 'overdue';
 export type CardDropPosition = 'before' | 'after';
@@ -100,7 +101,7 @@ const matchesSearch = (card: Order, query: string, clients: Client[], employees:
   const employee = employees.find(e => e.id === card.assigneeId);
   return (card.orderNumber?.toLowerCase().includes(query) ?? false)
     || ((card.clientName || client?.name)?.toLowerCase().includes(query) ?? false)
-    || ((card.clientPhone || client?.phone)?.toLowerCase().includes(query) ?? false)
+    || phoneMatches(card.clientPhone || client?.phone, query)
     || (card.address?.toLowerCase().includes(query) ?? false)
     || (card.description?.toLowerCase().includes(query) ?? false)
     || (employee?.name?.toLowerCase().includes(query) ?? false)

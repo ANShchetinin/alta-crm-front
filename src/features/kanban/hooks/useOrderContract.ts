@@ -12,6 +12,7 @@ import { getMeasurementByOrderId } from '../../../api/measurements';
 import type { PassportApplyResult } from '../../../components/PassportScannerModal';
 import type { ContractPromptData } from '../components/ContractPromptModal';
 import { downloadBlob } from '../../../utils/download';
+import { formatPhone, isValidPhone, phoneForSave } from '../../../utils/phone';
 import { toast } from '../../../utils/toast';
 import { mergeActChecklist } from '../constants';
 import {
@@ -169,7 +170,7 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
       clientId: selectedClient?.id || 0,
       name: currentOrder?.clientName || selectedClient?.name || '',
       phone: currentOrder?.clientPhone || selectedClient?.phone || '',
-      secondPhone: selectedClient?.whatsapp || '',
+      secondPhone: isValidPhone(selectedClient?.whatsapp) ? formatPhone(selectedClient?.whatsapp) : '',
       birthDate: selectedClient?.birthDate || '',
       passportSeriesNumber: selectedClient?.passportSeriesNumber || '',
       passportIssuedBy: selectedClient?.passportIssuedBy || '',
@@ -217,7 +218,7 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
       if (promptData.clientId) {
         await updateClient(promptData.clientId, {
           name: promptData.name,
-          phone: promptData.phone,
+          phone: phoneForSave(promptData.phone),
           birthDate: promptData.birthDate || undefined,
           passportSeriesNumber: promptData.passportSeriesNumber || undefined,
           passportIssuedBy: promptData.passportIssuedBy || undefined,

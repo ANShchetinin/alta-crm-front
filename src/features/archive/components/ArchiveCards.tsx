@@ -6,6 +6,7 @@ import { get2GisUrl, getYandexMapsUrl } from '../../../utils/navigation';
 import { clientViewOf, installerNameOf } from '../utils/archiveOrders';
 import { MessengerButtons, StatusPill } from './ArchiveBadges';
 import type { ArchiveListProps } from './archiveListProps';
+import { formatPhone, phoneHref } from '../../../utils/phone';
 
 interface ArchiveCardsProps extends ArchiveListProps {
   onDownloadPdf: (orderId: number) => void;
@@ -64,9 +65,9 @@ export const ArchiveCards = ({
               <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <span className="archive-card-client-name">{client.name}</span>
                 {client.phone && (
-                  <a href={`tel:${client.phone.replace(/[^\d+]/g, '')}`} onClick={stopPropagation} className="archive-card-client-phone">
+                  <a href={phoneHref(client.phone)} onClick={stopPropagation} className="archive-card-client-phone">
                     <Phone size={11} />
-                    <span>{client.phone}</span>
+                    <span>{formatPhone(client.phone)}</span>
                   </a>
                 )}
               </div>

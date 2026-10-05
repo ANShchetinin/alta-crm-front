@@ -12,6 +12,7 @@ import {
   setInstallerAmount
 } from '../../../utils/installers';
 import type { SetOrderFormData } from '../../../utils/orderForm';
+import { formatPhone } from '../../../../../utils/phone';
 
 interface OrderInstallersSectionProps {
   installers: OrderInstaller[];
@@ -195,7 +196,7 @@ export const OrderInstallersSection: React.FC<OrderInstallersSectionProps> = ({
                     </span>
                     {(inst.employeePhone || emp?.phone) && (
                       <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-                        {inst.employeePhone || emp?.phone}
+                        {formatPhone(inst.employeePhone || emp?.phone)}
                       </span>
                     )}
                   </div>

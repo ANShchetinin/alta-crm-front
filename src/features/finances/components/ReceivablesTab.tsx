@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2, Phone } from 'lucide-react';
 import type { Order } from '../../../api/kanban';
 import { getOrderDebt, getOrderRemainder } from '../../../utils/orderPayments';
+import { formatPhone, phoneHref } from '../../../utils/phone';
 
 interface ReceivablesTabProps {
   debtors: Order[];
@@ -106,7 +107,7 @@ export const ReceivablesTab = ({ debtors, onTogglePrepayment, onToggleRemainder 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   {order.clientPhone ? (
                     <a
-                      href={`tel:${order.clientPhone}`}
+                      href={phoneHref(order.clientPhone)}
                       className="btn btn-ghost"
                       style={{
                         color: 'var(--success)',
@@ -121,7 +122,7 @@ export const ReceivablesTab = ({ debtors, onTogglePrepayment, onToggleRemainder 
                         fontWeight: 600
                       }}
                     >
-                      <Phone size={13} /> Позвонить: {order.clientPhone}
+                      <Phone size={13} /> Позвонить: {formatPhone(order.clientPhone)}
                     </a>
                   ) : <div />}
 

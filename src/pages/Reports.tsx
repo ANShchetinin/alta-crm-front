@@ -21,6 +21,7 @@ import {
 import { formatDateOnly } from '../utils/dateUtils';
 import '../styles/clients.css'; 
 import '../styles/reports.css'; 
+import { formatPhone } from '../utils/phone';
 
 const EMPTY_ORDERS: Order[] = [];
 const EMPTY_CLIENTS: Client[] = [];
@@ -883,7 +884,7 @@ export const Reports = () => {
                           <div style={{ fontWeight: 500 }}>{client?.name || '—'}</div>
                           {client?.phone && (
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              {client.phone}
+                              {formatPhone(client.phone)}
                             </div>
                           )}
                         </div>

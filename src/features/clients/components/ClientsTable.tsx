@@ -6,6 +6,7 @@ import { ClientAvatar } from './ClientAvatar';
 import { ClientTenantTags } from './ClientTenantTags';
 import { MessengerLinks } from './MessengerLinks';
 import type { ClientListProps } from './clientListProps';
+import { formatPhone, phoneHref } from '../../../utils/phone';
 
 const DASH = <span style={{ color: 'var(--text-secondary)', opacity: 0.4 }}>—</span>;
 
@@ -102,7 +103,7 @@ export const ClientsTable = ({ clients, tenants, currentTenantId, timezone, onEd
                     <div className="client-phone">
                       {client.phone ? (
                         <a
-                          href={`tel:${client.phone.replace(/[^\d+]/g, '')}`}
+                          href={phoneHref(client.phone)}
                           title="Позвонить"
                           onClick={(e) => e.stopPropagation()}
                           style={{
@@ -120,7 +121,7 @@ export const ClientsTable = ({ clients, tenants, currentTenantId, timezone, onEd
                           }}
                         >
                           <Phone size={13} style={{ color: 'var(--success)', flexShrink: 0 }} />
-                          <span style={{ whiteSpace: 'nowrap' }}>{client.phone}</span>
+                          <span style={{ whiteSpace: 'nowrap' }}>{formatPhone(client.phone)}</span>
                         </a>
                       ) : '-'}
                       <MessengerLinks whatsapp={client.whatsapp} telegram={client.telegram} iconSize={13} detailedTitles />
@@ -155,7 +156,7 @@ export const ClientsTable = ({ clients, tenants, currentTenantId, timezone, onEd
                     <div className="client-actions" onClick={(e) => e.stopPropagation()}>
                       {client.phone && (
                         <a
-                          href={`tel:${client.phone}`}
+                          href={phoneHref(client.phone)}
                           className="action-btn"
                           style={{ color: 'var(--success)' }}
                           title="Позвонить клиенту"

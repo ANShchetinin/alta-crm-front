@@ -6,6 +6,8 @@ import {
 import { updateSiteRequest, type SiteRequestItem, type CalcDataPayload } from '../../api/siteRequests';
 import { formatTimeAgo, formatDateTime } from '../../utils/dateUtils';
 import { toast } from '../../utils/toast';
+import { formatPhone, isPhoneBlank, phoneDigits, phoneForSave } from '../../utils/phone';
+import { PhoneInput } from '../ui/PhoneInput';
 
 interface SiteRequestModalProps {
   siteRequest: SiteRequestItem | null;
@@ -66,7 +68,7 @@ export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
 
   const handleCopyPhone = () => {
     if (siteRequest.phone && navigator?.clipboard) {
-      navigator.clipboard.writeText(siteRequest.phone);
+      navigator.clipboard.writeText(formatPhone(siteRequest.phone));
       setCopiedPhone(true);
       toast.success('Телефон скопирован');
       setTimeout(() => setCopiedPhone(false), 2000);
@@ -75,7 +77,7 @@ export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clientName.trim() || !phone.trim()) {
+    if (!clientName.trim() || isPhoneBlank(phone)) {
       toast.error('Имя и телефон обязательны');
       return;
     }
@@ -84,7 +86,7 @@ export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
       setSaving(true);
       await updateSiteRequest(siteRequest.id, {
         clientName: clientName.trim(),
-        phone: phone.trim(),
+        phone: phoneForSave(phone),
         managerNotes: managerNotes.trim() || undefined,
       });
       toast.success('Заявка успешно обновлена');
@@ -97,7 +99,7 @@ export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
     }
   };
 
-  const cleanPhone = siteRequest.phone ? siteRequest.phone.replace(/[^0-9]/g, '') : '';
+  const cleanPhone = phoneDigits(siteRequest.phone);
 
   return (
     <div className="modal-overlay sr-modal-overlay" onClick={onClose}>
@@ -180,11 +182,9 @@ export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
                   Телефон *
                 </label>
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <input
-                    type="text"
+                  <PhoneInput
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="search-input"
+                    onChange={setPhone}
                     style={{ flex: 1, minWidth: '130px', boxSizing: 'border-box' }}
                     required
                   />

@@ -1,5 +1,6 @@
 import type { Client, ClientContact, ClientCreateRequest } from '../../../api/clients';
 import { PRESET_LEAD_SOURCES } from '../../../constants/clients';
+import { PHONE_DEFAULT, phoneForSave, phoneMatches } from '../../../utils/phone';
 
 export type ClientType = 'INDIVIDUAL' | 'LEGAL_ENTITY';
 export type ClientTypeFilter = 'ALL' | ClientType;
@@ -52,7 +53,7 @@ export const emptyClientForm = (clientType: ClientType, tenantId: number): Clien
   avatarUrl: '',
   name: '',
   legalName: '',
-  phone: '+7',
+  phone: PHONE_DEFAULT,
   birthDate: '',
   passportSeriesNumber: '',
   passportIssuedBy: '',
@@ -126,7 +127,9 @@ const optional = (value: string) => value.trim() || null;
  */
 export const formToRequest = (form: ClientFormData, tenantId: number): ClientCreateRequest => {
   const leadSource = form.leadSource === CUSTOM_LEAD_SOURCE ? form.customLeadSource.trim() : form.leadSource;
-  const contacts = form.contacts.filter(c => c.name.trim().length > 0);
+  const contacts = form.contacts
+    .filter(c => c.name.trim().length > 0)
+    .map(c => ({ ...c, phone: phoneForSave(c.phone) }));
   const primary = contacts.find(c => c.isPrimary);
 
   return {
@@ -134,7 +137,7 @@ export const formToRequest = (form: ClientFormData, tenantId: number): ClientCre
     avatarUrl: form.avatarUrl || null,
     name: form.name.trim(),
     legalName: optional(form.legalName),
-    phone: form.phone.trim(),
+    phone: phoneForSave(form.phone),
     birthDate: optional(form.birthDate),
     passportSeriesNumber: optional(form.passportSeriesNumber),
     passportIssuedBy: optional(form.passportIssuedBy),
@@ -213,7 +216,7 @@ export const filterClients = (clients: Client[], search: string, typeFilter: Cli
     }
     return includesText(c.name, q)
       || includesText(c.legalName, q)
-      || includesDigits(c.phone, q)
+      || phoneMatches(c.phone, q)
       || includesDigits(c.inn, q)
       || includesText(c.email, q)
       || includesText(c.contactPerson, q)
@@ -221,6 +224,6 @@ export const filterClients = (clients: Client[], search: string, typeFilter: Cli
       || includesDigits(c.passportSeriesNumber, q)
       || includesText(c.whatsapp, q)
       || includesText(c.telegram, q)
-      || (Array.isArray(c.contacts) && c.contacts.some(cnt => includesText(cnt?.name, q) || includesDigits(cnt?.phone, q)));
+      || (Array.isArray(c.contacts) && c.contacts.some(cnt => includesText(cnt?.name, q) || phoneMatches(cnt?.phone, q)));
   });
 };

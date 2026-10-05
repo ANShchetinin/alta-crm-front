@@ -44,7 +44,7 @@ describe('ClientSearchSelect', () => {
       />
     );
     expect(screen.getByText('Алексей Смирнов')).toBeInTheDocument();
-    expect(screen.getByText('+79991234567')).toBeInTheDocument();
+    expect(screen.getByText('+7 (999) 123-45-67')).toBeInTheDocument();
   });
 
   it('triggers onAddNewClient callback', () => {

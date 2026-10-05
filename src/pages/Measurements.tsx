@@ -20,6 +20,7 @@ import { getYandexMapsUrl, get2GisUrl } from '../utils/navigation';
 import { getWhatsAppLink } from '../utils/messengerUtils';
 import { formatDateTime, parseLocalDateTime } from '../utils/dateUtils';
 import '../styles/measurements.css';
+import { formatPhone, phoneHref, phoneMatches } from '../utils/phone';
 
 const EMPTY_ORDERS: Order[] = [];
 const EMPTY_MATERIALS: Material[] = [];
@@ -54,7 +55,7 @@ export const Measurements: React.FC = () => {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       const matchClient = order.clientName?.toLowerCase().includes(q) || false;
-      const matchPhone = order.clientPhone?.includes(q) || false;
+      const matchPhone = phoneMatches(order.clientPhone, q);
       const matchAddress = order.address?.toLowerCase().includes(q) || false;
       const matchNum = order.orderNumber?.toLowerCase().includes(q) || false;
       if (!matchClient && !matchPhone && !matchAddress && !matchNum) {
@@ -225,10 +226,10 @@ export const Measurements: React.FC = () => {
                 {order.clientPhone && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--glass-border)', paddingTop: '10px' }}>
                     <a
-                      href={`tel:${order.clientPhone.replace(/[^\d+]/g, '')}`}
+                      href={phoneHref(order.clientPhone)}
                       className="measurement-phone-btn"
                     >
-                      <Phone size={14} /> <span>{order.clientPhone}</span>
+                      <Phone size={14} /> <span>{formatPhone(order.clientPhone)}</span>
                     </a>
 
                     <div style={{ display: 'flex', gap: '6px' }}>

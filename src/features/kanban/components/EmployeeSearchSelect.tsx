@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, ChevronDown, Check, X, Phone, User } from 'lucide-react';
 import type { Employee } from '../../../api/employees';
 import { getAvatarGradient, getEmployeeInitials } from '../../../utils/avatarUtils';
+import { formatPhone, phoneHref, phoneMatches } from '../../../utils/phone';
 
 export interface EmployeeSearchSelectProps {
   value: string;
@@ -74,7 +75,7 @@ export const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
     return employees.filter(e => 
       e.name.toLowerCase().includes(q) ||
       (e.position && e.position.toLowerCase().includes(q)) ||
-      (e.phone && e.phone.toLowerCase().includes(q))
+      phoneMatches(e.phone, q)
     );
   }, [employees, search]);
 
@@ -151,7 +152,7 @@ export const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
                 )}
                 {selectedEmployee.phone && (
                   <a
-                    href={`tel:${selectedEmployee.phone.replace(/[^\d+]/g, '')}`}
+                    href={phoneHref(selectedEmployee.phone)}
                     onClick={(e) => e.stopPropagation()}
                     style={{
                       color: '#22c55e',
@@ -166,11 +167,11 @@ export const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
                       flexShrink: 0,
                       maxWidth: '100%'
                     }}
-                    title={selectedEmployee.phone}
+                    title={formatPhone(selectedEmployee.phone)}
                   >
                     <Phone size={10} style={{ flexShrink: 0 }} />
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {selectedEmployee.phone}
+                      {formatPhone(selectedEmployee.phone)}
                     </span>
                   </a>
                 )}
@@ -351,8 +352,8 @@ export const EmployeeSearchSelect: React.FC<EmployeeSearchSelectProps> = ({
                             <span style={{ opacity: 0.4, flexShrink: 0 }}>•</span>
                           )}
                           {emp.phone && (
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={emp.phone}>
-                              {emp.phone}
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={formatPhone(emp.phone)}>
+                              {formatPhone(emp.phone)}
                             </span>
                           )}
                         </div>
