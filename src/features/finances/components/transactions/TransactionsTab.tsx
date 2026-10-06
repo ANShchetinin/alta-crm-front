@@ -24,7 +24,7 @@ interface TransactionsTabProps extends TransactionsViewProps {
 const PAYMENT_FILTERS: { id: PaymentStatusFilter; label: string }[] = [
   { id: 'ALL', label: 'Все оплаты' },
   { id: 'PAID', label: '🟢 Оплачены 100%' },
-  { id: 'PREPAYMENT', label: '🟡 Только аванс' },
+  { id: 'PREPAYMENT', label: '🟡 Оплачены частично' },
   { id: 'UNPAID', label: '🔴 Без оплаты' },
   { id: 'DEBT', label: '⏳ Есть долг' }
 ];

@@ -185,7 +185,7 @@ export const OrderFinanceSection: React.FC<OrderFinanceSectionProps> = ({ formDa
           </div>
         </div>
 
-        {/* Финансовые показатели (Себестоимость, монтаж, прибыль, маржинальность) */}
+        {/* Финансовые показатели (затраты на материалы по закупке, монтаж, прибыль, рентабельность) */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
@@ -198,7 +198,7 @@ export const OrderFinanceSection: React.FC<OrderFinanceSectionProps> = ({ formDa
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '4px', lineHeight: '1.3' }}>
-              Себестоимость материалов
+              Затраты на материалы
             </div>
             <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#f59e0b', marginTop: 'auto' }}>
               {currentMaterialsCost.toLocaleString('ru-RU')} ₽

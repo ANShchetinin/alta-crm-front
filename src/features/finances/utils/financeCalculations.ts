@@ -1,7 +1,7 @@
 import type { Order, OrderStatus } from '../../../api/kanban';
 import type { Employee } from '../../../api/employees';
 import type { Expense } from '../../../api/finances';
-import { getOrderDebt, getOrderRemainder } from '../../../utils/orderPayments';
+import { getOrderDebt, getOrderRemainder, getPaymentState } from '../../../utils/orderPayments';
 import { phoneMatches } from '../../../utils/phone';
 
 export type PeriodFilter = 'THIS_MONTH' | 'LAST_MONTH' | 'THREE_MONTHS' | 'THIS_YEAR' | 'ALL';
@@ -25,13 +25,19 @@ export interface CashMetrics {
   netCashProfit: number;
 }
 
+/** Заказ монтажника и его начисление по этому заказу. */
+export interface InstallerOrder {
+  order: Order;
+  amount: number;
+}
+
 export interface InstallerSummary {
   employee: Employee;
   completedCount: number;
   completedEarnings: number;
   inProgressCount: number;
   inProgressEarnings: number;
-  orders: Order[];
+  orders: InstallerOrder[];
 }
 
 export const PERIOD_OPTIONS: { value: PeriodFilter; label: string }[] = [
@@ -154,16 +160,17 @@ export const calculateCashMetrics = (
   };
 };
 
+/** Фильтр по состоянию оплаты (по суммам, см. {@link getPaymentState}); PREPAYMENT — оплачен частично. */
 const matchesPaymentFilter = (order: Order, filter: PaymentStatusFilter): boolean => {
   switch (filter) {
     case 'PAID':
-      return Boolean(order.prepaymentPaid && order.remainderPaid);
+      return getPaymentState(order) === 'PAID';
     case 'PREPAYMENT':
-      return Boolean(order.prepaymentPaid && !order.remainderPaid);
+      return getPaymentState(order) === 'PARTIAL';
     case 'UNPAID':
-      return !order.prepaymentPaid && !order.remainderPaid;
+      return getPaymentState(order) === 'UNPAID';
     case 'DEBT':
-      return !order.prepaymentPaid || !order.remainderPaid;
+      return getOrderDebt(order) > 0;
     case 'ALL':
       return true;
   }
@@ -206,7 +213,24 @@ export const getDebtorOrders = (orders: Order[]): Order[] => {
 };
 
 /**
- * Начисления монтажникам: по исполнителю заказа (смонтировавший, иначе ответственный). Завершенные считаются
+ * Начисления по заказу: доли из списка монтажников (сумма, иначе процент, иначе поровну); заказ без списка —
+ * вся стоимость монтажа смонтировавшему, иначе ответственному. Так же считает «Мой заработок» на бэкенде.
+ */
+export const getInstallerPayouts = (order: Order): { employeeId: number; amount: number }[] => {
+  const price = order.installationPrice || 0;
+  const installers = order.installers || [];
+  if (installers.length > 0) {
+    return installers.map(installer => ({
+      employeeId: installer.employeeId,
+      amount: installer.amount ?? Math.round(price * (installer.sharePercent ?? 100 / installers.length)) / 100
+    }));
+  }
+  const installerId = order.installedById || order.assigneeId;
+  return installerId ? [{ employeeId: installerId, amount: price }] : [];
+};
+
+/**
+ * Начисления монтажникам по их долям в заказах (см. {@link getInstallerPayouts}). Завершенные считаются
  * в периоде, незавершенные — все. В списке остаются монтажники с заказами и сотрудники с должностью «монтаж...».
  */
 export const summarizeInstallers = (
@@ -228,20 +252,22 @@ export const summarizeInstallers = (
   });
 
   orders.forEach(order => {
-    const installerId = order.installedById || order.assigneeId;
-    const summary = installerId ? byEmployee.get(installerId) : undefined;
-    if (!summary) {
-      return;
-    }
-    summary.orders.push(order);
-    const price = order.installationPrice || 0;
-    if (!isCompleted(order)) {
-      summary.inProgressCount += 1;
-      summary.inProgressEarnings += price;
-    } else if (isDateInRange(order.installedAt || order.createdAt, range)) {
-      summary.completedCount += 1;
-      summary.completedEarnings += price;
-    }
+    const completed = isCompleted(order);
+    const completedInRange = completed && isDateInRange(order.installedAt || order.createdAt, range);
+    getInstallerPayouts(order).forEach(({ employeeId, amount }) => {
+      const summary = byEmployee.get(employeeId);
+      if (!summary) {
+        return;
+      }
+      summary.orders.push({ order, amount });
+      if (!completed) {
+        summary.inProgressCount += 1;
+        summary.inProgressEarnings += amount;
+      } else if (completedInRange) {
+        summary.completedCount += 1;
+        summary.completedEarnings += amount;
+      }
+    });
   });
 
   return Array.from(byEmployee.values())

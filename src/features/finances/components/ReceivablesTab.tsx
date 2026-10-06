@@ -90,18 +90,22 @@ export const ReceivablesTab = ({ debtors, onTogglePrepayment, onToggleRemainder 
                   marginBottom: '12px',
                   fontSize: '0.78rem'
                 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: 'var(--text-secondary)' }}>Аванс:</div>
-                    <div style={{ fontWeight: 600, color: order.prepaymentPaid ? '#4ade80' : '#ef4444' }}>
-                      {prepayment.toLocaleString('ru-RU')} ₽ {paymentStateText(order.prepaymentPaid)}
+                  {prepayment > 0 && (
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: 'var(--text-secondary)' }}>Аванс:</div>
+                      <div style={{ fontWeight: 600, color: order.prepaymentPaid ? '#4ade80' : '#ef4444' }}>
+                        {prepayment.toLocaleString('ru-RU')} ₽ {paymentStateText(order.prepaymentPaid)}
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: 'var(--text-secondary)' }}>Остаток:</div>
-                    <div style={{ fontWeight: 600, color: order.remainderPaid ? '#4ade80' : '#ef4444' }}>
-                      {remainder.toLocaleString('ru-RU')} ₽ {paymentStateText(order.remainderPaid)}
+                  )}
+                  {remainder > 0 && (
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: 'var(--text-secondary)' }}>Остаток:</div>
+                      <div style={{ fontWeight: 600, color: order.remainderPaid ? '#4ade80' : '#ef4444' }}>
+                        {remainder.toLocaleString('ru-RU')} ₽ {paymentStateText(order.remainderPaid)}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -127,7 +131,7 @@ export const ReceivablesTab = ({ debtors, onTogglePrepayment, onToggleRemainder 
                   ) : <div />}
 
                   <div style={{ display: 'flex', gap: '6px' }}>
-                    {!order.prepaymentPaid && (
+                    {!order.prepaymentPaid && prepayment > 0 && (
                       <button
                         type="button"
                         onClick={() => onTogglePrepayment(order.id, false)}
@@ -137,7 +141,7 @@ export const ReceivablesTab = ({ debtors, onTogglePrepayment, onToggleRemainder 
                         + Аванс ({prepayment.toLocaleString('ru-RU')} ₽)
                       </button>
                     )}
-                    {!order.remainderPaid && (
+                    {!order.remainderPaid && remainder > 0 && (
                       <button
                         type="button"
                         onClick={() => onToggleRemainder(order.id, false)}

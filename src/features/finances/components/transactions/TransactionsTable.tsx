@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2, Clock, ExternalLink } from 'lucide-react';
 import type { Order } from '../../../../api/kanban';
 import { formatDateTimeInTimezone } from '../../../../utils/dateUtils';
-import { getOrderRemainder } from '../../../../utils/orderPayments';
+import { getOrderRemainder, getPaymentState } from '../../../../utils/orderPayments';
 import { OrderStatusBadge } from '../OrderStatusBadge';
 import { PaymentCellToggle } from './PaymentToggle';
 import type { TransactionsViewProps } from './TransactionsTab';
@@ -47,6 +47,7 @@ export const TransactionsTable = ({
           orders.map(order => {
             const status = statuses.find(s => s.id === order.statusId);
             const profit = orderProfit(order);
+            const paymentState = getPaymentState(order);
             return (
               <tr key={order.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
                 <td style={{ padding: '10px 14px' }}>
@@ -99,13 +100,13 @@ export const TransactionsTable = ({
                 </td>
 
                 <td>
-                  {order.prepaymentPaid && order.remainderPaid ? (
+                  {paymentState === 'PAID' ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#4ade80', fontSize: '0.75rem', fontWeight: 600 }}>
                       <CheckCircle2 size={13} /> Оплачен
                     </span>
-                  ) : order.prepaymentPaid ? (
+                  ) : paymentState === 'PARTIAL' ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#f59e0b', fontSize: '0.75rem', fontWeight: 600 }}>
-                      <Clock size={13} /> Аванс
+                      <Clock size={13} /> Частично
                     </span>
                   ) : (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '0.75rem', fontWeight: 500 }}>
@@ -120,7 +121,7 @@ export const TransactionsTable = ({
                 <td style={{ color: 'var(--text-secondary)' }}>
                   {(order.installationPrice || 0).toLocaleString('ru-RU')} ₽
                 </td>
-                <td style={{ fontWeight: 600, color: (order.profit || 0) >= 0 ? '#4ade80' : '#ef4444' }}>
+                <td style={{ fontWeight: 600, color: profit >= 0 ? '#4ade80' : '#ef4444' }}>
                   {`${profit.toLocaleString('ru-RU')} ₽`}
                   {order.profitMargin != null && (
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block' }}>

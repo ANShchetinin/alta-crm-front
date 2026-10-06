@@ -17,7 +17,13 @@ export interface InitialContractParams {
 
 export interface EstimateTotals {
   totalSalePrice: number;
+  /** Себестоимость всех позиций (как считает бэкенд при сохранении замера). */
   totalCostPrice: number;
+  /** Затраты на материалы: себестоимость позиций без услуг. */
+  materialsCost: number;
+  /** Монтаж: услуги по цене продажи — при сохранении сметы это стоимость монтажа заказа. */
+  installationPrice: number;
+  /** Прибыль как в карточке заказа: итог − затраты на материалы − монтаж. */
   profit: number;
   marginPercent: number;
   totalArea: number;
@@ -306,10 +312,18 @@ export const warehouseItem = (material: Material, roomName: string): Measurement
 export const estimateTotals = (items: MeasurementCalculationItemDto[], rooms: MeasurementRoomDto[]): EstimateTotals => {
   const totalSalePrice = items.reduce((sum, it) => sum + (it.totalSalePrice || 0), 0);
   const totalCostPrice = items.reduce((sum, it) => sum + (it.totalCostPrice || 0), 0);
-  const profit = totalSalePrice - totalCostPrice;
+  const materialsCost = items
+    .filter(it => it.type !== 'SERVICE')
+    .reduce((sum, it) => sum + (it.totalCostPrice || 0), 0);
+  const installationPrice = items
+    .filter(it => it.type === 'SERVICE')
+    .reduce((sum, it) => sum + (it.totalSalePrice || 0), 0);
+  const profit = totalSalePrice - materialsCost - installationPrice;
   return {
     totalSalePrice,
     totalCostPrice,
+    materialsCost,
+    installationPrice,
     profit,
     marginPercent: totalSalePrice > 0 ? Math.round((profit / totalSalePrice) * 100) : 0,
     totalArea: rooms.reduce((sum, r) => sum + (r.area || 0), 0),

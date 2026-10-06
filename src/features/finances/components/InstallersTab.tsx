@@ -94,7 +94,7 @@ export const InstallersTab = ({ installers, statuses, isCompleted }: InstallersT
                       </tr>
                     </thead>
                     <tbody>
-                      {item.orders.map(ord => {
+                      {item.orders.map(({ order: ord, amount }) => {
                         const status = statusLabel(ord);
                         return (
                           <tr key={ord.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)' }}>
@@ -105,7 +105,7 @@ export const InstallersTab = ({ installers, statuses, isCompleted }: InstallersT
                             <td>{ord.clientName || '—'}</td>
                             <td>{ord.installedAt ? formatDateOnly(ord.installedAt) : (ord.installationDate ? formatDateOnly(ord.installationDate) : '—')}</td>
                             <td style={{ fontWeight: 700, color: '#60a5fa' }}>
-                              {(ord.installationPrice || 0).toLocaleString('ru-RU')} ₽
+                              {amount.toLocaleString('ru-RU')} ₽
                             </td>
                             <td>
                               <span style={{ fontSize: '0.72rem', color: status.done ? '#4ade80' : '#f59e0b', fontWeight: 600 }}>
@@ -120,7 +120,7 @@ export const InstallersTab = ({ installers, statuses, isCompleted }: InstallersT
                 </div>
 
                 <div className="finances-installers-mobile">
-                  {item.orders.map(ord => {
+                  {item.orders.map(({ order: ord, amount }) => {
                     const status = statusLabel(ord);
                     return (
                       <div key={ord.id} style={{ padding: '8px 10px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
@@ -134,7 +134,7 @@ export const InstallersTab = ({ installers, statuses, isCompleted }: InstallersT
                           </div>
                         </div>
                         <div style={{ fontWeight: 700, color: '#60a5fa', fontSize: '0.95rem', textAlign: 'right', flexShrink: 0 }}>
-                          {(ord.installationPrice || 0).toLocaleString('ru-RU')} ₽
+                          {amount.toLocaleString('ru-RU')} ₽
                         </div>
                       </div>
                     );

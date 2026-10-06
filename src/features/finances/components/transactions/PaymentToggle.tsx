@@ -10,11 +10,15 @@ interface PaymentToggleProps {
   onToggle: () => void;
 }
 
+/** Нулевая неоплаченная часть (например, заказ без аванса) не ждет оплаты: ни суммы, ни кнопки «Принять». */
+const needsToggle = (amount: number, paid: boolean) => paid || amount > 0;
+const formatAmount = (amount: number, paid: boolean) => (needsToggle(amount, paid) ? `${amount.toLocaleString('ru-RU')} ₽` : '—');
+
 /** Ячейка таблицы: сумма платежа и кнопка отметки «Получен» / «Принять». */
 export const PaymentCellToggle = ({ label, amount, paid, paidAtText, onToggle }: PaymentToggleProps) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-    <span style={{ fontWeight: 600 }}>{amount.toLocaleString('ru-RU')} ₽</span>
-    <button
+    <span style={{ fontWeight: 600 }}>{formatAmount(amount, paid)}</span>
+    {needsToggle(amount, paid) && (<button
       type="button"
       onClick={onToggle}
       title={paid
@@ -34,7 +38,7 @@ export const PaymentCellToggle = ({ label, amount, paid, paidAtText, onToggle }:
       }}
     >
       {paid ? <><Check size={11} /> Получен</> : <><Plus size={11} /> Принять</>}
-    </button>
+    </button>)}
   </div>
 );
 
@@ -52,9 +56,9 @@ export const PaymentTileToggle = ({ label, amount, paid, onToggle }: PaymentTogg
   }}>
     <div>
       <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{label}:</div>
-      <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{amount.toLocaleString('ru-RU')} ₽</div>
+      <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{formatAmount(amount, paid)}</div>
     </div>
-    <button
+    {needsToggle(amount, paid) && (<button
       type="button"
       onClick={onToggle}
       style={{
@@ -73,6 +77,6 @@ export const PaymentTileToggle = ({ label, amount, paid, onToggle }: PaymentTogg
       }}
     >
       {paid ? <><Check size={13} /> Оплачен</> : <><Plus size={13} /> Принять</>}
-    </button>
+    </button>)}
   </div>
 );

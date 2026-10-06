@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Order } from '../api/kanban';
-import { getOrderDebt, getOrderRemainder } from './orderPayments';
+import { getOrderDebt, getOrderRemainder, getPaymentState } from './orderPayments';
 
 const order = (fields: Partial<Order>) => ({ id: 1, statusId: 1, ...fields } as Order);
 
@@ -15,5 +15,14 @@ describe('orderPayments', () => {
     expect(getOrderDebt(order({ totalPrice: 100, prepayment: 30 }))).toBe(100);
     expect(getOrderDebt(order({ totalPrice: 100, prepayment: 30, prepaymentPaid: true }))).toBe(70);
     expect(getOrderDebt(order({ totalPrice: 100, prepayment: 30, prepaymentPaid: true, remainderPaid: true }))).toBe(0);
+  });
+
+  it('derives the payment state from amounts, ignoring zero parts', () => {
+    expect(getPaymentState(order({ prepayment: 30, remainder: 70, prepaymentPaid: true, remainderPaid: true }))).toBe('PAID');
+    expect(getPaymentState(order({ prepayment: 0, remainder: 100, remainderPaid: true }))).toBe('PAID');
+    expect(getPaymentState(order({ prepayment: 100, remainder: 0, prepaymentPaid: true }))).toBe('PAID');
+    expect(getPaymentState(order({ prepayment: 30, remainder: 70, prepaymentPaid: true }))).toBe('PARTIAL');
+    expect(getPaymentState(order({ prepayment: 30, remainder: 70 }))).toBe('UNPAID');
+    expect(getPaymentState(order({ prepayment: 0, remainder: 0 }))).toBe('UNPAID');
   });
 });

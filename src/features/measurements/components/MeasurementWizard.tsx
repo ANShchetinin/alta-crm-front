@@ -20,7 +20,7 @@ interface MeasurementWizardProps {
   orderId?: number;
   materials?: Material[];
   initialContractParams?: InitialContractParams;
-  canViewFinances: boolean;
+  canViewCosts: boolean;
   onSaved?: (savedMeasurement: MeasurementDto, calculated: MeasurementCalculateResponse) => void;
   onDownloadDocx?: () => void;
 }
@@ -32,7 +32,7 @@ export const MeasurementWizard = ({
   orderId,
   materials = EMPTY_MATERIALS,
   initialContractParams,
-  canViewFinances,
+  canViewCosts,
   onSaved,
   onDownloadDocx
 }: MeasurementWizardProps) => {
@@ -141,7 +141,7 @@ export const MeasurementWizard = ({
           totals={estimate.totals}
           roomsCount={rooms.length}
           itemsCount={items.length}
-          canViewFinances={canViewFinances}
+          canViewCosts={canViewCosts}
           isManualEditMode={estimate.isManualEditMode}
           showDetails={showDetails}
           onToggleDetails={() => setShowDetails(prev => !prev)}
