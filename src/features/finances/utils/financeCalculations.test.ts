@@ -111,17 +111,22 @@ describe('calculateCashMetrics', () => {
 });
 
 describe('filterTransactions', () => {
+  const sums = { prepayment: 300, remainder: 700 };
   const orders = [
-    order(1, { orderNumber: 'А-1', clientName: 'Иванов', createdAt: '2026-09-02T10:00:00', prepaymentPaid: true, remainderPaid: true }),
-    order(2, { orderNumber: 'А-2', clientName: 'Петров', clientPhone: '+79990001122', createdAt: '2026-09-03T10:00:00', prepaymentPaid: true }),
-    order(3, { orderNumber: 'А-3', address: 'ул. Ленина', createdAt: '2026-05-03T10:00:00', remainderPaidAt: '2026-09-20T10:00:00' }),
-    order(4, { orderNumber: 'А-4', createdAt: '2026-05-03T10:00:00' })
+    order(1, { ...sums, orderNumber: 'А-1', clientName: 'Иванов', createdAt: '2026-09-02T10:00:00', prepaymentPaid: true, remainderPaid: true }),
+    order(2, { ...sums, orderNumber: 'А-2', clientName: 'Петров', clientPhone: '+79990001122', createdAt: '2026-09-03T10:00:00', prepaymentPaid: true }),
+    order(3, { ...sums, orderNumber: 'А-3', address: 'ул. Ленина', createdAt: '2026-05-03T10:00:00', remainderPaidAt: '2026-09-20T10:00:00' }),
+    order(4, { ...sums, orderNumber: 'А-4', createdAt: '2026-05-03T10:00:00' }),
+    // без аванса, остаток получен — оплачен полностью
+    order(5, { prepayment: 0, remainder: 1000, remainderPaid: true, createdAt: '2026-05-03T10:00:00' }),
+    // 100% предоплата — оплачен полностью
+    order(6, { prepayment: 1000, remainder: 0, prepaymentPaid: true, createdAt: '2026-05-03T10:00:00' })
   ];
 
   it('filters by payment state', () => {
     const ids = (filter: Parameters<typeof filterTransactions>[2]) => filterTransactions(orders, '', filter, UNBOUNDED).map(o => o.id);
 
-    expect(ids('PAID')).toEqual([1]);
+    expect(ids('PAID')).toEqual([1, 5, 6]);
     expect(ids('PREPAYMENT')).toEqual([2]);
     expect(ids('UNPAID')).toEqual([3, 4]);
     expect(ids('DEBT')).toEqual([2, 3, 4]);
@@ -173,8 +178,31 @@ describe('summarizeInstallers', () => {
 
     expect(result.map(r => r.employee.id)).toEqual([1, 2]);
     expect(result[0]).toMatchObject({ completedCount: 1, completedEarnings: 1000, inProgressCount: 1, inProgressEarnings: 300 });
-    expect(result[0].orders.map(o => o.id)).toEqual([10, 11, 12]);
+    expect(result[0].orders.map(o => o.order.id)).toEqual([10, 11, 12]);
     expect(result[1].orders).toEqual([]);
+  });
+
+  it('splits installation pay by installer shares, like the worker earnings page', () => {
+    const employees = [employee(1), employee(2)];
+    const orders = [
+      order(20, {
+        installedById: 1,
+        installationPrice: 9000,
+        installedAt: '2026-09-10T10:00:00',
+        installers: [
+          { employeeId: 1, amount: 6000, isLead: true },
+          { employeeId: 2, amount: 3000 }
+        ]
+      }),
+      order(21, { installationPrice: 1000, installers: [{ employeeId: 1, sharePercent: 25 }, { employeeId: 2 }] })
+    ];
+
+    const result = summarizeInstallers(employees, orders, SEPTEMBER, completedWhen(20));
+    const byId = (id: number) => result.find(r => r.employee.id === id);
+
+    expect(byId(1)).toMatchObject({ completedCount: 1, completedEarnings: 6000, inProgressCount: 1, inProgressEarnings: 250 });
+    expect(byId(2)).toMatchObject({ completedCount: 1, completedEarnings: 3000, inProgressCount: 1, inProgressEarnings: 500 });
+    expect(byId(2)?.orders.map(o => o.amount)).toEqual([3000, 500]);
   });
 });
 

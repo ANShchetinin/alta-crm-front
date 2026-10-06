@@ -84,12 +84,15 @@ describe('orderForm', () => {
   });
 
   it('falls back to the loaded order and includes materials in the contract payload', () => {
-    const form = { ...createEmptyOrderForm(undefined), materials: [{ materialId: 1, quantity: 2, fixedCostPrice: 100, materialName: 'x' }] };
+    const form = {
+      ...createEmptyOrderForm(undefined),
+      materials: [{ materialId: 1, quantity: 2, fixedCostPrice: 100, fixedSalePrice: 250, materialName: 'x' }]
+    };
 
     const payload = buildContractOrderPayload(form, order, {}, 'Адрес из договора');
 
     expect(payload).toMatchObject({ clientId: 10, statusId: 2, totalPrice: 50000, address: 'Адрес из договора' });
-    expect(payload.materials).toEqual([{ materialId: 1, quantity: 2, fixedCostPrice: 100 }]);
+    expect(payload.materials).toEqual([{ materialId: 1, quantity: 2, fixedCostPrice: 100, fixedSalePrice: 250 }]);
   });
 
   it('calculates profitability from the form', () => {
@@ -97,6 +100,18 @@ describe('orderForm', () => {
 
     expect(calcOrderProfitability(form)).toEqual({ materialsCost: 3000, installationPrice: 10000, profit: 37000, marginPercent: 74 });
     expect(calcOrderProfitability(createEmptyOrderForm(undefined)).marginPercent).toBe(0);
+  });
+
+  it('does not count services as materials cost (installation is a separate line)', () => {
+    const form = {
+      ...orderToFormData(order),
+      materials: [
+        { materialId: 1, quantity: 2, fixedCostPrice: 1500, materialType: 'MATERIAL' as const },
+        { materialId: 2, quantity: 1, fixedCostPrice: 700, materialType: 'SERVICE' as const }
+      ]
+    };
+
+    expect(calcOrderProfitability(form).materialsCost).toBe(3000);
   });
 
   it('takes the saved measurement result from the reloaded order and keeps other unsaved edits', () => {

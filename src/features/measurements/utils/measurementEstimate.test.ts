@@ -186,4 +186,16 @@ describe('measurementEstimate', () => {
     expect(totals).toMatchObject({ totalSalePrice: 4000, totalCostPrice: 2000, profit: 2000, marginPercent: 50, totalArea: 15.5, totalPerimeter: 22 });
     expect(response).toMatchObject({ totalRoomsCount: 2, totalLightsCount: 6, totalPipesCount: 2, totalCorniceLength: 0 });
   });
+
+  it('counts services as installation, not as materials cost, like the order card', () => {
+    const items = [
+      item({ name: 'Полотно', type: 'MATERIAL', totalSalePrice: 10000, totalCostPrice: 4000 }),
+      item({ name: 'Монтаж полотна', type: 'SERVICE', totalSalePrice: 3000, totalCostPrice: 1500 })
+    ];
+
+    const totals = estimateTotals(items, []);
+
+    // прибыль = 13000 − 4000 (материалы) − 3000 (монтаж по цене услуг); себестоимость услуги не учитывается
+    expect(totals).toMatchObject({ totalSalePrice: 13000, materialsCost: 4000, installationPrice: 3000, profit: 6000, marginPercent: 46 });
+  });
 });

@@ -100,7 +100,7 @@ describe('MeasurementWizard Component', () => {
     renderWithQuery(
       <MeasurementWizard
         materials={[]}
-        canViewFinances={true}
+        canViewCosts={true}
       />
     );
 
@@ -115,7 +115,7 @@ describe('MeasurementWizard Component', () => {
     renderWithQuery(
       <MeasurementWizard
         materials={[]}
-        canViewFinances={false}
+        canViewCosts={false}
       />
     );
 
@@ -132,21 +132,21 @@ describe('MeasurementWizard Component', () => {
   });
 
   it('loads materials from the API when none are passed', async () => {
-    renderWithQuery(<MeasurementWizard materials={[]} canViewFinances={false} />);
+    renderWithQuery(<MeasurementWizard materials={[]} canViewCosts={false} />);
 
     await waitFor(() => expect(getMaterials).toHaveBeenCalledTimes(1));
   });
 
   it('does not load materials when they are passed as a prop', async () => {
     const materials = [{ id: 1, name: 'Полотно', unit: 'м²', quantityInStock: 10, costPrice: 100 }];
-    renderWithQuery(<MeasurementWizard materials={materials} canViewFinances={false} />);
+    renderWithQuery(<MeasurementWizard materials={materials} canViewCosts={false} />);
 
     await waitFor(() => expect(screen.getByText('+ Спальня')).toBeInTheDocument());
     expect(getMaterials).not.toHaveBeenCalled();
   });
 
   it('adds a service to the estimate and recalculates it when the area changes', async () => {
-    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewFinances />);
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewCosts />);
 
     fireEvent.click(await screen.findByRole('button', { name: /Монтаж натяжного потолка/i }));
     // 20 м² × отход 1.05 = 21 м² по 500 ₽
@@ -162,7 +162,7 @@ describe('MeasurementWizard Component', () => {
 
   it('saves rooms and items to the order and reports the totals', async () => {
     const onSaved = vi.fn();
-    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewFinances onSaved={onSaved} />);
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewCosts onSaved={onSaved} />);
 
     fireEvent.click(await screen.findByRole('button', { name: /Монтаж натяжного потолка/i }));
     fireEvent.change(screen.getByPlaceholderText(/Особые указания/), { target: { value: 'Скрытая проводка' } });
@@ -181,7 +181,7 @@ describe('MeasurementWizard Component', () => {
   });
 
   it('removes a room together with its estimate items', async () => {
-    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewFinances />);
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewCosts />);
 
     fireEvent.click(await screen.findByText('+ Спальня'));
     fireEvent.click(screen.getAllByText('+ Своя позиция')[0]);
@@ -196,7 +196,7 @@ describe('MeasurementWizard Component', () => {
   it('does not offer to save when the saved measurement failed to load, and retries', async () => {
     vi.mocked(getMeasurementByOrderId).mockRejectedValueOnce(new Error('Network Error'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewFinances />);
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewCosts />);
 
     expect(await screen.findByText('Не удалось загрузить сохраненный замер')).toBeInTheDocument();
     expect(screen.queryByText('Сохранить смету в заказ')).not.toBeInTheDocument();
@@ -208,7 +208,7 @@ describe('MeasurementWizard Component', () => {
   });
 
   it('keeps the estimate items of a room when it is renamed', async () => {
-    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewFinances />);
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewCosts />);
 
     fireEvent.click(await screen.findByRole('button', { name: /Монтаж натяжного потолка/i }));
     fireEvent.change(screen.getByDisplayValue('Гостиная'), { target: { value: 'Зал' } });
@@ -223,7 +223,7 @@ describe('MeasurementWizard Component', () => {
     vi.mocked(getMaterials).mockResolvedValueOnce([
       { id: 100, name: 'MSD Premium матовое 3.2 м', unit: 'м²', quantityInStock: 50, costPrice: 200, salePrice: 500 }
     ]);
-    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewFinances />);
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewCosts />);
 
     await waitFor(() => expect(getMaterials).toHaveBeenCalled());
     fireEvent.click(await screen.findByRole('button', { name: /Монтаж натяжного потолка/i }));

@@ -431,7 +431,7 @@ export const OrderDrawer: React.FC = () => {
                     orderId={editingOrderId || undefined}
                     materials={materials}
                     initialContractParams={contract.contractParams}
-                    canViewFinances={role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER'}
+                    canViewCosts={role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER'}
                     onDownloadDocx={contract.startGenerate}
                     onSaved={handleMeasurementSaved}
                   />

@@ -6,7 +6,7 @@ interface EstimateSummaryProps {
   totals: EstimateTotals;
   roomsCount: number;
   itemsCount: number;
-  canViewFinances: boolean;
+  canViewCosts: boolean;
   isManualEditMode: boolean;
   showDetails: boolean;
   onToggleDetails: () => void;
@@ -14,12 +14,12 @@ interface EstimateSummaryProps {
   onAddCustomItem: () => void;
 }
 
-/** Итог сметы, сводка геометрии, себестоимость и прибыль (при доступе к финансам) и кнопки добавления позиций. */
+/** Итог сметы, сводка геометрии, затраты, монтаж и прибыль (всем, кроме монтажника) и кнопки добавления позиций. */
 export const EstimateSummary = ({
   totals,
   roomsCount,
   itemsCount,
-  canViewFinances,
+  canViewCosts,
   isManualEditMode,
   showDetails,
   onToggleDetails,
@@ -52,12 +52,18 @@ export const EstimateSummary = ({
         </div>
       </div>
 
-      {canViewFinances && (
+      {canViewCosts && (
         <div className="wizard-stat-pill" style={{ fontSize: '0.84rem' }}>
           <div>
-            <span style={{ color: 'var(--text-secondary)' }}>Себестоимость: </span>
-            <strong style={{ color: 'var(--text-primary)' }}>{totals.totalCostPrice.toLocaleString('ru-RU')} ₽</strong>
+            <span style={{ color: 'var(--text-secondary)' }}>Затраты на материалы: </span>
+            <strong style={{ color: 'var(--text-primary)' }}>{totals.materialsCost.toLocaleString('ru-RU')} ₽</strong>
           </div>
+          {totals.installationPrice > 0 && (
+            <div style={{ borderLeft: '1px solid var(--glass-border)', paddingLeft: '12px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Монтаж: </span>
+              <strong style={{ color: 'var(--text-primary)' }}>{totals.installationPrice.toLocaleString('ru-RU')} ₽</strong>
+            </div>
+          )}
           <div style={{ borderLeft: '1px solid var(--glass-border)', paddingLeft: '12px' }}>
             <span style={{ color: 'var(--text-secondary)' }}>Прибыль: </span>
             <strong style={{ color: 'var(--accent-primary)' }}>{totals.profit.toLocaleString('ru-RU')} ₽</strong>

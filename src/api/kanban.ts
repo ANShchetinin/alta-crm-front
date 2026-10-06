@@ -16,6 +16,8 @@ export interface OrderMaterial {
   quantity: number;
   fixedCostPrice?: number;
   fixedSalePrice?: number;
+  /** Тип позиции склада: услуги не входят в затраты на материалы. */
+  materialType?: 'MATERIAL' | 'SERVICE';
 }
 
 export interface OrderAttachment {

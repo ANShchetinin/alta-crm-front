@@ -293,7 +293,7 @@ export const Measurements: React.FC = () => {
             <MeasurementWizard
               orderId={activeOrderId}
               materials={materials}
-              canViewFinances={role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER'}
+              canViewCosts={role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER'}
               onSaved={() => {
                 loadData();
                 setActiveOrderId(null);
@@ -335,7 +335,7 @@ export const Measurements: React.FC = () => {
 
             <MeasurementWizard
               materials={materials}
-              canViewFinances={role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER'}
+              canViewCosts={role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER'}
             />
           </div>
         </div>,

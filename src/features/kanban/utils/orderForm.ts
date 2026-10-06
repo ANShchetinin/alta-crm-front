@@ -250,10 +250,12 @@ export const buildContractOrderPayload = (
   installationDate: form.installationDate ? `${form.installationDate}T00:00:00` : (order?.installationDate || undefined),
   measurementDate: form.measurementDate ? `${form.measurementDate}:00` : (order?.measurementDate || undefined),
   contractParams,
+  // Цены, зафиксированные в заказе: без них бэкенд подставил бы текущие цены склада
   materials: form.materials.map(m => ({
     materialId: m.materialId,
     quantity: m.quantity,
-    fixedCostPrice: m.fixedCostPrice
+    fixedCostPrice: m.fixedCostPrice,
+    fixedSalePrice: m.fixedSalePrice
   }))
 });
 
@@ -269,7 +271,9 @@ export interface OrderProfitability {
  * Итог — totalPrice, а если он пуст — аванс + остаток.
  */
 export const calcOrderProfitability = (form: OrderFormData): OrderProfitability => {
-  const materialsCost = form.materials.reduce((sum, item) => sum + (item.fixedCostPrice || 0) * item.quantity, 0);
+  const materialsCost = form.materials
+    .filter(item => item.materialType !== 'SERVICE')
+    .reduce((sum, item) => sum + (item.fixedCostPrice || 0) * item.quantity, 0);
   const installationPrice = toNumber(form.installationPrice);
   const total = toNumber(form.totalPrice) || toNumber(form.prepayment) + toNumber(form.remainder);
   const profit = total - materialsCost - installationPrice;
