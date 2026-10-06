@@ -1,24 +1,23 @@
 import type { DragEvent, MouseEvent, PointerEvent, TouchEvent } from 'react';
-import { Building2, GripVertical, MessageSquare, Paperclip } from 'lucide-react';
+import { Building2, GripVertical } from 'lucide-react';
 import type { Order, OrderStatus } from '../../../../api/kanban';
 import type { Client } from '../../../../api/clients';
 import type { Employee } from '../../../../api/employees';
 import type { OrderReminderDto } from '../../../../api/reminders';
 import { getClientInitials } from '../../../../utils/avatarUtils';
 import { isCompletedStatus } from '../../../../utils/orderStatus';
-import { getOrderRemainder } from '../../../../utils/orderPayments';
 import { formatClientNameLines, isActFile } from '../../constants';
 import { reminderStateOf, type CardDropPosition } from '../../utils/board';
 import {
   CardAddress,
   CardCompletion,
   CardContacts,
+  CardFinance,
   CardInstaller,
   CardSchedule,
   ContractNumberBadge,
   RemindersBadge
 } from './CardParts';
-import { stopCardGesture } from './cardGestures';
 
 /** Состояние и обработчики перетаскивания карточки (мышью на десктопе, пальцем за ручку на телефоне). */
 export interface CardDragBindings {
@@ -164,58 +163,7 @@ export const KanbanCard = ({ card, clients, employees, columns, reminders, drag,
 
         <CardSchedule card={card} />
 
-        <div className="kanban-finance-box">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div className="card-price-main">
-              {card.totalPrice != null && card.totalPrice > 0 ? `${card.totalPrice.toLocaleString('ru-RU')} ₽` : '0 ₽'}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {card.attachments && card.attachments.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  <Paperclip size={12} /> {card.attachments.length}
-                </div>
-              )}
-              {card.commentsCount != null && card.commentsCount > 0 && (
-                <button
-                  type="button"
-                  onTouchStart={stopCardGesture.onTouchStart}
-                  onTouchEnd={stopCardGesture.onTouchEnd}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenComments(card.id);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    fontSize: '0.8rem',
-                    color: 'var(--text-secondary)',
-                    background: 'none',
-                    border: 'none',
-                    padding: '0 2px',
-                    cursor: 'pointer'
-                  }}
-                  title={`Комментарии (${card.commentsCount})`}
-                >
-                  <MessageSquare size={12} /> {card.commentsCount}
-                </button>
-              )}
-              {card.profitMargin != null && card.profitMargin > 0 && (
-                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#16a34a' }}>+{card.profitMargin.toFixed(1)}%</span>
-              )}
-            </div>
-          </div>
-
-          <div className="card-finance-sub">
-            <span>Аванс: <strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{(card.prepayment || 0).toLocaleString('ru-RU')} ₽</strong></span>
-            <span style={{ margin: '0 8px', opacity: 0.35 }}>|</span>
-            <span>
-              Остаток: <strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
-                {getOrderRemainder(card).toLocaleString('ru-RU')} ₽
-              </strong>
-            </span>
-          </div>
-        </div>
+        <CardFinance card={card} onOpenComments={() => onOpenComments(card.id)} />
 
         {installerName && <CardInstaller name={installerName} avatarUrl={installerAvatarUrl ?? undefined} installers={installers} />}
 
