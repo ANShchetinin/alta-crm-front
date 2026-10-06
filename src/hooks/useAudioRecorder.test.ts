@@ -5,9 +5,9 @@ import { useAudioRecorder, encodeWavBlob, downsampleBuffer } from './useAudioRec
 describe('useAudioRecorder', () => {
   let mockStream: any;
   let mockTrack: any;
-  let currentMockRecorder: any = null;
 
   class MockMediaRecorder {
+    static last: MockMediaRecorder | null = null;
     static isTypeSupported = vi.fn().mockReturnValue(true);
     start = vi.fn();
     stop = vi.fn();
@@ -17,12 +17,12 @@ describe('useAudioRecorder', () => {
     mimeType = 'audio/webm';
 
     constructor() {
-      currentMockRecorder = this;
+      MockMediaRecorder.last = this;
     }
   }
 
   beforeEach(() => {
-    currentMockRecorder = null;
+    MockMediaRecorder.last = null;
     mockTrack = {
       stop: vi.fn()
     };
@@ -63,7 +63,7 @@ describe('useAudioRecorder', () => {
 
     expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: true });
     expect(result.current.isRecording).toBe(true);
-    expect(currentMockRecorder.start).toHaveBeenCalled();
+    expect(MockMediaRecorder.last!.start).toHaveBeenCalled();
   });
 
   it('handles permission denied error', async () => {
@@ -89,12 +89,12 @@ describe('useAudioRecorder', () => {
     });
 
     act(() => {
-      if (currentMockRecorder.ondataavailable) {
-        currentMockRecorder.ondataavailable({ data: new Blob(['audio data']) });
+      if (MockMediaRecorder.last!.ondataavailable) {
+        MockMediaRecorder.last!.ondataavailable({ data: new Blob(['audio data']) });
       }
       result.current.stopRecording();
-      if (currentMockRecorder.onstop) {
-        currentMockRecorder.onstop();
+      if (MockMediaRecorder.last!.onstop) {
+        MockMediaRecorder.last!.onstop();
       }
     });
 

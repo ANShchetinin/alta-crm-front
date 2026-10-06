@@ -31,7 +31,7 @@ vi.mock('../api/kanban', async (importOriginal) => ({
 vi.mock('../api/storage', () => ({ getLowStockMaterials: vi.fn().mockResolvedValue([]) }));
 vi.mock('../api/siteRequests', () => ({ getNewSiteRequestsCount: vi.fn().mockResolvedValue(0) }));
 vi.mock('../api/announcements', () => ({ getActiveAnnouncements: vi.fn(), dismissAnnouncement: vi.fn() }));
-vi.mock('../features/kanban/components/OrderDrawer', () => ({ OrderDrawer: () => null }));
+vi.mock('../features/kanban/components/OrderDrawer', () => ({ OrderDrawer: () => <div data-testid="order-drawer" /> }));
 vi.mock('./PushNotificationSettings', () => ({ PushNotificationSettings: () => <div>Push settings</div> }));
 
 const LocationProbe = () => {
@@ -146,6 +146,19 @@ describe('DashboardLayout', () => {
     await waitFor(() => expect(useOrderDrawerStore.getState().orderId).toBe(42));
     expect(useOrderDrawerStore.getState().isOpen).toBe(true);
     expect(screen.getByTestId('location')).toHaveTextContent('/kanban?tab=x');
+  });
+
+  it('loads the order drawer on the first opening and keeps it mounted after closing', async () => {
+    loginAs('MANAGER');
+    renderLayout();
+
+    expect(screen.queryByTestId('order-drawer')).not.toBeInTheDocument();
+
+    act(() => useOrderDrawerStore.getState().openOrder(7));
+    expect(await screen.findByTestId('order-drawer')).toBeInTheDocument();
+
+    act(() => useOrderDrawerStore.getState().closeOrder());
+    expect(screen.getByTestId('order-drawer')).toBeInTheDocument();
   });
 
   it('opens the order and the new order form on window events', () => {
