@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react';
-import { Bell, CheckCircle2, FileText, MapPin, MessageCircle, Phone, Ruler, Send, Wrench } from 'lucide-react';
+import { Bell, CheckCircle2, FileText, MapPin, MessageCircle, MessageSquare, Paperclip, Phone, Ruler, Send, Wrench } from 'lucide-react';
 import type { Employee } from '../../../../api/employees';
 import type { Order, OrderInstaller } from '../../../../api/kanban';
 import type { OrderReminderDto } from '../../../../api/reminders';
@@ -7,6 +7,9 @@ import { getEmployeeInitials } from '../../../../utils/avatarUtils';
 import { formatDateOnly, formatDateTimeInTimezone, formatTimeOnly } from '../../../../utils/dateUtils';
 import { getTelegramLink, getWhatsAppLink } from '../../../../utils/messengerUtils';
 import { get2GisUrl, getYandexMapsUrl } from '../../../../utils/navigation';
+import { getOrderRemainder } from '../../../../utils/orderPayments';
+import yandexIcon from '../../../../assets/maps/yandex.svg';
+import twoGisIcon from '../../../../assets/maps/2gis.svg';
 import { stopCardGesture } from './cardGestures';
 import { formatPhone, phoneHref } from '../../../../utils/phone';
 
@@ -157,67 +160,43 @@ export const CardContacts = ({ phone, whatsapp, telegram, assignee }: {
   </div>
 );
 
-const MapPill = ({ href, title, letter, label, color, rgb }: { href: string; title: string; letter: string; label: string; color: string; rgb: string }) => (
+const MapIconLink = ({ href, title, icon }: { href: string; title: string; icon: string }) => (
   <a
     href={href}
     target="_blank"
     rel="noopener noreferrer"
     {...stopCardGesture}
     title={title}
-    className="kanban-map-pill"
-    style={{ color, borderColor: `rgba(${rgb}, 0.35)`, background: `rgba(${rgb}, 0.08)` }}
+    aria-label={title}
+    className="card-map-icon"
   >
-    <span style={{
-      width: '16px',
-      height: '16px',
-      borderRadius: '50%',
-      background: color,
-      color: '#fff',
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '9px',
-      fontWeight: 800
-    }}>
-      {letter}
-    </span>
-    <span style={{ fontWeight: 600 }}>{label}</span>
+    <img src={icon} alt="" draggable={false} />
   </a>
 );
 
-/** Адрес объекта с подъездом и этажом и кнопки маршрута в Яндекс.Картах и 2ГИС. */
+/** Адрес объекта с подъездом и этажом и значками маршрута в Яндекс.Картах и 2ГИС. */
 export const CardAddress = ({ card }: { card: Order }) => {
   if (!card.address) {
     return null;
   }
   return (
-    <div style={{ marginBottom: '6px' }}>
-      <div className="card-address-row">
-        <MapPin size={14} style={{ flexShrink: 0, opacity: 0.8, color: 'var(--accent-primary)' }} />
-        <span style={{ fontWeight: 500 }}>
-          {card.address}
-          {card.entrance ? `, п.${card.entrance}` : ''}
-          {card.floor ? `, эт.${card.floor}` : ''}
-        </span>
-      </div>
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
-        <MapPill
-          href={getYandexMapsUrl(card.address, card.entrance, card.floor)}
-          title="Маршрут в Яндекс.Картах / Навигаторе"
-          letter="Я"
-          label="Яндекс"
-          color="#fc3f1d"
-          rgb="252, 63, 29"
-        />
-        <MapPill
-          href={get2GisUrl(card.address, card.entrance, card.floor)}
-          title="Маршрут в 2ГИС"
-          letter="2Г"
-          label="2ГИС"
-          color="#22c55e"
-          rgb="34, 197, 94"
-        />
-      </div>
+    <div className="card-address-row">
+      <MapPin size={14} style={{ flexShrink: 0, opacity: 0.8, color: 'var(--accent-primary)' }} />
+      <span style={{ fontWeight: 500, flex: 1, minWidth: 0 }}>
+        {card.address}
+        {card.entrance ? `, п.${card.entrance}` : ''}
+        {card.floor ? `, эт.${card.floor}` : ''}
+      </span>
+      <MapIconLink
+        href={getYandexMapsUrl(card.address, card.entrance, card.floor)}
+        title="Маршрут в Яндекс.Картах / Навигаторе"
+        icon={yandexIcon}
+      />
+      <MapIconLink
+        href={get2GisUrl(card.address, card.entrance, card.floor)}
+        title="Маршрут в 2ГИС"
+        icon={twoGisIcon}
+      />
     </div>
   );
 };
@@ -239,6 +218,80 @@ export const CardSchedule = ({ card }: { card: Order }) => (
     )}
   </>
 );
+
+const formatRub = (value: number) => `${value.toLocaleString('ru-RU')} ₽`;
+
+/** Сумма заказа, вложения, комментарии, маржа и аванс/остаток; нулевые суммы не показываются, пустой блок скрыт. */
+export const CardFinance = ({ card, onOpenComments }: { card: Order; onOpenComments: () => void }) => {
+  const totalPrice = card.totalPrice || 0;
+  const attachmentsCount = card.attachments?.length || 0;
+  const commentsCount = card.commentsCount || 0;
+  const profitMargin = card.profitMargin || 0;
+  const payments = [
+    { label: 'Аванс', amount: card.prepayment || 0 },
+    { label: 'Остаток', amount: getOrderRemainder(card) }
+  ].filter(p => p.amount > 0);
+  const hasHeader = totalPrice > 0 || attachmentsCount > 0 || commentsCount > 0 || profitMargin > 0;
+
+  if (!hasHeader && payments.length === 0) {
+    return null;
+  }
+  return (
+    <div className="kanban-finance-box">
+      {hasHeader && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {totalPrice > 0 && <div className="card-price-main">{formatRub(totalPrice)}</div>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+            {attachmentsCount > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <Paperclip size={12} /> {attachmentsCount}
+              </div>
+            )}
+            {commentsCount > 0 && (
+              <button
+                type="button"
+                onTouchStart={stopCardGesture.onTouchStart}
+                onTouchEnd={stopCardGesture.onTouchEnd}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenComments();
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                  background: 'none',
+                  border: 'none',
+                  padding: '0 2px',
+                  cursor: 'pointer'
+                }}
+                title={`Комментарии (${commentsCount})`}
+              >
+                <MessageSquare size={12} /> {commentsCount}
+              </button>
+            )}
+            {profitMargin > 0 && (
+              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#16a34a' }}>+{profitMargin.toFixed(1)}%</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {payments.length > 0 && (
+        <div className="card-finance-sub">
+          {payments.map((p, idx) => (
+            <span key={p.label}>
+              {idx > 0 && <span style={{ margin: '0 8px', opacity: 0.35 }}>|</span>}
+              {p.label}: <strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{formatRub(p.amount)}</strong>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 /** Главный монтажник с аватаром и числом дополнительных монтажников. */
 export const CardInstaller = ({ name, avatarUrl, installers }: { name: string; avatarUrl?: string; installers: OrderInstaller[] }) => (
