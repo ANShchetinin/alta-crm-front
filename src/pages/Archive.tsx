@@ -28,6 +28,7 @@ import { ArchiveFiltersPanel } from '../features/archive/components/ArchiveFilte
 import { ArchiveTable } from '../features/archive/components/ArchiveTable';
 import { ArchiveCards } from '../features/archive/components/ArchiveCards';
 import { ArchiveOrderSheet } from '../features/archive/components/ArchiveOrderSheet';
+import { toLocalDateString } from '../utils/dateUtils';
 import '../styles/clients.css';
 
 const EMPTY_ORDERS: Order[] = [];
@@ -95,7 +96,7 @@ export const Archive = () => {
       return;
     }
     const csv = buildArchiveCsv(sortedOrders, statuses, timezone);
-    downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), `Архив_заявок_${new Date().toISOString().slice(0, 10)}.csv`);
+    downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), `Архив_заявок_${toLocalDateString(new Date())}.csv`);
   };
 
   const listProps = {

@@ -9,6 +9,7 @@ import type {
 } from '../../../api/kanban';
 import type { MeasurementCalculationItemDto } from '../../../api/measurements';
 import { mergeActChecklist, isActFile } from '../constants';
+import { toLocalDateString } from '../../../utils/dateUtils';
 
 /**
  * Состояние формы заказа в шторке. Числа и id хранятся строками — как значения input'ов.
@@ -146,7 +147,7 @@ export const orderToFormData = (order: Order, actChecklistTemplate?: string[]): 
 
   const contractParams: ContractParams = order.contractParams ? {
     ...order.contractParams,
-    contractDate: order.contractParams.contractDate || new Date().toISOString().slice(0, 10),
+    contractDate: order.contractParams.contractDate || toLocalDateString(new Date()),
     actChecklist: mergeActChecklist(order.contractParams.actChecklist, actChecklistTemplate),
     specItems: order.contractParams.specItems || [],
     customParams: order.contractParams.customParams || {}

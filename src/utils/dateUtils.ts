@@ -148,11 +148,20 @@ export function formatDateTimeInTimezone(
 }
 
 /**
+ * Дата в формате YYYY-MM-DD по локальному времени (toISOString дал бы дату по UTC).
+ */
+export const toLocalDateString = (date: Date): string => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+/**
  * Форматирует только дату (день.месяц.год, например: "10.09.2026").
+ * Момент события (ISO с Z или смещением) переводится в локальное время, локальная дата выводится как есть.
  */
 export function formatDateOnly(dateStr: string | Date | null | undefined): string {
   if (!dateStr) return '';
-  const date = parseLocalDateTime(dateStr);
+  const date = parseUtcDate(dateStr);
   if (!date) return '';
 
   const d = String(date.getDate()).padStart(2, '0');
@@ -170,7 +179,7 @@ export function formatDateInTimezone(
   options?: Intl.DateTimeFormatOptions
 ): string {
   if (!dateStr) return '';
-  const date = parseLocalDateTime(dateStr);
+  const date = parseUtcDate(dateStr);
   if (!date) return '';
 
   if (options) {
@@ -189,7 +198,7 @@ export function formatDateInTimezone(
  */
 export function formatTimeOnly(dateStr: string | Date | null | undefined): string {
   if (!dateStr) return '';
-  const date = parseLocalDateTime(dateStr);
+  const date = parseUtcDate(dateStr);
   if (!date) return '';
 
   const h = String(date.getHours()).padStart(2, '0');

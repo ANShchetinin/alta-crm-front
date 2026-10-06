@@ -8,7 +8,8 @@ import { getExpenses, type Expense } from '../../../api/finances';
 import { getCompanyAiUsageSummary, type AiUsageSummaryDto } from '../../../api/aiUsage';
 import type { Order, OrderStatus } from '../../../api/kanban';
 import type { Employee } from '../../../api/employees';
-import { toLocalDateString, type DateRange } from '../utils/financeCalculations';
+import { toLocalDateString } from '../../../utils/dateUtils';
+import type { DateRange } from '../utils/financeCalculations';
 
 const AI_USAGE_QUERY_KEY = ['companyAiUsage'] as const;
 const EXPENSES_QUERY_KEY = ['expenses'] as const;

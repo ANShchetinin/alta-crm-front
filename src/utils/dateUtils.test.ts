@@ -9,6 +9,7 @@ import {
   formatDateOnly,
   formatDateInTimezone,
   formatTimeOnly,
+  toLocalDateString,
   localInputToIso,
   localInputToUtcIso,
   isoToLocalInput,
@@ -102,6 +103,22 @@ describe('Date Utilities (dateUtils)', () => {
       expect(formatDateOnly('2026-09-10')).toBe('10.09.2026');
       expect(formatDateInTimezone('2026-09-10T13:30:00')).toBe('10.09.2026');
     });
+
+    it('converts an event moment (Z) to the local calendar day', () => {
+      // 22:30 UTC — в поясах восточнее UTC уже следующий день; ожидание считается по поясу среды теста
+      const moment = '2026-09-10T22:30:00.123456Z';
+      const local = new Date(moment);
+      const expected = `${String(local.getDate()).padStart(2, '0')}.${String(local.getMonth() + 1).padStart(2, '0')}.${local.getFullYear()}`;
+      expect(formatDateOnly(moment)).toBe(expected);
+      expect(formatDateInTimezone(moment)).toBe(expected);
+    });
+  });
+
+  describe('toLocalDateString', () => {
+    it('formats a date by local calendar day, not by UTC', () => {
+      expect(toLocalDateString(new Date(2026, 8, 1, 0, 30))).toBe('2026-09-01');
+      expect(toLocalDateString(new Date(2026, 11, 31, 23, 59))).toBe('2026-12-31');
+    });
   });
 
   describe('formatTimeOnly', () => {
@@ -113,6 +130,12 @@ describe('Date Utilities (dateUtils)', () => {
     it('formats only time part (HH:mm)', () => {
       expect(formatTimeOnly('2026-09-10T13:30:00')).toBe('13:30');
       expect(formatTimeOnly('2026-09-10T09:05:00')).toBe('09:05');
+    });
+
+    it('converts an event moment (Z) to local time', () => {
+      const local = new Date('2026-09-10T09:05:00Z');
+      const expected = `${String(local.getHours()).padStart(2, '0')}:${String(local.getMinutes()).padStart(2, '0')}`;
+      expect(formatTimeOnly('2026-09-10T09:05:00Z')).toBe(expected);
     });
   });
 

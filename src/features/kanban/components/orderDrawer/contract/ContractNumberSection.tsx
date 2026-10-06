@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertCircle, AlertTriangle, FileText, RefreshCw, X } from 'lucide-react';
 import type { ContractTemplateStatus } from '../../../../../api/settings';
 import { toast } from '../../../../../utils/toast';
+import { toLocalDateString } from '../../../../../utils/dateUtils';
 import type { OrderContractState } from '../../../hooks/useOrderContract';
 import type { SetOrderFormData } from '../../../utils/orderForm';
 
@@ -75,7 +76,7 @@ export const ContractNumberSection: React.FC<ContractNumberSectionProps> = ({ or
             <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Дата создания договора</label>
             <input
               type="date"
-              value={contractParams.contractDate || new Date().toISOString().slice(0, 10)}
+              value={contractParams.contractDate || toLocalDateString(new Date())}
               onChange={e => updateContractParam('contractDate', e.target.value)}
               className="custom-date-input"
               style={{ width: '100%', boxSizing: 'border-box' }}
