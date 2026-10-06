@@ -32,6 +32,7 @@ import {
   type ExitIntentCalcData
 } from '../api/exitIntentAnalytics';
 import { toast } from '../utils/toast';
+import { toLocalDateString } from '../utils/dateUtils';
 import { confirm } from '../utils/confirm';
 import '../styles/dashboard.css';
 
@@ -43,7 +44,7 @@ const EMPTY_SESSIONS: ExitIntentSessionItem[] = [];
 
 const computeDateRange = (filterType: DateFilterType, customFrom: string, customTo: string): { from?: string; to?: string } => {
   const today = new Date();
-  const formatDate = (d: Date) => d.toISOString().split('T')[0];
+  const formatDate = toLocalDateString;
 
   if (filterType === 'today') {
     const todayStr = formatDate(today);

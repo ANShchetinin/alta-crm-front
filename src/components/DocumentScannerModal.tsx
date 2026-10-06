@@ -10,6 +10,7 @@ import {
   rotateCanvas,
   playShutterSound
 } from '../utils/documentScanner';
+import { toLocalDateString } from '../utils/dateUtils';
 import '../styles/documentScanner.css';
 
 interface DocumentScannerModalProps {
@@ -546,7 +547,7 @@ export const DocumentScannerModal: React.FC<DocumentScannerModalProps> = ({
         setIsSaving(false);
         return;
       }
-      const timestamp = new Date().toISOString().slice(0, 10);
+      const timestamp = toLocalDateString(new Date());
       const prefix = defaultFileNamePrefix || (isAct ? 'Акт_выполненных_работ' : 'Документ');
       const fileName = `${prefix}_${orderId ? `№${orderId}_` : ''}${timestamp}.jpg`;
       const file = new File([blob], fileName, { type: 'image/jpeg' });

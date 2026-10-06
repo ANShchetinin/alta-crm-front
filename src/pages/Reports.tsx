@@ -18,7 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend 
 } from 'recharts';
-import { formatDateOnly } from '../utils/dateUtils';
+import { formatDateOnly, parseUtcDate, toLocalDateString } from '../utils/dateUtils';
 import '../styles/clients.css'; 
 import '../styles/reports.css'; 
 import { formatPhone } from '../utils/phone';
@@ -212,12 +212,12 @@ export const Reports = () => {
     const dataMap: Record<string, { label: string; date: string; measurements: number; contracts: number; revenue: number }> = {};
 
     filteredOrders.forEach(order => {
-      const dateStr = order.createdAt ? order.createdAt.slice(0, 10) : '';
-      if (!dateStr) return;
+      const createdAt = parseUtcDate(order.createdAt);
+      if (!createdAt) return;
+      const dateStr = toLocalDateString(createdAt);
 
       if (!dataMap[dateStr]) {
-        const d = new Date(dateStr);
-        const dayLabel = `${d.getDate()} ${d.toLocaleString('ru-RU', { month: 'short' })}`;
+        const dayLabel = `${createdAt.getDate()} ${createdAt.toLocaleString('ru-RU', { month: 'short' })}`;
         dataMap[dateStr] = { label: dayLabel, date: dateStr, measurements: 0, contracts: 0, revenue: 0 };
       }
 

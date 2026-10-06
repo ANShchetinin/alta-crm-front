@@ -80,12 +80,6 @@ export const isDateInRange = (dateStr: string | null | undefined, range: DateRan
   return true;
 };
 
-/** Дата в формате YYYY-MM-DD по локальному времени (toISOString дал бы дату по UTC). */
-export const toLocalDateString = (date: Date): string => {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-};
-
 
 /** Заказы в статусах, которые учитываются в финансах (заказы без статуса учитываются). */
 export const filterFinanceOrders = (orders: Order[], statuses: OrderStatus[]): Order[] => {

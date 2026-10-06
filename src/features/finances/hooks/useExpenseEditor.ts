@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { createExpense, updateExpense, deleteExpense, type Expense, type ExpenseCategory } from '../../../api/finances';
 import { toast } from '../../../utils/toast';
 import { confirm } from '../../../utils/confirm';
-import { toLocalDateString } from '../utils/financeCalculations';
+import { toLocalDateString } from '../../../utils/dateUtils';
 
 export interface ExpenseFormData {
   title: string;

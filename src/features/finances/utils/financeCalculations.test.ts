@@ -11,7 +11,6 @@ import {
   getPeriodRange,
   isDateInRange,
   summarizeInstallers,
-  toLocalDateString,
   type DateRange
 } from './financeCalculations';
 
@@ -60,11 +59,6 @@ describe('isDateInRange', () => {
 });
 
 describe('order helpers', () => {
-  it('formats a date by local calendar day, not by UTC', () => {
-    expect(toLocalDateString(new Date(2026, 8, 1, 0, 30))).toBe('2026-09-01');
-    expect(toLocalDateString(new Date(2026, 11, 31, 23, 59))).toBe('2026-12-31');
-  });
-
   it('keeps orders of statuses included in finances and orders without a known status', () => {
     const statuses = [status(1, 'Новая'), status(2, 'Спам', { includeInFinances: false })];
     const orders = [order(1, { statusId: 1 }), order(2, { statusId: 2 }), order(3, { statusId: 99 })];
