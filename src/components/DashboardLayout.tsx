@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { useOrderDrawerStore } from '../store/useOrderDrawerStore';
 import { ORDERS_QUERY_KEY } from '../hooks/queries/useOrdersQuery';
 import { useInvalidateOnOrdersChanged } from '../hooks/queries/useInvalidateOnOrdersChanged';
 import { CreateCompanyModal } from './CreateCompanyModal';
-import { OrderDrawer } from '../features/kanban/components/OrderDrawer';
 import { AnnouncementBanner } from '../features/announcements/components/AnnouncementBanner';
 import { useActiveAnnouncements } from '../features/announcements/hooks/useAnnouncements';
 import { WhatsNewModal } from '../features/whatsNew/components/WhatsNewModal';
@@ -24,6 +23,9 @@ import { ProfileModal } from './layout/ProfileModal';
 import { Sidebar } from './layout/Sidebar';
 import { Topbar } from './layout/Topbar';
 import '../styles/dashboard.css';
+
+// Шторка заказа тянет смету, договор и сканеры — грузим её при первом открытии, а не с каждой страницей
+const OrderDrawer = lazy(() => import('../features/kanban/components/OrderDrawer').then(m => ({ default: m.OrderDrawer })));
 
 /** Каркас приложения: боковое меню, верхняя панель, нижняя панель на телефоне и глобальная шторка заказа. */
 const DashboardLayout = () => {
@@ -59,6 +61,11 @@ const DashboardLayout = () => {
 
   const { isOpen: isOrderDrawerOpen, activeTab: orderDrawerActiveTab } = useOrderDrawerStore();
   const isWideDrawer = isOrderDrawerOpen && (orderDrawerActiveTab === 'MEASUREMENT' || orderDrawerActiveTab === 'CONTRACT');
+  // После первого открытия шторка остаётся смонтированной, как раньше: закрытая она ничего не рисует
+  const [isOrderDrawerLoaded, setIsOrderDrawerLoaded] = useState(false);
+  if (isOrderDrawerOpen && !isOrderDrawerLoaded) {
+    setIsOrderDrawerLoaded(true);
+  }
 
   const handleLogout = () => {
     logout();
@@ -112,7 +119,11 @@ const DashboardLayout = () => {
 
       {pwa.showIosGuide && <IosInstallGuide onClose={pwa.closeIosGuide} />}
 
-      <OrderDrawer />
+      {isOrderDrawerLoaded && (
+        <Suspense fallback={null}>
+          <OrderDrawer />
+        </Suspense>
+      )}
 
       <WhatsNewModal />
 

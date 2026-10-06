@@ -142,7 +142,9 @@ export const useAudioRecorder = (): AudioRecorderState => {
           processorRef.current.disconnect();
         }
         audioContextRef.current.close();
-      } catch (ignored) {}
+      } catch {
+        // контекст уже закрыт или узлы отключены — освобождать нечего
+      }
       audioContextRef.current = null;
       processorRef.current = null;
       sourceRef.current = null;
