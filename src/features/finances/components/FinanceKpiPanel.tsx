@@ -10,10 +10,10 @@ interface FinanceKpiPanelProps {
   expensesCount: number;
 }
 
-/** Ключевые показатели кассы: сетка карточек и компактная сворачиваемая строка на телефоне. */
+/** Ключевые показатели (прибыль по завершённым заказам, полученные деньги, долги): сетка карточек и компактная сворачиваемая строка на телефоне. */
 export const FinanceKpiPanel = ({ metrics, expensesCount }: FinanceKpiPanelProps) => {
   const [collapsedOnMobile, setCollapsedOnMobile] = useState(true);
-  const resultColor = metrics.netCashProfit >= 0 ? '#4ade80' : '#ef4444';
+  const resultColor = metrics.profit >= 0 ? '#4ade80' : '#ef4444';
 
   return (
     <>
@@ -24,8 +24,8 @@ export const FinanceKpiPanel = ({ metrics, expensesCount }: FinanceKpiPanelProps
             <strong style={{ color: '#4ade80' }}>+{rub(metrics.totalCashInflow)}</strong>
           </div>
           <div style={{ fontSize: '0.82rem' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Касса: </span>
-            <strong style={{ color: resultColor }}>{rub(metrics.netCashProfit)}</strong>
+            <span style={{ color: 'var(--text-secondary)' }}>Прибыль: </span>
+            <strong style={{ color: resultColor }}>{rub(metrics.profit)}</strong>
           </div>
           <div style={{ fontSize: '0.82rem' }}>
             <span style={{ color: 'var(--text-secondary)' }}>Долги: </span>
@@ -76,7 +76,7 @@ export const FinanceKpiPanel = ({ metrics, expensesCount }: FinanceKpiPanelProps
           color="#fbbf24"
           rgb="251, 191, 36"
           value={rub(metrics.materialsCost)}
-          hint="Себестоимость комплектующих по сделкам"
+          hint="Себестоимость материалов завершённых заказов"
         />
         <KpiCard
           label="Расходы компании"
@@ -95,14 +95,14 @@ export const FinanceKpiPanel = ({ metrics, expensesCount }: FinanceKpiPanelProps
           hint="По фактически завершённым монтажам"
         />
         <KpiCard
-          label="Чистый баланс кассы"
+          label="Прибыль за период"
           icon={Sparkles}
           color="#c084fc"
           rgb="168, 85, 247"
           emphasized
-          value={rub(metrics.netCashProfit)}
+          value={rub(metrics.profit)}
           valueColor={resultColor}
-          hint={`Приход (${rub(metrics.totalCashInflow)}) − Расход (${rub(metrics.totalCashOutflow)})`}
+          hint={`Выручка завершённых заказов (${rub(metrics.completedRevenue)}) − Затраты (${rub(metrics.totalCosts)})`}
         />
       </div>
     </>

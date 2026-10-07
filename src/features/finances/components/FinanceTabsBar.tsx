@@ -15,7 +15,7 @@ const TABS: TabDefinition[] = [
   { id: 'RECEIVABLES', label: 'Дебиторка / Должники', shortLabel: 'Дебиторка', icon: Clock, color: '#f59e0b' },
   { id: 'EXPENSES', label: 'Расходы компании', shortLabel: 'Расходы', icon: TrendingDown, color: '#ef4444' },
   { id: 'INSTALLERS', label: 'Расчёты с монтажниками', shortLabel: 'Монтажники', icon: User, color: '#60a5fa' },
-  { id: 'PL_STRUCTURE', label: 'Движение средств (Cash Flow)', shortLabel: 'ДДС и P&L', icon: PieChart, color: '#c084fc' },
+  { id: 'PL_STRUCTURE', label: 'Прибыль за период (P&L)', shortLabel: 'Прибыль', icon: PieChart, color: '#c084fc' },
   { id: 'AI_COSTS', label: 'Затраты на ИИ', shortLabel: 'ИИ Расходы', icon: Bot, color: '#38bdf8' }
 ];
 

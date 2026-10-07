@@ -116,14 +116,14 @@ describe('Finances page', () => {
     vi.useRealTimers();
   });
 
-  it('shows cash metrics of the current month without orders of excluded statuses', async () => {
+  it('shows profit and received money of the current month without orders of excluded statuses', async () => {
     renderWithQuery(<Finances />);
 
     expect(await screen.findByText('Финансы и касса')).toBeInTheDocument();
     // Приход: авансы 30 000 + 20 000 и остаток 30 000; заказ в статусе «Спам» не учитывается
     expect(screen.getAllByText(money(80000)).length).toBeGreaterThan(0);
-    // Касса: 80 000 − (материалы 10 000 + монтаж 5 000 + расходы 3 000)
-    expect(screen.getAllByText(money(62000)).length).toBeGreaterThan(0);
+    // Прибыль: выручка завершённого заказа 50 000 − (материалы 10 000 + монтаж 5 000 + расходы 3 000)
+    expect(screen.getAllByText(money(32000)).length).toBeGreaterThan(0);
     expect(screen.queryByText('Спамер')).not.toBeInTheDocument();
     expect(screen.getByText('2 из 3')).toBeInTheDocument();
   });

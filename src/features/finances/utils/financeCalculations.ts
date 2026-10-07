@@ -21,8 +21,10 @@ export interface CashMetrics {
   completedInstallationsCost: number;
   materialsCost: number;
   totalExpenses: number;
-  totalCashOutflow: number;
-  netCashProfit: number;
+  /** Затраты периода: материалы и монтаж завершенных заказов плюс расходы компании. */
+  totalCosts: number;
+  /** Прибыль периода: выручка завершенных заказов минус {@link totalCosts}. */
+  profit: number;
 }
 
 /** Заказ монтажника и его начисление по этому заказу. */
@@ -96,8 +98,9 @@ export const filterFinanceOrders = (orders: Order[], statuses: OrderStatus[]): O
 };
 
 /**
- * Показатели кассы кассовым методом: приход — по датам оплат, затраты на материалы и монтаж — по завершенным
- * в периоде заказам, дебиторка — все неоплаченные суммы независимо от периода.
+ * Показатели раздела «Финансы». Прибыль — по завершенным в периоде заказам: их выручка минус материалы, монтаж
+ * и расходы компании за период. Справочно: приход денег — по датам оплат, дебиторка — все неоплаченные суммы
+ * независимо от периода.
  */
 export const calculateCashMetrics = (
   orders: Order[],
@@ -143,20 +146,19 @@ export const calculateCashMetrics = (
     .filter(expense => isDateInRange(expense.expenseDate, range))
     .reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
-  const totalCashInflow = receivedPrepayments + receivedRemainders;
-  const totalCashOutflow = totalExpenses + completedInstallationsCost + materialsCost;
+  const totalCosts = totalExpenses + completedInstallationsCost + materialsCost;
 
   return {
     receivedPrepayments,
     receivedRemainders,
-    totalCashInflow,
+    totalCashInflow: receivedPrepayments + receivedRemainders,
     pendingReceivables,
     completedRevenue,
     completedInstallationsCost,
     materialsCost,
     totalExpenses,
-    totalCashOutflow,
-    netCashProfit: totalCashInflow - totalCashOutflow
+    totalCosts,
+    profit: completedRevenue - totalCosts
   };
 };
 

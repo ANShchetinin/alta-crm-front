@@ -1509,3 +1509,18 @@ select.search-input option {
     padding: 12px;
   }
 }
+
+.expense-salary-hint {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+body.light-theme .expense-salary-hint {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.08);
+}
