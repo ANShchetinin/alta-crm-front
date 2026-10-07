@@ -34,6 +34,21 @@ describe('CardFinance', () => {
     expect(screen.queryByText('0 ₽')).not.toBeInTheDocument();
     expect(screen.queryByText(/Остаток/)).not.toBeInTheDocument();
   });
+
+  it('shows attachments without the finance frame when the order has no amounts', () => {
+    const attachments = [{ id: 1 }, { id: 2 }] as Order['attachments'];
+    const { container } = render(<CardFinance card={order({ totalPrice: 0, attachments })} onOpenComments={vi.fn()} />);
+
+    expect(container.querySelector('.kanban-finance-box')).not.toBeInTheDocument();
+    expect(container.querySelector('.card-meta-row')).toHaveTextContent('2');
+  });
+
+  it('keeps counters inside the finance frame next to the total', () => {
+    const { container } = render(<CardFinance card={order({ totalPrice: 50000, commentsCount: 3 })} onOpenComments={vi.fn()} />);
+
+    expect(container.querySelector('.kanban-finance-box .card-meta-row')).toBeInTheDocument();
+    expect(screen.getByTitle('Комментарии (3)')).toBeInTheDocument();
+  });
 });
 
 describe('CardAddress', () => {

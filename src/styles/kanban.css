@@ -289,6 +289,18 @@
   color: #16a34a;
 }
 
+.card-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin: 4px 0 4px auto;
+}
+
+.kanban-finance-box .card-meta-row {
+  margin: 0 0 0 auto;
+}
+
 .card-finance-sub {
   display: flex;
   align-items: center;

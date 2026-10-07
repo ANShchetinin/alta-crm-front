@@ -221,63 +221,75 @@ export const CardSchedule = ({ card }: { card: Order }) => (
 
 const formatRub = (value: number) => `${value.toLocaleString('ru-RU')} ₽`;
 
-/** Сумма заказа, вложения, комментарии, маржа и аванс/остаток; нулевые суммы не показываются, пустой блок скрыт. */
-export const CardFinance = ({ card, onOpenComments }: { card: Order; onOpenComments: () => void }) => {
-  const totalPrice = card.totalPrice || 0;
+/** Счётчики вложений и комментариев и маржа заказа; без значений не рисуется. */
+const CardMeta = ({ card, onOpenComments }: { card: Order; onOpenComments: () => void }) => {
   const attachmentsCount = card.attachments?.length || 0;
   const commentsCount = card.commentsCount || 0;
   const profitMargin = card.profitMargin || 0;
+
+  if (attachmentsCount === 0 && commentsCount === 0 && profitMargin <= 0) {
+    return null;
+  }
+  return (
+    <div className="card-meta-row">
+      {attachmentsCount > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+          <Paperclip size={12} /> {attachmentsCount}
+        </div>
+      )}
+      {commentsCount > 0 && (
+        <button
+          type="button"
+          onTouchStart={stopCardGesture.onTouchStart}
+          onTouchEnd={stopCardGesture.onTouchEnd}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenComments();
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '3px',
+            fontSize: '0.8rem',
+            color: 'var(--text-secondary)',
+            background: 'none',
+            border: 'none',
+            padding: '0 2px',
+            cursor: 'pointer'
+          }}
+          title={`Комментарии (${commentsCount})`}
+        >
+          <MessageSquare size={12} /> {commentsCount}
+        </button>
+      )}
+      {profitMargin > 0 && (
+        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#16a34a' }}>+{profitMargin.toFixed(1)}%</span>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Сумма заказа, аванс/остаток и счётчики. Рамка финансового блока рисуется только при ненулевых суммах;
+ * без сумм счётчики вложений/комментариев и маржа выводятся отдельной строкой без рамки.
+ */
+export const CardFinance = ({ card, onOpenComments }: { card: Order; onOpenComments: () => void }) => {
+  const totalPrice = card.totalPrice || 0;
   const payments = [
     { label: 'Аванс', amount: card.prepayment || 0 },
     { label: 'Остаток', amount: getOrderRemainder(card) }
   ].filter(p => p.amount > 0);
-  const hasHeader = totalPrice > 0 || attachmentsCount > 0 || commentsCount > 0 || profitMargin > 0;
+  const meta = <CardMeta card={card} onOpenComments={onOpenComments} />;
 
-  if (!hasHeader && payments.length === 0) {
-    return null;
+  if (totalPrice <= 0 && payments.length === 0) {
+    return meta;
   }
   return (
     <div className="kanban-finance-box">
-      {hasHeader && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {totalPrice > 0 && <div className="card-price-main">{formatRub(totalPrice)}</div>}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
-            {attachmentsCount > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                <Paperclip size={12} /> {attachmentsCount}
-              </div>
-            )}
-            {commentsCount > 0 && (
-              <button
-                type="button"
-                onTouchStart={stopCardGesture.onTouchStart}
-                onTouchEnd={stopCardGesture.onTouchEnd}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenComments();
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-secondary)',
-                  background: 'none',
-                  border: 'none',
-                  padding: '0 2px',
-                  cursor: 'pointer'
-                }}
-                title={`Комментарии (${commentsCount})`}
-              >
-                <MessageSquare size={12} /> {commentsCount}
-              </button>
-            )}
-            {profitMargin > 0 && (
-              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#16a34a' }}>+{profitMargin.toFixed(1)}%</span>
-            )}
-          </div>
-        </div>
-      )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {totalPrice > 0 && <div className="card-price-main">{formatRub(totalPrice)}</div>}
+        {meta}
+      </div>
 
       {payments.length > 0 && (
         <div className="card-finance-sub">
