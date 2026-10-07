@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, AlertTriangle, FileText, RefreshCw, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, FileText, RefreshCw, UserPen, X } from 'lucide-react';
 import type { ContractTemplateStatus } from '../../../../../api/settings';
 import { toast } from '../../../../../utils/toast';
 import { toLocalDateString } from '../../../../../utils/dateUtils';
@@ -17,7 +17,7 @@ interface ContractNumberSectionProps {
  * Номер и дата договора, проверка наличия шаблона и запуск формирования договора Word.
  */
 export const ContractNumberSection: React.FC<ContractNumberSectionProps> = ({ orderNumber, setFormData, contract, templateStatus }) => {
-  const { contractParams, selectedClient, updateContractParam, generateOrderNumber, promptLoading, startGenerate } = contract;
+  const { contractParams, selectedClient, updateContractParam, generateOrderNumber, promptLoading, startGenerate, editAndGenerate } = contract;
   const isLegal = selectedClient?.clientType === 'LEGAL_ENTITY';
   const hasTemplate = isLegal ? !!templateStatus?.legal : !!templateStatus?.individual;
   const missingTemplateMsg = `Шаблон договора для ${isLegal ? 'юридических' : 'физических'} лиц не загружен.\n\n`
@@ -142,6 +142,28 @@ export const ContractNumberSection: React.FC<ContractNumberSectionProps> = ({ or
           >
             <FileText size={17} /> {promptLoading ? 'Формирование договора...' : 'Сформировать договор (Word)'}
           </button>
+
+          {hasTemplate && (
+            <button
+              type="button"
+              onClick={editAndGenerate}
+              disabled={promptLoading}
+              className="btn btn-secondary"
+              style={{
+                width: '44px',
+                height: '44px',
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}
+              title="Изменить данные заказчика и сформировать договор"
+              aria-label="Изменить данные заказчика"
+            >
+              <UserPen size={18} />
+            </button>
+          )}
 
           {!hasTemplate && (
             <button

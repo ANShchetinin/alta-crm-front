@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { useState } from 'react';
-import { useOrderContract } from './useOrderContract';
+import { isPromptComplete, useOrderContract } from './useOrderContract';
 import { createEmptyOrderForm } from '../utils/orderForm';
 import { getMeasurementByOrderId, type MeasurementDto } from '../../../api/measurements';
 import { downloadContractDocx, updateOrder } from '../../../api/kanban';
@@ -20,13 +20,29 @@ vi.mock('../../../utils/toast', () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }
 }));
 
-const client = { id: 10, name: 'Иван', phone: '+7999', clientType: 'INDIVIDUAL', passportSeriesNumber: '1234 567890' } as Client;
+const client = {
+  id: 10,
+  name: 'Иван',
+  phone: '+7999',
+  clientType: 'INDIVIDUAL',
+  passportSeriesNumber: '1234 567890',
+  email: 'ivan@mail.ru',
+  leadSource: 'Авито'
+} as Client;
+const legalClient = {
+  id: 10,
+  name: 'ООО «Ромашка»',
+  phone: '+7999',
+  clientType: 'LEGAL_ENTITY',
+  inn: '6450000000',
+  legalAddress: 'г. Саратов'
+} as Client;
 
-const setup = (orderId: number | null) => renderHook(() => {
-  const [form, setForm] = useState({ ...createEmptyOrderForm(1), clientId: '10', prepayment: '1000' });
+const setup = (orderId: number | null, clients: Client[] = [client], address = '') => renderHook(() => {
+  const [form, setForm] = useState({ ...createEmptyOrderForm(1), clientId: '10', prepayment: '1000', address });
   return {
     form,
-    contract: useOrderContract({ orderId, formData: form, setFormData: setForm, currentOrder: null, clients: [client] })
+    contract: useOrderContract({ orderId, formData: form, setFormData: setForm, currentOrder: null, clients })
   };
 });
 
@@ -122,5 +138,99 @@ describe('useOrderContract', () => {
     expect(updateOrder).toHaveBeenCalledWith(5, expect.objectContaining({ clientId: 10, contractParams: expect.any(Object) }));
     expect(downloadContractDocx).toHaveBeenCalledWith(5);
     expect(result.current.contract.isPromptOpen).toBe(false);
+  });
+
+  it('keeps the rest of the client card when saving it from the contract prompt', async () => {
+    vi.mocked(downloadContractDocx).mockResolvedValue(new Blob(['docx']));
+    const { result } = setup(5);
+    act(() => {
+      result.current.contract.startGenerate();
+    });
+
+    await act(() => result.current.contract.submitGenerate({ preventDefault: vi.fn() } as unknown as React.FormEvent));
+
+    expect(updateClient).toHaveBeenCalledWith(10, expect.objectContaining({
+      clientType: 'INDIVIDUAL',
+      email: 'ivan@mail.ru',
+      leadSource: 'Авито'
+    }));
+  });
+
+  it('does not ask a legal entity for passport data and keeps its requisites', async () => {
+    vi.mocked(downloadContractDocx).mockResolvedValue(new Blob(['docx']));
+    const { result } = setup(5, [legalClient]);
+    act(() => {
+      result.current.contract.startGenerate();
+    });
+    expect(result.current.contract.promptData.isLegal).toBe(true);
+
+    await act(() => result.current.contract.submitGenerate({ preventDefault: vi.fn() } as unknown as React.FormEvent));
+
+    const request = vi.mocked(updateClient).mock.calls[0][1];
+    expect(request).toMatchObject({ clientType: 'LEGAL_ENTITY', inn: '6450000000', legalAddress: 'г. Саратов' });
+    expect(request).not.toHaveProperty('passportSeriesNumber');
+    expect(downloadContractDocx).toHaveBeenCalledWith(5);
+  });
+
+  it('generates the contract without the prompt when the client card is complete', async () => {
+    vi.mocked(downloadContractDocx).mockResolvedValue(new Blob(['docx']));
+    const complete = {
+      ...client,
+      phone: '+79991112233',
+      whatsapp: '+79994445566',
+      birthDate: '1990-01-01',
+      passportIssuedBy: 'УФМС',
+      passportIssuedDate: '2010-01-01',
+      registrationAddress: 'г. Саратов'
+    } as Client;
+    const { result } = setup(5, [complete], 'г. Саратов, ул. Мира, 1');
+
+    await act(async () => {
+      result.current.contract.startGenerate();
+    });
+
+    expect(result.current.contract.isPromptOpen).toBe(false);
+    expect(updateClient).not.toHaveBeenCalled();
+    expect(updateOrder).toHaveBeenCalledWith(5, expect.objectContaining({
+      contractParams: expect.objectContaining({ secondPhone: '+7 (999) 444-55-66' })
+    }));
+    expect(downloadContractDocx).toHaveBeenCalledWith(5);
+  });
+
+  it('opens the prompt for editing even when the client card is complete', () => {
+    const { result } = setup(5, [{ ...client, phone: '+79991112233', birthDate: '1990-01-01' } as Client], 'г. Саратов');
+
+    act(() => {
+      result.current.contract.editAndGenerate();
+    });
+
+    expect(result.current.contract.isPromptOpen).toBe(true);
+    expect(result.current.contract.promptData).toMatchObject({ name: 'Иван', installationAddress: 'г. Саратов' });
+    expect(downloadContractDocx).not.toHaveBeenCalled();
+  });
+});
+
+describe('isPromptComplete', () => {
+  const individual = {
+    isLegal: false,
+    name: 'Иван',
+    phone: '+79991112233',
+    installationAddress: 'г. Саратов',
+    birthDate: '01.01.1990',
+    passportSeriesNumber: '1234 567890',
+    passportIssuedBy: 'УФМС',
+    passportIssuedDate: '01.01.2010',
+    registrationAddress: 'г. Саратов'
+  } as Parameters<typeof isPromptComplete>[0];
+
+  it('requires passport data only from an individual', () => {
+    expect(isPromptComplete(individual)).toBe(true);
+    expect(isPromptComplete({ ...individual, passportIssuedBy: ' ' })).toBe(false);
+    expect(isPromptComplete({ ...individual, isLegal: true, passportSeriesNumber: '', birthDate: '' })).toBe(true);
+  });
+
+  it('requires a valid phone and the installation address', () => {
+    expect(isPromptComplete({ ...individual, phone: '+7999' })).toBe(false);
+    expect(isPromptComplete({ ...individual, installationAddress: '' })).toBe(false);
   });
 });
