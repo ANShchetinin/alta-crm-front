@@ -270,13 +270,24 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
     }
   };
 
+  const isOrderSaved = () => {
+    if (!orderId) {
+      toast.warning('Сначала сохраните заказ, чтобы сформировать договор');
+    }
+    return Boolean(orderId);
+  };
+
+  const openPrompt = (data: ContractPromptData) => {
+    setPromptData(data);
+    setIsPromptOpen(true);
+  };
+
   /**
    * Формирует договор сразу, если в карточке клиента и заказе есть все обязательные данные;
    * иначе открывает окно, чтобы дозаполнить их.
    */
   const startGenerate = () => {
-    if (!orderId) {
-      toast.warning('Сначала сохраните заказ, чтобы сформировать договор');
+    if (!isOrderSaved()) {
       return;
     }
     const data = buildPromptData();
@@ -284,8 +295,14 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
       void generate(data, false);
       return;
     }
-    setPromptData(data);
-    setIsPromptOpen(true);
+    openPrompt(data);
+  };
+
+  /** Открывает окно с данными заказчика для правки перед формированием договора, даже если они заполнены. */
+  const editAndGenerate = () => {
+    if (isOrderSaved()) {
+      openPrompt(buildPromptData());
+    }
   };
 
   const applyPassport = (res: PassportApplyResult) => {
@@ -327,6 +344,7 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
     promptData,
     setPromptData,
     startGenerate,
+    editAndGenerate,
     applyPassport,
     submitGenerate
   };

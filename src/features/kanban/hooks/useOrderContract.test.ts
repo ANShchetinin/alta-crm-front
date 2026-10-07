@@ -196,6 +196,18 @@ describe('useOrderContract', () => {
     }));
     expect(downloadContractDocx).toHaveBeenCalledWith(5);
   });
+
+  it('opens the prompt for editing even when the client card is complete', () => {
+    const { result } = setup(5, [{ ...client, phone: '+79991112233', birthDate: '1990-01-01' } as Client], 'г. Саратов');
+
+    act(() => {
+      result.current.contract.editAndGenerate();
+    });
+
+    expect(result.current.contract.isPromptOpen).toBe(true);
+    expect(result.current.contract.promptData).toMatchObject({ name: 'Иван', installationAddress: 'г. Саратов' });
+    expect(downloadContractDocx).not.toHaveBeenCalled();
+  });
 });
 
 describe('isPromptComplete', () => {
