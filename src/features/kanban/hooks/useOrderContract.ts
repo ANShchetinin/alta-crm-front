@@ -7,7 +7,7 @@ import {
   type ContractSpecItem,
   type Order
 } from '../../../api/kanban';
-import { updateClient, type Client } from '../../../api/clients';
+import { updateClient, type Client, type ClientCreateRequest } from '../../../api/clients';
 import { getMeasurementByOrderId } from '../../../api/measurements';
 import type { PassportApplyResult } from '../../../components/PassportScannerModal';
 import type { ContractPromptData } from '../components/ContractPromptModal';
@@ -26,6 +26,7 @@ import {
 
 const EMPTY_PROMPT: ContractPromptData = {
   clientId: 0,
+  isLegal: false,
   name: '',
   phone: '',
   secondPhone: '',
@@ -49,6 +50,26 @@ const EMPTY_PROMPT: ContractPromptData = {
 };
 
 const parseQuantity = (quantity: string): number => parseFloat(String(quantity).replace(',', '.')) || 0;
+
+/**
+ * Запрос на сохранение клиента из окна договора. PUT заменяет клиента целиком, поэтому за основу берется
+ * текущая карточка — иначе стерлись бы тип, контакты и реквизиты. Паспортные данные есть только у физлица.
+ */
+const clientUpdateFromPrompt = (client: Client, prompt: ContractPromptData): ClientCreateRequest => {
+  const base: ClientCreateRequest = { ...client, name: prompt.name, phone: phoneForSave(prompt.phone) };
+  if (prompt.isLegal) {
+    return base;
+  }
+  return {
+    ...base,
+    birthDate: dateForSave(prompt.birthDate) || undefined,
+    passportSeriesNumber: prompt.passportSeriesNumber || undefined,
+    passportIssuedBy: prompt.passportIssuedBy || undefined,
+    passportIssuedDate: dateForSave(prompt.passportIssuedDate) || undefined,
+    passportDepartmentCode: prompt.passportDepartmentCode || undefined,
+    registrationAddress: prompt.registrationAddress || undefined
+  };
+};
 
 const reindex = (items: ContractSpecItem[]): ContractSpecItem[] => items.map((item, i) => ({ ...item, idx: i + 1 }));
 
@@ -169,6 +190,7 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
     }
     setPromptData({
       clientId: selectedClient?.id || 0,
+      isLegal: selectedClient?.clientType === 'LEGAL_ENTITY',
       name: currentOrder?.clientName || selectedClient?.name || '',
       phone: currentOrder?.clientPhone || selectedClient?.phone || '',
       secondPhone: isValidPhone(selectedClient?.whatsapp) ? formatPhone(selectedClient?.whatsapp) : '',
@@ -207,7 +229,7 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
   };
 
   /**
-   * Сохраняет паспортные данные клиента и параметры договора в заказ, затем скачивает сформированный договор.
+   * Сохраняет данные клиента (паспорт — только у физлица) и параметры договора в заказ, затем скачивает сформированный договор.
    */
   const submitGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,17 +238,9 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
     }
     setPromptLoading(true);
     try {
-      if (promptData.clientId) {
-        await updateClient(promptData.clientId, {
-          name: promptData.name,
-          phone: phoneForSave(promptData.phone),
-          birthDate: dateForSave(promptData.birthDate) || undefined,
-          passportSeriesNumber: promptData.passportSeriesNumber || undefined,
-          passportIssuedBy: promptData.passportIssuedBy || undefined,
-          passportIssuedDate: dateForSave(promptData.passportIssuedDate) || undefined,
-          passportDepartmentCode: promptData.passportDepartmentCode || undefined,
-          registrationAddress: promptData.registrationAddress || undefined
-        });
+      const client = clients.find(c => c.id === promptData.clientId);
+      if (client) {
+        await updateClient(client.id, clientUpdateFromPrompt(client, promptData));
       }
 
       const updatedParams: ContractParams = {

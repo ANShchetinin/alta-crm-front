@@ -4,6 +4,7 @@ import { ContractPromptModal, type ContractPromptData } from './ContractPromptMo
 
 const initialData: ContractPromptData = {
   clientId: 1,
+  isLegal: false,
   name: 'Иванов Иван',
   phone: '+79991112233',
   secondPhone: '',
@@ -73,5 +74,27 @@ describe('ContractPromptModal', () => {
     const cancelBtn = screen.getByText('Отмена');
     fireEvent.click(cancelBtn);
     expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks a legal entity only for its name, phones and installation address', () => {
+    render(
+      <ContractPromptModal
+        isOpen
+        contractPromptData={{ ...initialData, isLegal: true, name: 'ООО «Ромашка»' }}
+        setContractPromptData={() => {}}
+        contractPromptLoading={false}
+        onClose={() => {}}
+        onOpenPassportScanner={() => {}}
+        onSubmit={() => {}}
+      />
+    );
+
+    expect(screen.getByText('Наименование Заказчика *')).toBeInTheDocument();
+    expect(screen.getByText(/Реквизиты организации/)).toBeInTheDocument();
+    expect(screen.queryByText(/Распознать паспорт РФ/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Серия и номер паспорта/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Дата рождения/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Адрес по прописке/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Адрес установки/)).toBeInTheDocument();
   });
 });

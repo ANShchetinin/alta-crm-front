@@ -20,13 +20,29 @@ vi.mock('../../../utils/toast', () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }
 }));
 
-const client = { id: 10, name: 'Иван', phone: '+7999', clientType: 'INDIVIDUAL', passportSeriesNumber: '1234 567890' } as Client;
+const client = {
+  id: 10,
+  name: 'Иван',
+  phone: '+7999',
+  clientType: 'INDIVIDUAL',
+  passportSeriesNumber: '1234 567890',
+  email: 'ivan@mail.ru',
+  leadSource: 'Авито'
+} as Client;
+const legalClient = {
+  id: 10,
+  name: 'ООО «Ромашка»',
+  phone: '+7999',
+  clientType: 'LEGAL_ENTITY',
+  inn: '6450000000',
+  legalAddress: 'г. Саратов'
+} as Client;
 
-const setup = (orderId: number | null) => renderHook(() => {
+const setup = (orderId: number | null, clients: Client[] = [client]) => renderHook(() => {
   const [form, setForm] = useState({ ...createEmptyOrderForm(1), clientId: '10', prepayment: '1000' });
   return {
     form,
-    contract: useOrderContract({ orderId, formData: form, setFormData: setForm, currentOrder: null, clients: [client] })
+    contract: useOrderContract({ orderId, formData: form, setFormData: setForm, currentOrder: null, clients })
   };
 });
 
@@ -122,5 +138,37 @@ describe('useOrderContract', () => {
     expect(updateOrder).toHaveBeenCalledWith(5, expect.objectContaining({ clientId: 10, contractParams: expect.any(Object) }));
     expect(downloadContractDocx).toHaveBeenCalledWith(5);
     expect(result.current.contract.isPromptOpen).toBe(false);
+  });
+
+  it('keeps the rest of the client card when saving it from the contract prompt', async () => {
+    vi.mocked(downloadContractDocx).mockResolvedValue(new Blob(['docx']));
+    const { result } = setup(5);
+    act(() => {
+      result.current.contract.startGenerate();
+    });
+
+    await act(() => result.current.contract.submitGenerate({ preventDefault: vi.fn() } as unknown as React.FormEvent));
+
+    expect(updateClient).toHaveBeenCalledWith(10, expect.objectContaining({
+      clientType: 'INDIVIDUAL',
+      email: 'ivan@mail.ru',
+      leadSource: 'Авито'
+    }));
+  });
+
+  it('does not ask a legal entity for passport data and keeps its requisites', async () => {
+    vi.mocked(downloadContractDocx).mockResolvedValue(new Blob(['docx']));
+    const { result } = setup(5, [legalClient]);
+    act(() => {
+      result.current.contract.startGenerate();
+    });
+    expect(result.current.contract.promptData.isLegal).toBe(true);
+
+    await act(() => result.current.contract.submitGenerate({ preventDefault: vi.fn() } as unknown as React.FormEvent));
+
+    const request = vi.mocked(updateClient).mock.calls[0][1];
+    expect(request).toMatchObject({ clientType: 'LEGAL_ENTITY', inn: '6450000000', legalAddress: 'г. Саратов' });
+    expect(request).not.toHaveProperty('passportSeriesNumber');
+    expect(downloadContractDocx).toHaveBeenCalledWith(5);
   });
 });

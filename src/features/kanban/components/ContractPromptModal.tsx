@@ -7,6 +7,8 @@ import { PhoneInput } from '../../../components/ui/PhoneInput';
 
 export interface ContractPromptData {
   clientId: number;
+  /** Заказчик — юрлицо: паспорт не нужен, реквизиты организации берутся из карточки клиента. */
+  isLegal: boolean;
   name: string;
   phone: string;
   secondPhone: string;
@@ -50,6 +52,8 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
+  const { isLegal } = contractPromptData;
+
   return createPortal(
     <div
       className="modal-overlay"
@@ -92,33 +96,39 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <AlertCircle size={18} style={{ flexShrink: 0 }} />
-                <span>Для договора физлица заполните паспортные данные:</span>
+                <span>
+                  {isLegal
+                    ? 'Реквизиты организации (ИНН, ОГРН, адреса, банк) подставляются из карточки клиента'
+                    : 'Для договора физлица заполните паспортные данные:'}
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={onOpenPassportScanner}
-                className="btn btn-secondary"
-                style={{
-                  fontSize: '0.78rem',
-                  padding: '4px 10px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  background: 'rgba(59, 130, 246, 0.2)',
-                  borderColor: 'rgba(59, 130, 246, 0.4)',
-                  color: '#60a5fa'
-                }}
-              >
-                📷 Распознать паспорт РФ
-              </button>
+              {!isLegal && (
+                <button
+                  type="button"
+                  onClick={onOpenPassportScanner}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.78rem',
+                    padding: '4px 10px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    background: 'rgba(59, 130, 246, 0.2)',
+                    borderColor: 'rgba(59, 130, 246, 0.4)',
+                    color: '#60a5fa'
+                  }}
+                >
+                  📷 Распознать паспорт РФ
+                </button>
+              )}
             </div>
 
             <div className="form-group">
-              <label>ФИО Заказчика *</label>
+              <label>{isLegal ? 'Наименование Заказчика *' : 'ФИО Заказчика *'}</label>
               <input
                 type="text"
                 required
-                placeholder="Иванов Иван Иванович"
+                placeholder={isLegal ? 'ООО «Ромашка»' : 'Иванов Иван Иванович'}
                 value={contractPromptData.name}
                 onChange={(e) => setContractPromptData(prev => ({ ...prev, name: e.target.value }))}
                 className="search-input"
@@ -146,74 +156,78 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-              <div className="form-group">
-                <label>Дата рождения *</label>
-                <DateInput
-                  required
-                  value={contractPromptData.birthDate}
-                  onChange={(value) => setContractPromptData(prev => ({ ...prev, birthDate: value }))}
-                  style={{ width: '100%', paddingLeft: '12px' }}
-                />
-              </div>
-              <div className="form-group">
-                <label>Серия и номер паспорта *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="6315 123456"
-                  value={contractPromptData.passportSeriesNumber}
-                  onChange={(e) => setContractPromptData(prev => ({ ...prev, passportSeriesNumber: e.target.value }))}
-                  className="search-input"
-                  style={{ width: '100%', paddingLeft: '12px' }}
-                />
-              </div>
-            </div>
+            {!isLegal && (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                  <div className="form-group">
+                    <label>Дата рождения *</label>
+                    <DateInput
+                      required
+                      value={contractPromptData.birthDate}
+                      onChange={(value) => setContractPromptData(prev => ({ ...prev, birthDate: value }))}
+                      style={{ width: '100%', paddingLeft: '12px' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Серия и номер паспорта *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="6315 123456"
+                      value={contractPromptData.passportSeriesNumber}
+                      onChange={(e) => setContractPromptData(prev => ({ ...prev, passportSeriesNumber: e.target.value }))}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px' }}
+                    />
+                  </div>
+                </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-              <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                <label>Кем выдан паспорт *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Отделом УФМС России по Саратовской обл..."
-                  value={contractPromptData.passportIssuedBy}
-                  onChange={(e) => setContractPromptData(prev => ({ ...prev, passportIssuedBy: e.target.value }))}
-                  className="search-input"
-                  style={{ width: '100%', paddingLeft: '12px' }}
-                />
-              </div>
-              <div className="form-group">
-                <label>Дата выдачи паспорта *</label>
-                <DateInput
-                  required
-                  value={contractPromptData.passportIssuedDate}
-                  onChange={(value) => setContractPromptData(prev => ({ ...prev, passportIssuedDate: value }))}
-                  style={{ width: '100%', paddingLeft: '12px' }}
-                />
-              </div>
-              <div className="form-group">
-                <label>Код подразделения</label>
-                <input
-                  type="text"
-                  placeholder="770-001"
-                  value={contractPromptData.passportDepartmentCode}
-                  onChange={(e) => setContractPromptData(prev => ({ ...prev, passportDepartmentCode: e.target.value }))}
-                  className="search-input"
-                  style={{ width: '100%', paddingLeft: '12px' }}
-                />
-              </div>
-            </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label>Кем выдан паспорт *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Отделом УФМС России по Саратовской обл..."
+                      value={contractPromptData.passportIssuedBy}
+                      onChange={(e) => setContractPromptData(prev => ({ ...prev, passportIssuedBy: e.target.value }))}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Дата выдачи паспорта *</label>
+                    <DateInput
+                      required
+                      value={contractPromptData.passportIssuedDate}
+                      onChange={(value) => setContractPromptData(prev => ({ ...prev, passportIssuedDate: value }))}
+                      style={{ width: '100%', paddingLeft: '12px' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Код подразделения</label>
+                    <input
+                      type="text"
+                      placeholder="770-001"
+                      value={contractPromptData.passportDepartmentCode}
+                      onChange={(e) => setContractPromptData(prev => ({ ...prev, passportDepartmentCode: e.target.value }))}
+                      className="search-input"
+                      style={{ width: '100%', paddingLeft: '12px' }}
+                    />
+                  </div>
+                </div>
 
-            <div className="form-group">
-              <label>Адрес по прописке (регистрации) *</label>
-              <AddressInput
-                required
-                placeholder="г. Саратов, ул. Чернышевского, д. 10, кв. 5"
-                value={contractPromptData.registrationAddress}
-                onChange={(value) => setContractPromptData(prev => ({ ...prev, registrationAddress: value }))}
-              />
-            </div>
+                <div className="form-group">
+                  <label>Адрес по прописке (регистрации) *</label>
+                  <AddressInput
+                    required
+                    placeholder="г. Саратов, ул. Чернышевского, д. 10, кв. 5"
+                    value={contractPromptData.registrationAddress}
+                    onChange={(value) => setContractPromptData(prev => ({ ...prev, registrationAddress: value }))}
+                  />
+                </div>
+              </>
+            )}
 
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Адрес установки (монтажа) *</label>
