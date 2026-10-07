@@ -1,5 +1,5 @@
 import { Edit3, FileText, Plus, Trash2 } from 'lucide-react';
-import { EXPENSE_CATEGORIES, type Expense } from '../../../api/finances';
+import { EXPENSE_CATEGORIES, expenseCategoryLabel, type Expense } from '../../../api/finances';
 import { formatDateOnly } from '../../../utils/dateUtils';
 import { FilterChip } from './FilterChip';
 
@@ -86,7 +86,7 @@ export const ExpensesTab = ({
                 </td>
                 <td>
                   <span style={{ ...categoryBadgeStyle, fontSize: '0.74rem', padding: '3px 8px', borderRadius: '6px' }}>
-                    {exp.categoryLabel || exp.category}
+                    {expenseCategoryLabel(exp.category)}
                   </span>
                 </td>
                 <td>
@@ -147,7 +147,6 @@ export const ExpensesTab = ({
         </div>
       ) : (
         expenses.map(exp => {
-          const categoryLabel = EXPENSE_CATEGORIES.find(c => c.value === exp.category)?.label;
           return (
             <div key={exp.id} className="glass-panel" style={{ padding: '14px', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -160,7 +159,7 @@ export const ExpensesTab = ({
                     display: 'inline-block',
                     marginBottom: '4px'
                   }}>
-                    {categoryLabel || exp.category}
+                    {expenseCategoryLabel(exp.category)}
                   </span>
                   <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
                     {exp.title}

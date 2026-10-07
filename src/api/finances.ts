@@ -17,9 +17,13 @@ export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: 'TOOLS', label: 'Инструмент и оборудование' },
   { value: 'TAXES', label: 'Налоги и сборы' },
   { value: 'UTILITIES', label: 'Связь и хознужды' },
-  { value: 'SALARY', label: 'Зарплаты и премии' },
+  { value: 'SALARY', label: 'Зарплаты и премии (кроме монтажа)' },
   { value: 'OTHER', label: 'Прочие расходы' },
 ];
+
+/** Название категории расхода для отображения; неизвестная категория показывается кодом. */
+export const expenseCategoryLabel = (category: string): string =>
+  EXPENSE_CATEGORIES.find(c => c.value === category)?.label || category;
 
 export interface Expense {
   id: number;

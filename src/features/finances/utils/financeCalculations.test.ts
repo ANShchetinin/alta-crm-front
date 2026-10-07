@@ -105,8 +105,19 @@ describe('calculateCashMetrics', () => {
     expect(metrics.completedInstallationsCost).toBe(100);
     expect(metrics.materialsCost).toBe(300);
     expect(metrics.totalExpenses).toBe(40);
-    expect(metrics.totalCashOutflow).toBe(440);
-    expect(metrics.netCashProfit).toBe(metrics.totalCashInflow - 440);
+    expect(metrics.totalCosts).toBe(440);
+    expect(metrics.profit).toBe(560);
+  });
+
+  it('does not count advances of unfinished orders as profit', () => {
+    const orders = [
+      order(1, { totalPrice: 1000, prepayment: 500, prepaymentPaid: true, prepaymentPaidAt: '2026-09-05T10:00:00', materialsCost: 300 })
+    ];
+
+    const metrics = calculateCashMetrics(orders, [], SEPTEMBER, completedWhen());
+
+    expect(metrics.totalCashInflow).toBe(500);
+    expect(metrics.profit).toBe(0);
   });
 });
 

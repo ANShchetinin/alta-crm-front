@@ -80,6 +80,13 @@ export const ExpenseModal = ({ isEditing, form, onChange, orders, onSave, onClos
               </div>
             </div>
 
+            {form.category === 'SALARY' && (
+              <div className="expense-salary-hint" role="note">
+                Оплата монтажникам за монтаж по заказам учитывается автоматически («Начислено монтажникам») —
+                вносите здесь только оклады и премии сверх неё, иначе выплата посчитается дважды.
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <div className="form-group" style={{ flex: 1, minWidth: '180px' }}>
                 <label>Дата расхода *</label>
