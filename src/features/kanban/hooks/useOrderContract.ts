@@ -71,6 +71,20 @@ const clientUpdateFromPrompt = (client: Client, prompt: ContractPromptData): Cli
   };
 };
 
+const isFilled = (value: string) => value.trim().length > 0;
+
+/**
+ * Заполнены ли обязательные поля окна договора: у физлица — ФИО, телефон, дата рождения, паспорт и прописка,
+ * у юрлица — наименование и телефон (реквизиты берутся из карточки); у обоих — адрес монтажа.
+ */
+export const isPromptComplete = (data: ContractPromptData): boolean => {
+  const required = [data.name, data.installationAddress];
+  if (!data.isLegal) {
+    required.push(data.birthDate, data.passportSeriesNumber, data.passportIssuedBy, data.passportIssuedDate, data.registrationAddress);
+  }
+  return required.every(isFilled) && isValidPhone(data.phone);
+};
+
 const reindex = (items: ContractSpecItem[]): ContractSpecItem[] => items.map((item, i) => ({ ...item, idx: i + 1 }));
 
 interface UseOrderContractOptions {
@@ -182,36 +196,95 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
     }
   };
 
-  /** Открывает окно уточнения данных клиента и параметров перед формированием договора. */
+  /** Данные для договора из карточки клиента, заказа и сохраненных параметров договора. */
+  const buildPromptData = (): ContractPromptData => ({
+    clientId: selectedClient?.id || 0,
+    isLegal: selectedClient?.clientType === 'LEGAL_ENTITY',
+    name: currentOrder?.clientName || selectedClient?.name || '',
+    phone: currentOrder?.clientPhone || selectedClient?.phone || '',
+    secondPhone: contractParams.secondPhone || (isValidPhone(selectedClient?.whatsapp) ? formatPhone(selectedClient?.whatsapp) : ''),
+    birthDate: selectedClient?.birthDate || '',
+    passportSeriesNumber: selectedClient?.passportSeriesNumber || '',
+    passportIssuedBy: selectedClient?.passportIssuedBy || '',
+    passportIssuedDate: selectedClient?.passportIssuedDate || '',
+    passportDepartmentCode: selectedClient?.passportDepartmentCode || '',
+    registrationAddress: selectedClient?.registrationAddress || '',
+    installationAddress: formData.address || '',
+    area: contractParams.area || EMPTY_PROMPT.area,
+    perimeter: contractParams.perimeter || EMPTY_PROMPT.perimeter,
+    canvasesCount: contractParams.canvasesCount || EMPTY_PROMPT.canvasesCount,
+    insertLength: contractParams.insertLength || EMPTY_PROMPT.insertLength,
+    pipeCount: contractParams.pipeCount || EMPTY_PROMPT.pipeCount,
+    lightsCount: contractParams.lightsCount || EMPTY_PROMPT.lightsCount,
+    timberLength: contractParams.timberLength || EMPTY_PROMPT.timberLength,
+    canvasArticle: contractParams.canvasArticle || EMPTY_PROMPT.canvasArticle,
+    discount: contractParams.discount || '',
+    handoverDate: contractParams.handoverDate || ''
+  });
+
+  /**
+   * Сохраняет параметры договора в заказ и скачивает договор; при {@code saveClient} сначала обновляет клиента
+   * данными из окна (паспорт — только у физлица).
+   */
+  const generate = async (data: ContractPromptData, saveClient: boolean) => {
+    if (!orderId) {
+      return;
+    }
+    setPromptLoading(true);
+    try {
+      const client = saveClient ? clients.find(c => c.id === data.clientId) : undefined;
+      if (client) {
+        await updateClient(client.id, clientUpdateFromPrompt(client, data));
+      }
+
+      const updatedParams: ContractParams = {
+        ...contractParams,
+        secondPhone: data.secondPhone,
+        area: data.area,
+        perimeter: data.perimeter,
+        canvasesCount: data.canvasesCount,
+        insertLength: data.insertLength,
+        pipeCount: data.pipeCount,
+        lightsCount: data.lightsCount,
+        timberLength: data.timberLength,
+        canvasArticle: data.canvasArticle,
+        discount: data.discount,
+        handoverDate: dateForSave(data.handoverDate)
+      };
+
+      await updateOrder(orderId, buildContractOrderPayload(formData, currentOrder, updatedParams, data.installationAddress));
+      setFormData(prev => ({
+        ...prev,
+        address: data.installationAddress || prev.address,
+        contractParams: updatedParams
+      }));
+
+      downloadBlob(await downloadContractDocx(orderId), `Договор_Заказ_${orderId}.docx`);
+      toast.success('Договор (Word) успешно сформирован и скачан');
+      setIsPromptOpen(false);
+    } catch (err) {
+      console.error('Failed to generate docx', err);
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Ошибка генерации договора');
+    } finally {
+      setPromptLoading(false);
+    }
+  };
+
+  /**
+   * Формирует договор сразу, если в карточке клиента и заказе есть все обязательные данные;
+   * иначе открывает окно, чтобы дозаполнить их.
+   */
   const startGenerate = () => {
     if (!orderId) {
       toast.warning('Сначала сохраните заказ, чтобы сформировать договор');
       return;
     }
-    setPromptData({
-      clientId: selectedClient?.id || 0,
-      isLegal: selectedClient?.clientType === 'LEGAL_ENTITY',
-      name: currentOrder?.clientName || selectedClient?.name || '',
-      phone: currentOrder?.clientPhone || selectedClient?.phone || '',
-      secondPhone: isValidPhone(selectedClient?.whatsapp) ? formatPhone(selectedClient?.whatsapp) : '',
-      birthDate: selectedClient?.birthDate || '',
-      passportSeriesNumber: selectedClient?.passportSeriesNumber || '',
-      passportIssuedBy: selectedClient?.passportIssuedBy || '',
-      passportIssuedDate: selectedClient?.passportIssuedDate || '',
-      passportDepartmentCode: selectedClient?.passportDepartmentCode || '',
-      registrationAddress: selectedClient?.registrationAddress || '',
-      installationAddress: formData.address || '',
-      area: contractParams.area || EMPTY_PROMPT.area,
-      perimeter: contractParams.perimeter || EMPTY_PROMPT.perimeter,
-      canvasesCount: contractParams.canvasesCount || EMPTY_PROMPT.canvasesCount,
-      insertLength: contractParams.insertLength || EMPTY_PROMPT.insertLength,
-      pipeCount: contractParams.pipeCount || EMPTY_PROMPT.pipeCount,
-      lightsCount: contractParams.lightsCount || EMPTY_PROMPT.lightsCount,
-      timberLength: contractParams.timberLength || EMPTY_PROMPT.timberLength,
-      canvasArticle: contractParams.canvasArticle || EMPTY_PROMPT.canvasArticle,
-      discount: contractParams.discount || '',
-      handoverDate: contractParams.handoverDate || ''
-    });
+    const data = buildPromptData();
+    if (isPromptComplete(data)) {
+      void generate(data, false);
+      return;
+    }
+    setPromptData(data);
     setIsPromptOpen(true);
   };
 
@@ -228,51 +301,10 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
     }));
   };
 
-  /**
-   * Сохраняет данные клиента (паспорт — только у физлица) и параметры договора в заказ, затем скачивает сформированный договор.
-   */
+  /** Отправка окна: сохраняет введенные данные клиента и формирует договор. */
   const submitGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orderId) {
-      return;
-    }
-    setPromptLoading(true);
-    try {
-      const client = clients.find(c => c.id === promptData.clientId);
-      if (client) {
-        await updateClient(client.id, clientUpdateFromPrompt(client, promptData));
-      }
-
-      const updatedParams: ContractParams = {
-        ...contractParams,
-        area: promptData.area,
-        perimeter: promptData.perimeter,
-        canvasesCount: promptData.canvasesCount,
-        insertLength: promptData.insertLength,
-        pipeCount: promptData.pipeCount,
-        lightsCount: promptData.lightsCount,
-        timberLength: promptData.timberLength,
-        canvasArticle: promptData.canvasArticle,
-        discount: promptData.discount,
-        handoverDate: dateForSave(promptData.handoverDate)
-      };
-
-      await updateOrder(orderId, buildContractOrderPayload(formData, currentOrder, updatedParams, promptData.installationAddress));
-      setFormData(prev => ({
-        ...prev,
-        address: promptData.installationAddress || prev.address,
-        contractParams: updatedParams
-      }));
-
-      downloadBlob(await downloadContractDocx(orderId), `Договор_Заказ_${orderId}.docx`);
-      toast.success('Договор (Word) успешно сформирован и скачан');
-      setIsPromptOpen(false);
-    } catch (err) {
-      console.error('Failed to generate docx', err);
-      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Ошибка генерации договора');
-    } finally {
-      setPromptLoading(false);
-    }
+    await generate(promptData, true);
   };
 
   return {
