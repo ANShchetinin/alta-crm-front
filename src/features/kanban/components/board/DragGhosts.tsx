@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { GripVertical } from 'lucide-react';
 import type { Order, OrderStatus } from '../../../../api/kanban';
 import type { TouchDragGhostData } from '../../../../hooks/useTouchKanbanDrag';
+import { formatRub } from '../../../../utils/money';
 
 type Point = { x: number; y: number } | null;
 
@@ -29,7 +30,7 @@ export const CardDragGhost = ({ card, position, ghost }: { card: Order | null; p
         )}
         {card.totalPrice && (
           <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#16a34a' }}>
-            {card.totalPrice.toLocaleString('ru-RU')} ₽
+            {formatRub(card.totalPrice)}
           </div>
         )}
       </div>
