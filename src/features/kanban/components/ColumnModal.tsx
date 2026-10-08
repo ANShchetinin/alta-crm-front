@@ -55,7 +55,7 @@ export const ColumnModal: React.FC<ColumnModalProps> = ({
             <X size={20} />
           </button>
         </div>
-        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        <form onSubmit={onSubmit} className="modal-form">
           <div className="modal-body">
             <div className="form-group">
               <label>{t('kanban.columnName')}</label>

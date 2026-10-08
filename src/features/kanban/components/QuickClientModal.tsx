@@ -93,7 +93,7 @@ export const QuickClientModal: React.FC<QuickClientModalProps> = ({
             e.stopPropagation();
             onSubmit(e);
           }}
-          style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+          className="modal-form"
         >
           <div className="modal-body">
             {/* Type toggle */}

@@ -34,7 +34,7 @@ export const ExpenseModal = ({ isEditing, form, onChange, orders, onSave, onClos
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="modal-form">
           <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div className="form-group">
               <label>Название / Назначение платежа *</label>
