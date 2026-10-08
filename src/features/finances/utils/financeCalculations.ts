@@ -21,7 +21,9 @@ export interface CashMetrics {
   completedInstallationsCost: number;
   materialsCost: number;
   totalExpenses: number;
-  /** Затраты периода: материалы и монтаж завершенных заказов плюс расходы компании. */
+  /** Расходы на ИИ (распознавание речи, ассистент) за период, в целых рублях (точная сумма — во вкладке ИИ). */
+  aiCosts: number;
+  /** Затраты периода: материалы и монтаж завершенных заказов, расходы компании и расходы на ИИ. */
   totalCosts: number;
   /** Прибыль периода: выручка завершенных заказов минус {@link totalCosts}. */
   profit: number;
@@ -98,15 +100,16 @@ export const filterFinanceOrders = (orders: Order[], statuses: OrderStatus[]): O
 };
 
 /**
- * Показатели раздела «Финансы». Прибыль — по завершенным в периоде заказам: их выручка минус материалы, монтаж
- * и расходы компании за период. Справочно: приход денег — по датам оплат, дебиторка — все неоплаченные суммы
+ * Показатели раздела «Финансы». Прибыль — по завершенным в периоде заказам: их выручка минус материалы, монтаж,
+ * расходы компании и расходы на ИИ за период ({@code aiCosts} — сумма за тот же период с сервера). Справочно: приход денег — по датам оплат, дебиторка — все неоплаченные суммы
  * независимо от периода.
  */
 export const calculateCashMetrics = (
   orders: Order[],
   expenses: Expense[],
   range: DateRange,
-  isCompleted: (order: Order) => boolean
+  isCompleted: (order: Order) => boolean,
+  aiCosts = 0
 ): CashMetrics => {
   let receivedPrepayments = 0;
   let receivedRemainders = 0;
@@ -146,7 +149,8 @@ export const calculateCashMetrics = (
     .filter(expense => isDateInRange(expense.expenseDate, range))
     .reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
-  const totalCosts = totalExpenses + completedInstallationsCost + materialsCost;
+  const roundedAiCosts = Math.round(aiCosts);
+  const totalCosts = totalExpenses + roundedAiCosts + completedInstallationsCost + materialsCost;
 
   return {
     receivedPrepayments,
@@ -157,6 +161,7 @@ export const calculateCashMetrics = (
     completedInstallationsCost,
     materialsCost,
     totalExpenses,
+    aiCosts: roundedAiCosts,
     totalCosts,
     profit: completedRevenue - totalCosts
   };

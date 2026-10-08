@@ -109,6 +109,18 @@ describe('calculateCashMetrics', () => {
     expect(metrics.profit).toBe(560);
   });
 
+  it('counts AI costs of the period as costs and reduces the profit', () => {
+    const orders = [
+      order(1, { totalPrice: 1000, installationPrice: 100, materialsCost: 300, installedAt: '2026-09-10T10:00:00', prepaymentPaid: true, remainderPaid: true })
+    ];
+
+    const metrics = calculateCashMetrics(orders, [], SEPTEMBER, completedWhen(1), 25.5);
+
+    expect(metrics.aiCosts).toBe(26);
+    expect(metrics.totalCosts).toBe(426);
+    expect(metrics.profit).toBe(574);
+  });
+
   it('does not count advances of unfinished orders as profit', () => {
     const orders = [
       order(1, { totalPrice: 1000, prepayment: 500, prepaymentPaid: true, prepaymentPaidAt: '2026-09-05T10:00:00', materialsCost: 300 })

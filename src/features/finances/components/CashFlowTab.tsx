@@ -20,12 +20,14 @@ export const CashFlowTab = ({ metrics }: { metrics: CashMetrics }) => {
     { key: 'materials', color: '#f59e0b', value: metrics.materialsCost, title: 'Материалы' },
     { key: 'installation', color: '#60a5fa', value: metrics.completedInstallationsCost, title: 'Монтаж' },
     { key: 'expenses', color: '#ef4444', value: metrics.totalExpenses, title: 'Расходы компании' },
+    { key: 'ai', color: '#c084fc', value: metrics.aiCosts, title: 'Расходы на ИИ' },
     { key: 'profit', color: '#4ade80', value: Math.max(0, metrics.profit), title: 'Прибыль' }
   ];
   const legend = [
     { color: '#f59e0b', label: 'Себестоимость материалов', value: metrics.materialsCost },
     { color: '#60a5fa', label: 'Оплата монтажных работ', value: metrics.completedInstallationsCost },
     { color: '#ef4444', label: 'Прочие расходы компании', value: metrics.totalExpenses },
+    { color: '#c084fc', label: 'Расходы на ИИ', value: metrics.aiCosts },
     { color: '#4ade80', label: 'Прибыль', value: metrics.profit }
   ];
 
@@ -36,7 +38,7 @@ export const CashFlowTab = ({ metrics }: { metrics: CashMetrics }) => {
           <PieChart size={20} style={{ color: 'var(--accent-primary)' }} /> Прибыль за период
         </h3>
         <p style={{ margin: '0 0 16px 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          По заказам, завершённым в выбранном периоде: их выручка минус материалы и монтаж, а также расходы компании за период.
+          По заказам, завершённым в выбранном периоде: их выручка минус материалы и монтаж, а также расходы компании и расходы на ИИ за период.
         </p>
 
         <div style={{ marginBottom: '20px' }}>
@@ -87,9 +89,13 @@ export const CashFlowTab = ({ metrics }: { metrics: CashMetrics }) => {
                 <td style={{ padding: '4px 0 4px 16px' }}>— Вознаграждение монтажникам</td>
                 <td style={{ textAlign: 'right' }}>−{rub(metrics.completedInstallationsCost)}</td>
               </tr>
-              <tr style={{ ...SUB_ROW, borderBottom: ROW_BORDER }}>
-                <td style={{ padding: '4px 0 8px 16px' }}>— Расходы компании за период</td>
+              <tr style={SUB_ROW}>
+                <td style={{ padding: '4px 0 4px 16px' }}>— Расходы компании за период</td>
                 <td style={{ textAlign: 'right' }}>−{rub(metrics.totalExpenses)}</td>
+              </tr>
+              <tr style={{ ...SUB_ROW, borderBottom: ROW_BORDER }}>
+                <td style={{ padding: '4px 0 8px 16px' }}>— Расходы на ИИ за период</td>
+                <td style={{ textAlign: 'right' }}>−{rub(metrics.aiCosts)}</td>
               </tr>
 
               <tr style={{ background: 'rgba(255, 255, 255, 0.03)' }}>

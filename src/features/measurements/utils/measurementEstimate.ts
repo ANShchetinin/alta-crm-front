@@ -318,7 +318,8 @@ export const estimateTotals = (items: MeasurementCalculationItemDto[], rooms: Me
   const installationPrice = items
     .filter(it => it.type === 'SERVICE')
     .reduce((sum, it) => sum + (it.totalSalePrice || 0), 0);
-  const profit = totalSalePrice - materialsCost - installationPrice;
+  // Прибыль — в целых рублях, как в карточке заявки и на бэкенде
+  const profit = Math.round(totalSalePrice - materialsCost - installationPrice);
   return {
     totalSalePrice,
     totalCostPrice,

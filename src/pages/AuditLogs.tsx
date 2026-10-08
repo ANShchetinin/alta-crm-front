@@ -23,6 +23,8 @@ const ENTITY_LABELS: Record<AuditEntityType, string> = {
   EXPENSE: 'Расход',
   MATERIAL: 'Склад',
   AUTH: 'Безопасность',
+  SITE_REQUEST: 'Заявка с сайта',
+  ORDER_STAGE: 'Этап воронки',
 };
 
 type AuditPeriod = 'today' | '7days' | '30days' | 'all';
@@ -197,6 +199,9 @@ export const AuditLogs: React.FC = () => {
             <option value="TENANT_SETTINGS_CHANGED">Настройки компании</option>
             <option value="CONTRACT_TEMPLATE_UPLOADED">Загрузка шаблона</option>
             <option value="CONTRACT_TEMPLATE_DELETED">Удаление шаблона</option>
+            <option value="ORDER_STAGE_CREATED">Добавление этапа воронки</option>
+            <option value="ORDER_STAGE_UPDATED">Изменение этапа воронки</option>
+            <option value="ORDER_STAGE_DELETED">Удаление этапа воронки</option>
           </select>
 
           <div className="audit-period-pills">
