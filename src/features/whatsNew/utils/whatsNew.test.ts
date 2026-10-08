@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import packageJson from '../../../../package.json';
-import { RELEASES, type Release } from '../releases';
+import { MAX_RELEASES, RELEASES, type Release } from '../releases';
 import { compareVersions, formatReleaseDate, getReleasesForRole, isReleaseUnseen } from './whatsNew';
 
 const releases: Release[] = [
@@ -65,6 +65,10 @@ describe('RELEASES', () => {
         expect(change.description.trim()).not.toBe('');
       });
     });
+  });
+
+  it('keep only the latest releases: remove the oldest entry when adding a new one', () => {
+    expect(RELEASES.length).toBeLessThanOrEqual(MAX_RELEASES);
   });
 
   it('describe the current app version: add an entry when bumping the version', () => {
