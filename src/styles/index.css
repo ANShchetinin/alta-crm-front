@@ -582,6 +582,7 @@ body.light-theme {
   position: fixed !important;
   inset: 0 !important;
   width: 100vw !important;
+  height: 100vh !important;
   height: 100dvh !important;
   background: rgba(0, 0, 0, 0.75) !important;
   backdrop-filter: blur(8px) !important;
@@ -629,6 +630,7 @@ body.light-theme {
   right: 0 !important;
   bottom: 0 !important;
   width: 100vw !important;
+  height: 100vh !important;
   height: 100dvh !important;
   background: rgba(0, 0, 0, 0.75) !important;
   backdrop-filter: blur(8px) !important;
@@ -649,12 +651,25 @@ body.light-theme {
   width: 100% !important;
   max-width: 520px !important;
   max-height: 90vh !important;
+  /* Видимая высота экрана (PWA, клавиатура); браузеры без dvh остаются на 90vh */
+  max-height: 90dvh !important;
   display: flex !important;
   flex-direction: column !important;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
   position: relative !important;
-  overflow: hidden !important;
+  /* Страховка: окно без своей прокручиваемой области (.modal-body) прокручивается целиком, а не обрезается */
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
   box-sizing: border-box !important;
+}
+
+/* Форма внутри окна — гибкая колонка: прокручиваются поля (.modal-body), кнопки (.modal-actions) всегда видны внизу */
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .modal-header {

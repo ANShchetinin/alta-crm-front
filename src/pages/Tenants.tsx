@@ -401,70 +401,72 @@ export const Tenants = () => {
         <div className="modal-overlay">
           <div className="modal-content">
             <h2>Добавить компанию</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Название компании</label>
-                <input 
-                  type="text" 
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  placeholder="Например, ООО Вектор"
-                />
-              </div>
-              
-              <h3 style={{ marginTop: '1.5rem', marginBottom: '1rem', fontSize: '1rem' }}>Первый пользователь (Владелец)</h3>
-              
-              <div className="form-group" style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label>Имя владельца</label>
+            <form onSubmit={handleSubmit} className="modal-form">
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Название компании</label>
                   <input 
                     type="text" 
-                    value={formData.ownerFirstName}
-                    onChange={(e) => setFormData({...formData, ownerFirstName: e.target.value})}
-                    placeholder="Иван"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    placeholder="Например, ООО Вектор"
                   />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label>Фамилия владельца</label>
-                  <input 
-                    type="text" 
-                    value={formData.ownerLastName}
-                    onChange={(e) => setFormData({...formData, ownerLastName: e.target.value})}
-                    placeholder="Иванов"
-                  />
-                </div>
-              </div>
               
-              <div className="form-group">
-                <label>Email владельца</label>
-                <input 
-                  type="email" 
-                  required
-                  value={formData.ownerEmail}
-                  onChange={(e) => setFormData({...formData, ownerEmail: e.target.value})}
-                  placeholder="owner@company.com"
-                />
-              </div>
-              <div className="form-group" style={{ position: 'relative' }}>
-                <label>Пароль владельца</label>
-                <input 
-                  type={showOwnerPassword ? 'text' : 'password'} 
-                  required
-                  value={formData.ownerPassword}
-                  onChange={(e) => setFormData({...formData, ownerPassword: e.target.value})}
-                  placeholder="Минимум 6 символов"
-                  minLength={6}
-                  style={{ paddingRight: '40px' }}
-                />
-                <button 
-                  type="button"
-                  className="btn-icon"
-                  style={{ position: 'absolute', right: '12px', top: '38px', opacity: 0.5 }}
-                  onClick={() => setShowOwnerPassword(!showOwnerPassword)}
-                >
-                  {showOwnerPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+                <h3 style={{ marginTop: '1.5rem', marginBottom: '1rem', fontSize: '1rem' }}>Первый пользователь (Владелец)</h3>
+              
+                <div className="form-group" style={{ display: 'flex', gap: '16px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label>Имя владельца</label>
+                    <input 
+                      type="text" 
+                      value={formData.ownerFirstName}
+                      onChange={(e) => setFormData({...formData, ownerFirstName: e.target.value})}
+                      placeholder="Иван"
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label>Фамилия владельца</label>
+                    <input 
+                      type="text" 
+                      value={formData.ownerLastName}
+                      onChange={(e) => setFormData({...formData, ownerLastName: e.target.value})}
+                      placeholder="Иванов"
+                    />
+                  </div>
+                </div>
+              
+                <div className="form-group">
+                  <label>Email владельца</label>
+                  <input 
+                    type="email" 
+                    required
+                    value={formData.ownerEmail}
+                    onChange={(e) => setFormData({...formData, ownerEmail: e.target.value})}
+                    placeholder="owner@company.com"
+                  />
+                </div>
+                <div className="form-group" style={{ position: 'relative' }}>
+                  <label>Пароль владельца</label>
+                  <input 
+                    type={showOwnerPassword ? 'text' : 'password'} 
+                    required
+                    value={formData.ownerPassword}
+                    onChange={(e) => setFormData({...formData, ownerPassword: e.target.value})}
+                    placeholder="Минимум 6 символов"
+                    minLength={6}
+                    style={{ paddingRight: '40px' }}
+                  />
+                  <button 
+                    type="button"
+                    className="btn-icon"
+                    style={{ position: 'absolute', right: '12px', top: '38px', opacity: 0.5 }}
+                    onClick={() => setShowOwnerPassword(!showOwnerPassword)}
+                  >
+                    {showOwnerPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
               <div className="modal-actions" style={{ marginTop: '2rem' }}>
                 <button 
@@ -492,17 +494,19 @@ export const Tenants = () => {
               Владелец: <strong>{[addCompanyForOwner.firstName, addCompanyForOwner.lastName].filter(Boolean).join(' ') || addCompanyForOwner.email}</strong> ({addCompanyForOwner.email})
             </p>
 
-            <form onSubmit={handleCreateCompanyForOwner}>
-              <div className="form-group">
-                <label>Название новой компании <span style={{ color: 'var(--danger)' }}>*</span></label>
-                <input
-                  type="text"
-                  required
-                  autoFocus
-                  placeholder="Например: Потолки Премиум Филиал"
-                  value={newCompanyNameForOwner}
-                  onChange={(e) => setNewCompanyNameForOwner(e.target.value)}
-                />
+            <form onSubmit={handleCreateCompanyForOwner} className="modal-form">
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Название новой компании <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    placeholder="Например: Потолки Премиум Филиал"
+                    value={newCompanyNameForOwner}
+                    onChange={(e) => setNewCompanyNameForOwner(e.target.value)}
+                  />
+                </div>
               </div>
 
               <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
