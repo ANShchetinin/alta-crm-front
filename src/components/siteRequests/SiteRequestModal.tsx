@@ -128,7 +128,7 @@ export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <form onSubmit={handleSave} className="modal-form">
           {/* Scrollable body */}
           <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Source info bar */}

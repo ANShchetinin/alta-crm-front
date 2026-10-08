@@ -147,7 +147,9 @@ export const Sheet: React.FC<SheetProps> = ({
           z-index: 2;
           width: 100%;
           height: 100vh;
+          height: 100dvh;
           max-height: 100vh;
+          max-height: 100dvh;
           background-color: var(--bg-secondary, #ffffff);
           color: var(--text-primary, #0f172a);
           display: flex;
@@ -258,6 +260,7 @@ export const Sheet: React.FC<SheetProps> = ({
             max-width: 100% !important;
             height: auto !important;
             max-height: 92vh !important;
+            max-height: 92dvh !important;
             border-left: none !important;
             border-top: 1px solid var(--glass-border, #e2e8f0) !important;
             border-radius: 16px 16px 0 0 !important;

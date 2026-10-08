@@ -78,8 +78,8 @@ export const ContractPromptModal: React.FC<ContractPromptModalProps> = ({
             <X size={20} />
           </button>
         </div>
-        <form onSubmit={onSubmit}>
-          <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto', padding: '16px 20px' }}>
+        <form onSubmit={onSubmit} className="modal-form">
+          <div className="modal-body" style={{ padding: '16px 20px' }}>
             <div style={{
               background: 'rgba(59, 130, 246, 0.08)',
               border: '1px solid rgba(59, 130, 246, 0.25)',
