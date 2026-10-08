@@ -5,7 +5,7 @@ import type { Client } from '../../../../api/clients';
 import type { Employee } from '../../../../api/employees';
 import type { OrderReminderDto } from '../../../../api/reminders';
 import { getClientInitials } from '../../../../utils/avatarUtils';
-import { isCompletedStatus } from '../../../../utils/orderStatus';
+import { isActRequired, isCompletedStatus, isInstallationStage } from '../../../../utils/orderStatus';
 import { formatClientNameLines, isActFile } from '../../constants';
 import { reminderStateOf, type CardDropPosition } from '../../utils/board';
 import {
@@ -65,8 +65,9 @@ export const KanbanCard = ({ card, clients, employees, columns, reminders, drag,
   const installerAvatarUrl = leadInstaller?.employeeAvatarUrl || card.installedByAvatarUrl || installerEmployee?.avatarUrl;
 
   const reminderState = reminderStateOf(reminders);
-  const isCompleted = isCompletedStatus(columns.find(c => c.id === card.statusId));
-  const hasAct = (card.attachments || []).some(a => isActFile(a.fileName, a.isAct));
+  const status = columns.find(c => c.id === card.statusId);
+  const isCompleted = isCompletedStatus(status);
+  const actMissing = isActRequired(card.orderNumber) && !(card.attachments || []).some(a => isActFile(a.fileName, a.isAct));
   const isTouchTarget = drag.touchTargetCardId === card.id && drag.touchDraggingCardId !== card.id;
   const clientNameLines = formatClientNameLines(clientName);
 
@@ -169,9 +170,10 @@ export const KanbanCard = ({ card, clients, employees, columns, reminders, drag,
 
         <CardCompletion
           isCompleted={isCompleted}
+          showButton={isInstallationStage(status, columns)}
           installedAt={card.installedAt}
           installerName={installerName}
-          hasAct={hasAct}
+          actMissing={actMissing}
           onComplete={(e) => onComplete(e, card.id)}
         />
       </div>

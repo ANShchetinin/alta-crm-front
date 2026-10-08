@@ -49,7 +49,7 @@ export const ActUploadCard: React.FC<ActUploadCardProps> = ({ attachments, files
               Акт выполненных работ
             </div>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-              {hasAct ? 'Подписанный Акт прикреплен к заказу' : 'Обязателен для возможности завершения монтажа'}
+              {hasAct ? 'Подписанный Акт прикреплен к заказу' : 'Обязателен для завершения заявки с договором'}
             </div>
           </div>
         </div>

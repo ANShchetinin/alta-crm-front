@@ -1,45 +1,50 @@
 import React from 'react';
 import { Check, CheckCircle2, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { completionLabel } from '../../../../utils/orderStatus';
 
 interface OrderDrawerFooterProps {
   orderId: number | null;
   isDirty: boolean;
   isWorker: boolean;
   isCompleted: boolean;
+  /** Кнопка «Завершить монтаж» — только на этапе монтажа. */
+  showComplete: boolean;
   hasInstaller: boolean;
-  hasAct: boolean;
+  /** По договору не прикреплен акт. */
+  actMissing: boolean;
   onCancel: () => void;
   onDelete: () => void;
   onComplete: (e: React.MouseEvent, orderId: number) => void;
 }
 
-const completeHint = (hasInstaller: boolean, hasAct: boolean): string => {
+const completeHint = (hasInstaller: boolean, actMissing: boolean): string => {
   if (!hasInstaller) {
     return 'Для завершения монтажа необходимо выбрать монтажника';
   }
-  if (!hasAct) {
-    return 'Для завершения монтажа необходимо прикрепить Акт во вкладке «Файлы»';
+  if (actMissing) {
+    return 'По договору для завершения необходимо прикрепить Акт во вкладке «Файлы»';
   }
   return 'Завершить монтаж и перевести заказ в статус «Завершен»';
 };
 
 /**
- * Подвал шторки: сохранение/отмена изменений, удаление заказа и завершение монтажа (нужны монтажник и Акт).
+ * Подвал шторки: сохранение/отмена изменений, удаление заказа и завершение монтажа (нужен монтажник, по договору — и Акт).
  */
 export const OrderDrawerFooter: React.FC<OrderDrawerFooterProps> = ({
   orderId,
   isDirty,
   isWorker,
   isCompleted,
+  showComplete,
   hasInstaller,
-  hasAct,
+  actMissing,
   onCancel,
   onDelete,
   onComplete
 }) => {
   const { t } = useTranslation();
-  const canComplete = hasInstaller && hasAct;
+  const canComplete = hasInstaller && !actMissing;
 
   return (
     <div className="order-drawer-footer">
@@ -87,9 +92,9 @@ export const OrderDrawerFooter: React.FC<OrderDrawerFooterProps> = ({
               borderRadius: 'var(--radius-sm)',
               border: '1px solid rgba(34, 197, 94, 0.25)'
             }}>
-              <CheckCircle2 size={16} /> Монтаж завершен
+              <CheckCircle2 size={16} /> {completionLabel(hasInstaller)}
             </div>
-          ) : (
+          ) : showComplete && (
             <button
               type="button"
               disabled={!canComplete}
@@ -107,7 +112,7 @@ export const OrderDrawerFooter: React.FC<OrderDrawerFooterProps> = ({
                 cursor: canComplete ? 'pointer' : 'not-allowed',
                 opacity: canComplete ? 1 : 0.45
               }}
-              title={completeHint(hasInstaller, hasAct)}
+              title={completeHint(hasInstaller, actMissing)}
             >
               <CheckCircle2 size={16} /> Завершить монтаж
             </button>

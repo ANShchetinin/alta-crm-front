@@ -25,6 +25,7 @@ export const useColumnEditor = (columnsCount: number, onChanged: () => void) => 
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [includeInFinances, setIncludeInFinances] = useState(true);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isInstallation, setIsInstallation] = useState(false);
 
   const fillForm = (column: OrderStatus | null) => {
     setEditingColumnId(column?.id ?? null);
@@ -32,6 +33,7 @@ export const useColumnEditor = (columnsCount: number, onChanged: () => void) => 
     setColor(column?.color || DEFAULT_COLOR);
     setIncludeInFinances(column ? column.includeInFinances !== false : true);
     setIsCompleted(Boolean(column?.isCompleted));
+    setIsInstallation(Boolean(column?.isInstallation));
   };
 
   const openAdd = () => {
@@ -50,10 +52,10 @@ export const useColumnEditor = (columnsCount: number, onChanged: () => void) => 
     e.preventDefault();
     try {
       if (editingColumnId) {
-        await updateMutation.mutateAsync({ id: editingColumnId, data: { name, color, includeInFinances, isCompleted } });
+        await updateMutation.mutateAsync({ id: editingColumnId, data: { name, color, includeInFinances, isCompleted, isInstallation } });
         toast.success('Этап обновлен');
       } else {
-        await createMutation.mutateAsync({ name, color, sortOrder: columnsCount + 1, includeInFinances, isCompleted });
+        await createMutation.mutateAsync({ name, color, sortOrder: columnsCount + 1, includeInFinances, isCompleted, isInstallation });
         toast.success('Этап добавлен');
       }
       setIsOpen(false);
@@ -97,6 +99,8 @@ export const useColumnEditor = (columnsCount: number, onChanged: () => void) => 
       setIncludeInFinances,
       isCompleted,
       setIsCompleted,
+      isInstallation,
+      setIsInstallation,
       onClose: close,
       onSubmit: save
     },

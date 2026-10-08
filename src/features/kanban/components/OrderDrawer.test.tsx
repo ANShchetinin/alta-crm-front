@@ -249,18 +249,29 @@ describe('OrderDrawer', () => {
     expect(vi.mocked(kanbanApi.updateOrder).mock.calls[0][1].installedAt).toEqual(expect.any(String));
   });
 
-  it('does not complete the order from the card without an act, like the board', async () => {
+  it('does not complete an order with a contract without an act, like the board', async () => {
     const warning = vi.spyOn(toast, 'warning');
-    await renderOpenOrder();
+    await renderOpenOrder({ ...baseOrder, orderNumber: 'Д-5/26' });
 
     fireEvent.change(screen.getByTitle('Статус заказа'), { target: { value: '3' } });
     fireEvent.click(await screen.findByRole('button', { name: /Сохранить/ }));
 
     await waitFor(() => expect(warning).toHaveBeenCalledWith(
-      'Для перевода заявки в «Сдан» прикрепите Акт выполненных работ во вкладке «Файлы».'
+      'Для перевода заявки с договором в «Сдан» прикрепите Акт выполненных работ во вкладке «Файлы».'
     ));
     expect(kanbanApi.updateOrder).not.toHaveBeenCalled();
     expect(screen.getByText('Акт выполненных работ')).toBeInTheDocument();
+  });
+
+  it('completes an order without a contract without an act', async () => {
+    vi.mocked(kanbanApi.updateOrder).mockResolvedValue({ ...baseOrder, statusId: 3 });
+    await renderOpenOrder();
+
+    expect(screen.queryByText('Акт выполненных работ не прикреплен')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByTitle('Статус заказа'), { target: { value: '3' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Сохранить/ }));
+
+    await waitFor(() => expect(kanbanApi.updateOrder).toHaveBeenCalledTimes(1));
   });
 
   it('does not treat a status as completed by its name when the flag says otherwise', async () => {

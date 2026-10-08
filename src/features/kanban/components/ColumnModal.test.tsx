@@ -16,6 +16,8 @@ describe('ColumnModal', () => {
         setIncludeInFinances={() => {}}
         isCompleted={false}
         setIsCompleted={() => {}}
+        isInstallation={false}
+        setIsInstallation={() => {}}
         onClose={() => {}}
         onSubmit={() => {}}
       />
@@ -27,6 +29,7 @@ describe('ColumnModal', () => {
     const handleSetColumnName = vi.fn();
     const handleSetColor = vi.fn();
     const handleClose = vi.fn();
+    const handleSetInstallation = vi.fn();
     const handleSubmit = vi.fn((e) => e.preventDefault());
 
     const { container } = render(
@@ -41,6 +44,8 @@ describe('ColumnModal', () => {
         setIncludeInFinances={() => {}}
         isCompleted={false}
         setIsCompleted={() => {}}
+        isInstallation={false}
+        setIsInstallation={handleSetInstallation}
         onClose={handleClose}
         onSubmit={handleSubmit}
       />
@@ -55,6 +60,9 @@ describe('ColumnModal', () => {
       fireEvent.submit(form);
       expect(handleSubmit).toHaveBeenCalled();
     }
+
+    fireEvent.click(screen.getByText('Этап монтажа'));
+    expect(handleSetInstallation).toHaveBeenCalledWith(true);
 
     const closeBtn = screen.getByLabelText('Close');
     fireEvent.click(closeBtn);
