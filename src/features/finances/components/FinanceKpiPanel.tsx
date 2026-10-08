@@ -83,8 +83,8 @@ export const FinanceKpiPanel = ({ metrics, expensesCount }: FinanceKpiPanelProps
           icon={ArrowUpRight}
           color="#ef4444"
           rgb="239, 68, 68"
-          value={rub(metrics.totalExpenses)}
-          hint={`Аренда, маркетинг, доставка и прочее (${expensesCount} записей)`}
+          value={rub(metrics.totalExpenses + metrics.aiCosts)}
+          hint={`Аренда, маркетинг, доставка и прочее (${expensesCount} записей) • ИИ: ${rub(metrics.aiCosts)}`}
         />
         <KpiCard
           label="Начислено монтажникам"

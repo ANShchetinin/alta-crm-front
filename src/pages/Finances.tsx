@@ -55,9 +55,10 @@ export const Finances = () => {
     [statuses]
   );
   const financeOrders = useMemo(() => filterFinanceOrders(orders, statuses), [orders, statuses]);
+  const aiCosts = aiUsage.summary?.totalCostRubles ?? 0;
   const metrics = useMemo(
-    () => calculateCashMetrics(financeOrders, expenses, range, isOrderCompleted),
-    [financeOrders, expenses, range, isOrderCompleted]
+    () => calculateCashMetrics(financeOrders, expenses, range, isOrderCompleted, aiCosts),
+    [financeOrders, expenses, range, isOrderCompleted, aiCosts]
   );
   const transactions = useMemo(
     () => filterTransactions(financeOrders, searchQuery, paymentFilter, range),

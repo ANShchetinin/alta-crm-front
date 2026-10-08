@@ -266,17 +266,24 @@ export interface OrderProfitability {
   marginPercent: number;
 }
 
+/** Итог заказа в форме: totalPrice, а если он пуст — аванс + остаток. */
+export const orderFormTotal = (form: OrderFormData): number =>
+  toNumber(form.totalPrice) || toNumber(form.prepayment) + toNumber(form.remainder);
+
+/** Переплата клиента: аванс больше итога (например, смета после замера оказалась меньше). Остаток при этом — 0. */
+export const orderFormOverpayment = (form: OrderFormData): number => Math.max(0, toNumber(form.prepayment) - orderFormTotal(form));
+
 /**
  * Себестоимость материалов, монтаж, прибыль и рентабельность по текущим значениям формы.
- * Итог — totalPrice, а если он пуст — аванс + остаток.
+ * Как на бэкенде: себестоимость материалов и прибыль — в целых рублях.
  */
 export const calcOrderProfitability = (form: OrderFormData): OrderProfitability => {
-  const materialsCost = form.materials
+  const materialsCost = Math.round(form.materials
     .filter(item => item.materialType !== 'SERVICE')
-    .reduce((sum, item) => sum + (item.fixedCostPrice || 0) * item.quantity, 0);
+    .reduce((sum, item) => sum + (item.fixedCostPrice || 0) * item.quantity, 0));
   const installationPrice = toNumber(form.installationPrice);
-  const total = toNumber(form.totalPrice) || toNumber(form.prepayment) + toNumber(form.remainder);
-  const profit = total - materialsCost - installationPrice;
+  const total = orderFormTotal(form);
+  const profit = Math.round(total - materialsCost - installationPrice);
   return {
     materialsCost,
     installationPrice,

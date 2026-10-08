@@ -5,6 +5,8 @@ import {
   calcOrderProfitability,
   createEmptyOrderForm,
   hasActAttachment,
+  orderFormOverpayment,
+  orderFormTotal,
   orderToFormData,
   resolveContractParams,
   specItemsFromMeasurement,
@@ -112,6 +114,26 @@ describe('orderForm', () => {
     };
 
     expect(calcOrderProfitability(form).materialsCost).toBe(3000);
+  });
+
+  it('rounds materials cost and profit to whole rubles, like the server', () => {
+    const form = {
+      ...createEmptyOrderForm(undefined),
+      totalPrice: '50000.5',
+      installationPrice: '10000.4',
+      materials: [{ materialId: 1, quantity: 1, fixedCostPrice: 1502.6 }]
+    };
+
+    expect(calcOrderProfitability(form)).toMatchObject({ materialsCost: 1503, profit: 38497 });
+  });
+
+  it('shows the order total and the client overpayment when the estimate is below the advance', () => {
+    const form = { ...createEmptyOrderForm(undefined), totalPrice: '30000', prepayment: '40000', remainder: '' };
+
+    expect(orderFormTotal(form)).toBe(30000);
+    expect(orderFormOverpayment(form)).toBe(10000);
+    expect(orderFormOverpayment({ ...form, totalPrice: '50000', remainder: '10000' })).toBe(0);
+    expect(orderFormTotal({ ...form, totalPrice: '' })).toBe(40000);
   });
 
   it('takes the saved measurement result from the reloaded order and keeps other unsaved edits', () => {

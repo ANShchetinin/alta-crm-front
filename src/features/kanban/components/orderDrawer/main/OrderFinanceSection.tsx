@@ -1,7 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { distributeInstallerAmounts } from '../../../utils/installers';
-import { calcOrderProfitability, type OrderFormData, type SetOrderFormData } from '../../../utils/orderForm';
+import {
+  calcOrderProfitability,
+  orderFormOverpayment,
+  orderFormTotal,
+  type OrderFormData,
+  type SetOrderFormData
+} from '../../../utils/orderForm';
 
 interface OrderFinanceSectionProps {
   formData: OrderFormData;
@@ -21,6 +27,7 @@ export const OrderFinanceSection: React.FC<OrderFinanceSectionProps> = ({ formDa
     profit: currentProfit,
     marginPercent: currentProfitMargin
   } = calcOrderProfitability(formData);
+  const overpayment = orderFormOverpayment(formData);
 
   return (
     <>
@@ -180,9 +187,14 @@ export const OrderFinanceSection: React.FC<OrderFinanceSectionProps> = ({ formDa
           }}>
             <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>Итого стоимость по договору:</span>
             <span style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
-              {(parseFloat(formData.prepayment || '0') + parseFloat(formData.remainder || '0')).toLocaleString('ru-RU')} ₽
+              {orderFormTotal(formData).toLocaleString('ru-RU')} ₽
             </span>
           </div>
+          {overpayment > 0 && (
+            <div className="order-overpayment-note" role="note">
+              Аванс больше суммы заказа на {overpayment.toLocaleString('ru-RU')} ₽ — переплата клиента. Остаток к оплате — 0 ₽.
+            </div>
+          )}
         </div>
 
         {/* Финансовые показатели (затраты на материалы по закупке, монтаж, прибыль, рентабельность) */}

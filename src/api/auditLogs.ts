@@ -25,7 +25,10 @@ export type AuditActionType =
   | 'EXPENSE_CREATED'
   | 'EXPENSE_DELETED'
   | 'MATERIAL_CREATED'
-  | 'MATERIAL_UPDATED';
+  | 'MATERIAL_UPDATED'
+  | 'ORDER_STAGE_CREATED'
+  | 'ORDER_STAGE_UPDATED'
+  | 'ORDER_STAGE_DELETED';
 
 export type AuditEntityType =
   | 'ORDER'
@@ -35,7 +38,9 @@ export type AuditEntityType =
   | 'CONTRACT_TEMPLATE'
   | 'EXPENSE'
   | 'MATERIAL'
-  | 'AUTH';
+  | 'AUTH'
+  | 'SITE_REQUEST'
+  | 'ORDER_STAGE';
 
 export interface AuditLogItem {
   id: number;
