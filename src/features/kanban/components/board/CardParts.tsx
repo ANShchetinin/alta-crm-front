@@ -12,6 +12,7 @@ import yandexIcon from '../../../../assets/maps/yandex.svg';
 import twoGisIcon from '../../../../assets/maps/2gis.svg';
 import { stopCardGesture } from './cardGestures';
 import { formatPhone, phoneHref } from '../../../../utils/phone';
+import { formatRub } from '../../../../utils/money';
 
 export const ContractNumberBadge = ({ orderNumber }: { orderNumber: string }) => (
   <span
@@ -218,8 +219,6 @@ export const CardSchedule = ({ card }: { card: Order }) => (
     )}
   </>
 );
-
-const formatRub = (value: number) => `${value.toLocaleString('ru-RU')} ₽`;
 
 /** Счётчики вложений и комментариев и маржа заказа; без значений не рисуется. */
 const CardMeta = ({ card, onOpenComments }: { card: Order; onOpenComments: () => void }) => {

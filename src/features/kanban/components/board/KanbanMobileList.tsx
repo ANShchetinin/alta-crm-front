@@ -1,4 +1,5 @@
 import { ArrowDownCircle, ChevronDown, ChevronsDown, ChevronsUp, GripVertical } from 'lucide-react';
+import { formatRub } from '../../../../utils/money';
 import type { BoardViewProps } from './boardViewProps';
 import { AddColumnButton } from './AddColumnButton';
 
@@ -101,7 +102,7 @@ export const KanbanMobileList = ({
                 )}
                 {columnTotal > 0 && (
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                    {columnTotal.toLocaleString('ru-RU')} ₽
+                    {formatRub(columnTotal)}
                   </span>
                 )}
                 <div style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
