@@ -14,6 +14,8 @@ export interface ColumnModalProps {
   setIncludeInFinances: (include: boolean) => void;
   isCompleted: boolean;
   setIsCompleted: (completed: boolean) => void;
+  isInstallation: boolean;
+  setIsInstallation: (installation: boolean) => void;
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
 }
@@ -34,6 +36,8 @@ export const ColumnModal: React.FC<ColumnModalProps> = ({
   setIncludeInFinances,
   isCompleted,
   setIsCompleted,
+  isInstallation,
+  setIsInstallation,
   onClose,
   onSubmit
 }) => {
@@ -167,6 +171,23 @@ export const ColumnModal: React.FC<ColumnModalProps> = ({
                   <span style={{ fontWeight: 500 }}>Статус завершения (архивировать заказы)</span>
                   <span style={{ display: 'block', fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                     Заказы в этом статусе за предыдущие месяцы будут автоматически перемещаться в раздел «Архив»
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            <div className="form-group" style={{ marginTop: '12px', marginBottom: 0 }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '0.88rem' }}>
+                <input
+                  type="checkbox"
+                  checked={isInstallation}
+                  onChange={(e) => setIsInstallation(e.target.checked)}
+                  style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)', cursor: 'pointer', marginTop: '2px', flexShrink: 0 }}
+                />
+                <div>
+                  <span style={{ fontWeight: 500 }}>Этап монтажа</span>
+                  <span style={{ display: 'block', fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    На карточках этого этапа появится кнопка «Завершить монтаж». Пока этап монтажа не отмечен, кнопка есть на всех этапах
                   </span>
                 </div>
               </label>

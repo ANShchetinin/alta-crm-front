@@ -17,7 +17,7 @@ import { useOrderDrawerStore } from '../../../store/useOrderDrawerStore';
 import { useFeature } from '../../../hooks/useFeatureToggle';
 import { MeasurementWizard } from '../../measurements/components/MeasurementWizard';
 import { PassportScannerModal, type PassportApplyResult } from '../../../components/PassportScannerModal';
-import { isCompletedStatus } from '../../../utils/orderStatus';
+import { isActRequired, isCompletedStatus, isInstallationStage } from '../../../utils/orderStatus';
 import { toast } from '../../../utils/toast';
 import { confirm } from '../../../utils/confirm';
 import { QuickClientModal } from './QuickClientModal';
@@ -103,8 +103,12 @@ export const OrderDrawer: React.FC = () => {
   const swipe = useSwipeToDismiss(() => requestClose(), closeOrder);
 
   const isMobile = useMemo(() => window.innerWidth <= 768 || window.matchMedia('(max-width: 768px)').matches, []);
-  const isCompleted = isCompletedStatus(columns.find(c => c.id.toString() === formData.statusId));
+  const selectedStatus = columns.find(c => c.id.toString() === formData.statusId);
+  const isCompleted = isCompletedStatus(selectedStatus);
   const hasAct = hasActAttachment(formData.attachments, files.pendingFiles);
+  const actRequired = isActRequired(formData.orderNumber);
+  const actMissing = actRequired && !hasAct;
+  const hasInstaller = Boolean(formData.installedById || currentOrder?.installedById || currentOrder?.installedByName);
 
   const isDirty = useMemo(() => (
     Boolean(initialFormDataJson) && JSON.stringify({ formData, pendingFilesCount: files.pendingFiles.length }) !== initialFormDataJson
@@ -206,11 +210,11 @@ export const OrderDrawer: React.FC = () => {
       toast.warning('Заказ ещё загружается, попробуйте через секунду');
       return;
     }
-    // Как и перенос на доске: в завершающий этап — только с актом (уже завершенные заказы не проверяются)
+    // Как и перенос на доске: в завершающий этап по договору — только с актом (уже завершенные заказы не проверяются)
     const wasCompleted = isCompletedStatus(columns.find(c => c.id === currentOrder?.statusId));
-    if (editingOrderId && isCompleted && !wasCompleted && !hasAct) {
+    if (editingOrderId && isCompleted && !wasCompleted && actMissing) {
       const statusName = columns.find(c => c.id.toString() === formData.statusId)?.name;
-      toast.warning(`Для перевода заявки в «${statusName}» прикрепите Акт выполненных работ во вкладке «Файлы».`);
+      toast.warning(`Для перевода заявки с договором в «${statusName}» прикрепите Акт выполненных работ во вкладке «Файлы».`);
       setActiveTab('FILES');
       return;
     }
@@ -276,8 +280,8 @@ export const OrderDrawer: React.FC = () => {
   const handleCompleteInstallation = async (e: React.MouseEvent, orderId: number) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!hasAct) {
-      toast.warning('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы»');
+    if (actMissing) {
+      toast.warning('По договору для завершения необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы»');
       setActiveTab('FILES');
       return;
     }
@@ -416,7 +420,9 @@ export const OrderDrawer: React.FC = () => {
                     employees={employees}
                     isWorker={isWorker}
                     isCompleted={isCompleted}
+                    hasInstaller={hasInstaller}
                     hasAct={hasAct}
+                    actRequired={actRequired}
                     timezone={tenantSettings?.timezone}
                     expandComments={Boolean(expandComments)}
                     onAddNewClient={quickClient.open}
@@ -469,8 +475,9 @@ export const OrderDrawer: React.FC = () => {
                 isDirty={isDirty}
                 isWorker={isWorker}
                 isCompleted={isCompleted}
-                hasInstaller={Boolean(formData.installedById || currentOrder?.installedById || currentOrder?.installedByName)}
-                hasAct={hasAct}
+                showComplete={isInstallationStage(selectedStatus, columns)}
+                hasInstaller={hasInstaller}
+                actMissing={actMissing}
                 onCancel={discardAndClose}
                 onDelete={handleDeleteOrder}
                 onComplete={handleCompleteInstallation}

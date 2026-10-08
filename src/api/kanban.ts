@@ -7,6 +7,8 @@ export interface OrderStatus {
   sortOrder: number;
   includeInFinances?: boolean;
   isCompleted?: boolean;
+  /** Этап монтажа: на карточках показывается кнопка «Завершить монтаж». */
+  isInstallation?: boolean;
 }
 
 export interface OrderMaterial {

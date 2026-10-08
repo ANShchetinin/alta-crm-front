@@ -3,7 +3,7 @@ import { completeOrder, moveOrder, type Order, type OrderStatus } from '../../..
 import type { StatusChangePromptData } from '../components/StatusChangeModal';
 import type { OrderModalTab } from '../../../store/useOrderDrawerStore';
 import { isActFile } from '../constants';
-import { isCompletedStatus } from '../../../utils/orderStatus';
+import { isActRequired, isCompletedStatus } from '../../../utils/orderStatus';
 import { toast } from '../../../utils/toast';
 import { getErrorMessage } from '../../../utils/errorMessage';
 
@@ -24,7 +24,9 @@ interface UseCardMovesOptions {
   openOrder: (orderId: number, tab?: OrderModalTab) => void;
 }
 
-const hasActAttached = (card?: Order) => (card?.attachments || []).some(a => isActFile(a.fileName, a.isAct));
+/** Акта не хватает: по договору (есть номер) он обязателен для завершения, без договора — нет. */
+const isActMissing = (card?: Order) =>
+  isActRequired(card?.orderNumber) && !(card?.attachments || []).some(a => isActFile(a.fileName, a.isAct));
 
 const notifyOrdersChanged = (action: string, orderId: number) => {
   window.dispatchEvent(new CustomEvent('alta:orders-changed', { detail: { action, orderId } }));
@@ -45,14 +47,14 @@ export const useCardMoves = ({ cards, setCards, columns, refresh, setNewOrdersCo
     }
   };
 
-  /** В завершающий этап заявку можно перенести только с прикрепленным актом. */
+  /** В завершающий этап заявку с договором можно перенести только с прикрепленным актом. */
   const canMoveTo = (orderId: number, targetStatusId: number): boolean => {
     const targetCol = columns.find(c => c.id === targetStatusId);
     if (!targetCol || !isCompletedStatus(targetCol)) {
       return true;
     }
     const card = cards.find(c => c.id === orderId);
-    if (hasActAttached(card)) {
+    if (!isActMissing(card)) {
       return true;
     }
     setRestriction({
@@ -60,7 +62,7 @@ export const useCardMoves = ({ cards, setCards, columns, refresh, setNewOrdersCo
       orderId,
       orderNumber: card?.orderNumber || `#${orderId}`,
       targetStatusName: targetCol.name,
-      reason: `Для перевода заявки в статус «${targetCol.name}» необходимо прикрепить подписанный Акт выполненных работ.`
+      reason: `Для перевода заявки с договором в статус «${targetCol.name}» необходимо прикрепить подписанный Акт выполненных работ.`
     });
     return false;
   };
@@ -108,8 +110,8 @@ export const useCardMoves = ({ cards, setCards, columns, refresh, setNewOrdersCo
 
   const completeInstallation = async (e: MouseEvent, orderId: number) => {
     e.stopPropagation();
-    if (!hasActAttached(cards.find(c => c.id === orderId))) {
-      toast.warning('Для завершения монтажа необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы».');
+    if (isActMissing(cards.find(c => c.id === orderId))) {
+      toast.warning('По договору для завершения необходимо прикрепить «Акт выполненных работ» во вкладке «Файлы».');
       openOrder(orderId, 'FILES');
       return;
     }

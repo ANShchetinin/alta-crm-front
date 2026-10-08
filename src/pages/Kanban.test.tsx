@@ -44,7 +44,7 @@ const orders = [
     installedByName: 'Олег',
     attachments: [{ id: 1, fileName: 'Акт.pdf', isAct: true }]
   },
-  { id: 13, clientId: 1, clientName: 'Без акта', statusId: 2, installedByName: 'Олег' }
+  { id: 13, clientId: 1, clientName: 'Без акта', statusId: 2, installedByName: 'Олег', orderNumber: 'Д-13/26' }
 ] as kanbanApi.Order[];
 
 /** DataTransfer для перетаскивания мышью в jsdom. */
@@ -113,13 +113,41 @@ describe('Kanban board', () => {
     expect(column('Монтаж')).toContainElement(cardElement(11));
   });
 
-  it('does not move a card into a completed stage without an act', async () => {
+  it('does not move a card with a contract into a completed stage without an act', async () => {
     await renderBoard();
 
     dragCardTo(13, 'Завершен');
 
     expect(await screen.findByText(/необходимо прикрепить подписанный Акт/)).toBeInTheDocument();
     expect(kanbanApi.moveOrder).not.toHaveBeenCalled();
+  });
+
+  it('moves a card without a contract into a completed stage without an act', async () => {
+    vi.mocked(kanbanApi.moveOrder).mockResolvedValue({ ...orders[0], statusId: 3 });
+    await renderBoard();
+
+    dragCardTo(11, 'Завершен');
+    fireEvent.click(await screen.findByRole('button', { name: /Переместить/ }));
+
+    await waitFor(() => expect(kanbanApi.moveOrder).toHaveBeenCalledWith(11, 3, undefined));
+    expect(screen.queryByText(/необходимо прикрепить подписанный Акт/)).not.toBeInTheDocument();
+  });
+
+  it('shows the complete button on every open stage until an installation stage is set', async () => {
+    await renderBoard();
+
+    expect(within(cardElement(11)).getByText('Завершить монтаж')).toBeInTheDocument();
+    expect(within(cardElement(12)).getByText('Завершить монтаж')).toBeInTheDocument();
+  });
+
+  it('shows the complete button only on installation stages once one is set', async () => {
+    vi.mocked(kanbanApi.getOrderStatuses).mockResolvedValue(
+      statuses.map(s => (s.id === 2 ? { ...s, isInstallation: true } : s))
+    );
+    await renderBoard();
+
+    expect(within(cardElement(11)).queryByText('Завершить монтаж')).not.toBeInTheDocument();
+    expect(within(cardElement(12)).getByText('Завершить монтаж')).toBeInTheDocument();
   });
 
   it('completes the installation of a card with an act', async () => {

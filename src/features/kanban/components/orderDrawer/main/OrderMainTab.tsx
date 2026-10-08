@@ -22,7 +22,9 @@ interface OrderMainTabProps {
   employees: Employee[];
   isWorker: boolean;
   isCompleted: boolean;
+  hasInstaller: boolean;
   hasAct: boolean;
+  actRequired: boolean;
   timezone?: string;
   expandComments: boolean;
   onAddNewClient: () => void;
@@ -42,7 +44,9 @@ export const OrderMainTab: React.FC<OrderMainTabProps> = ({
   employees,
   isWorker,
   isCompleted,
+  hasInstaller,
   hasAct,
+  actRequired,
   timezone,
   expandComments,
   onAddNewClient,
@@ -74,7 +78,9 @@ export const OrderMainTab: React.FC<OrderMainTabProps> = ({
       isCompleted={isCompleted}
       installedAt={formData.installedAt || currentOrder?.installedAt}
       timezone={timezone}
+      hasInstaller={hasInstaller}
       hasAct={hasAct}
+      actRequired={actRequired}
       onOpenFiles={onOpenFiles}
     />
 

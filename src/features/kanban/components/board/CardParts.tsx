@@ -8,6 +8,7 @@ import { formatDateOnly, formatDateTimeInTimezone, formatTimeOnly } from '../../
 import { getTelegramLink, getWhatsAppLink } from '../../../../utils/messengerUtils';
 import { get2GisUrl, getYandexMapsUrl } from '../../../../utils/navigation';
 import { getOrderRemainder } from '../../../../utils/orderPayments';
+import { completionLabel } from '../../../../utils/orderStatus';
 import yandexIcon from '../../../../assets/maps/yandex.svg';
 import twoGisIcon from '../../../../assets/maps/2gis.svg';
 import { stopCardGesture } from './cardGestures';
@@ -353,12 +354,16 @@ export const CardInstaller = ({ name, avatarUrl, installers }: { name: string; a
   </div>
 );
 
-/** «Монтаж завершен» с датой или кнопка завершения (нужны монтажник и акт). */
-export const CardCompletion = ({ isCompleted, installedAt, installerName, hasAct, onComplete }: {
+/**
+ * «Монтаж завершен» / «Сделка закрыта» с датой или кнопка завершения монтажа (только на этапе монтажа;
+ * нужен монтажник, а по договору — еще и акт).
+ */
+export const CardCompletion = ({ isCompleted, showButton, installedAt, installerName, actMissing, onComplete }: {
   isCompleted: boolean;
+  showButton: boolean;
   installedAt?: string | null;
   installerName?: string;
-  hasAct: boolean;
+  actMissing: boolean;
   onComplete: (e: MouseEvent) => void;
 }) => {
   if (isCompleted) {
@@ -378,11 +383,14 @@ export const CardCompletion = ({ isCompleted, installedAt, installerName, hasAct
         width: '100%',
         boxSizing: 'border-box'
       }}>
-        <CheckCircle2 size={14} /> Монтаж завершен {installedAt ? `(${formatDateOnly(installedAt)})` : ''}
+        <CheckCircle2 size={14} /> {completionLabel(Boolean(installerName))} {installedAt ? `(${formatDateOnly(installedAt)})` : ''}
       </div>
     );
   }
-  const canComplete = Boolean(installerName) && hasAct;
+  if (!showButton) {
+    return null;
+  }
+  const canComplete = Boolean(installerName) && !actMissing;
   return (
     <button
       type="button"
@@ -406,7 +414,7 @@ export const CardCompletion = ({ isCompleted, installedAt, installerName, hasAct
         transition: 'all 0.15s ease',
         boxSizing: 'border-box'
       }}
-      title={!installerName ? 'Назначьте монтажника в карточке' : (!hasAct ? 'Прикрепите Акт выполненных работ' : 'Завершить монтаж')}
+      title={!installerName ? 'Назначьте монтажника в карточке' : (actMissing ? 'По договору прикрепите Акт выполненных работ' : 'Завершить монтаж')}
     >
       <CheckCircle2 size={15} /> Завершить монтаж
     </button>
