@@ -134,6 +134,48 @@ describe('AuditLogs Page Component', () => {
     expect(screen.getAllByText('Свежий результат за сегодня').length).toBeGreaterThan(0);
   });
 
+  it('shows the IP address and login badge for sign-in events', async () => {
+    (auditLogsApi.getAuditLogs as any).mockResolvedValue({
+      ...mockAuditData,
+      content: [{
+        id: 5,
+        tenantId: 1,
+        createdAt: '2026-09-12T12:00:00Z',
+        actorEmail: 'owner@test.com',
+        actorRole: 'OWNER',
+        actionType: 'AUTH_LOGIN_FAILED',
+        entityType: 'AUTH',
+        description: 'Неудачная попытка входа',
+        ipAddress: '203.0.113.7',
+      }],
+      totalElements: 1,
+    });
+
+    renderWithQuery(<AuditLogs />);
+
+    expect(await screen.findAllByText('IP 203.0.113.7')).toHaveLength(2);
+    expect(screen.getAllByText('⚠ Неудачный вход').length).toBeGreaterThan(0);
+  });
+
+  it('does not show an IP line for events without an address', async () => {
+    renderWithQuery(<AuditLogs />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Создана заявка № 101 для клиента Тест').length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText(/^IP /)).not.toBeInTheDocument();
+  });
+
+  it('filters sign-in events by the AUTH object', async () => {
+    renderWithQuery(<AuditLogs />);
+
+    fireEvent.change(screen.getByDisplayValue('Все объекты'), { target: { value: 'AUTH' } });
+
+    await waitFor(() => {
+      expect(auditLogsApi.getAuditLogs).toHaveBeenCalledWith(expect.objectContaining({ entityType: 'AUTH' }));
+    });
+  });
+
   it('renders empty state when no events exist', async () => {
     (auditLogsApi.getAuditLogs as any).mockResolvedValueOnce({
       content: [],

@@ -96,6 +96,12 @@ export const AuditLogs: React.FC = () => {
   }, [searchTerm]);
 
   const getActionBadge = (action: AuditActionType) => {
+    if (action === 'AUTH_LOGIN_FAILED') {
+      return <span className="audit-badge audit-badge-delete">⚠ Неудачный вход</span>;
+    }
+    if (action === 'AUTH_LOGIN_SUCCESS') {
+      return <span className="audit-badge audit-badge-create">→ Вход</span>;
+    }
     if (action.includes('CREATED') || action.includes('UPLOADED') || action.includes('SUCCESS')) {
       return <span className="audit-badge audit-badge-create">+ Создание / Загрузка</span>;
     }
@@ -175,6 +181,7 @@ export const AuditLogs: React.FC = () => {
             <option value="CONTRACT_TEMPLATE">Шаблоны договоров</option>
             <option value="EXPENSE">Расходы</option>
             <option value="MATERIAL">Склад</option>
+            <option value="AUTH">Входы в систему</option>
           </select>
 
           <select
@@ -202,6 +209,8 @@ export const AuditLogs: React.FC = () => {
             <option value="ORDER_STAGE_CREATED">Добавление этапа воронки</option>
             <option value="ORDER_STAGE_UPDATED">Изменение этапа воронки</option>
             <option value="ORDER_STAGE_DELETED">Удаление этапа воронки</option>
+            <option value="AUTH_LOGIN_SUCCESS">Успешный вход</option>
+            <option value="AUTH_LOGIN_FAILED">Неудачный вход</option>
           </select>
 
           <div className="audit-period-pills">
@@ -282,6 +291,7 @@ export const AuditLogs: React.FC = () => {
                         <div className="audit-actor-info">
                           <span className="audit-actor-name">{log.actorName || log.actorEmail || 'Система'}</span>
                           <span className="audit-actor-role">{log.actorRole || 'Пользователь'}</span>
+                          {log.ipAddress && <span className="audit-actor-ip">IP {log.ipAddress}</span>}
                         </div>
                       </div>
                     </td>
@@ -322,6 +332,7 @@ export const AuditLogs: React.FC = () => {
                     {getActionBadge(log.actionType)}
                   </div>
                   <strong>{log.description}</strong>
+                  {log.ipAddress && <div className="audit-actor-ip">IP {log.ipAddress}</div>}
                 </div>
 
                 <div className="audit-mobile-card-footer">
