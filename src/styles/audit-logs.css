@@ -257,6 +257,13 @@
   color: var(--text-secondary);
 }
 
+.audit-actor-ip {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
 /* Mobile Cards View */
 .audit-mobile-list {
   display: none;
