@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Phone, MessageSquare, Globe, Calendar, Calculator, 
-  Trash2, Save, ArrowRight, Loader2, Copy, Check 
+  Trash2, Save, ArrowRight, Loader2, Copy, Check, CheckCircle2
 } from 'lucide-react';
 import { updateSiteRequest, type SiteRequestItem, type CalcDataPayload } from '../../api/siteRequests';
 import { formatTimeAgo, formatDateTime } from '../../utils/dateUtils';
@@ -16,6 +16,8 @@ interface SiteRequestModalProps {
   onUpdated: () => void;
   onDelete: (id: number) => void;
   onConvertToOrder: (siteRequest: SiteRequestItem) => void;
+  /** Закрыть заявку без заказа; передаётся текущая (возможно, несохранённая) заметка менеджера */
+  onMarkProcessed: (id: number, managerNotes?: string) => void;
 }
 
 export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
@@ -25,6 +27,7 @@ export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
   onUpdated,
   onDelete,
   onConvertToOrder,
+  onMarkProcessed,
 }) => {
   const [clientName, setClientName] = useState('');
   const [phone, setPhone] = useState('');
@@ -344,6 +347,17 @@ export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 <span>Сохранить</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onMarkProcessed(siteRequest.id, managerNotes.trim() || undefined)}
+                className="btn btn-secondary sr-btn-processed"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                title="Отметить обработанной без создания заказа"
+              >
+                <CheckCircle2 size={16} />
+                <span>Обработана</span>
               </button>
 
               <button

@@ -2,14 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithQuery } from '../test-utils/queryWrapper';
 import { SiteRequests } from './SiteRequests';
-import { getSiteRequests, type SiteRequestItem } from '../api/siteRequests';
+import { getSiteRequests, markSiteRequestProcessed, type SiteRequestItem } from '../api/siteRequests';
 import { useAppStore } from '../store/useAppStore';
+import { confirm } from '../utils/confirm';
 
 vi.mock('../api/siteRequests', () => ({
   getSiteRequests: vi.fn(),
   deleteSiteRequest: vi.fn(),
+  markSiteRequestProcessed: vi.fn(),
   convertSiteRequestToOrder: vi.fn()
 }));
+vi.mock('../utils/confirm', () => ({ confirm: vi.fn() }));
 
 const request = (id: number, clientName: string) => ({
   id,
@@ -45,5 +48,27 @@ describe('SiteRequests page', () => {
     await waitFor(() => expect(getSiteRequests).toHaveBeenLastCalledWith('Бор'));
     await waitFor(() => expect(screen.queryAllByText('Анна')).toHaveLength(0));
     expect(useAppStore.getState().newSiteRequestsCount).toBe(2);
+  });
+
+  it('marks a request as processed without an order after confirmation', async () => {
+    vi.mocked(confirm).mockResolvedValue(true);
+    vi.mocked(markSiteRequestProcessed).mockResolvedValue({ ...request(1, 'Анна'), status: 'PROCESSED' });
+    renderWithQuery(<SiteRequests />);
+    await screen.findAllByText('Анна');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Отметить обработанной без заказа' })[0]);
+
+    await waitFor(() => expect(markSiteRequestProcessed).toHaveBeenCalledWith(1, undefined));
+  });
+
+  it('does not mark a request as processed when the confirmation is cancelled', async () => {
+    vi.mocked(confirm).mockResolvedValue(false);
+    renderWithQuery(<SiteRequests />);
+    await screen.findAllByText('Анна');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Отметить обработанной без заказа' })[0]);
+
+    await waitFor(() => expect(confirm).toHaveBeenCalled());
+    expect(markSiteRequestProcessed).not.toHaveBeenCalled();
   });
 });

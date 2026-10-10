@@ -3,11 +3,12 @@ import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-quer
 import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
 import { 
   Globe, Search, RefreshCw, Phone, MessageSquare, 
-  Trash2, Edit3, ArrowRight, Loader2, Inbox 
+  Trash2, Edit3, ArrowRight, Loader2, Inbox, CheckCircle2
 } from 'lucide-react';
-import { 
-  getSiteRequests, 
-  deleteSiteRequest, 
+import {
+  getSiteRequests,
+  deleteSiteRequest,
+  markSiteRequestProcessed,
   type SiteRequestItem, 
   type CalcDataPayload 
 } from '../api/siteRequests';
@@ -102,6 +103,30 @@ export const SiteRequests: React.FC = () => {
     } catch (err: any) {
       console.error('Failed to delete site request', err);
       toast.error('Ошибка при удалении заявки');
+    }
+  };
+
+  const handleMarkProcessed = async (id: number, managerNotes?: string) => {
+    const isConfirmed = await confirm({
+      title: 'Отметить заявку обработанной?',
+      message: 'Заявка уйдёт из списка без создания заказа. Подходит для дублей, консультаций и отказов.',
+      confirmText: 'Обработана',
+      cancelText: 'Отмена',
+    });
+
+    if (!isConfirmed) return;
+
+    try {
+      await markSiteRequestProcessed(id, managerNotes);
+      toast.success('Заявка отмечена обработанной');
+      if (selectedRequest?.id === id) {
+        setIsEditModalOpen(false);
+        setSelectedRequest(null);
+      }
+      fetchRequests();
+    } catch (err: any) {
+      console.error('Failed to mark site request as processed', err);
+      toast.error(err.response?.data?.error || 'Не удалось отметить заявку обработанной');
     }
   };
 
@@ -329,6 +354,16 @@ export const SiteRequests: React.FC = () => {
 
                           <button
                             type="button"
+                            className="btn-icon sr-btn-processed"
+                            onClick={() => handleMarkProcessed(req.id)}
+                            title="Отметить обработанной без заказа"
+                            aria-label="Отметить обработанной без заказа"
+                          >
+                            <CheckCircle2 size={16} />
+                          </button>
+
+                          <button
+                            type="button"
                             className="btn-icon"
                             onClick={() => handleOpenEdit(req)}
                             title="Просмотр и редактирование"
@@ -468,6 +503,17 @@ export const SiteRequests: React.FC = () => {
 
                       <button
                         type="button"
+                        className="btn btn-ghost sr-btn-processed"
+                        style={{ padding: '6px 8px' }}
+                        onClick={() => handleMarkProcessed(req.id)}
+                        title="Отметить обработанной без заказа"
+                        aria-label="Отметить обработанной без заказа"
+                      >
+                        <CheckCircle2 size={16} />
+                      </button>
+
+                      <button
+                        type="button"
                         className="btn btn-ghost"
                         style={{ padding: '6px 8px', color: 'var(--danger)' }}
                         onClick={() => handleDelete(req.id)}
@@ -504,6 +550,7 @@ export const SiteRequests: React.FC = () => {
           }}
           onUpdated={fetchRequests}
           onDelete={handleDelete}
+          onMarkProcessed={handleMarkProcessed}
           onConvertToOrder={(req) => {
             setIsEditModalOpen(false);
             handleOpenConvert(req);

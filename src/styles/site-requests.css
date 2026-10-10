@@ -280,6 +280,10 @@
   transform: translateY(-1px);
 }
 
+.sr-btn-processed {
+  color: var(--success);
+}
+
 /* Mobile Cards (< 860px) */
 .site-requests-mobile-list {
   display: none;
@@ -512,7 +516,14 @@
   .sr-modal-actions > div {
     width: 100% !important;
     display: flex !important;
+    flex-wrap: wrap !important;
     gap: 8px !important;
+  }
+
+  /* Третья кнопка уходит отдельной строкой под «Сохранить» и «Создать заказ» */
+  .sr-modal-actions > div > button.sr-btn-processed {
+    order: 3;
+    flex-basis: 100% !important;
   }
 
   .sr-modal-actions button,

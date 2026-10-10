@@ -87,7 +87,13 @@ export const deleteSiteRequest = async (id: number): Promise<void> => {
   await api.delete(`/site-requests/${id}`);
 };
 
-export const convertSiteRequestToOrder = async (id: number, data: ConvertToOrderData): Promise<any> => {
+// Закрывает заявку без создания заказа (дубль, консультация, отказ); заметка менеджера сохраняется вместе с ней
+export const markSiteRequestProcessed = async (id: number, managerNotes?: string): Promise<SiteRequestItem> => {
+  const response = await api.post(`/site-requests/${id}/mark-processed`, { managerNotes });
+  return response.data;
+};
+
+export const convertSiteRequestToOrder =async (id: number, data: ConvertToOrderData): Promise<any> => {
   const response = await api.post(`/site-requests/${id}/convert-to-order`, data);
   return response.data;
 };
