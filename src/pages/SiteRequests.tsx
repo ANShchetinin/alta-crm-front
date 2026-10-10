@@ -3,11 +3,13 @@ import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-quer
 import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
 import { 
   Globe, Search, RefreshCw, Phone, MessageSquare, 
-  Trash2, Edit3, ArrowRight, Loader2, Inbox 
+  Trash2, Edit3, ArrowRight, Loader2, Inbox, CheckCircle2, XCircle
 } from 'lucide-react';
-import { 
-  getSiteRequests, 
-  deleteSiteRequest, 
+import {
+  getSiteRequests,
+  deleteSiteRequest,
+  markSiteRequestReviewed,
+  rejectSiteRequest,
   type SiteRequestItem, 
   type CalcDataPayload 
 } from '../api/siteRequests';
@@ -23,6 +25,18 @@ import { formatPhone, phoneDigits } from '../utils/phone';
 const SITE_REQUESTS_QUERY_KEY = ['siteRequests'] as const;
 const POLL_INTERVAL_MS = 10000;
 const EMPTY_REQUESTS: SiteRequestItem[] = [];
+
+const ReviewedBadge: React.FC<{ request: SiteRequestItem }> = ({ request }) => (
+  <span
+    className="sr-badge sr-badge-reviewed"
+    title={['Обработана', request.processedByName, request.processedAt && formatDateTime(request.processedAt)]
+      .filter(Boolean)
+      .join(' · ')}
+  >
+    <CheckCircle2 size={12} />
+    Обработана
+  </span>
+);
 
 export const SiteRequests: React.FC = () => {
   const queryClient = useQueryClient();
@@ -57,9 +71,9 @@ export const SiteRequests: React.FC = () => {
   const loading = isLoading || manualRefreshing;
 
   useEffect(() => {
-    // Бейдж меню — число всех необработанных заявок, а не отфильтрованных поиском
+    // Бейдж меню — число всех новых заявок (просмотренные не считаются), а не отфильтрованных поиском
     if (data && !debouncedSearch) {
-      setNewSiteRequestsCount(data.length);
+      setNewSiteRequestsCount(data.filter(req => req.status === 'NEW').length);
     }
   }, [data, debouncedSearch, setNewSiteRequestsCount]);
 
@@ -103,6 +117,49 @@ export const SiteRequests: React.FC = () => {
       console.error('Failed to delete site request', err);
       toast.error('Ошибка при удалении заявки');
     }
+  };
+
+  const changeStatus = async (
+    action: (id: number, managerNotes?: string) => Promise<SiteRequestItem>,
+    id: number,
+    managerNotes: string | undefined,
+    messages: { success: string; error: string }
+  ) => {
+    try {
+      await action(id, managerNotes);
+      toast.success(messages.success);
+      if (selectedRequest?.id === id) {
+        setIsEditModalOpen(false);
+        setSelectedRequest(null);
+      }
+      fetchRequests();
+    } catch (err: any) {
+      console.error('Failed to change site request status', err);
+      toast.error(err.response?.data?.error || messages.error);
+    }
+  };
+
+  // Заявка остаётся в списке (клиент думает), но перестаёт считаться новой — подтверждение не нужно
+  const handleMarkReviewed = (id: number, managerNotes?: string) => changeStatus(markSiteRequestReviewed, id, managerNotes, {
+    success: 'Заявка отмечена обработанной',
+    error: 'Не удалось отметить заявку обработанной',
+  });
+
+  const handleReject = async (id: number, managerNotes?: string) => {
+    const isConfirmed = await confirm({
+      title: 'Отказ по заявке?',
+      message: 'Заявка уйдёт из списка без создания заказа, но останется в базе.',
+      confirmText: 'Отказ',
+      cancelText: 'Отмена',
+      danger: true,
+    });
+
+    if (!isConfirmed) return;
+
+    await changeStatus(rejectSiteRequest, id, managerNotes, {
+      success: 'Отказ по заявке сохранён',
+      error: 'Не удалось сохранить отказ',
+    });
   };
 
   const handleOpenEdit = (request: SiteRequestItem) => {
@@ -219,6 +276,7 @@ export const SiteRequests: React.FC = () => {
                       <td>
                         <div className="sr-client-cell">
                           <span className="sr-client-name">{req.clientName}</span>
+                          {req.status === 'REVIEWED' && <ReviewedBadge request={req} />}
                           <div className="sr-client-phone-row">
                             <span>{formatPhone(req.phone)}</span>
                             {cleanPhone && (
@@ -327,6 +385,28 @@ export const SiteRequests: React.FC = () => {
                             <ArrowRight size={14} />
                           </button>
 
+                          {req.status === 'NEW' && (
+                            <button
+                              type="button"
+                              className="btn-icon sr-btn-processed"
+                              onClick={() => handleMarkReviewed(req.id)}
+                              title="Отметить обработанной (останется в списке)"
+                              aria-label="Отметить обработанной"
+                            >
+                              <CheckCircle2 size={16} />
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            className="btn-icon sr-btn-reject"
+                            onClick={() => handleReject(req.id)}
+                            title="Отказ (убрать из списка без заказа)"
+                            aria-label="Отказ"
+                          >
+                            <XCircle size={16} />
+                          </button>
+
                           <button
                             type="button"
                             className="btn-icon"
@@ -373,6 +453,11 @@ export const SiteRequests: React.FC = () => {
                       <div className="sr-card-date">
                         {formatTimeAgo(req.createdAt)} • {formatDateTime(req.createdAt)}
                       </div>
+                      {req.status === 'REVIEWED' && (
+                        <div style={{ marginTop: '4px' }}>
+                          <ReviewedBadge request={req} />
+                        </div>
+                      )}
                     </div>
                     {req.calculatedPrice ? (
                       <span className="sr-badge sr-badge-price">
@@ -466,6 +551,30 @@ export const SiteRequests: React.FC = () => {
                         <span>Детали</span>
                       </button>
 
+                      {req.status === 'NEW' && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost sr-btn-processed"
+                          style={{ padding: '6px 8px' }}
+                          onClick={() => handleMarkReviewed(req.id)}
+                          title="Отметить обработанной (останется в списке)"
+                          aria-label="Отметить обработанной"
+                        >
+                          <CheckCircle2 size={16} />
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        className="btn btn-ghost sr-btn-reject"
+                        style={{ padding: '6px 8px' }}
+                        onClick={() => handleReject(req.id)}
+                        title="Отказ (убрать из списка без заказа)"
+                        aria-label="Отказ"
+                      >
+                        <XCircle size={16} />
+                      </button>
+
                       <button
                         type="button"
                         className="btn btn-ghost"
@@ -504,6 +613,8 @@ export const SiteRequests: React.FC = () => {
           }}
           onUpdated={fetchRequests}
           onDelete={handleDelete}
+          onMarkReviewed={handleMarkReviewed}
+          onReject={handleReject}
           onConvertToOrder={(req) => {
             setIsEditModalOpen(false);
             handleOpenConvert(req);

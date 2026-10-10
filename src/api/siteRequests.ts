@@ -1,6 +1,6 @@
 import { api } from './axiosConfig';
 
-export type SiteRequestStatus = 'NEW' | 'PROCESSED' | 'REJECTED';
+export type SiteRequestStatus = 'NEW' | 'REVIEWED' | 'PROCESSED' | 'REJECTED';
 
 export interface SiteRequestItem {
   id: number;
@@ -85,6 +85,18 @@ export const updateSiteRequest = async (id: number, data: UpdateSiteRequestData)
 
 export const deleteSiteRequest = async (id: number): Promise<void> => {
   await api.delete(`/site-requests/${id}`);
+};
+
+// Заявка остаётся в списке (клиент думает), но перестаёт считаться новой; заметка менеджера сохраняется вместе с отметкой
+export const markSiteRequestReviewed = async (id: number, managerNotes?: string): Promise<SiteRequestItem> => {
+  const response = await api.post(`/site-requests/${id}/mark-reviewed`, { managerNotes });
+  return response.data;
+};
+
+// Отказ: заявка уходит из списка без создания заказа, но остаётся в базе
+export const rejectSiteRequest = async (id: number, managerNotes?: string): Promise<SiteRequestItem> => {
+  const response = await api.post(`/site-requests/${id}/reject`, { managerNotes });
+  return response.data;
 };
 
 export const convertSiteRequestToOrder = async (id: number, data: ConvertToOrderData): Promise<any> => {

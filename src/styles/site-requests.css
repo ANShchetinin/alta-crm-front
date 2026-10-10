@@ -280,6 +280,21 @@
   transform: translateY(-1px);
 }
 
+.sr-btn-processed {
+  color: var(--success);
+}
+
+/* Отказ — янтарный, чтобы не путать с красным «Удалить» (спам) */
+.sr-btn-reject {
+  color: var(--warning);
+}
+
+.sr-badge-reviewed {
+  align-self: flex-start;
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success);
+}
+
 /* Mobile Cards (< 860px) */
 .site-requests-mobile-list {
   display: none;
@@ -512,7 +527,15 @@
   .sr-modal-actions > div {
     width: 100% !important;
     display: flex !important;
+    flex-wrap: wrap !important;
     gap: 8px !important;
+  }
+
+  /* «Обработана» и «Отказ» уходят второй строкой под «Сохранить» и «Создать заказ» */
+  .sr-modal-actions > div > button.sr-btn-processed,
+  .sr-modal-actions > div > button.sr-btn-reject {
+    order: 3;
+    flex-basis: 40% !important;
   }
 
   .sr-modal-actions button,

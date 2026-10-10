@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Phone, MessageSquare, Globe, Calendar, Calculator, 
-  Trash2, Save, ArrowRight, Loader2, Copy, Check 
+  Trash2, Save, ArrowRight, Loader2, Copy, Check, CheckCircle2, XCircle
 } from 'lucide-react';
 import { updateSiteRequest, type SiteRequestItem, type CalcDataPayload } from '../../api/siteRequests';
 import { formatTimeAgo, formatDateTime } from '../../utils/dateUtils';
@@ -16,6 +16,10 @@ interface SiteRequestModalProps {
   onUpdated: () => void;
   onDelete: (id: number) => void;
   onConvertToOrder: (siteRequest: SiteRequestItem) => void;
+  /** Отметить обработанной (останется в списке); передаётся текущая, возможно несохранённая, заметка менеджера */
+  onMarkReviewed: (id: number, managerNotes?: string) => void;
+  /** Отказ: заявка уходит из списка; заметка — например, причина отказа */
+  onReject: (id: number, managerNotes?: string) => void;
 }
 
 export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
@@ -25,6 +29,8 @@ export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
   onUpdated,
   onDelete,
   onConvertToOrder,
+  onMarkReviewed,
+  onReject,
 }) => {
   const [clientName, setClientName] = useState('');
   const [phone, setPhone] = useState('');
@@ -56,6 +62,8 @@ export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
   }, [isOpen, onClose]);
 
   if (!isOpen || !siteRequest) return null;
+
+  const notesToSend = managerNotes.trim() || undefined;
 
   let parsedCalcData: CalcDataPayload | null = null;
   if (siteRequest.calcData) {
@@ -335,7 +343,7 @@ export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
               <span>Удалить заявку</span>
             </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: '8px' }}>
               <button
                 type="submit"
                 disabled={saving}
@@ -344,6 +352,30 @@ export const SiteRequestModal: React.FC<SiteRequestModalProps> = ({
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 <span>Сохранить</span>
+              </button>
+
+              {siteRequest.status === 'NEW' && (
+                <button
+                  type="button"
+                  onClick={() => onMarkReviewed(siteRequest.id, notesToSend)}
+                  className="btn btn-secondary sr-btn-processed"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  title="Отметить обработанной: заявка останется в списке"
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Обработана</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => onReject(siteRequest.id, notesToSend)}
+                className="btn btn-secondary sr-btn-reject"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                title="Отказ: заявка уйдёт из списка без создания заказа"
+              >
+                <XCircle size={16} />
+                <span>Отказ</span>
               </button>
 
               <button
