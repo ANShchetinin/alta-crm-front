@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, CheckCircle2, Trash2 } from 'lucide-react';
+import { Archive, Check, CheckCircle2, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { completionLabel } from '../../../../utils/orderStatus';
 
@@ -10,11 +10,14 @@ interface OrderDrawerFooterProps {
   isCompleted: boolean;
   /** Кнопка «Завершить монтаж» — только на этапе монтажа. */
   showComplete: boolean;
+  /** Кнопка «В архив» — сохраненный заказ в завершающем этапе. */
+  showArchive: boolean;
   hasInstaller: boolean;
   /** По договору не прикреплен акт. */
   actMissing: boolean;
   onCancel: () => void;
   onDelete: () => void;
+  onArchive: () => void;
   onComplete: (e: React.MouseEvent, orderId: number) => void;
 }
 
@@ -29,7 +32,8 @@ const completeHint = (hasInstaller: boolean, actMissing: boolean): string => {
 };
 
 /**
- * Подвал шторки: сохранение/отмена изменений, удаление заказа и завершение монтажа (нужен монтажник, по договору — и Акт).
+ * Подвал шторки: сохранение/отмена изменений, удаление и перевод в архив завершенного заказа,
+ * завершение монтажа (нужен монтажник, по договору — и Акт).
  */
 export const OrderDrawerFooter: React.FC<OrderDrawerFooterProps> = ({
   orderId,
@@ -37,10 +41,12 @@ export const OrderDrawerFooter: React.FC<OrderDrawerFooterProps> = ({
   isWorker,
   isCompleted,
   showComplete,
+  showArchive,
   hasInstaller,
   actMissing,
   onCancel,
   onDelete,
+  onArchive,
   onComplete
 }) => {
   const { t } = useTranslation();
@@ -69,14 +75,28 @@ export const OrderDrawerFooter: React.FC<OrderDrawerFooterProps> = ({
       {orderId && (
         <div className="order-drawer-secondary-actions">
           {!isWorker ? (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="btn btn-ghost order-drawer-delete-btn"
-              style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Trash2 size={16} /> {t('kanban.modal.delete') || 'Удалить'}
-            </button>
+            <div className="order-drawer-manage-actions">
+              <button
+                type="button"
+                onClick={onDelete}
+                className="btn btn-ghost order-drawer-delete-btn"
+                style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Trash2 size={16} /> {t('kanban.modal.delete') || 'Удалить'}
+              </button>
+              {showArchive && (
+                <button
+                  type="button"
+                  onClick={onArchive}
+                  disabled={isDirty}
+                  className="btn btn-ghost order-drawer-archive-btn"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  title={isDirty ? 'Сначала сохраните изменения' : 'Убрать заказ с доски в архив, не дожидаясь следующего месяца'}
+                >
+                  <Archive size={16} /> В архив
+                </button>
+              )}
+            </div>
           ) : <div />}
 
           {isCompleted ? (

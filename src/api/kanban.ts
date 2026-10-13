@@ -301,6 +301,12 @@ export const completeOrder = async (orderId: number): Promise<Order> => {
   return response.data;
 };
 
+/** Переводит завершенный заказ в архив сразу, не дожидаясь начала следующего месяца. */
+export const archiveOrder = async (orderId: number): Promise<Order> => {
+  const response = await api.post(`/orders/${orderId}/archive`);
+  return response.data;
+};
+
 export const uploadAudio = async (orderId: number, file: File): Promise<void> => {
   const formData = new FormData();
   formData.append('file', file);

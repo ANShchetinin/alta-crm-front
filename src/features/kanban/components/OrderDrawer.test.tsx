@@ -20,6 +20,7 @@ vi.mock('../../../api/kanban', async () => {
     createOrder: vi.fn(),
     updateOrder: vi.fn(),
     completeOrder: vi.fn(),
+    archiveOrder: vi.fn(),
     getAiSummary: vi.fn(),
     getOrderComments: vi.fn(),
     getNextOrderNumber: vi.fn()
@@ -31,6 +32,7 @@ vi.mock('../../../api/clients', () => ({
   updateClient: vi.fn()
 }));
 vi.mock('../../../api/employees', () => ({ getEmployees: vi.fn() }));
+vi.mock('../../../utils/confirm', () => ({ confirm: vi.fn().mockResolvedValue(true) }));
 vi.mock('../../../api/storage', () => ({
   getMaterials: vi.fn().mockResolvedValue([]),
   getLowStockMaterials: vi.fn().mockResolvedValue([])
@@ -283,6 +285,45 @@ describe('OrderDrawer', () => {
 
     await waitFor(() => expect(kanbanApi.updateOrder).toHaveBeenCalledTimes(1));
     expect(vi.mocked(kanbanApi.updateOrder).mock.calls[0][1].installedAt).toBeUndefined();
+  });
+
+  it('archives a saved completed order and closes the drawer', async () => {
+    const listener = vi.fn();
+    const success = vi.spyOn(toast, 'success');
+    window.addEventListener('alta:orders-changed', listener);
+    vi.mocked(kanbanApi.archiveOrder).mockResolvedValue({ ...baseOrder, statusId: 3, isArchived: true });
+    await renderOpenOrder({ ...baseOrder, statusId: 3 });
+
+    fireEvent.click(screen.getByRole('button', { name: /В архив/ }));
+
+    await waitFor(() => expect(kanbanApi.archiveOrder).toHaveBeenCalledWith(5));
+    await waitFor(() => expect(success).toHaveBeenCalledWith('Заказ переведен в архив'));
+    expect((listener.mock.calls[0][0] as CustomEvent).detail).toEqual({ action: 'archive', orderId: 5 });
+    window.removeEventListener('alta:orders-changed', listener);
+  });
+
+  it('offers archiving only for an order saved in a completed status', async () => {
+    await renderOpenOrder();
+    expect(screen.queryByRole('button', { name: /В архив/ })).not.toBeInTheDocument();
+
+    // Статус сменен в форме, но не сохранен — архивировать нечего
+    fireEvent.change(screen.getByTitle('Статус заказа'), { target: { value: '3' } });
+    expect(screen.queryByRole('button', { name: /В архив/ })).not.toBeInTheDocument();
+  });
+
+  it('disables archiving while the drawer has unsaved changes', async () => {
+    await renderOpenOrder({ ...baseOrder, statusId: 3 });
+
+    fireEvent.change(screen.getByDisplayValue('Москва, ул. Тверская, 1'), { target: { value: 'Москва, ул. Арбат, 2' } });
+
+    expect(screen.getByRole('button', { name: /В архив/ })).toBeDisabled();
+  });
+
+  it('does not offer archiving to a worker', async () => {
+    useAuthStore.setState({ role: 'WORKER', canAccessMeasurements: false });
+    await renderOpenOrder({ ...baseOrder, statusId: 3 });
+
+    expect(screen.queryByRole('button', { name: /В архив/ })).not.toBeInTheDocument();
   });
 
   it('hides manager-only sections from a worker', async () => {

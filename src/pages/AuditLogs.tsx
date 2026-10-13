@@ -197,6 +197,7 @@ export const AuditLogs: React.FC = () => {
             <option value="ORDER_STATUS_CHANGED">Смена статуса заявки</option>
             <option value="ORDER_UPDATED">Редактирование заявки</option>
             <option value="ORDER_DELETED">Удаление заявки</option>
+            <option value="ORDER_ARCHIVED">Перевод заявки в архив</option>
             <option value="CLIENT_CREATED">Создание клиента</option>
             <option value="CLIENT_UPDATED">Редактирование клиента</option>
             <option value="CLIENT_DELETED">Удаление клиента</option>
