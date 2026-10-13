@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import '../../../styles/kanban.css';
 import {
+  archiveOrder,
   completeOrder,
   createOrder,
   deleteOrder,
@@ -105,6 +106,8 @@ export const OrderDrawer: React.FC = () => {
   const isMobile = useMemo(() => window.innerWidth <= 768 || window.matchMedia('(max-width: 768px)').matches, []);
   const selectedStatus = columns.find(c => c.id.toString() === formData.statusId);
   const isCompleted = isCompletedStatus(selectedStatus);
+  // Статус сохраненного заказа (в форме он может быть уже изменен, но не сохранен)
+  const isSavedCompleted = isCompletedStatus(columns.find(c => c.id === currentOrder?.statusId));
   const hasAct = hasActAttachment(formData.attachments, files.pendingFiles);
   const actRequired = isActRequired(formData.orderNumber);
   const actMissing = actRequired && !hasAct;
@@ -211,8 +214,7 @@ export const OrderDrawer: React.FC = () => {
       return;
     }
     // Как и перенос на доске: в завершающий этап по договору — только с актом (уже завершенные заказы не проверяются)
-    const wasCompleted = isCompletedStatus(columns.find(c => c.id === currentOrder?.statusId));
-    if (editingOrderId && isCompleted && !wasCompleted && actMissing) {
+    if (editingOrderId && isCompleted && !isSavedCompleted && actMissing) {
       const statusName = columns.find(c => c.id.toString() === formData.statusId)?.name;
       toast.warning(`Для перевода заявки с договором в «${statusName}» прикрепите Акт выполненных работ во вкладке «Файлы».`);
       setActiveTab('FILES');
@@ -274,6 +276,31 @@ export const OrderDrawer: React.FC = () => {
     } catch (err) {
       console.error('Failed to delete order', err);
       toast.error('Не удалось удалить заказ');
+    }
+  };
+
+  /** Завершенный заказ уходит в архив сразу, а не с началом следующего месяца (например, после правок вернувшегося из архива). */
+  const handleArchiveOrder = async () => {
+    if (!editingOrderId) {
+      return;
+    }
+    const ok = await confirm({
+      title: 'Перевести в архив?',
+      message: 'Заказ исчезнет с доски и появится в разделе «Архив». Вернуть его в работу можно оттуда.',
+      confirmText: 'В архив',
+      cancelText: 'Отмена'
+    });
+    if (!ok) {
+      return;
+    }
+    try {
+      await archiveOrder(editingOrderId);
+      notifyOrdersChanged('archive', editingOrderId);
+      swipe.smoothClose();
+      toast.success('Заказ переведен в архив');
+    } catch (err) {
+      console.error('Failed to archive order', err);
+      toast.error(errorMessage(err, 'Не удалось перевести заказ в архив'));
     }
   };
 
@@ -476,10 +503,12 @@ export const OrderDrawer: React.FC = () => {
                 isWorker={isWorker}
                 isCompleted={isCompleted}
                 showComplete={isInstallationStage(selectedStatus, columns)}
+                showArchive={isSavedCompleted}
                 hasInstaller={hasInstaller}
                 actMissing={actMissing}
                 onCancel={discardAndClose}
                 onDelete={handleDeleteOrder}
+                onArchive={handleArchiveOrder}
                 onComplete={handleCompleteInstallation}
               />
             </form>

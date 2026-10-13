@@ -925,6 +925,13 @@ body.light-theme .order-drawer-content {
   gap: 12px;
 }
 
+.order-drawer-manage-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 /* DaData dark theme overrides */
 .react-dadata__suggestions {
   background-color: var(--bg-secondary) !important;
