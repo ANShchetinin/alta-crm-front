@@ -9,7 +9,7 @@ import {
   orderFormTotal,
   orderToFormData,
   resolveContractParams,
-  specItemsFromMeasurement,
+  withPaymentChange,
   withMeasurementResult
 } from './orderForm';
 import type { Order } from '../../../api/kanban';
@@ -161,8 +161,19 @@ describe('orderForm', () => {
     expect(result.contractParams?.specItems).toHaveLength(1);
   });
 
-  it('maps measurement items to contract spec rows', () => {
-    expect(specItemsFromMeasurement([])).toEqual([]);
+  it('keeps the total equal to prepayment plus remainder without an estimate', () => {
+    const form = { ...createEmptyOrderForm(1), totalPrice: '30000', prepayment: '10000', remainder: '20000' };
+
+    expect(withPaymentChange(form, 'prepayment', '15000', false)).toMatchObject({ prepayment: '15000', remainder: '20000', totalPrice: '35000' });
+    expect(withPaymentChange(form, 'remainder', '5000', false)).toMatchObject({ remainder: '5000', totalPrice: '15000' });
+    expect(withPaymentChange({ ...form, remainder: '' }, 'prepayment', '', false).totalPrice).toBe('');
+  });
+
+  it('keeps the estimate total and recalculates the remainder from the prepayment', () => {
+    const form = { ...createEmptyOrderForm(1), totalPrice: '30000', prepayment: '10000', remainder: '20000' };
+
+    expect(withPaymentChange(form, 'prepayment', '12000', true)).toMatchObject({ prepayment: '12000', remainder: '18000', totalPrice: '30000' });
+    expect(withPaymentChange(form, 'prepayment', '35000', true)).toMatchObject({ remainder: '0', totalPrice: '30000' });
   });
 
   it('detects an act among uploaded or pending files', () => {

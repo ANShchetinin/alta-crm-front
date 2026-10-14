@@ -2391,3 +2391,41 @@ body.light-theme .kanban-touch-drop-slot {
   color: #b45309;
   background: rgba(245, 158, 11, 0.08);
 }
+
+/* Значения посчитаны по смете и правятся в ней: параметры договора, сумма заказа */
+.contract-params-note,
+.order-estimate-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.contract-params-note .btn,
+.order-estimate-note .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  color: var(--accent-primary);
+}
+
+/* Поле только для просмотра (значение из сметы): без фона и с пунктирной рамкой, текст остается читаемым */
+input.estimate-readonly-field,
+input.estimate-readonly-field:focus {
+  background: transparent !important;
+  border-style: dashed !important;
+  box-shadow: none !important;
+  cursor: default;
+}

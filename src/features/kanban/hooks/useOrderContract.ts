@@ -4,11 +4,9 @@ import {
   getNextOrderNumber,
   updateOrder,
   type ContractParams,
-  type ContractSpecItem,
   type Order
 } from '../../../api/kanban';
 import { updateClient, type Client, type ClientCreateRequest } from '../../../api/clients';
-import { getMeasurementByOrderId } from '../../../api/measurements';
 import type { PassportApplyResult } from '../../../components/PassportScannerModal';
 import type { ContractPromptData } from '../components/ContractPromptModal';
 import { downloadBlob } from '../../../utils/download';
@@ -19,7 +17,6 @@ import { mergeActChecklist } from '../constants';
 import {
   buildContractOrderPayload,
   resolveContractParams,
-  specItemsFromMeasurement,
   type OrderFormData,
   type SetOrderFormData
 } from '../utils/orderForm';
@@ -48,8 +45,6 @@ const EMPTY_PROMPT: ContractPromptData = {
   discount: '',
   handoverDate: ''
 };
-
-const parseQuantity = (quantity: string): number => parseFloat(String(quantity).replace(',', '.')) || 0;
 
 /**
  * Запрос на сохранение клиента из окна договора. PUT заменяет клиента целиком, поэтому за основу берется
@@ -85,8 +80,6 @@ export const isPromptComplete = (data: ContractPromptData): boolean => {
   return required.every(isFilled) && isValidPhone(data.phone);
 };
 
-const reindex = (items: ContractSpecItem[]): ContractSpecItem[] => items.map((item, i) => ({ ...item, idx: i + 1 }));
-
 interface UseOrderContractOptions {
   orderId: number | null;
   formData: OrderFormData;
@@ -97,11 +90,10 @@ interface UseOrderContractOptions {
 }
 
 /**
- * Договор заказа: параметры спецификации, чек-лист акта, позиции сметы (вручную или из замера)
+ * Договор заказа: параметры спецификации, чек-лист акта, позиции сметы (только просмотр — правятся в замере)
  * и формирование договора Word с уточнением данных клиента в модальном окне.
  */
 export const useOrderContract = ({ orderId, formData, setFormData, currentOrder, clients, actChecklistTemplate }: UseOrderContractOptions) => {
-  const [isSyncingMeasurement, setIsSyncingMeasurement] = useState(false);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptData, setPromptData] = useState<ContractPromptData>(EMPTY_PROMPT);
@@ -131,68 +123,12 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
     )));
   };
 
-  const addSpecItem = () => {
-    updateContractParam('specItems', [
-      ...specItems,
-      { idx: specItems.length + 1, name: '', quantity: '1', unit: 'шт.', price: 0, total: 0 }
-    ]);
-  };
-
-  /** Обновляет поле позиции; при изменении количества или цены пересчитывает сумму строки. */
-  const updateSpecItem = (index: number, patch: Partial<ContractSpecItem>) => {
-    updateContractParam('specItems', specItems.map((item, i) => {
-      if (i !== index) {
-        return item;
-      }
-      const next = { ...item, ...patch };
-      if (patch.quantity !== undefined || patch.price !== undefined) {
-        next.total = parseQuantity(next.quantity) * (next.price || 0);
-      }
-      return next;
-    }));
-  };
-
-  const removeSpecItem = (index: number) => {
-    updateContractParam('specItems', reindex(specItems.filter((_, i) => i !== index)));
-  };
-
   const generateOrderNumber = async () => {
     try {
       const orderNumber = await getNextOrderNumber();
       setFormData(prev => ({ ...prev, orderNumber }));
     } catch (err) {
       console.error('Failed to generate order number', err);
-    }
-  };
-
-  /** Подтягивает позиции сохраненного замера в спецификацию и пересчитывает итог и остаток. */
-  const syncFromMeasurement = async () => {
-    if (!orderId) {
-      toast.warning('Сначала сохраните заказ, чтобы привязать позиции замера');
-      return;
-    }
-    try {
-      setIsSyncingMeasurement(true);
-      const dto = await getMeasurementByOrderId(orderId);
-      if (!dto || !dto.items || dto.items.length === 0) {
-        toast.info('В замере для этого заказа пока нет сохраненных позиций сметы');
-        return;
-      }
-      const items = specItemsFromMeasurement(dto.items);
-      const totalSum = items.reduce((acc, item) => acc + (item.total || 0), 0);
-      const remainder = Math.max(0, totalSum - (parseFloat(formData.prepayment) || 0));
-      setFormData(prev => ({
-        ...prev,
-        totalPrice: totalSum > 0 ? totalSum.toString() : prev.totalPrice,
-        remainder: totalSum > 0 ? remainder.toString() : prev.remainder,
-        contractParams: { ...contractParams, specItems: items }
-      }));
-      toast.success('Позиции сметы успешно подтянуты в договор!');
-    } catch (err) {
-      console.error('Failed to sync from measurement', err);
-      toast.error('Не удалось загрузить позиции из замера');
-    } finally {
-      setIsSyncingMeasurement(false);
     }
   };
 
@@ -336,12 +272,7 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
     updateContractParam,
     updateCustomContractParam,
     toggleActItem,
-    addSpecItem,
-    updateSpecItem,
-    removeSpecItem,
     generateOrderNumber,
-    isSyncingMeasurement,
-    syncFromMeasurement,
     isPromptOpen,
     closePrompt: () => setIsPromptOpen(false),
     promptLoading,

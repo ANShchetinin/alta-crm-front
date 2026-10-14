@@ -4,9 +4,11 @@ import { useTranslation } from 'react-i18next';
 import type { OrderAttachment } from '../../../../../api/kanban';
 import { isActFile } from '../../../constants';
 import type { OrderAttachmentsState } from '../../../hooks/useOrderAttachments';
+import type { OrderContractState } from '../../../hooks/useOrderContract';
 import { ActUploadActionSheet } from '../../../../../components/ActUploadActionSheet';
 import { DocumentScannerModal } from '../../../../../components/DocumentScannerModal';
 import { AttachmentPreviewModal } from '../../../../../components/AttachmentPreviewModal';
+import { ActChecklistSection } from './ActChecklistSection';
 import { ActUploadCard } from './ActUploadCard';
 import { AttachmentItem } from './AttachmentItem';
 
@@ -16,12 +18,14 @@ interface OrderFilesTabProps {
   isWorker: boolean;
   isMobile: boolean;
   hasDocumentScanner: boolean;
+  /** Договор заказа для чек-листа акта; без него (монтажник, нет модуля договоров) чек-лист не показывается. */
+  contract?: OrderContractState;
 }
 
 /**
- * Вкладка «Файлы и акты»: акт выполненных работ, список файлов заказа и файлов, ожидающих сохранения заказа.
+ * Вкладка «Файлы и акты»: акт выполненных работ и его чек-лист, список файлов заказа и файлов, ожидающих сохранения заказа.
  */
-export const OrderFilesTab: React.FC<OrderFilesTabProps> = ({ attachments, files, isWorker, isMobile, hasDocumentScanner }) => {
+export const OrderFilesTab: React.FC<OrderFilesTabProps> = ({ attachments, files, isWorker, isMobile, hasDocumentScanner, contract }) => {
   const { t } = useTranslation();
   const {
     pendingFiles,
@@ -36,6 +40,7 @@ export const OrderFilesTab: React.FC<OrderFilesTabProps> = ({ attachments, files
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
       {/* Выделенный блок для Акта выполненных работ */}
         <ActUploadCard attachments={attachments} files={files} hasDocumentScanner={hasDocumentScanner} />
+      {contract && <ActChecklistSection contract={contract} />}
 
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'}}>
         <div>

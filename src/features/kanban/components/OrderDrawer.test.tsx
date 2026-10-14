@@ -6,6 +6,7 @@ import * as kanbanApi from '../../../api/kanban';
 import type { Order, OrderStatus } from '../../../api/kanban';
 import { getClients, type Client } from '../../../api/clients';
 import { getEmployees, type Employee } from '../../../api/employees';
+import { getMeasurementByOrderId, type MeasurementDto } from '../../../api/measurements';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useAppStore } from '../../../store/useAppStore';
 import { useOrderDrawerStore } from '../../../store/useOrderDrawerStore';
@@ -41,6 +42,7 @@ vi.mock('../../../api/settings', () => ({
   getContractTemplateStatus: vi.fn().mockResolvedValue({ individual: true, legal: false })
 }));
 vi.mock('../../../api/aiUsage', () => ({ getOrderAiUsage: vi.fn().mockResolvedValue(null) }));
+vi.mock('../../../api/measurements', () => ({ getMeasurementByOrderId: vi.fn() }));
 vi.mock('../../../components/OrderRemindersSection', () => ({ OrderRemindersSection: () => null }));
 vi.mock('../../measurements/components/MeasurementWizard', () => ({
   MeasurementWizard: ({ onSaved }: { onSaved?: () => void }) => (
@@ -118,6 +120,7 @@ describe('OrderDrawer', () => {
     vi.mocked(kanbanApi.getOrderComments).mockResolvedValue([]);
     vi.mocked(getClients).mockResolvedValue([client]);
     vi.mocked(getEmployees).mockResolvedValue(employees);
+    vi.mocked(getMeasurementByOrderId).mockResolvedValue({ rooms: [], items: [] } as unknown as MeasurementDto);
   });
 
   afterEach(async () => {
@@ -159,16 +162,38 @@ describe('OrderDrawer', () => {
     clickTab(/Файлы и акты/);
     expect(await screen.findByText('чертеж.pdf')).toBeInTheDocument();
     expect(screen.getByText('Акт выполненных работ')).toBeInTheDocument();
+    expect(screen.getByText('Чек-лист выполненных работ для Акта')).toBeInTheDocument();
 
     clickTab('Договор');
     expect(screen.getByText('Номер и формирование договора')).toBeInTheDocument();
-    expect(screen.getByText('2. Чек-лист выполненных работ для Акта')).toBeInTheDocument();
+    expect(screen.queryByText(/Чек-лист выполненных работ/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Изменить в смете/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Добавить позицию/ })).not.toBeInTheDocument();
 
     clickTab('Замер и смета');
     expect(screen.getByTestId('measurement-wizard')).toBeInTheDocument();
 
     clickTab('AI анализ звонков');
     expect(screen.getByText('Нет загруженных записей звонков')).toBeInTheDocument();
+  });
+
+  it('locks the order total and contract ceiling params when the order has an estimate', async () => {
+    vi.mocked(getMeasurementByOrderId).mockResolvedValue({
+      rooms: [{ roomName: 'Зал' }],
+      items: [{ name: 'Полотно', type: 'MATERIAL', quantity: 20, unit: 'м²', unitSalePrice: 2500, totalSalePrice: 50000 }]
+    } as unknown as MeasurementDto);
+    await renderOpenOrder({ ...baseOrder, contractParams: { area: '20.00' } });
+
+    expect(await screen.findByText(/Сумма заказа посчитана по смете/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('30000')).toHaveAttribute('readonly');
+
+    fireEvent.change(screen.getByDisplayValue('20000'), { target: { value: '22000' } });
+    expect(screen.getByDisplayValue('28000')).toHaveAttribute('readonly');
+    expect(screen.getByText('50 000 ₽')).toBeInTheDocument();
+
+    clickTab('Договор');
+    expect(screen.getByText(/Параметры посчитаны по замеру/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('20.00')).toHaveAttribute('readonly');
   });
 
   it('saves edited fields with the full payload', async () => {

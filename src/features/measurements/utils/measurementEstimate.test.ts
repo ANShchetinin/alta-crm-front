@@ -6,6 +6,7 @@ import {
   applyItemChange,
   buildCalculateResponse,
   createDefaultRoom,
+  estimateSaveWarning,
   estimateTotals,
   findLinkedSlot,
   isServiceActiveInRoom,
@@ -197,5 +198,27 @@ describe('measurementEstimate', () => {
 
     // прибыль = 13000 − 4000 (материалы) − 3000 (монтаж по цене услуг); себестоимость услуги не учитывается
     expect(totals).toMatchObject({ totalSalePrice: 13000, materialsCost: 4000, installationPrice: 3000, profit: 6000, marginPercent: 46 });
+  });
+});
+
+describe('estimateSaveWarning', () => {
+  it('warns when the estimate lowers a manually entered order total', () => {
+    expect(estimateSaveWarning(30000, { totalPrice: 50000, prepayment: 0, remainder: 50000 }, 0))
+      .toMatch(/30\s000\s₽ вместо 50\s000\s₽/);
+  });
+
+  it('warns when the estimate zeroes a positive remainder', () => {
+    expect(estimateSaveWarning(3000, { totalPrice: 10000, prepayment: 5000, remainder: 5000 }, 10000))
+      .toMatch(/остаток к оплате станет 0 ₽/);
+  });
+
+  it('does not ask for ordinary edits of an estimate that already sets the total', () => {
+    expect(estimateSaveWarning(8000, { totalPrice: 10000, prepayment: 2000, remainder: 8000 }, 10000)).toBeNull();
+    expect(estimateSaveWarning(60000, { totalPrice: 50000, prepayment: 20000, remainder: 30000 }, 0)).toBeNull();
+    expect(estimateSaveWarning(3000, { totalPrice: 0, prepayment: 0, remainder: 0 }, 0)).toBeNull();
+  });
+
+  it('does not repeat the warning when the remainder is already zero', () => {
+    expect(estimateSaveWarning(2000, { totalPrice: 3000, prepayment: 5000, remainder: 0 }, 3000)).toBeNull();
   });
 });

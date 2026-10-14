@@ -1,10 +1,12 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Pencil } from 'lucide-react';
 import { distributeInstallerAmounts } from '../../../utils/installers';
 import {
   calcOrderProfitability,
   orderFormOverpayment,
   orderFormTotal,
+  withPaymentChange,
   type OrderFormData,
   type SetOrderFormData
 } from '../../../utils/orderForm';
@@ -13,13 +15,22 @@ interface OrderFinanceSectionProps {
   formData: OrderFormData;
   setFormData: SetOrderFormData;
   isWorker: boolean;
+  /** В смете есть позиции: сумма заказа берется из нее и здесь не меняется. */
+  totalFromEstimate: boolean;
+  onOpenMeasurement?: () => void;
 }
 
 /**
  * Финансы заказа: стоимость монтажа, аванс и остаток с отметками оплаты, итог и показатели прибыльности.
  * Монтажнику показывается только остаток к оплате.
  */
-export const OrderFinanceSection: React.FC<OrderFinanceSectionProps> = ({ formData, setFormData, isWorker }) => {
+export const OrderFinanceSection: React.FC<OrderFinanceSectionProps> = ({
+  formData,
+  setFormData,
+  isWorker,
+  totalFromEstimate,
+  onOpenMeasurement
+}) => {
   const { t } = useTranslation();
   const {
     materialsCost: currentMaterialsCost,
@@ -61,6 +72,16 @@ export const OrderFinanceSection: React.FC<OrderFinanceSectionProps> = ({ formDa
           <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
             Финансы и оплата
           </h4>
+          {totalFromEstimate && (
+            <div className="order-estimate-note">
+              <span>Сумма заказа посчитана по смете. Остаток — сумма минус аванс.</span>
+              {onOpenMeasurement && (
+                <button type="button" className="btn btn-ghost" onClick={onOpenMeasurement}>
+                  <Pencil size={13} /> Изменить в смете
+                </button>
+              )}
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '14px' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>{t('kanban.modal.installationPrice') || 'Стоимость монтажа'}</label>
@@ -93,40 +114,22 @@ export const OrderFinanceSection: React.FC<OrderFinanceSectionProps> = ({ formDa
                 step="0.01"
                 placeholder="0"
                 value={formData.prepayment || ''}
-                onChange={(e) => {
-                  const newPrep = e.target.value;
-                  const prepNum = parseFloat(newPrep || '0');
-                  const remNum = parseFloat(formData.remainder || '0');
-                  const sum = prepNum + remNum;
-                  setFormData({
-                    ...formData, 
-                    prepayment: newPrep,
-                    totalPrice: sum > 0 ? sum.toString() : ''
-                  });
-                }}
+                onChange={(e) => setFormData(withPaymentChange(formData, 'prepayment', e.target.value, totalFromEstimate))}
                 className="custom-number-input"
               />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Остаток (₽)</label>
-              <input 
-                type="number" 
-                min="0" 
+              <input
+                type="number"
+                min="0"
                 step="0.01"
                 placeholder="0"
                 value={formData.remainder || ''}
-                onChange={(e) => {
-                  const newRem = e.target.value;
-                  const remNum = parseFloat(newRem || '0');
-                  const prepNum = parseFloat(formData.prepayment || '0');
-                  const sum = prepNum + remNum;
-                  setFormData({
-                    ...formData, 
-                    remainder: newRem,
-                    totalPrice: sum > 0 ? sum.toString() : ''
-                  });
-                }}
-                className="custom-number-input"
+                onChange={(e) => setFormData(withPaymentChange(formData, 'remainder', e.target.value, totalFromEstimate))}
+                readOnly={totalFromEstimate}
+                title={totalFromEstimate ? 'Сумма заказа минус аванс' : undefined}
+                className={totalFromEstimate ? 'custom-number-input estimate-readonly-field' : 'custom-number-input'}
               />
             </div>
           </div>

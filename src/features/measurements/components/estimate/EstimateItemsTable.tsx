@@ -43,6 +43,7 @@ const EstimateTableRow = ({ item, index, linkedSlot, unit, showRoom, onUpdate, o
         value={item.quantity || ''}
         onChange={e => onUpdate({ quantity: parseQuantityInput(e.target.value, unit) })}
         placeholder="0"
+        className="wizard-number-input"
         style={{ ...FIELD, textAlign: 'center', fontWeight: 700, fontSize: '0.92rem', padding: '0 6px', outline: 'none' }}
       />
     </td>
@@ -62,10 +63,11 @@ const EstimateTableRow = ({ item, index, linkedSlot, unit, showRoom, onUpdate, o
         value={item.unitSalePrice || ''}
         onChange={e => onUpdate({ unitSalePrice: parseFloat(e.target.value) || 0 })}
         placeholder="0"
+        className="wizard-number-input"
         style={{ ...FIELD, textAlign: 'right', padding: '0 10px', fontWeight: 600, fontSize: '0.92rem' }}
       />
     </td>
-    <td style={{ ...CELL, textAlign: 'right', fontWeight: 800, fontSize: '0.95rem', color: '#16a34a', whiteSpace: 'nowrap' }}>
+    <td style={{ ...CELL, textAlign: 'right', fontWeight: 800, fontSize: '0.95rem', color: 'var(--success)', whiteSpace: 'nowrap' }}>
       {(item.totalSalePrice || 0).toLocaleString('ru-RU')} ₽
     </td>
     <td style={{ ...CELL, textAlign: 'center' }}>
@@ -91,7 +93,7 @@ const EstimateTableRow = ({ item, index, linkedSlot, unit, showRoom, onUpdate, o
   </tr>
 );
 
-/** Смета таблицей для экранов шире 768px. */
+/** Смета таблицей, когда для нее хватает ширины (иначе — карточки, см. {@code .wizard-estimate-items}). */
 export const EstimateItemsTable = ({ rows }: { rows: EstimateRowProps[] }) => (
   <div className="wizard-table-desktop" style={{
     background: 'var(--table-bg, rgba(0, 0, 0, 0.2))',
@@ -100,16 +102,26 @@ export const EstimateItemsTable = ({ rows }: { rows: EstimateRowProps[] }) => (
     overflowX: 'auto',
     WebkitOverflowScrolling: 'touch'
   }}>
-    <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+    {/* Фиксированная раскладка: длинное название материала не сжимает количество, единицу и цену */}
+    <table style={{ width: '100%', minWidth: '660px', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+      <colgroup>
+        <col style={{ width: '36px' }} />
+        <col />
+        <col style={{ width: '96px' }} />
+        <col style={{ width: '92px' }} />
+        <col style={{ width: '116px' }} />
+        <col style={{ width: '120px' }} />
+        <col style={{ width: '40px' }} />
+      </colgroup>
       <thead>
         <tr style={{ background: 'var(--table-header-bg, rgba(255, 255, 255, 0.06))', color: 'var(--text-secondary)', textAlign: 'left' }}>
-          <th style={{ padding: '8px 4px', width: '30px', textAlign: 'center' }}>#</th>
-          <th style={{ padding: '8px 8px', minWidth: '180px' }}>Наименование позиции / выбор материала</th>
-          <th style={{ padding: '8px 4px', width: '84px', textAlign: 'center' }}>Кол-во</th>
-          <th style={{ padding: '8px 4px', width: '76px', textAlign: 'center' }}>Ед.</th>
-          <th style={{ padding: '8px 6px', width: '105px', textAlign: 'right' }}>Цена (₽)</th>
-          <th style={{ padding: '8px 8px', width: '110px', textAlign: 'right' }}>Сумма (₽)</th>
-          <th style={{ padding: '8px 2px', width: '32px' }}></th>
+          <th style={{ padding: '8px 4px', textAlign: 'center' }}>#</th>
+          <th style={{ padding: '8px 10px' }}>Наименование позиции / выбор материала</th>
+          <th style={{ padding: '8px 4px', textAlign: 'center' }}>Кол-во</th>
+          <th style={{ padding: '8px 4px', textAlign: 'center' }}>Ед.</th>
+          <th style={{ padding: '8px 10px', textAlign: 'right' }}>Цена (₽)</th>
+          <th style={{ padding: '8px 10px', textAlign: 'right' }}>Сумма (₽)</th>
+          <th style={{ padding: '8px 2px' }}></th>
         </tr>
       </thead>
       <tbody>
