@@ -27,6 +27,9 @@ interface OrderMainTabProps {
   actRequired: boolean;
   timezone?: string;
   expandComments: boolean;
+  /** В смете есть позиции: сумма заказа берется из нее. */
+  totalFromEstimate: boolean;
+  onOpenMeasurement?: () => void;
   onAddNewClient: () => void;
   onOpenFiles: () => void;
   onCommentsCountChange: (count: number) => void;
@@ -49,6 +52,8 @@ export const OrderMainTab: React.FC<OrderMainTabProps> = ({
   actRequired,
   timezone,
   expandComments,
+  totalFromEstimate,
+  onOpenMeasurement,
   onAddNewClient,
   onOpenFiles,
   onCommentsCountChange
@@ -100,7 +105,13 @@ export const OrderMainTab: React.FC<OrderMainTabProps> = ({
       isWorker={isWorker}
     />
 
-    <OrderFinanceSection formData={formData} setFormData={setFormData} isWorker={isWorker} />
+    <OrderFinanceSection
+      formData={formData}
+      setFormData={setFormData}
+      isWorker={isWorker}
+      totalFromEstimate={totalFromEstimate}
+      onOpenMeasurement={onOpenMeasurement}
+    />
 
     {orderId && !isWorker && <OrderRemindersSection orderId={orderId} employees={employees} />}
 

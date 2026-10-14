@@ -7,7 +7,7 @@ interface ActChecklistSectionProps {
 }
 
 /**
- * Чек-лист выполненных работ для Акта: переключение пунктов ДА/НЕТ.
+ * Чек-лист выполненных работ для Акта (вкладка «Файлы и акты»): переключение пунктов ДА/НЕТ.
  */
 export const ActChecklistSection: React.FC<ActChecklistSectionProps> = ({ contract }) => {
   const { actChecklist, toggleActItem } = contract;
@@ -17,12 +17,11 @@ export const ActChecklistSection: React.FC<ActChecklistSectionProps> = ({ contra
       background: 'rgba(255, 255, 255, 0.02)',
       border: '1px solid var(--glass-border)',
       borderRadius: 'var(--radius-md)',
-      padding: '16px',
-      marginBottom: '18px'
+      padding: '16px'
     }}>
       <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
         <FileCheck size={15} style={{ color: '#60a5fa' }} />
-        2. Чек-лист выполненных работ для Акта
+        Чек-лист выполненных работ для Акта
       </h4>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>

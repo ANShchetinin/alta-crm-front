@@ -4,7 +4,6 @@ import type { OrderContractState } from '../../../hooks/useOrderContract';
 import type { SetOrderFormData } from '../../../utils/orderForm';
 import { ContractNumberSection } from './ContractNumberSection';
 import { ContractParamsSection } from './ContractParamsSection';
-import { ActChecklistSection } from './ActChecklistSection';
 import { SpecItemsSection } from './SpecItemsSection';
 
 interface OrderContractTabProps {
@@ -14,13 +13,14 @@ interface OrderContractTabProps {
   setFormData: SetOrderFormData;
   templateStatus: ContractTemplateStatus | null;
   fieldDefinitions?: ContractFieldDefinition[];
+  hasMeasurement: boolean;
   hasAiEstimate: boolean;
   onOpenMeasurement: () => void;
   onOpenAiEstimate: () => void;
 }
 
 /**
- * Вкладка «Договор»: номер и формирование договора, параметры спецификации, чек-лист акта и позиции сметы.
+ * Вкладка «Договор»: номер и формирование договора, параметры спецификации и позиции сметы (просмотр).
  */
 export const OrderContractTab: React.FC<OrderContractTabProps> = ({
   contract,
@@ -29,14 +29,19 @@ export const OrderContractTab: React.FC<OrderContractTabProps> = ({
   setFormData,
   templateStatus,
   fieldDefinitions,
+  hasMeasurement,
   hasAiEstimate,
   onOpenMeasurement,
   onOpenAiEstimate
 }) => (
   <>
     <ContractNumberSection orderNumber={orderNumber} setFormData={setFormData} contract={contract} templateStatus={templateStatus} />
-    <ContractParamsSection contract={contract} fieldDefinitions={fieldDefinitions} />
-    <ActChecklistSection contract={contract} />
+    <ContractParamsSection
+      contract={contract}
+      fieldDefinitions={fieldDefinitions}
+      fromMeasurement={hasMeasurement}
+      onOpenMeasurement={onOpenMeasurement}
+    />
     <SpecItemsSection
       contract={contract}
       orderId={orderId}

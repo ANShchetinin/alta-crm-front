@@ -150,7 +150,7 @@ export const MeasurementWizard = ({
         />
 
         {showDetails && (
-          <div>
+          <div className="wizard-estimate-items">
             <EstimateItemsTable rows={rows} />
             <EstimateItemCards
               rows={rows}

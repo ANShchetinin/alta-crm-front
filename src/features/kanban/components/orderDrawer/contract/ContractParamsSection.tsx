@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tag } from 'lucide-react';
+import { Pencil, Tag } from 'lucide-react';
 import type { ContractFieldDefinition } from '../../../../../api/settings';
 import type { ContractParams } from '../../../../../api/kanban';
 import type { OrderContractState } from '../../../hooks/useOrderContract';
@@ -8,6 +8,9 @@ import { DateInput } from '../../../../../components/ui/DateInput';
 interface ContractParamsSectionProps {
   contract: OrderContractState;
   fieldDefinitions?: ContractFieldDefinition[];
+  /** Есть замер: параметры потолка договор берет из него, здесь они только для просмотра. */
+  fromMeasurement: boolean;
+  onOpenMeasurement: () => void;
 }
 
 type CeilingField = 'area' | 'perimeter' | 'canvasesCount' | 'insertLength' | 'pipeCount' | 'lightsCount' | 'timberLength';
@@ -34,17 +37,19 @@ interface ParamInputProps {
   placeholder: string;
   value: string | undefined;
   onChange: (value: string) => void;
+  readOnly?: boolean;
 }
 
-const ParamInput: React.FC<ParamInputProps> = ({ label, placeholder, value, onChange }) => (
+const ParamInput: React.FC<ParamInputProps> = ({ label, placeholder, value, onChange, readOnly = false }) => (
   <div className="form-group" style={{ marginBottom: 0 }}>
     <label style={{ fontSize: '0.78rem' }}>{label}</label>
     <input
       type="text"
-      placeholder={placeholder}
+      placeholder={readOnly ? '—' : placeholder}
       value={value || ''}
       onChange={(e) => onChange(e.target.value)}
-      className="search-input"
+      readOnly={readOnly}
+      className={readOnly ? 'search-input estimate-readonly-field' : 'search-input'}
       style={{ width: '100%', paddingLeft: '10px' }}
     />
   </div>
@@ -52,11 +57,18 @@ const ParamInput: React.FC<ParamInputProps> = ({ label, placeholder, value, onCh
 
 /**
  * Параметры спецификации договора: поля, настроенные компанией, либо сводные параметры натяжного потолка.
+ * При наличии замера параметры потолка считаются из него и правятся только в смете.
  */
-export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({ contract, fieldDefinitions }) => {
+export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({
+  contract,
+  fieldDefinitions,
+  fromMeasurement,
+  onOpenMeasurement
+}) => {
   const { contractParams, updateContractParam, updateCustomContractParam } = contract;
   const customFields = fieldDefinitions && fieldDefinitions.length > 0 ? fieldDefinitions : null;
   const setParam = (key: keyof ContractParams) => (value: string) => updateContractParam(key, value);
+  const ceilingReadOnly = fromMeasurement && !customFields;
 
   return (
     <div style={{
@@ -70,6 +82,15 @@ export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({ co
         <Tag size={15} style={{ color: 'var(--accent-primary)' }} />
         1. {customFields ? 'Параметры спецификации договора' : 'Сводные параметры потолка'}
       </h4>
+
+      {ceilingReadOnly && (
+        <div className="contract-params-note">
+          <span>Параметры посчитаны по замеру и попадут в договор из него.</span>
+          <button type="button" className="btn btn-ghost" onClick={onOpenMeasurement}>
+            <Pencil size={13} /> Изменить в смете
+          </button>
+        </div>
+      )}
 
       <div style={gridStyle}>
         {customFields
@@ -89,6 +110,7 @@ export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({ co
               placeholder={field.placeholder}
               value={contractParams[field.key]}
               onChange={setParam(field.key)}
+              readOnly={ceilingReadOnly}
             />
           ))}
       </div>
@@ -100,6 +122,7 @@ export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({ co
             placeholder="Полотно Мат 303"
             value={contractParams.canvasArticle}
             onChange={setParam('canvasArticle')}
+            readOnly={ceilingReadOnly}
           />
         )}
         <div className="form-group" style={{ marginBottom: 0 }}>

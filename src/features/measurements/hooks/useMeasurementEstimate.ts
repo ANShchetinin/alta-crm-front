@@ -9,7 +9,9 @@ import {
   type MeasurementRoomDto
 } from '../../../api/measurements';
 import { getActiveEstimationServices, type EstimationService } from '../../../api/estimationServices';
+import { getOrderById } from '../../../api/kanban';
 import { toast } from '../../../utils/toast';
+import { confirm } from '../../../utils/confirm';
 import { getErrorMessage } from '../../../utils/errorMessage';
 import {
   DEFAULT_ROOM_NAME,
@@ -17,6 +19,7 @@ import {
   buildCalculateResponse,
   createDefaultRoom,
   customItem,
+  estimateSaveWarning,
   estimateTotals,
   isServiceActiveInRoom,
   nextRoomName,
@@ -27,7 +30,8 @@ import {
   switchItemMaterial,
   warehouseItem,
   withoutServiceInRoom,
-  type InitialContractParams
+  type InitialContractParams,
+  type OrderAmounts
 } from '../utils/measurementEstimate';
 
 interface UseMeasurementEstimateOptions {
@@ -61,6 +65,8 @@ export const useMeasurementEstimate = ({
   const [isManualEditMode, setIsManualEditMode] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  // Сумма сметы, сохраненной в заказ: если сумма заказа с ней совпадает, ее задает смета, а не ручной ввод
+  const savedEstimateTotalRef = useRef(0);
 
   // Загрузка пакетов работ и сохраненной сметы (при смене заказа и по кнопке «Повторить»)
   useEffect(() => {
@@ -81,7 +87,9 @@ export const useMeasurementEstimate = ({
       setRooms(dto?.rooms && dto.rooms.length > 0 ? dto.rooms : [createDefaultRoom(DEFAULT_ROOM_NAME, initialParamsRef.current)]);
       setNotes(dto?.notes || '');
       // Смета нового замера пуста, пока не выбран пакет работ; у сохраненного восстанавливаются позиции
-      setItems(normalizeLoadedItems(dto?.items));
+      const loadedItems = normalizeLoadedItems(dto?.items);
+      setItems(loadedItems);
+      savedEstimateTotalRef.current = estimateTotals(loadedItems, []).totalSalePrice;
       setLoading(false);
     }).catch(err => {
       console.error('Ошибка загрузки замера:', err);
@@ -196,12 +204,31 @@ export const useMeasurementEstimate = ({
 
   const totals = estimateTotals(items, rooms);
 
+  /**
+   * Подтверждение, если смета уменьшит сумму, введенную вручную, или обнулит остаток. Суммы берутся из заказа
+   * на сервере — от них бэкенд и пересчитает остаток. Если заказ прочитать не удалось, сохранение не блокируется.
+   */
+  const confirmTotalChange = async (targetOrderId: number): Promise<boolean> => {
+    let order: OrderAmounts;
+    try {
+      order = await getOrderById(targetOrderId);
+    } catch (err) {
+      console.error('Не удалось прочитать суммы заказа перед сохранением сметы', err);
+      return true;
+    }
+    const warning = estimateSaveWarning(totals.totalSalePrice, order, savedEstimateTotalRef.current);
+    return !warning || confirm({ title: 'Изменить сумму заказа?', message: warning, confirmText: 'Сохранить смету', cancelText: 'Вернуться' });
+  };
+
   const save = async () => {
     if (!orderId || loadFailed) {
       return;
     }
     setSaving(true);
     try {
+      if (!(await confirmTotalChange(orderId))) {
+        return;
+      }
       const dto: MeasurementDto = {
         orderId,
         notes,
@@ -211,6 +238,7 @@ export const useMeasurementEstimate = ({
         totalCostPrice: totals.totalCostPrice
       };
       const saved = await saveOrderMeasurement(orderId, dto);
+      savedEstimateTotalRef.current = totals.totalSalePrice;
       onSaved?.(saved, buildCalculateResponse(items, rooms, totals));
     } catch (err) {
       console.error('Не удалось сохранить замер', err);

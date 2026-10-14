@@ -4,6 +4,8 @@ import { MeasurementWizard } from './MeasurementWizard';
 import { renderWithQuery } from '../../../test-utils/queryWrapper';
 import { getMaterials } from '../../../api/storage';
 import { getMeasurementByOrderId, saveOrderMeasurement } from '../../../api/measurements';
+import { getOrderById, type Order } from '../../../api/kanban';
+import { confirm } from '../../../utils/confirm';
 
 vi.mock('../../../api/storage', () => ({
   getMaterials: vi.fn().mockResolvedValue([])
@@ -91,9 +93,13 @@ vi.mock('../../../api/measurements', () => ({
   })
 }));
 
+vi.mock('../../../api/kanban', () => ({ getOrderById: vi.fn() }));
+vi.mock('../../../utils/confirm', () => ({ confirm: vi.fn() }));
+
 describe('MeasurementWizard Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getOrderById).mockResolvedValue({ id: 1, totalPrice: 0, prepayment: 0, remainder: 0 } as Order);
   });
 
   it('renders correctly with default room controls', async () => {
@@ -178,6 +184,24 @@ describe('MeasurementWizard Component', () => {
     expect(dto.rooms).toHaveLength(1);
     expect(dto.items).toHaveLength(1);
     expect(onSaved).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ totalSalePrice: 10500, expectedProfit: 6300, totalArea: 20 }));
+  });
+
+  it('asks before the estimate lowers a manual order total and zeroes the remainder', async () => {
+    vi.mocked(getOrderById).mockResolvedValue({ id: 1, totalPrice: 50000, prepayment: 20000, remainder: 30000 } as Order);
+    vi.mocked(confirm).mockResolvedValueOnce(false);
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewCosts />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Монтаж натяжного потолка/i }));
+    fireEvent.click(screen.getByText('Сохранить смету в заказ'));
+
+    await waitFor(() => expect(confirm).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.stringMatching(/10\s500\s₽ вместо 50\s000\s₽.*остаток к оплате станет 0 ₽/)
+    })));
+    expect(saveOrderMeasurement).not.toHaveBeenCalled();
+
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+    fireEvent.click(screen.getByText('Сохранить смету в заказ'));
+    await waitFor(() => expect(saveOrderMeasurement).toHaveBeenCalledTimes(1));
   });
 
   it('removes a room together with its estimate items', async () => {

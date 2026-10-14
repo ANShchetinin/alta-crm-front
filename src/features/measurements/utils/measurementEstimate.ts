@@ -332,6 +332,38 @@ export const estimateTotals = (items: MeasurementCalculationItemDto[], rooms: Me
   };
 };
 
+/** Сохраненные суммы заказа, от которых бэкенд пересчитывает сумму и остаток при сохранении сметы. */
+export interface OrderAmounts {
+  totalPrice?: number | null;
+  prepayment?: number | null;
+  remainder?: number | null;
+}
+
+const rub = (value: number) => `${value.toLocaleString('ru-RU')} ₽`;
+
+/**
+ * Предупреждение перед сохранением сметы: сумма заказа становится суммой сметы, а остаток — суммой минус аванс.
+ * Спрашиваем, только если смета уменьшит сумму, введенную вручную (она не совпадает с прежней сметой),
+ * или обнулит остаток, который был больше нуля. Обычная правка сметы, которая уже задает сумму, не спрашивается.
+ *
+ * @returns текст предупреждения или {@code null}, если предупреждать не о чем
+ */
+export const estimateSaveWarning = (newTotal: number, order: OrderAmounts, savedEstimateTotal: number): string | null => {
+  const orderTotal = order.totalPrice || 0;
+  const prepayment = order.prepayment || 0;
+  const manualTotal = orderTotal > 0 && Math.abs(orderTotal - savedEstimateTotal) >= 0.01;
+  const lowersManualTotal = manualTotal && newTotal < orderTotal;
+  const zeroesRemainder = (order.remainder || 0) > 0 && newTotal <= prepayment;
+  if (!lowersManualTotal && !zeroesRemainder) {
+    return null;
+  }
+  const parts = [`Сумма заказа станет ${rub(newTotal)} вместо ${rub(orderTotal)}.`];
+  if (zeroesRemainder) {
+    parts.push(`Аванс ${rub(prepayment)} не меньше суммы сметы — остаток к оплате станет 0 ₽.`);
+  }
+  return parts.join(' ');
+};
+
 const quantityByName = (items: MeasurementCalculationItemDto[], ...keywords: string[]) =>
   items
     .filter(it => keywords.some(k => it.name.toLowerCase().includes(k)))

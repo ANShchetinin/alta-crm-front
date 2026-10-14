@@ -29,6 +29,7 @@ import { useOrderDrawerData } from '../hooks/useOrderDrawerData';
 import { useOrderAttachments } from '../hooks/useOrderAttachments';
 import { useOrderAi } from '../hooks/useOrderAi';
 import { useOrderContract } from '../hooks/useOrderContract';
+import { useOrderMeasurementState } from '../hooks/useOrderMeasurementState';
 import { useQuickClient } from '../hooks/useQuickClient';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import {
@@ -97,6 +98,9 @@ export const OrderDrawer: React.FC = () => {
   const files = useOrderAttachments(editingOrderId, setFormData);
   const ai = useOrderAi(editingOrderId);
   const contract = useOrderContract({ orderId: editingOrderId, formData, setFormData, currentOrder, clients, actChecklistTemplate });
+  const measurementState = useOrderMeasurementState(editingOrderId, !isWorker);
+  const showMeasurement = !isWorker || canAccessMeasurements;
+  const showContract = !isWorker && hasContractTemplates;
   const quickClient = useQuickClient(async created => {
     await reloadClients();
     setFormData(prev => ({ ...prev, clientId: created.id.toString() }));
@@ -430,8 +434,8 @@ export const OrderDrawer: React.FC = () => {
               <OrderDrawerTabs
                 activeTab={activeTab}
                 onChange={setActiveTab}
-                showMeasurement={!isWorker || canAccessMeasurements}
-                showContract={!isWorker && hasContractTemplates}
+                showMeasurement={showMeasurement}
+                showContract={showContract}
                 showAi={!isWorker && hasAiSummary && Boolean(editingOrderId)}
                 filesCount={formData.attachments.length + files.pendingFiles.length}
               />
@@ -452,6 +456,8 @@ export const OrderDrawer: React.FC = () => {
                     actRequired={actRequired}
                     timezone={tenantSettings?.timezone}
                     expandComments={Boolean(expandComments)}
+                    totalFromEstimate={measurementState.hasEstimate}
+                    onOpenMeasurement={showMeasurement ? () => setActiveTab('MEASUREMENT') : undefined}
                     onAddNewClient={quickClient.open}
                     onOpenFiles={() => setActiveTab('FILES')}
                     onCommentsCountChange={handleCommentsCountChange}
@@ -470,7 +476,7 @@ export const OrderDrawer: React.FC = () => {
                   />
                 )}
 
-                {activeTab === 'CONTRACT' && !isWorker && hasContractTemplates && (
+                {activeTab === 'CONTRACT' && showContract && (
                   <OrderContractTab
                     contract={contract}
                     orderId={editingOrderId}
@@ -478,6 +484,7 @@ export const OrderDrawer: React.FC = () => {
                     setFormData={setFormData}
                     templateStatus={templateStatus}
                     fieldDefinitions={tenantSettings?.contractFieldDefinitions}
+                    hasMeasurement={measurementState.hasMeasurement}
                     hasAiEstimate={hasAiEstimate}
                     onOpenMeasurement={() => setActiveTab('MEASUREMENT')}
                     onOpenAiEstimate={() => setIsAiEstimateModalOpen(true)}
@@ -491,6 +498,7 @@ export const OrderDrawer: React.FC = () => {
                     isWorker={isWorker}
                     isMobile={isMobile}
                     hasDocumentScanner={hasDocumentScanner}
+                    contract={showContract ? contract : undefined}
                   />
                 )}
 

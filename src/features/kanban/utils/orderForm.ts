@@ -1,13 +1,11 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   ContractParams,
-  ContractSpecItem,
   Order,
   OrderAttachment,
   OrderInstaller,
   OrderMaterial
 } from '../../../api/kanban';
-import type { MeasurementCalculationItemDto } from '../../../api/measurements';
 import { mergeActChecklist, isActFile } from '../constants';
 import { toLocalDateString } from '../../../utils/dateUtils';
 
@@ -271,6 +269,24 @@ export interface OrderProfitability {
 export const orderFormTotal = (form: OrderFormData): number =>
   toNumber(form.totalPrice) || toNumber(form.prepayment) + toNumber(form.remainder);
 
+/**
+ * Форма после изменения аванса или остатка. Обычно сумма заказа — их сумма. Если сумма посчитана по смете,
+ * она не меняется, а остаток пересчитывается от аванса (переплата — остаток 0).
+ */
+export const withPaymentChange = (
+  form: OrderFormData,
+  field: 'prepayment' | 'remainder',
+  value: string,
+  totalFromEstimate: boolean
+): OrderFormData => {
+  const next = { ...form, [field]: value };
+  if (totalFromEstimate) {
+    return { ...next, remainder: String(Math.max(0, toNumber(form.totalPrice) - toNumber(next.prepayment))) };
+  }
+  const sum = toNumber(next.prepayment) + toNumber(next.remainder);
+  return { ...next, totalPrice: sum > 0 ? sum.toString() : '' };
+};
+
 /** Переплата клиента: аванс больше итога (например, смета после замера оказалась меньше). Остаток при этом — 0. */
 export const orderFormOverpayment = (form: OrderFormData): number => Math.max(0, toNumber(form.prepayment) - orderFormTotal(form));
 
@@ -292,18 +308,6 @@ export const calcOrderProfitability = (form: OrderFormData): OrderProfitability 
     marginPercent: total > 0 ? Math.round((profit / total) * 100) : 0
   };
 };
-
-/**
- * Позиции спецификации договора из позиций расчета замера.
- */
-export const specItemsFromMeasurement = (items: MeasurementCalculationItemDto[]): ContractSpecItem[] => items.map((item, i) => ({
-  idx: i + 1,
-  name: item.name + (item.roomName ? ` (${item.roomName})` : ''),
-  quantity: String(item.quantity),
-  unit: item.unit || 'шт.',
-  price: item.unitSalePrice,
-  total: item.totalSalePrice
-}));
 
 /** Параметры договора, которые бэкенд заполняет из замера при сохранении сметы. */
 const MEASUREMENT_CONTRACT_PARAMS = [
