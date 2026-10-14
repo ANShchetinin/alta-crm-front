@@ -11,6 +11,11 @@ export const getServerErrorMessage = (err: unknown): string | undefined => {
 };
 
 /**
+ * Бэкенд отклонил изменение устаревших данных (409): их уже сохранил другой пользователь.
+ */
+export const isConflictError = (err: unknown): boolean => isAxiosError(err) && err.response?.status === 409;
+
+/**
  * Текст ошибки для пользователя: сообщение бэкенда (`{ message }` в теле ответа), иначе текст исключения,
  * иначе запасной вариант.
  */

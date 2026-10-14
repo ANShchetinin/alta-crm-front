@@ -6,6 +6,14 @@ import { getMaterials } from '../../../api/storage';
 import { getMeasurementByOrderId, saveOrderMeasurement } from '../../../api/measurements';
 import { getOrderById, type Order } from '../../../api/kanban';
 import { confirm } from '../../../utils/confirm';
+import { toast } from '../../../utils/toast';
+import { AxiosError, type AxiosResponse } from 'axios';
+
+const conflictError = () => {
+  const error = new AxiosError('Request failed with status code 409');
+  error.response = { status: 409, data: { message: 'Данные уже изменил другой пользователь' } } as AxiosResponse;
+  return error;
+};
 
 vi.mock('../../../api/storage', () => ({
   getMaterials: vi.fn().mockResolvedValue([])
@@ -95,6 +103,7 @@ vi.mock('../../../api/measurements', () => ({
 
 vi.mock('../../../api/kanban', () => ({ getOrderById: vi.fn() }));
 vi.mock('../../../utils/confirm', () => ({ confirm: vi.fn() }));
+vi.mock('../../../utils/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 describe('MeasurementWizard Component', () => {
   beforeEach(() => {
@@ -202,6 +211,52 @@ describe('MeasurementWizard Component', () => {
     vi.mocked(confirm).mockResolvedValueOnce(true);
     fireEvent.click(screen.getByText('Сохранить смету в заказ'));
     await waitFor(() => expect(saveOrderMeasurement).toHaveBeenCalledTimes(1));
+  });
+
+  it('sends the opened measurement version and then the saved one', async () => {
+    vi.mocked(getMeasurementByOrderId).mockResolvedValueOnce({
+      orderId: 1,
+      version: 3,
+      rooms: [{ roomName: 'Гостиная', area: 20, perimeter: 18 }]
+    });
+    vi.mocked(saveOrderMeasurement).mockResolvedValueOnce({ id: 100, orderId: 1, rooms: [], version: 4 });
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewCosts />);
+
+    fireEvent.click(await screen.findByText('Сохранить смету в заказ'));
+    await waitFor(() => expect(saveOrderMeasurement).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(saveOrderMeasurement).mock.calls[0][1].version).toBe(3);
+
+    fireEvent.click(await screen.findByText('Сохранить смету в заказ'));
+    await waitFor(() => expect(saveOrderMeasurement).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(saveOrderMeasurement).mock.calls[1][1].version).toBe(4);
+  });
+
+  it('offers to reload the measurement when someone else saved it first (409)', async () => {
+    vi.mocked(saveOrderMeasurement).mockRejectedValueOnce(conflictError());
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewCosts />);
+
+    fireEvent.click(await screen.findByText('Сохранить смету в заказ'));
+
+    await waitFor(() => expect(confirm).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Замер уже изменили',
+      confirmText: 'Загрузить'
+    })));
+    await waitFor(() => expect(getMeasurementByOrderId).toHaveBeenCalledTimes(2));
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('keeps the edits on screen when the user declines to reload after a conflict', async () => {
+    vi.mocked(saveOrderMeasurement).mockRejectedValueOnce(conflictError());
+    vi.mocked(confirm).mockResolvedValueOnce(false);
+    renderWithQuery(<MeasurementWizard orderId={1} materials={[]} canViewCosts />);
+
+    fireEvent.change(await screen.findByPlaceholderText(/Особые указания/), { target: { value: 'Мои правки' } });
+    fireEvent.click(screen.getByText('Сохранить смету в заказ'));
+
+    await waitFor(() => expect(confirm).toHaveBeenCalled());
+    expect(getMeasurementByOrderId).toHaveBeenCalledTimes(1);
+    expect(screen.getByDisplayValue('Мои правки')).toBeInTheDocument();
   });
 
   it('removes a room together with its estimate items', async () => {

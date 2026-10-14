@@ -38,6 +38,8 @@ export interface MeasurementDto {
   notes?: string;
   rooms: MeasurementRoomDto[];
   items?: MeasurementCalculationItemDto[];
+  /** Версия сохраненного замера: при сохранении устаревшей версии бэкенд отвечает 409. */
+  version?: number;
 }
 
 export interface MeasurementCalculationItemDto {
