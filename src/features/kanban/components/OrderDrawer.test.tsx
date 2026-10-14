@@ -194,7 +194,7 @@ describe('OrderDrawer', () => {
       prepaymentPaid: false,
       remainderPaid: false
     });
-    expect(payload.contractParams).toMatchObject({ area: '70,3', specItems: [] });
+    expect(payload.contractParams).toMatchObject({ area: '', specItems: [] });
     expect(payload.installedAt).toBeUndefined();
   });
 

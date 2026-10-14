@@ -34,7 +34,7 @@ describe('orderForm', () => {
     const form = createEmptyOrderForm(3, ['Монтаж']);
 
     expect(form.statusId).toBe('3');
-    expect(form.contractParams?.area).toBe('70,3');
+    expect(form.contractParams).toMatchObject({ area: '', perimeter: '', lightsCount: '', canvasArticle: '' });
     expect(form.contractParams?.actChecklist).toEqual([{ id: 'tpl_1', name: 'Монтаж', checked: false }]);
     expect(createEmptyOrderForm(undefined).statusId).toBe('');
   });

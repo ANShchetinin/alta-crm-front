@@ -140,6 +140,31 @@ describe('useOrderContract', () => {
     expect(result.current.contract.isPromptOpen).toBe(false);
   });
 
+  it('keeps empty ceiling params empty instead of saving placeholder numbers', async () => {
+    vi.mocked(downloadContractDocx).mockResolvedValue(new Blob(['docx']));
+    const { result } = setup(5);
+    act(() => {
+      result.current.contract.startGenerate();
+    });
+
+    expect(result.current.contract.promptData).toMatchObject({ area: '', perimeter: '', lightsCount: '', canvasArticle: '' });
+
+    await act(() => result.current.contract.submitGenerate({ preventDefault: vi.fn() } as unknown as React.FormEvent));
+
+    expect(updateOrder).toHaveBeenCalledWith(5, expect.objectContaining({
+      contractParams: expect.objectContaining({
+        area: '',
+        perimeter: '',
+        canvasesCount: '',
+        insertLength: '',
+        pipeCount: '',
+        lightsCount: '',
+        timberLength: '',
+        canvasArticle: ''
+      })
+    }));
+  });
+
   it('keeps the rest of the client card when saving it from the contract prompt', async () => {
     vi.mocked(downloadContractDocx).mockResolvedValue(new Blob(['docx']));
     const { result } = setup(5);
