@@ -56,17 +56,18 @@ export type OrderPayload = Record<string, unknown>;
 const toNumber = (value: string | undefined): number => parseFloat(value || '0') || 0;
 
 /**
- * Параметры договора по умолчанию (типовой натяжной потолок) с чек-листом акта из шаблона компании.
+ * Пустые параметры договора с чек-листом акта из шаблона компании. Параметры потолка не заполняются примерами:
+ * они сохранились бы в заказ и попали в договор как настоящие цифры.
  */
 export const createDefaultContractParams = (actChecklistTemplate?: string[]): ContractParams => ({
-  area: '70,3',
-  perimeter: '110,5',
-  canvasesCount: '5',
-  insertLength: '20',
-  pipeCount: '0',
-  lightsCount: '30',
-  timberLength: '17',
-  canvasArticle: 'Полотно Мат 303',
+  area: '',
+  perimeter: '',
+  canvasesCount: '',
+  insertLength: '',
+  pipeCount: '',
+  lightsCount: '',
+  timberLength: '',
+  canvasArticle: '',
   discount: '',
   handoverDate: '',
   specItems: [],

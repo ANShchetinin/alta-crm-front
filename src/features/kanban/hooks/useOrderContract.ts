@@ -37,14 +37,14 @@ const EMPTY_PROMPT: ContractPromptData = {
   passportDepartmentCode: '',
   registrationAddress: '',
   installationAddress: '',
-  area: '70,3',
-  perimeter: '110,5',
-  canvasesCount: '5',
-  insertLength: '20',
-  pipeCount: '0',
-  lightsCount: '30',
-  timberLength: '17',
-  canvasArticle: 'Полотно Мат 303',
+  area: '',
+  perimeter: '',
+  canvasesCount: '',
+  insertLength: '',
+  pipeCount: '',
+  lightsCount: '',
+  timberLength: '',
+  canvasArticle: '',
   discount: '',
   handoverDate: ''
 };
@@ -196,7 +196,11 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
     }
   };
 
-  /** Данные для договора из карточки клиента, заказа и сохраненных параметров договора. */
+  /**
+   * Данные для договора из карточки клиента, заказа и сохраненных параметров договора.
+   * Незаполненные параметры потолка остаются пустыми: окно договора их не показывает, и подстановка
+   * значений по умолчанию незаметно сохранила бы в заказ и договор выдуманные цифры.
+   */
   const buildPromptData = (): ContractPromptData => ({
     clientId: selectedClient?.id || 0,
     isLegal: selectedClient?.clientType === 'LEGAL_ENTITY',
@@ -210,14 +214,14 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
     passportDepartmentCode: selectedClient?.passportDepartmentCode || '',
     registrationAddress: selectedClient?.registrationAddress || '',
     installationAddress: formData.address || '',
-    area: contractParams.area || EMPTY_PROMPT.area,
-    perimeter: contractParams.perimeter || EMPTY_PROMPT.perimeter,
-    canvasesCount: contractParams.canvasesCount || EMPTY_PROMPT.canvasesCount,
-    insertLength: contractParams.insertLength || EMPTY_PROMPT.insertLength,
-    pipeCount: contractParams.pipeCount || EMPTY_PROMPT.pipeCount,
-    lightsCount: contractParams.lightsCount || EMPTY_PROMPT.lightsCount,
-    timberLength: contractParams.timberLength || EMPTY_PROMPT.timberLength,
-    canvasArticle: contractParams.canvasArticle || EMPTY_PROMPT.canvasArticle,
+    area: contractParams.area || '',
+    perimeter: contractParams.perimeter || '',
+    canvasesCount: contractParams.canvasesCount || '',
+    insertLength: contractParams.insertLength || '',
+    pipeCount: contractParams.pipeCount || '',
+    lightsCount: contractParams.lightsCount || '',
+    timberLength: contractParams.timberLength || '',
+    canvasArticle: contractParams.canvasArticle || '',
     discount: contractParams.discount || '',
     handoverDate: contractParams.handoverDate || ''
   });
