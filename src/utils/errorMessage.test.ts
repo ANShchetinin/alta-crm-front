@@ -1,12 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { AxiosError, type AxiosResponse } from 'axios';
-import { formatErrorWithReason, getErrorMessage } from './errorMessage';
+import { formatErrorWithReason, getErrorMessage, isConflictError } from './errorMessage';
 
-const axiosError = (data: unknown) => {
-  const error = new AxiosError('Request failed with status code 400');
-  error.response = { data, status: 400 } as AxiosResponse;
+const axiosError = (data: unknown, status = 400) => {
+  const error = new AxiosError(`Request failed with status code ${status}`);
+  error.response = { data, status } as AxiosResponse;
   return error;
 };
+
+describe('isConflictError', () => {
+  it('detects only HTTP 409 responses', () => {
+    expect(isConflictError(axiosError({ message: 'Данные уже изменил другой пользователь' }, 409))).toBe(true);
+    expect(isConflictError(axiosError({}))).toBe(false);
+    expect(isConflictError(new Error('Network Error'))).toBe(false);
+  });
+});
 
 describe('getErrorMessage', () => {
   it('prefers the backend message from the response body', () => {

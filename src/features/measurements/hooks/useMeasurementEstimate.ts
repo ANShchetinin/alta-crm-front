@@ -12,7 +12,7 @@ import { getActiveEstimationServices, type EstimationService } from '../../../ap
 import { getOrderById } from '../../../api/kanban';
 import { toast } from '../../../utils/toast';
 import { confirm } from '../../../utils/confirm';
-import { getErrorMessage } from '../../../utils/errorMessage';
+import { getErrorMessage, isConflictError } from '../../../utils/errorMessage';
 import {
   DEFAULT_ROOM_NAME,
   applyItemChange,
@@ -67,6 +67,8 @@ export const useMeasurementEstimate = ({
   const [loadAttempt, setLoadAttempt] = useState(0);
   // Сумма сметы, сохраненной в заказ: если сумма заказа с ней совпадает, ее задает смета, а не ручной ввод
   const savedEstimateTotalRef = useRef(0);
+  // Версия открытого замера: бэкенд отклоняет сохранение поверх чужих изменений (409)
+  const versionRef = useRef<number | undefined>(undefined);
 
   // Загрузка пакетов работ и сохраненной сметы (при смене заказа и по кнопке «Повторить»)
   useEffect(() => {
@@ -86,6 +88,7 @@ export const useMeasurementEstimate = ({
       setServices(loadedServices);
       setRooms(dto?.rooms && dto.rooms.length > 0 ? dto.rooms : [createDefaultRoom(DEFAULT_ROOM_NAME, initialParamsRef.current)]);
       setNotes(dto?.notes || '');
+      versionRef.current = dto?.version;
       // Смета нового замера пуста, пока не выбран пакет работ; у сохраненного восстанавливаются позиции
       const loadedItems = normalizeLoadedItems(dto?.items);
       setItems(loadedItems);
@@ -220,6 +223,23 @@ export const useMeasurementEstimate = ({
     return !warning || confirm({ title: 'Изменить сумму заказа?', message: warning, confirmText: 'Сохранить смету', cancelText: 'Вернуться' });
   };
 
+  /**
+   * Замер уже сохранил кто-то другой: предлагается загрузить его версию. Если отказаться, правки остаются
+   * на экране (их можно переписать), но сохранить их поверх чужих нельзя, пока замер не загружен заново.
+   */
+  const offerReloadAfterConflict = async () => {
+    const reload = await confirm({
+      title: 'Замер уже изменили',
+      message: 'Пока вы редактировали, замер сохранил другой пользователь. Загрузить его версию? '
+        + 'Ваши несохраненные изменения пропадут.',
+      confirmText: 'Загрузить',
+      cancelText: 'Остаться'
+    });
+    if (reload) {
+      retryLoad();
+    }
+  };
+
   const save = async () => {
     if (!orderId || loadFailed) {
       return;
@@ -235,12 +255,18 @@ export const useMeasurementEstimate = ({
         rooms,
         items,
         totalPrice: totals.totalSalePrice,
-        totalCostPrice: totals.totalCostPrice
+        totalCostPrice: totals.totalCostPrice,
+        version: versionRef.current
       };
       const saved = await saveOrderMeasurement(orderId, dto);
+      versionRef.current = saved.version;
       savedEstimateTotalRef.current = totals.totalSalePrice;
       onSaved?.(saved, buildCalculateResponse(items, rooms, totals));
     } catch (err) {
+      if (isConflictError(err)) {
+        await offerReloadAfterConflict();
+        return;
+      }
       console.error('Не удалось сохранить замер', err);
       toast.error('Ошибка при сохранении замера: ' + getErrorMessage(err, 'неизвестная ошибка'));
     } finally {
