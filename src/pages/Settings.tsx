@@ -11,6 +11,7 @@ import type { TenantRequisites, ContractFieldDefinition } from '../api/settings'
 import { useState, useRef, useEffect } from 'react';
 import { PushNotificationSettings } from '../components/PushNotificationSettings';
 import { EstimationServiceBuilder } from '../components/EstimationServiceBuilder';
+import { RoomParamsSettings } from '../features/measurements/components/RoomParamsSettings';
 import type { Material } from '../api/storage';
 import { useMaterialsQuery } from '../hooks/queries/useStorageQuery';
 import { TIMEZONE_OPTIONS } from '../utils/dateUtils';
@@ -363,7 +364,10 @@ export const Settings = () => {
       </div>
 
       {activeTab === 'ESTIMATION' && role === 'OWNER' ? (
-        <EstimationServiceBuilder materials={materials} />
+        <>
+          <RoomParamsSettings />
+          <EstimationServiceBuilder materials={materials} />
+        </>
       ) : activeTab === 'CONTRACT_CONFIG' && role === 'OWNER' ? (
         <div className="contract-config-container">
           {/* Header Panel */}

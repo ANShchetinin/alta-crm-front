@@ -4,6 +4,9 @@ import type { ContractFieldDefinition } from '../../../../../api/settings';
 import type { ContractParams } from '../../../../../api/kanban';
 import type { OrderContractState } from '../../../hooks/useOrderContract';
 import { DateInput } from '../../../../../components/ui/DateInput';
+import type { RoomParamDefinition } from '../../../../../api/roomParams';
+import { useRoomParamsQuery } from '../../../../../hooks/queries/useRoomParamsQuery';
+import { measuredContractFields, type MeasuredContractField } from '../../../../measurements/utils/roomParams';
 
 interface ContractParamsSectionProps {
   contract: OrderContractState;
@@ -55,6 +58,24 @@ const ParamInput: React.FC<ParamInputProps> = ({ label, placeholder, value, onCh
   </div>
 );
 
+const EMPTY_PARAMS: RoomParamDefinition[] = [];
+
+/** Значение из замера (только просмотр) с подписью, откуда оно взято. */
+const MeasuredField: React.FC<{ field: MeasuredContractField }> = ({ field }) => (
+  <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+    <label style={{ fontSize: '0.78rem' }} title={field.label}>{field.label}</label>
+    <input
+      type="text"
+      placeholder="—"
+      value={field.value}
+      readOnly
+      className="search-input estimate-readonly-field"
+      style={{ width: '100%', paddingLeft: '10px' }}
+    />
+    <small className="contract-measured-source">{field.source}</small>
+  </div>
+);
+
 /**
  * Параметры спецификации договора: поля, настроенные компанией, либо сводные параметры натяжного потолка.
  * При наличии замера параметры потолка считаются из него и правятся только в смете.
@@ -69,6 +90,9 @@ export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({
   const customFields = fieldDefinitions && fieldDefinitions.length > 0 ? fieldDefinitions : null;
   const setParam = (key: keyof ContractParams) => (value: string) => updateContractParam(key, value);
   const ceilingReadOnly = fromMeasurement && !customFields;
+  // Параметры помещений замера: значения и названия — из настроек параметров помещения
+  const showMeasured = ceilingReadOnly && contractParams.measuredParams !== undefined && contractParams.measuredParams !== null;
+  const { data: roomParams = EMPTY_PARAMS } = useRoomParamsQuery(showMeasured);
 
   return (
     <div style={{
@@ -85,15 +109,21 @@ export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({
 
       {ceilingReadOnly && (
         <div className="contract-params-note">
-          <span>Параметры посчитаны по замеру и попадут в договор из него.</span>
+          <span>
+            {showMeasured
+              ? 'Параметры посчитаны по помещениям замера и попадут в договор из него.'
+              : 'Параметры посчитаны по замеру и попадут в договор из него.'}
+          </span>
           <button type="button" className="btn btn-ghost" onClick={onOpenMeasurement}>
-            <Pencil size={13} /> Изменить в смете
+            <Pencil size={13} /> Изменить в замере
           </button>
         </div>
       )}
 
       <div style={gridStyle}>
-        {customFields
+        {showMeasured
+          ? measuredContractFields(contractParams, roomParams).map(field => <MeasuredField key={field.key} field={field} />)
+          : customFields
           ? customFields.map(field => (
             <ParamInput
               key={field.id}

@@ -311,7 +311,8 @@ export const calcOrderProfitability = (form: OrderFormData): OrderProfitability 
 
 /** Параметры договора, которые бэкенд заполняет из замера при сохранении сметы. */
 const MEASUREMENT_CONTRACT_PARAMS = [
-  'area', 'perimeter', 'canvasesCount', 'lightsCount', 'pipeCount', 'timberLength', 'canvasArticle', 'specItems'
+  'area', 'perimeter', 'canvasesCount', 'insertLength', 'lightsCount', 'pipeCount', 'timberLength', 'canvasArticle',
+  'specItems', 'measuredParams'
 ] as const;
 
 /**

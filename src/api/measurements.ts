@@ -28,6 +28,8 @@ export interface MeasurementRoomDto {
     customValue?: string;
   }[];
   extraParamsJson?: string;
+  /** Значения параметров помещения компании по ключу параметра (числа — строкой). */
+  paramValues?: Record<string, string>;
 }
 
 export interface MeasurementDto {

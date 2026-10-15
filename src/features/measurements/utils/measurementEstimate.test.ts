@@ -16,9 +16,11 @@ import {
   parseQuantityInput,
   recalcRoomItems,
   renameRoomItems,
+  roomParamNumber,
   serviceItemsForRoom,
   switchItemMaterial,
   unitChange,
+  withParamValue,
   withoutServiceInRoom
 } from './measurementEstimate';
 
@@ -77,8 +79,45 @@ describe('measurementEstimate', () => {
   it('prefills the first room from contract params and ignores invalid values', () => {
     const first = createDefaultRoom('Гостиная', { area: '20,5', perimeter: 18, lightsCount: '6', pipeCount: 'abc' });
 
-    expect(first).toMatchObject({ roomName: 'Гостиная', area: 20.5, perimeter: 18, lightsCount: 6, pipesCount: 0, height: 2.7 });
-    expect(createDefaultRoom('Спальня')).toMatchObject({ area: 0, perimeter: 0, lightsCount: 0 });
+    expect(first).toMatchObject({ roomName: 'Гостиная', area: 20.5, perimeter: 18, height: 2.7, paramValues: { lights: '6' } });
+    expect(createDefaultRoom('Спальня')).toMatchObject({ area: 0, perimeter: 0, paramValues: {} });
+  });
+
+  it('reads room param numbers and drops cleared values', () => {
+    const kitchen = room({ paramValues: { cornice: '3,5', lights: 'много' } });
+
+    expect(roomParamNumber(kitchen, 'cornice')).toBe(3.5);
+    expect(roomParamNumber(kitchen, 'lights')).toBe(0);
+    expect(roomParamNumber(kitchen, null)).toBe(0);
+    expect(withParamValue({ lights: '6', pipes: '2' }, 'pipes', ' ')).toEqual({ lights: '6' });
+    expect(withParamValue(undefined, 'lights', '8')).toEqual({ lights: '8' });
+  });
+
+  it('takes the quantity of a linked slot from the room param and follows its changes', () => {
+    const lightsService = {
+      id: 2,
+      name: 'Освещение',
+      isActive: true,
+      slots: [{
+        id: 20,
+        name: 'Светильник',
+        slotType: 'DROPDOWN',
+        calculationBasis: 'COUNT',
+        wasteCoefficient: 1,
+        isRequired: false,
+        roomParamKey: 'lights',
+        materials: [{ materialId: 300, materialName: 'GX53', unit: 'шт', salePrice: 400, costPrice: 150, isDefault: true }]
+      }]
+    } as unknown as EstimationService;
+    const kitchen = room({ paramValues: { lights: '6' } });
+
+    const [light] = serviceItemsForRoom(lightsService, kitchen, 'Кухня', []);
+    expect(light).toMatchObject({ quantity: 6, totalSalePrice: 2400 });
+    expect(serviceItemsForRoom(lightsService, room(), 'Кухня', [])[0].quantity).toBe(1);
+
+    const patch = { paramValues: { lights: '9' } };
+    const [updated] = recalcRoomItems([light], [lightsService], kitchen, { ...kitchen, ...patch }, patch);
+    expect(updated).toMatchObject({ quantity: 9, totalSalePrice: 3600 });
   });
 
   it('numbers new rooms and repeated presets', () => {

@@ -4,7 +4,7 @@ import type {
   MeasurementCalculationItemDto,
   MeasurementRoomDto
 } from '../../../api/measurements';
-import type { EstimationService, EstimationServiceSlot } from '../../../api/estimationServices';
+import { isCountableBasis, type EstimationService, type EstimationServiceSlot } from '../../../api/estimationServices';
 
 /** Параметры договора заказа, которыми предзаполняется первое помещение нового замера. */
 export interface InitialContractParams {
@@ -68,22 +68,47 @@ const positive = (value: number) => (!isNaN(value) && value > 0 ? value : 0);
 const parseDecimal = (value?: string | number) => (value ? parseFloat(String(value).replace(',', '.')) : 0);
 const parseInteger = (value?: string | number) => (value ? parseInt(String(value), 10) : 0);
 
+/** Число параметра помещения (с запятой или точкой); без значения или не число — 0. */
+export const roomParamNumber = (room: MeasurementRoomDto | undefined, key: string | null | undefined): number =>
+  key ? positive(parseDecimal(room?.paramValues?.[key])) : 0;
+
+/** Значения параметров помещения после ввода: пустое значение удаляется (так их и хранит бэкенд). */
+export const withParamValue = (
+  values: Record<string, string> | undefined,
+  key: string,
+  value: string
+): Record<string, string> => {
+  const next = { ...(values ?? {}) };
+  if (value.trim() === '') {
+    delete next[key];
+  } else {
+    next[key] = value;
+  }
+  return next;
+};
+
 /** Новое помещение; первое помещение нового замера берет площадь, периметр, светильники и трубы из договора. */
-export const createDefaultRoom = (name: string, initialParams?: InitialContractParams): MeasurementRoomDto => ({
-  roomName: name,
-  area: positive(parseDecimal(initialParams?.area)),
-  perimeter: positive(parseDecimal(initialParams?.perimeter)),
-  height: 2.7,
-  baseCorners: 4,
-  extraCorners: 0,
-  lightsCount: positive(parseInteger(initialParams?.lightsCount)),
-  chandeliersCount: 0,
-  tracksLength: 0,
-  corniceLength: 0,
-  pipesCount: positive(parseInteger(initialParams?.pipeCount)),
-  tileLength: 0,
-  slotSelections: []
-});
+export const createDefaultRoom = (name: string, initialParams?: InitialContractParams): MeasurementRoomDto => {
+  const lights = positive(parseInteger(initialParams?.lightsCount));
+  const pipes = positive(parseInteger(initialParams?.pipeCount));
+  const paramValues: Record<string, string> = {};
+  if (lights > 0) {
+    paramValues.lights = String(lights);
+  }
+  if (pipes > 0) {
+    paramValues.pipes = String(pipes);
+  }
+  return {
+    roomName: name,
+    area: positive(parseDecimal(initialParams?.area)),
+    perimeter: positive(parseDecimal(initialParams?.perimeter)),
+    height: 2.7,
+    baseCorners: 4,
+    extraCorners: 0,
+    paramValues,
+    slotSelections: []
+  };
+};
 
 /** Название нового помещения: «Помещение N» или шаблон с номером, если такое уже есть. */
 export const nextRoomName = (rooms: MeasurementRoomDto[], preset?: string): string => {
@@ -162,7 +187,13 @@ export const withoutServiceInRoom = (
 export const renameRoomItems = (items: MeasurementCalculationItemDto[], oldName: string, newName: string): MeasurementCalculationItemDto[] =>
   items.map(it => (it.roomName === oldName ? { ...it, roomName: newName } : it));
 
-/** Количество по базе расчета слота: площадь или периметр помещения с учетом отхода, иначе 1. */
+/** Слот «по количеству» или «по длине», привязанный к параметру помещения. */
+const isParamSlot = (slot: EstimationServiceSlot): boolean => Boolean(slot.roomParamKey) && isCountableBasis(slot.calculationBasis);
+
+/**
+ * Количество по базе расчета слота с учетом отхода: площадь, периметр или значение привязанного параметра помещения;
+ * иначе 1 (вводится в смете вручную).
+ */
 const slotQuantity = (slot: EstimationServiceSlot, room: MeasurementRoomDto): number => {
   const waste = slot.wasteCoefficient || 1.0;
   if (slot.calculationBasis === 'AREA') {
@@ -170,6 +201,10 @@ const slotQuantity = (slot: EstimationServiceSlot, room: MeasurementRoomDto): nu
   }
   if (slot.calculationBasis === 'PERIMETER') {
     return roundMoney((room.perimeter || 0) * waste);
+  }
+  if (isParamSlot(slot)) {
+    const value = roomParamNumber(room, slot.roomParamKey);
+    return value > 0 ? roundMoney(value * waste) : 1;
   }
   return 1;
 };
@@ -204,8 +239,8 @@ export const serviceItemsForRoom = (
 };
 
 /**
- * После изменения площади или периметра помещения пересчитывает количество его позиций со слотами,
- * посчитанными от площади или периметра.
+ * После изменения площади, периметра или параметров помещения пересчитывает количество его позиций со слотами,
+ * посчитанными от площади, периметра или привязанного параметра.
  */
 export const recalcRoomItems = (
   items: MeasurementCalculationItemDto[],
@@ -228,6 +263,8 @@ export const recalcRoomItems = (
       quantity = roundMoney(patch.area * waste);
     } else if (slot.calculationBasis === 'PERIMETER' && patch.perimeter !== undefined) {
       quantity = roundMoney(patch.perimeter * waste);
+    } else if (isParamSlot(slot) && patch.paramValues !== undefined) {
+      quantity = roundMoney(roomParamNumber(updatedRoom, slot.roomParamKey) * waste);
     }
     return withTotals({ ...it, roomName: updatedRoom.roomName, quantity });
   });

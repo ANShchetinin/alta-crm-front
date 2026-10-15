@@ -1,6 +1,8 @@
 import { Check, Layers, Minus, Plus, Ruler, Trash2 } from 'lucide-react';
 import type { MeasurementRoomDto } from '../../../api/measurements';
 import type { EstimationService } from '../../../api/estimationServices';
+import type { RoomParamDefinition } from '../../../api/roomParams';
+import { RoomParamsSection } from './RoomParamsSection';
 import { inputStyle, labelStyle, sectionHeaderStyle } from './wizardStyles';
 
 interface RoomEditorProps {
@@ -11,10 +13,23 @@ interface RoomEditorProps {
   services: EstimationService[];
   isServiceActive: (service: EstimationService) => boolean;
   onToggleService: (service: EstimationService) => void;
+  /** Действующие параметры помещения компании. */
+  roomParams: RoomParamDefinition[];
+  canAddRoomParam: boolean;
 }
 
-/** Карточка помещения: название, геометрия и пакеты работ для сметы. */
-export const RoomEditor = ({ room, canRemove, onChange, onRemove, services, isServiceActive, onToggleService }: RoomEditorProps) => (
+/** Карточка помещения: название, геометрия, параметры помещения и пакеты работ для сметы. */
+export const RoomEditor = ({
+  room,
+  canRemove,
+  onChange,
+  onRemove,
+  services,
+  isServiceActive,
+  onToggleService,
+  roomParams,
+  canAddRoomParam
+}: RoomEditorProps) => (
   <div style={{
     background: 'var(--card-bg, rgba(255, 255, 255, 0.02))',
     border: '1px solid var(--glass-border)',
@@ -160,6 +175,8 @@ export const RoomEditor = ({ room, canRemove, onChange, onRemove, services, isSe
         </div>
       </div>
     </div>
+
+    <RoomParamsSection room={room} params={roomParams} onChange={onChange} canAddParam={canAddRoomParam} />
 
     {services.length > 0 && (
       <div>

@@ -4,6 +4,9 @@ import type { MaterialType } from './storage';
 export type SlotType = 'DROPDOWN' | 'AUTO_INCLUDE' | 'OPTIONAL';
 export type CalculationBasis = 'AREA' | 'PERIMETER' | 'COUNT' | 'LENGTH' | 'FIXED';
 
+/** Слоты «по количеству» и «по длине» могут брать количество из параметра помещения. */
+export const isCountableBasis = (basis: CalculationBasis): boolean => basis === 'COUNT' || basis === 'LENGTH';
+
 export interface EstimationSlotMaterial {
   id?: number;
   materialId: number;
@@ -26,6 +29,8 @@ export interface EstimationServiceSlot {
   wasteCoefficient: number;
   sortOrder?: number;
   isRequired: boolean;
+  /** Параметр помещения: слот «по количеству» или «по длине» берёт количество из него. */
+  roomParamKey?: string | null;
   materials: EstimationSlotMaterial[];
 }
 
@@ -53,6 +58,7 @@ export interface EstimationServiceSaveRequest {
     wasteCoefficient: number;
     sortOrder?: number;
     isRequired: boolean;
+    roomParamKey?: string | null;
     materials: {
       materialId: number;
       isDefault: boolean;

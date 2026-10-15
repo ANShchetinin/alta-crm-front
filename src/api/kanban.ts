@@ -71,6 +71,8 @@ export interface ContractParams {
   specItems?: ContractSpecItem[];
   actChecklist?: ActChecklistItem[];
   customParams?: Record<string, string>;
+  /** Теги из параметров помещений замера (тег договора → сведённое значение); только просмотр. */
+  measuredParams?: Record<string, string>;
 }
 
 export interface Order {
