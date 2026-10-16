@@ -44,8 +44,10 @@ export const Measurements: React.FC = () => {
   // Сохраненный замер меняет сумму и параметры заказа — обновляем все списки заказов
   const loadData = () => queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY });
 
-  // Фильтрация заявок для замера
+  // Фильтрация заявок для замера: уже замеренные (помещения в замере или площадь, введенная вручную) не показываются
   const filteredOrders = orders.filter(order => {
+    if (order.measured) return false;
+
     // Если WORKER, показываем только назначенные ему замеры или заявки
     if (isWorker && userId) {
       const isMyMeasurement = order.measurerId === userId || order.assigneeId === userId;

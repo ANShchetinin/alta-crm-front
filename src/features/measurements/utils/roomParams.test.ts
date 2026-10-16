@@ -57,7 +57,7 @@ describe('roomParams', () => {
 
   it('labels contract values from the measurement with their source', () => {
     const fields = measuredContractFields(
-      { area: '22.5', perimeter: '27', canvasesCount: '2', measuredParams: { lights_count: '10', unknown_tag: '3' } },
+      { source: 'MEASUREMENT', area: '22.5', perimeter: '27', canvasesCount: '2', measuredParams: { lights_count: '10', unknown_tag: '3' } },
       [param({})]
     );
 
@@ -67,6 +67,20 @@ describe('roomParams', () => {
       ['Кол-во полотен', '2', 'число помещений'],
       ['Светильники, шт', '10', 'сумма по помещениям'],
       ['{unknown_tag}', '3', 'из замера']
+    ]);
+  });
+
+  it('labels values entered manually before the measurement', () => {
+    const fields = measuredContractFields(
+      { source: 'MANUAL', area: '18', perimeter: null, canvasesCount: null, measuredParams: { lights_count: '3' } },
+      [param({})]
+    );
+
+    expect(fields.map(f => [f.label, f.value, f.source])).toEqual([
+      ['Площадь (м²)', '18', 'введено вручную до замера'],
+      ['Периметр (м/п)', '', 'введено вручную до замера'],
+      ['Кол-во полотен', '', 'введено вручную до замера'],
+      ['Светильники, шт', '3', 'введено вручную до замера']
     ]);
   });
 });

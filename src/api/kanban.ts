@@ -65,8 +65,15 @@ export interface ContractParams {
   customParams?: Record<string, string>;
 }
 
+/**
+ * Источник параметров потолка: помещения замера, значения, введенные вручную до замера (старые заказы, только
+ * просмотр), или их нет.
+ */
+export type ContractSummarySource = 'MEASUREMENT' | 'MANUAL' | 'NONE';
+
 /** Параметры потолка и спецификация договора, вычисленные бэкендом по замеру и смете (не хранятся). */
 export interface ContractSummary {
+  source: ContractSummarySource;
   area: string | null;
   perimeter: string | null;
   canvasesCount: string | null;
@@ -121,6 +128,8 @@ export interface Order {
   profitMargin?: number;
   isArchived?: boolean;
   commentsCount?: number;
+  /** Замер выполнен: в замере есть помещения или площадь потолка введена вручную (такие заявки не в «Замерах»). */
+  measured?: boolean;
 }
 
 export interface OrderInstaller {

@@ -184,7 +184,7 @@ describe('OrderDrawer', () => {
       items: [{ name: 'Полотно', type: 'MATERIAL', quantity: 20, unit: 'м²', unitSalePrice: 2500, totalSalePrice: 50000 }]
     } as unknown as MeasurementDto);
     vi.mocked(kanbanApi.getContractSummary).mockResolvedValue({
-      area: '20.00', perimeter: '18.00', canvasesCount: '1', canvasArticle: null, measuredParams: {}, specItems: []
+      source: 'MEASUREMENT', area: '20.00', perimeter: '18.00', canvasesCount: '1', canvasArticle: null, measuredParams: {}, specItems: []
     });
     await renderOpenOrder(baseOrder);
 
@@ -196,9 +196,22 @@ describe('OrderDrawer', () => {
     expect(screen.getByText('50 000 ₽')).toBeInTheDocument();
 
     clickTab('Договор');
-    expect(screen.getByText(/Параметры посчитаны по помещениям замера/)).toBeInTheDocument();
+    expect(await screen.findByText(/Параметры посчитаны по помещениям замера/)).toBeInTheDocument();
     expect(await screen.findByDisplayValue('20.00')).toHaveAttribute('readonly');
     expect(kanbanApi.getContractSummary).toHaveBeenCalledWith(5);
+  });
+
+  it('shows ceiling params entered manually before the measurement as read-only', async () => {
+    vi.mocked(kanbanApi.getContractSummary).mockResolvedValue({
+      source: 'MANUAL', area: '10,2', perimeter: '14', canvasesCount: '1', canvasArticle: 'Мат 303', measuredParams: {}, specItems: []
+    });
+    await renderOpenOrder(baseOrder);
+
+    clickTab('Договор');
+    expect(await screen.findByText(/введены вручную до замера/)).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('10,2')).toHaveAttribute('readonly');
+    expect(screen.getByDisplayValue('Мат 303')).toHaveAttribute('readonly');
+    expect(screen.getByRole('button', { name: /Заполнить замер/ })).toBeInTheDocument();
   });
 
   it('saves edited fields with the full payload', async () => {
