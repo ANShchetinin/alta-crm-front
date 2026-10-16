@@ -35,6 +35,18 @@ const gridStyle: React.CSSProperties = {
   marginBottom: '12px'
 };
 
+/**
+ * Подпись поля сетки в одну строку с многоточием (полный текст — в подсказке): если длинная подпись переносится,
+ * её поле съезжает вниз и ряд становится неровным.
+ */
+const gridLabelStyle: React.CSSProperties = {
+  fontSize: '0.78rem',
+  display: 'block',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
+};
+
 interface ParamInputProps {
   label: string;
   placeholder: string;
@@ -44,8 +56,8 @@ interface ParamInputProps {
 }
 
 const ParamInput: React.FC<ParamInputProps> = ({ label, placeholder, value, onChange, readOnly = false }) => (
-  <div className="form-group" style={{ marginBottom: 0 }}>
-    <label style={{ fontSize: '0.78rem' }}>{label}</label>
+  <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
+    <label style={gridLabelStyle} title={label}>{label}</label>
     <input
       type="text"
       placeholder={readOnly ? '—' : placeholder}
@@ -63,7 +75,7 @@ const EMPTY_PARAMS: RoomParamDefinition[] = [];
 /** Значение из замера (только просмотр) с подписью, откуда оно взято. */
 const MeasuredField: React.FC<{ field: MeasuredContractField }> = ({ field }) => (
   <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
-    <label style={{ fontSize: '0.78rem' }} title={field.label}>{field.label}</label>
+    <label style={gridLabelStyle} title={field.label}>{field.label}</label>
     <input
       type="text"
       placeholder="—"
