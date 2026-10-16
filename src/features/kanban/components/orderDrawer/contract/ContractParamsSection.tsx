@@ -13,10 +13,14 @@ interface ContractParamsSectionProps {
   fieldDefinitions?: ContractFieldDefinition[];
   /** Параметры потолка, посчитанные бэкендом по замеру (до загрузки — нет). */
   summary: ContractSummary | undefined;
-  /** Есть замер: параметры потолка договор берет из него. */
-  fromMeasurement: boolean;
   onOpenMeasurement: () => void;
 }
+
+const NOTES: Record<ContractSummary['source'], string> = {
+  MEASUREMENT: 'Параметры посчитаны по помещениям замера и попадут в договор из него.',
+  MANUAL: 'Параметры введены вручную до замера и попадут в договор как есть. После заполнения замера договор возьмет их из него.',
+  NONE: 'Площадь, периметр, полотна и другие параметры потолка договор берет из замера.'
+};
 
 const gridStyle: React.CSSProperties = {
   display: 'grid',
@@ -78,18 +82,20 @@ const MeasuredField: React.FC<{ field: MeasuredContractField }> = ({ field }) =>
 
 /**
  * Параметры спецификации договора: поля, настроенные компанией, либо сводные параметры натяжного потолка.
- * Параметры потолка считаются по замеру и правятся только в нем; без замера их здесь нет.
+ * Параметры потолка считаются по замеру и правятся только в нем; у старых заказов без замера показываются
+ * значения, введенные вручную (только просмотр).
  */
 export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({
   contract,
   fieldDefinitions,
   summary,
-  fromMeasurement,
   onOpenMeasurement
 }) => {
   const { contractParams, updateContractParam, updateCustomContractParam } = contract;
   const customFields = fieldDefinitions && fieldDefinitions.length > 0 ? fieldDefinitions : null;
-  const showMeasured = !customFields && fromMeasurement;
+  const source = summary?.source ?? 'NONE';
+  const fromMeasurement = source === 'MEASUREMENT';
+  const showMeasured = !customFields && summary !== undefined && source !== 'NONE';
   // Названия параметров помещения — из настроек
   const { data: roomParams = EMPTY_PARAMS } = useRoomParamsQuery(showMeasured);
 
@@ -108,11 +114,7 @@ export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({
 
       {!customFields && (
         <div className="contract-params-note">
-          <span>
-            {fromMeasurement
-              ? 'Параметры посчитаны по помещениям замера и попадут в договор из него.'
-              : 'Площадь, периметр, полотна и другие параметры потолка договор берет из замера.'}
-          </span>
+          <span>{NOTES[source]}</span>
           <button type="button" className="btn btn-ghost" onClick={onOpenMeasurement}>
             {fromMeasurement ? <><Pencil size={13} /> Изменить в замере</> : <><Ruler size={13} /> Заполнить замер</>}
           </button>
@@ -145,7 +147,7 @@ export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({
             key: 'canvas_article',
             label: 'Артикул полотна (фактура)',
             value: summary.canvasArticle ?? '',
-            source: 'полотна помещений'
+            source: fromMeasurement ? 'полотна помещений' : 'введено вручную до замера'
           }} />
         )}
         <div className="form-group" style={{ marginBottom: 0 }}>

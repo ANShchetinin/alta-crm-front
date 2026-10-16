@@ -84,26 +84,31 @@ const AGGREGATION_SOURCES: Record<RoomParamAggregation, string> = {
   LIST: 'значения помещений'
 };
 
+const MANUAL_SOURCE = 'введено вручную до замера';
+
 /**
  * Параметры договора из замера для вкладки «Договор»: площадь, периметр и число полотен — из помещений,
  * остальное — сведённые параметры помещения с названиями из настроек (без параметра — по тегу).
+ * У старого заказа без замера значения введены вручную — так и подписываются.
  */
 export const measuredContractFields = (
-  summary: Pick<ContractSummary, 'area' | 'perimeter' | 'canvasesCount' | 'measuredParams'>,
+  summary: Pick<ContractSummary, 'source' | 'area' | 'perimeter' | 'canvasesCount' | 'measuredParams'>,
   definitions: RoomParamDefinition[]
 ): MeasuredContractField[] => {
+  const manual = summary.source === 'MANUAL';
   const builtIn: MeasuredContractField[] = [
-    { key: 'area', label: 'Площадь (м²)', value: summary.area ?? '', source: 'сумма площадей помещений' },
-    { key: 'perimeter', label: 'Периметр (м/п)', value: summary.perimeter ?? '', source: 'сумма периметров помещений' },
-    { key: 'canvases_count', label: 'Кол-во полотен', value: summary.canvasesCount ?? '', source: 'число помещений' }
+    { key: 'area', label: 'Площадь (м²)', value: summary.area ?? '', source: manual ? MANUAL_SOURCE : 'сумма площадей помещений' },
+    { key: 'perimeter', label: 'Периметр (м/п)', value: summary.perimeter ?? '', source: manual ? MANUAL_SOURCE : 'сумма периметров помещений' },
+    { key: 'canvases_count', label: 'Кол-во полотен', value: summary.canvasesCount ?? '', source: manual ? MANUAL_SOURCE : 'число помещений' }
   ];
   const measured = Object.entries(summary.measuredParams ?? {}).map(([tag, value]) => {
     const definition = definitions.find(d => d.contractTag === tag);
+    const source = definition ? AGGREGATION_SOURCES[definition.aggregation] : 'из замера';
     return {
       key: tag,
       label: definition ? roomParamLabel(definition) : `{${tag}}`,
       value,
-      source: definition ? AGGREGATION_SOURCES[definition.aggregation] : 'из замера'
+      source: manual ? MANUAL_SOURCE : source
     };
   });
   return [...builtIn, ...measured];

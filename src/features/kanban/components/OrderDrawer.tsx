@@ -488,7 +488,6 @@ export const OrderDrawer: React.FC = () => {
                     setFormData={setFormData}
                     templateStatus={templateStatus}
                     fieldDefinitions={tenantSettings?.contractFieldDefinitions}
-                    hasMeasurement={measurementState.hasMeasurement}
                     hasAiEstimate={hasAiEstimate}
                     onOpenMeasurement={() => setActiveTab('MEASUREMENT')}
                     onOpenAiEstimate={() => setIsAiEstimateModalOpen(true)}

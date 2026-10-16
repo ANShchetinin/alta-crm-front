@@ -14,7 +14,6 @@ interface OrderContractTabProps {
   setFormData: SetOrderFormData;
   templateStatus: ContractTemplateStatus | null;
   fieldDefinitions?: ContractFieldDefinition[];
-  hasMeasurement: boolean;
   hasAiEstimate: boolean;
   onOpenMeasurement: () => void;
   onOpenAiEstimate: () => void;
@@ -31,7 +30,6 @@ export const OrderContractTab: React.FC<OrderContractTabProps> = ({
   setFormData,
   templateStatus,
   fieldDefinitions,
-  hasMeasurement,
   hasAiEstimate,
   onOpenMeasurement,
   onOpenAiEstimate
@@ -45,7 +43,6 @@ export const OrderContractTab: React.FC<OrderContractTabProps> = ({
         contract={contract}
         fieldDefinitions={fieldDefinitions}
         summary={summary}
-        fromMeasurement={hasMeasurement}
         onOpenMeasurement={onOpenMeasurement}
       />
       <SpecItemsSection
