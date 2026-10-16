@@ -34,7 +34,12 @@ describe('orderForm', () => {
     const form = createEmptyOrderForm(3, ['Монтаж']);
 
     expect(form.statusId).toBe('3');
-    expect(form.contractParams).toMatchObject({ area: '', perimeter: '', lightsCount: '', canvasArticle: '' });
+    expect(form.contractParams).toEqual({
+      discount: '',
+      handoverDate: '',
+      actChecklist: [{ id: 'tpl_1', name: 'Монтаж', checked: false }],
+      customParams: {}
+    });
     expect(form.contractParams?.actChecklist).toEqual([{ id: 'tpl_1', name: 'Монтаж', checked: false }]);
     expect(createEmptyOrderForm(undefined).statusId).toBe('');
   });
@@ -61,9 +66,10 @@ describe('orderForm', () => {
   });
 
   it('keeps saved contract params and fills defaults for missing lists', () => {
-    const form = orderToFormData({ ...order, contractParams: { area: '12', contractDate: '2026-01-02' } });
+    const form = orderToFormData({ ...order, contractParams: { discount: '500', contractDate: '2026-01-02' } });
 
-    expect(form.contractParams).toMatchObject({ area: '12', contractDate: '2026-01-02', specItems: [], customParams: {} });
+    expect(form.contractParams).toMatchObject({ discount: '500', contractDate: '2026-01-02', customParams: {} });
+    expect(form.contractParams?.actChecklist?.length).toBeGreaterThan(0);
   });
 
   it('builds the save payload and stamps installedAt only for a completed status without it', () => {
@@ -140,7 +146,7 @@ describe('orderForm', () => {
     const edited = {
       ...orderToFormData(order),
       address: 'Новый адрес (не сохранен)',
-      contractParams: { ...resolveContractParams(undefined), discount: '5%', area: '10' }
+      contractParams: { ...resolveContractParams(undefined), discount: '5%' }
     };
     const saved = orderToFormData({
       ...order,
@@ -149,12 +155,7 @@ describe('orderForm', () => {
       installationPrice: 6000,
       installers: [{ employeeId: 7, amount: 6000, splitType: 'EQUAL' }],
       materials: [{ materialId: 100, materialName: 'Полотно', quantity: 20.5 }],
-      contractParams: {
-        area: '20.5',
-        lightsCount: '6',
-        measuredParams: { lights_count: '6', timber_length: '3.5' },
-        specItems: [{ idx: 1, name: 'Полотно (Зал)', quantity: '20.5', unit: 'м²', price: 1000, total: 20500 }]
-      }
+      contractParams: { discount: '0' }
     } as Order);
 
     const result = withMeasurementResult(edited, saved);
@@ -162,13 +163,8 @@ describe('orderForm', () => {
     expect(result).toMatchObject({ address: 'Новый адрес (не сохранен)', totalPrice: '42000', remainder: '22000', installationPrice: '6000' });
     expect(result.installers).toEqual(saved.installers);
     expect(result.materials).toEqual(saved.materials);
-    expect(result.contractParams).toMatchObject({
-      area: '20.5',
-      lightsCount: '6',
-      discount: '5%',
-      measuredParams: { lights_count: '6', timber_length: '3.5' }
-    });
-    expect(result.contractParams?.specItems).toHaveLength(1);
+    // Договорные параметры формы не перезаписываются: свод договора вкладка «Договор» читает с сервера
+    expect(result.contractParams).toEqual(edited.contractParams);
   });
 
   it('keeps the total equal to prepayment plus remainder without an estimate', () => {

@@ -14,20 +14,12 @@ export interface MeasurementRoomDto {
   profileMaterialName?: string;
   insertMaterialId?: number;
   insertMaterialName?: string;
-  lightsCount?: number;
-  chandeliersCount?: number;
-  tracksLength?: number;
-  corniceType?: string;
-  corniceLength?: number;
-  pipesCount?: number;
-  tileLength?: number;
   slotSelections?: {
     slotId: number;
     materialId: number;
     customQuantity?: number;
     customValue?: string;
   }[];
-  extraParamsJson?: string;
   /** Значения параметров помещения компании по ключу параметра (числа — строкой). */
   paramValues?: Record<string, string>;
 }

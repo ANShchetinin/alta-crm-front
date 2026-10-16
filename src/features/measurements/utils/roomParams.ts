@@ -1,3 +1,4 @@
+import type { ContractSummary } from '../../../api/kanban';
 import type {
   RoomParamAggregation,
   RoomParamDefinition,
@@ -88,15 +89,15 @@ const AGGREGATION_SOURCES: Record<RoomParamAggregation, string> = {
  * остальное — сведённые параметры помещения с названиями из настроек (без параметра — по тегу).
  */
 export const measuredContractFields = (
-  contractParams: { area?: string; perimeter?: string; canvasesCount?: string; measuredParams?: Record<string, string> },
+  summary: Pick<ContractSummary, 'area' | 'perimeter' | 'canvasesCount' | 'measuredParams'>,
   definitions: RoomParamDefinition[]
 ): MeasuredContractField[] => {
   const builtIn: MeasuredContractField[] = [
-    { key: 'area', label: 'Площадь (м²)', value: contractParams.area ?? '', source: 'сумма площадей помещений' },
-    { key: 'perimeter', label: 'Периметр (м/п)', value: contractParams.perimeter ?? '', source: 'сумма периметров помещений' },
-    { key: 'canvases_count', label: 'Кол-во полотен', value: contractParams.canvasesCount ?? '', source: 'число помещений' }
+    { key: 'area', label: 'Площадь (м²)', value: summary.area ?? '', source: 'сумма площадей помещений' },
+    { key: 'perimeter', label: 'Периметр (м/п)', value: summary.perimeter ?? '', source: 'сумма периметров помещений' },
+    { key: 'canvases_count', label: 'Кол-во полотен', value: summary.canvasesCount ?? '', source: 'число помещений' }
   ];
-  const measured = Object.entries(contractParams.measuredParams ?? {}).map(([tag, value]) => {
+  const measured = Object.entries(summary.measuredParams ?? {}).map(([tag, value]) => {
     const definition = definitions.find(d => d.contractTag === tag);
     return {
       key: tag,

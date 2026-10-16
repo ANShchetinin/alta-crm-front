@@ -86,13 +86,7 @@ describe('Archive Page Component', () => {
       attachments: [
         { id: 501, fileName: 'Акт_приема_передачи.pdf', contentType: 'application/pdf', isAct: true },
         { id: 502, fileName: 'Смета_чертеж.jpg', contentType: 'image/jpeg', isAct: false }
-      ],
-      contractParams: {
-        specItems: [
-          { idx: 1, name: 'Полотно MSD Premium (Гостиная)', quantity: '20', unit: 'м²', price: 1000, total: 20000 },
-          { idx: 2, name: 'Монтаж профиля стенового', quantity: '18', unit: 'м/п', price: 500, total: 9000 }
-        ]
-      }
+      ]
     },
     {
       id: 102,

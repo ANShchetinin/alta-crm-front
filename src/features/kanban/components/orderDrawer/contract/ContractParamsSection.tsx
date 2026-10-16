@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pencil, Tag } from 'lucide-react';
+import { Pencil, Ruler, Tag } from 'lucide-react';
 import type { ContractFieldDefinition } from '../../../../../api/settings';
-import type { ContractParams } from '../../../../../api/kanban';
+import type { ContractSummary } from '../../../../../api/kanban';
 import type { OrderContractState } from '../../../hooks/useOrderContract';
 import { DateInput } from '../../../../../components/ui/DateInput';
 import type { RoomParamDefinition } from '../../../../../api/roomParams';
@@ -11,22 +11,12 @@ import { measuredContractFields, type MeasuredContractField } from '../../../../
 interface ContractParamsSectionProps {
   contract: OrderContractState;
   fieldDefinitions?: ContractFieldDefinition[];
-  /** Есть замер: параметры потолка договор берет из него, здесь они только для просмотра. */
+  /** Параметры потолка, посчитанные бэкендом по замеру (до загрузки — нет). */
+  summary: ContractSummary | undefined;
+  /** Есть замер: параметры потолка договор берет из него. */
   fromMeasurement: boolean;
   onOpenMeasurement: () => void;
 }
-
-type CeilingField = 'area' | 'perimeter' | 'canvasesCount' | 'insertLength' | 'pipeCount' | 'lightsCount' | 'timberLength';
-
-const CEILING_FIELDS: { key: CeilingField; label: string; placeholder: string }[] = [
-  { key: 'area', label: 'Площадь (м²)', placeholder: '70,3' },
-  { key: 'perimeter', label: 'Периметр (м/п)', placeholder: '110,5' },
-  { key: 'canvasesCount', label: 'Кол-во полотен', placeholder: '5' },
-  { key: 'insertLength', label: 'Вставка (м/п)', placeholder: '20' },
-  { key: 'pipeCount', label: 'Обвод труб (шт)', placeholder: '0' },
-  { key: 'lightsCount', label: 'Свет. пр. (точек)', placeholder: '30' },
-  { key: 'timberLength', label: 'Брус (м/п)', placeholder: '17' }
-];
 
 const gridStyle: React.CSSProperties = {
   display: 'grid',
@@ -52,19 +42,17 @@ interface ParamInputProps {
   placeholder: string;
   value: string | undefined;
   onChange: (value: string) => void;
-  readOnly?: boolean;
 }
 
-const ParamInput: React.FC<ParamInputProps> = ({ label, placeholder, value, onChange, readOnly = false }) => (
+const ParamInput: React.FC<ParamInputProps> = ({ label, placeholder, value, onChange }) => (
   <div className="form-group" style={{ marginBottom: 0, minWidth: 0 }}>
     <label style={gridLabelStyle} title={label}>{label}</label>
     <input
       type="text"
-      placeholder={readOnly ? '—' : placeholder}
+      placeholder={placeholder}
       value={value || ''}
       onChange={(e) => onChange(e.target.value)}
-      readOnly={readOnly}
-      className={readOnly ? 'search-input estimate-readonly-field' : 'search-input'}
+      className="search-input"
       style={{ width: '100%', paddingLeft: '10px' }}
     />
   </div>
@@ -90,20 +78,19 @@ const MeasuredField: React.FC<{ field: MeasuredContractField }> = ({ field }) =>
 
 /**
  * Параметры спецификации договора: поля, настроенные компанией, либо сводные параметры натяжного потолка.
- * При наличии замера параметры потолка считаются из него и правятся только в смете.
+ * Параметры потолка считаются по замеру и правятся только в нем; без замера их здесь нет.
  */
 export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({
   contract,
   fieldDefinitions,
+  summary,
   fromMeasurement,
   onOpenMeasurement
 }) => {
   const { contractParams, updateContractParam, updateCustomContractParam } = contract;
   const customFields = fieldDefinitions && fieldDefinitions.length > 0 ? fieldDefinitions : null;
-  const setParam = (key: keyof ContractParams) => (value: string) => updateContractParam(key, value);
-  const ceilingReadOnly = fromMeasurement && !customFields;
-  // Параметры помещений замера: значения и названия — из настроек параметров помещения
-  const showMeasured = ceilingReadOnly && contractParams.measuredParams !== undefined && contractParams.measuredParams !== null;
+  const showMeasured = !customFields && fromMeasurement;
+  // Названия параметров помещения — из настроек
   const { data: roomParams = EMPTY_PARAMS } = useRoomParamsQuery(showMeasured);
 
   return (
@@ -119,24 +106,22 @@ export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({
         1. {customFields ? 'Параметры спецификации договора' : 'Сводные параметры потолка'}
       </h4>
 
-      {ceilingReadOnly && (
+      {!customFields && (
         <div className="contract-params-note">
           <span>
-            {showMeasured
+            {fromMeasurement
               ? 'Параметры посчитаны по помещениям замера и попадут в договор из него.'
-              : 'Параметры посчитаны по замеру и попадут в договор из него.'}
+              : 'Площадь, периметр, полотна и другие параметры потолка договор берет из замера.'}
           </span>
           <button type="button" className="btn btn-ghost" onClick={onOpenMeasurement}>
-            <Pencil size={13} /> Изменить в замере
+            {fromMeasurement ? <><Pencil size={13} /> Изменить в замере</> : <><Ruler size={13} /> Заполнить замер</>}
           </button>
         </div>
       )}
 
-      <div style={gridStyle}>
-        {showMeasured
-          ? measuredContractFields(contractParams, roomParams).map(field => <MeasuredField key={field.key} field={field} />)
-          : customFields
-          ? customFields.map(field => (
+      {customFields && (
+        <div style={gridStyle}>
+          {customFields.map(field => (
             <ParamInput
               key={field.id}
               label={field.label}
@@ -144,34 +129,30 @@ export const ContractParamsSection: React.FC<ContractParamsSectionProps> = ({
               value={contractParams.customParams?.[field.key]}
               onChange={(value) => updateCustomContractParam(field.key, value)}
             />
-          ))
-          : CEILING_FIELDS.map(field => (
-            <ParamInput
-              key={field.key}
-              label={field.label}
-              placeholder={field.placeholder}
-              value={contractParams[field.key]}
-              onChange={setParam(field.key)}
-              readOnly={ceilingReadOnly}
-            />
           ))}
-      </div>
+        </div>
+      )}
+
+      {showMeasured && summary && (
+        <div style={gridStyle}>
+          {measuredContractFields(summary, roomParams).map(field => <MeasuredField key={field.key} field={field} />)}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
-        {!customFields && (
-          <ParamInput
-            label="Артикул полотна (фактура)"
-            placeholder="Полотно Мат 303"
-            value={contractParams.canvasArticle}
-            onChange={setParam('canvasArticle')}
-            readOnly={ceilingReadOnly}
-          />
+        {showMeasured && summary && (
+          <MeasuredField field={{
+            key: 'canvas_article',
+            label: 'Артикул полотна (фактура)',
+            value: summary.canvasArticle ?? '',
+            source: 'полотна помещений'
+          }} />
         )}
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label style={{ fontSize: '0.78rem' }}>Дата сдачи объекта</label>
           <DateInput
             value={contractParams.handoverDate || ''}
-            onChange={setParam('handoverDate')}
+            onChange={(value) => updateContractParam('handoverDate', value)}
             style={{ width: '100%', paddingLeft: '10px' }}
           />
         </div>

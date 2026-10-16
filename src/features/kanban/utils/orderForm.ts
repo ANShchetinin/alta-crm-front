@@ -54,21 +54,12 @@ export type OrderPayload = Record<string, unknown>;
 const toNumber = (value: string | undefined): number => parseFloat(value || '0') || 0;
 
 /**
- * Пустые параметры договора с чек-листом акта из шаблона компании. Параметры потолка не заполняются примерами:
- * они сохранились бы в заказ и попали в договор как настоящие цифры.
+ * Пустые параметры договора с чек-листом акта из шаблона компании. Параметры потолка и спецификацию сюда
+ * не пишут: их считает бэкенд по замеру и смете.
  */
 export const createDefaultContractParams = (actChecklistTemplate?: string[]): ContractParams => ({
-  area: '',
-  perimeter: '',
-  canvasesCount: '',
-  insertLength: '',
-  pipeCount: '',
-  lightsCount: '',
-  timberLength: '',
-  canvasArticle: '',
   discount: '',
   handoverDate: '',
-  specItems: [],
   actChecklist: mergeActChecklist([], actChecklistTemplate),
   customParams: {}
 });
@@ -148,7 +139,6 @@ export const orderToFormData = (order: Order, actChecklistTemplate?: string[]): 
     ...order.contractParams,
     contractDate: order.contractParams.contractDate || toLocalDateString(new Date()),
     actChecklist: mergeActChecklist(order.contractParams.actChecklist, actChecklistTemplate),
-    specItems: order.contractParams.specItems || [],
     customParams: order.contractParams.customParams || {}
   } : createDefaultContractParams(actChecklistTemplate);
 
@@ -309,32 +299,19 @@ export const calcOrderProfitability = (form: OrderFormData): OrderProfitability 
   };
 };
 
-/** Параметры договора, которые бэкенд заполняет из замера при сохранении сметы. */
-const MEASUREMENT_CONTRACT_PARAMS = [
-  'area', 'perimeter', 'canvasesCount', 'insertLength', 'lightsCount', 'pipeCount', 'timberLength', 'canvasArticle',
-  'specItems', 'measuredParams'
-] as const;
-
 /**
  * Переносит в форму результат сохранения сметы из заказа, перечитанного с сервера: суммы, стоимость монтажа
- * с долями монтажников, материалы и параметры договора из замера. Остальные поля формы (в том числе
- * несохраненные правки пользователя) не трогаются.
+ * с долями монтажников и материалы. Остальные поля формы (в том числе несохраненные правки пользователя)
+ * не трогаются; параметры потолка и спецификацию договора вкладка «Договор» перечитывает с сервера.
  */
-export const withMeasurementResult = (form: OrderFormData, saved: OrderFormData): OrderFormData => {
-  const contractParams: ContractParams = { ...form.contractParams };
-  MEASUREMENT_CONTRACT_PARAMS.forEach(key => {
-    Object.assign(contractParams, { [key]: saved.contractParams?.[key] });
-  });
-  return {
-    ...form,
-    totalPrice: saved.totalPrice,
-    remainder: saved.remainder,
-    installationPrice: saved.installationPrice,
-    installers: saved.installers,
-    materials: saved.materials,
-    contractParams
-  };
-};
+export const withMeasurementResult = (form: OrderFormData, saved: OrderFormData): OrderFormData => ({
+  ...form,
+  totalPrice: saved.totalPrice,
+  remainder: saved.remainder,
+  installationPrice: saved.installationPrice,
+  installers: saved.installers,
+  materials: saved.materials
+});
 
 /**
  * Есть ли среди загруженных или ожидающих загрузки файлов Акт выполненных работ.

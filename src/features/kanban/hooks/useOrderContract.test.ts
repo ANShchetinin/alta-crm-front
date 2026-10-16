@@ -88,29 +88,19 @@ describe('useOrderContract', () => {
     expect(result.current.contract.isPromptOpen).toBe(false);
   });
 
-  it('keeps empty ceiling params empty instead of saving placeholder numbers', async () => {
+  it('saves only manual contract params: ceiling params come from the measurement', async () => {
     vi.mocked(downloadContractDocx).mockResolvedValue(new Blob(['docx']));
     const { result } = setup(5);
     act(() => {
       result.current.contract.startGenerate();
     });
 
-    expect(result.current.contract.promptData).toMatchObject({ area: '', perimeter: '', lightsCount: '', canvasArticle: '' });
-
     await act(() => result.current.contract.submitGenerate({ preventDefault: vi.fn() } as unknown as React.FormEvent));
 
-    expect(updateOrder).toHaveBeenCalledWith(5, expect.objectContaining({
-      contractParams: expect.objectContaining({
-        area: '',
-        perimeter: '',
-        canvasesCount: '',
-        insertLength: '',
-        pipeCount: '',
-        lightsCount: '',
-        timberLength: '',
-        canvasArticle: ''
-      })
-    }));
+    const payload = vi.mocked(updateOrder).mock.calls[0][1];
+    expect(payload.contractParams).toMatchObject({ discount: '', handoverDate: '' });
+    expect(payload.contractParams).not.toHaveProperty('area');
+    expect(payload.contractParams).not.toHaveProperty('lightsCount');
   });
 
   it('keeps the rest of the client card when saving it from the contract prompt', async () => {
