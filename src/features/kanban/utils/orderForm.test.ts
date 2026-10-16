@@ -149,7 +149,12 @@ describe('orderForm', () => {
       installationPrice: 6000,
       installers: [{ employeeId: 7, amount: 6000, splitType: 'EQUAL' }],
       materials: [{ materialId: 100, materialName: 'Полотно', quantity: 20.5 }],
-      contractParams: { area: '20.5', lightsCount: '6', specItems: [{ idx: 1, name: 'Полотно (Зал)', quantity: '20.5', unit: 'м²', price: 1000, total: 20500 }] }
+      contractParams: {
+        area: '20.5',
+        lightsCount: '6',
+        measuredParams: { lights_count: '6', timber_length: '3.5' },
+        specItems: [{ idx: 1, name: 'Полотно (Зал)', quantity: '20.5', unit: 'м²', price: 1000, total: 20500 }]
+      }
     } as Order);
 
     const result = withMeasurementResult(edited, saved);
@@ -157,7 +162,12 @@ describe('orderForm', () => {
     expect(result).toMatchObject({ address: 'Новый адрес (не сохранен)', totalPrice: '42000', remainder: '22000', installationPrice: '6000' });
     expect(result.installers).toEqual(saved.installers);
     expect(result.materials).toEqual(saved.materials);
-    expect(result.contractParams).toMatchObject({ area: '20.5', lightsCount: '6', discount: '5%' });
+    expect(result.contractParams).toMatchObject({
+      area: '20.5',
+      lightsCount: '6',
+      discount: '5%',
+      measuredParams: { lights_count: '6', timber_length: '3.5' }
+    });
     expect(result.contractParams?.specItems).toHaveLength(1);
   });
 

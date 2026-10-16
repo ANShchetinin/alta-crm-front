@@ -131,7 +131,8 @@ export const useMeasurementEstimate = ({
 
   /**
    * Изменение помещения. Позиции сметы привязаны к помещению по названию, поэтому при переименовании
-   * они переходят на новое название; при смене площади или периметра пересчитываются зависящие от них позиции.
+   * они переходят на новое название; при смене площади, периметра или параметров помещения пересчитываются
+   * зависящие от них позиции (слоты, привязанные к параметру).
    */
   const updateRoom = (idx: number, patch: Partial<MeasurementRoomDto>) => {
     const oldRoom = rooms[idx];
@@ -141,7 +142,8 @@ export const useMeasurementEstimate = ({
       setItems(prev => renameRoomItems(prev, oldRoom.roomName, updated.roomName));
     }
     const geometryChanged = (patch.area !== undefined && patch.area !== oldRoom.area)
-      || (patch.perimeter !== undefined && patch.perimeter !== oldRoom.perimeter);
+      || (patch.perimeter !== undefined && patch.perimeter !== oldRoom.perimeter)
+      || patch.paramValues !== undefined;
     if (geometryChanged) {
       setItems(prev => recalcRoomItems(prev, services, oldRoom, updated, patch));
     }

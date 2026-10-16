@@ -3,6 +3,10 @@ import { FileDown, Save } from 'lucide-react';
 import type { Material } from '../../../api/storage';
 import type { MeasurementCalculateResponse, MeasurementDto } from '../../../api/measurements';
 import { useMaterialsQuery } from '../../../hooks/queries/useStorageQuery';
+import { useRoomParamsQuery } from '../../../hooks/queries/useRoomParamsQuery';
+import type { RoomParamDefinition } from '../../../api/roomParams';
+import { useAuthStore } from '../../../store/useAuthStore';
+import { activeRoomParams } from '../utils/roomParams';
 import { useMeasurementEstimate } from '../hooks/useMeasurementEstimate';
 import { useIosKeyboardScrollFix } from '../hooks/useIosKeyboardScrollFix';
 import { findLinkedSlot, normalizeDisplayUnit, type InitialContractParams } from '../utils/measurementEstimate';
@@ -26,6 +30,7 @@ interface MeasurementWizardProps {
 }
 
 const EMPTY_MATERIALS: Material[] = [];
+const EMPTY_PARAMS: RoomParamDefinition[] = [];
 
 /** Мастер замера: помещения и их геометрия, пакеты работ, интерактивная смета и сохранение в заказ. */
 export const MeasurementWizard = ({
@@ -47,6 +52,11 @@ export const MeasurementWizard = ({
     onSaved
   });
   useIosKeyboardScrollFix();
+
+  const role = useAuthStore(state => state.role);
+  const canManageParams = role === 'OWNER' || role === 'MANAGER' || role === 'SUPERADMIN';
+  const { data: roomParams = EMPTY_PARAMS } = useRoomParamsQuery();
+  const activeParams = activeRoomParams(roomParams);
 
   const [showDetails, setShowDetails] = useState(true);
   const [isWarehouseModalOpen, setIsWarehouseModalOpen] = useState(false);
@@ -111,6 +121,8 @@ export const MeasurementWizard = ({
           services={estimate.services}
           isServiceActive={estimate.isServiceActive}
           onToggleService={estimate.toggleService}
+          roomParams={activeParams}
+          canAddRoomParam={canManageParams}
         />
       )}
 

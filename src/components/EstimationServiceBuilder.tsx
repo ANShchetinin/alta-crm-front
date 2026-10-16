@@ -16,11 +16,14 @@ import {
 import type { Material } from '../api/storage';
 import { useEstimationServicesQuery, ESTIMATION_SERVICES_QUERY_KEY } from '../hooks/queries/useEstimationServicesQuery';
 import { useTenantQueryKey } from '../hooks/queries/useTenantQueryKey';
+import { useRoomParamsQuery } from '../hooks/queries/useRoomParamsQuery';
+import type { RoomParamDefinition } from '../api/roomParams';
 import {
   createEstimationService,
   updateEstimationService,
   deleteEstimationService,
   initDefaultEstimationServices,
+  isCountableBasis,
   type EstimationService,
   type EstimationServiceSlot,
   type EstimationServiceSaveRequest,
@@ -36,11 +39,14 @@ interface Props {
 }
 
 const EMPTY_SERVICES: EstimationService[] = [];
+const EMPTY_PARAMS: RoomParamDefinition[] = [];
 
 export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
   const queryClient = useQueryClient();
   const servicesQueryKey = useTenantQueryKey(ESTIMATION_SERVICES_QUERY_KEY);
   const { data: services = EMPTY_SERVICES, isLoading: servicesLoading } = useEstimationServicesQuery();
+  const { data: roomParams = EMPTY_PARAMS } = useRoomParamsQuery();
+  const numberParams = roomParams.filter(p => p.valueType === 'NUMBER' && !p.archived);
   const [initializing, setInitializing] = useState<boolean>(false);
   const loading = servicesLoading || initializing;
   const [saving, setSaving] = useState<boolean>(false);
@@ -154,6 +160,7 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
           wasteCoefficient: sl.wasteCoefficient || 1.0,
           sortOrder: sIdx,
           isRequired: sl.isRequired,
+          roomParamKey: isCountableBasis(sl.calculationBasis) ? sl.roomParamKey || null : null,
           materials: sl.materials.map((m, mIdx) => ({
             materialId: m.materialId,
             isDefault: m.isDefault || false,
@@ -729,6 +736,27 @@ export const EstimationServiceBuilder: React.FC<Props> = ({ materials }) => {
                             style={{ width: '100%', height: '32px', background: 'var(--input-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', fontSize: '0.84rem', borderRadius: '4px', padding: '0 8px' }}
                           />
                         </div>
+
+                        {isCountableBasis(slot.calculationBasis) && (
+                          <div>
+                            <label style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                              Количество из параметра помещения
+                            </label>
+                            <select
+                              aria-label="Параметр помещения для количества"
+                              value={slot.roomParamKey || ''}
+                              onChange={e => updateSlot(sIdx, { roomParamKey: e.target.value || null })}
+                              style={{ width: '100%', height: '32px', background: 'var(--input-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', fontSize: '0.82rem', borderRadius: '4px', padding: '0 6px' }}
+                            >
+                              <option value="" style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>Вводится в смете вручную</option>
+                              {numberParams.map(p => (
+                                <option key={p.key} value={p.key} style={{ background: 'var(--dropdown-bg, #1e293b)', color: 'var(--text-primary)' }}>
+                                  {p.label}{p.unit ? `, ${p.unit}` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                       </div>
 
                       {/* Привязка взаимозаменяемых материалов склада */}

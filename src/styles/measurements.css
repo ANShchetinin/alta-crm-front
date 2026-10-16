@@ -610,3 +610,138 @@
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* «+ Параметр» помещения: компактная на десктопе, удобная для пальца на телефоне */
+.room-param-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  min-height: 36px;
+  border: 1px solid var(--glass-border);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 768px) {
+  .room-param-add-btn {
+    min-height: 44px;
+  }
+}
+
+/* Настройки → параметры помещения */
+.room-params-settings {
+  background: var(--card-bg, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+}
+
+.room-params-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.room-params-settings-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+
+.room-params-settings-header p {
+  margin: 0;
+  max-width: 560px;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.room-params-settings-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+}
+
+.room-params-settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.room-params-settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: var(--input-bg, rgba(255, 255, 255, 0.03));
+}
+
+.room-params-settings-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.room-params-settings-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.room-params-settings-meta {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.room-params-settings-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.room-params-settings-actions .btn-icon {
+  min-width: 40px;
+  min-height: 40px;
+  color: var(--text-secondary);
+}
+
+.room-params-settings-empty,
+.room-params-settings-archived {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.room-params-settings-archived {
+  margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+  .room-params-settings {
+    padding: 14px;
+  }
+  .room-params-settings-add {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+  .room-params-settings-actions .btn-icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

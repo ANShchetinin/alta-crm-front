@@ -2421,6 +2421,15 @@ body.light-theme .kanban-touch-drop-slot {
   color: var(--accent-primary);
 }
 
+/* Подпись источника значения договора из замера («сумма по помещениям») */
+.contract-measured-source {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
 /* Поле только для просмотра (значение из сметы): без фона и с пунктирной рамкой, текст остается читаемым */
 input.estimate-readonly-field,
 input.estimate-readonly-field:focus {
