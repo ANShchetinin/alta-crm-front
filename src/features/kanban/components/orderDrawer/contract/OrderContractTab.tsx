@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ContractFieldDefinition, ContractTemplateStatus } from '../../../../../api/settings';
+import { useContractSummaryQuery } from '../../../../../hooks/queries/useContractSummaryQuery';
 import type { OrderContractState } from '../../../hooks/useOrderContract';
 import type { SetOrderFormData } from '../../../utils/orderForm';
 import { ContractNumberSection } from './ContractNumberSection';
@@ -21,6 +22,7 @@ interface OrderContractTabProps {
 
 /**
  * Вкладка «Договор»: номер и формирование договора, параметры спецификации и позиции сметы (просмотр).
+ * Параметры потолка и спецификацию бэкенд считает по замеру и смете заказа.
  */
 export const OrderContractTab: React.FC<OrderContractTabProps> = ({
   contract,
@@ -33,21 +35,26 @@ export const OrderContractTab: React.FC<OrderContractTabProps> = ({
   hasAiEstimate,
   onOpenMeasurement,
   onOpenAiEstimate
-}) => (
-  <>
-    <ContractNumberSection orderNumber={orderNumber} setFormData={setFormData} contract={contract} templateStatus={templateStatus} />
-    <ContractParamsSection
-      contract={contract}
-      fieldDefinitions={fieldDefinitions}
-      fromMeasurement={hasMeasurement}
-      onOpenMeasurement={onOpenMeasurement}
-    />
-    <SpecItemsSection
-      contract={contract}
-      orderId={orderId}
-      hasAiEstimate={hasAiEstimate}
-      onOpenMeasurement={onOpenMeasurement}
-      onOpenAiEstimate={onOpenAiEstimate}
-    />
-  </>
-);
+}) => {
+  const { data: summary } = useContractSummaryQuery(orderId);
+
+  return (
+    <>
+      <ContractNumberSection orderNumber={orderNumber} setFormData={setFormData} contract={contract} templateStatus={templateStatus} />
+      <ContractParamsSection
+        contract={contract}
+        fieldDefinitions={fieldDefinitions}
+        summary={summary}
+        fromMeasurement={hasMeasurement}
+        onOpenMeasurement={onOpenMeasurement}
+      />
+      <SpecItemsSection
+        specItems={summary?.specItems ?? []}
+        orderId={orderId}
+        hasAiEstimate={hasAiEstimate}
+        onOpenMeasurement={onOpenMeasurement}
+        onOpenAiEstimate={onOpenAiEstimate}
+      />
+    </>
+  );
+};

@@ -16,6 +16,7 @@ import { useAppStore } from '../../../store/useAppStore';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useOrderDrawerStore } from '../../../store/useOrderDrawerStore';
 import { useFeature } from '../../../hooks/useFeatureToggle';
+import { useInvalidateContractSummary } from '../../../hooks/queries/useContractSummaryQuery';
 import { MeasurementWizard } from '../../measurements/components/MeasurementWizard';
 import { PassportScannerModal, type PassportApplyResult } from '../../../components/PassportScannerModal';
 import { isActRequired, isCompletedStatus, isInstallationStage } from '../../../utils/orderStatus';
@@ -99,6 +100,7 @@ export const OrderDrawer: React.FC = () => {
   const ai = useOrderAi(editingOrderId);
   const contract = useOrderContract({ orderId: editingOrderId, formData, setFormData, currentOrder, clients, actChecklistTemplate });
   const measurementState = useOrderMeasurementState(editingOrderId, !isWorker);
+  const invalidateContractSummary = useInvalidateContractSummary();
   const showMeasurement = !isWorker || canAccessMeasurements;
   const showContract = !isWorker && hasContractTemplates;
   const quickClient = useQuickClient(async created => {
@@ -340,6 +342,7 @@ export const OrderDrawer: React.FC = () => {
       return;
     }
     notifyOrdersChanged('measurement_saved', orderId);
+    void invalidateContractSummary();
     toast.success('Замер и смета успешно сохранены в заказ!');
     try {
       const updated = await getOrderById(orderId);
@@ -365,6 +368,7 @@ export const OrderDrawer: React.FC = () => {
   const handleEstimateApplied = async (aiResult: AiEstimateResultDto) => {
     toast.success('Смета успешно обновлена AI-агентом!');
     setMeasurementKey(k => k + 1);
+    void invalidateContractSummary();
     const targetId = editingOrderId || aiResult.orderId;
     if (!targetId) {
       return;
@@ -469,7 +473,7 @@ export const OrderDrawer: React.FC = () => {
                     key={`${editingOrderId}-${measurementKey}`}
                     orderId={editingOrderId || undefined}
                     materials={materials}
-                    initialContractParams={contract.contractParams}
+                    initialContractParams={contract.contractParams.customParams}
                     canViewCosts={role === 'OWNER' || role === 'SUPERADMIN' || role === 'MANAGER'}
                     onDownloadDocx={contract.startGenerate}
                     onSaved={handleMeasurementSaved}

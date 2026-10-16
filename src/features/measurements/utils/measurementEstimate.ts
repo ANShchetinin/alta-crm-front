@@ -6,13 +6,15 @@ import type {
 } from '../../../api/measurements';
 import { isCountableBasis, type EstimationService, type EstimationServiceSlot } from '../../../api/estimationServices';
 
-/** Параметры договора заказа, которыми предзаполняется первое помещение нового замера. */
+/**
+ * Теги договора, которыми предзаполняется первое помещение нового замера: у старых заказов без замера
+ * введенные вручную параметры потолка хранятся в пользовательских параметрах договора под именами тегов.
+ */
 export interface InitialContractParams {
   area?: string | number;
   perimeter?: string | number;
-  lightsCount?: string | number;
-  pipeCount?: string | number;
-  canvasArticle?: string;
+  lights_count?: string | number;
+  pipe_count?: string | number;
 }
 
 export interface EstimateTotals {
@@ -89,8 +91,8 @@ export const withParamValue = (
 
 /** Новое помещение; первое помещение нового замера берет площадь, периметр, светильники и трубы из договора. */
 export const createDefaultRoom = (name: string, initialParams?: InitialContractParams): MeasurementRoomDto => {
-  const lights = positive(parseInteger(initialParams?.lightsCount));
-  const pipes = positive(parseInteger(initialParams?.pipeCount));
+  const lights = positive(parseInteger(initialParams?.lights_count));
+  const pipes = positive(parseInteger(initialParams?.pipe_count));
   const paramValues: Record<string, string> = {};
   if (lights > 0) {
     paramValues.lights = String(lights);

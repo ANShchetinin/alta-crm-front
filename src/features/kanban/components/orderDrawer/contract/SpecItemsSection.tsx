@@ -1,9 +1,10 @@
 import React from 'react';
 import { CheckCircle2, Pencil, Ruler, Sparkles, Table } from 'lucide-react';
-import type { OrderContractState } from '../../../hooks/useOrderContract';
+import type { ContractSpecItem } from '../../../../../api/kanban';
 
 interface SpecItemsSectionProps {
-  contract: OrderContractState;
+  /** Спецификация, посчитанная бэкендом по смете заказа. */
+  specItems: ContractSpecItem[];
   orderId: number | null;
   hasAiEstimate: boolean;
   onOpenMeasurement: () => void;
@@ -17,13 +18,12 @@ const cellStyle: React.CSSProperties = { padding: '6px 8px' };
  * (или ИИ-сметой), и попадают в договор оттуда.
  */
 export const SpecItemsSection: React.FC<SpecItemsSectionProps> = ({
-  contract,
+  specItems,
   orderId,
   hasAiEstimate,
   onOpenMeasurement,
   onOpenAiEstimate
 }) => {
-  const { specItems } = contract;
   const total = specItems.reduce((sum, it) => sum + (it.total || 0), 0);
 
   return (

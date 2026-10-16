@@ -76,8 +76,8 @@ describe('measurementEstimate', () => {
     expect(normalizeDisplayUnit('кг')).toBe('кг');
   });
 
-  it('prefills the first room from contract params and ignores invalid values', () => {
-    const first = createDefaultRoom('Гостиная', { area: '20,5', perimeter: 18, lightsCount: '6', pipeCount: 'abc' });
+  it('prefills the first room from contract tags and ignores invalid values', () => {
+    const first = createDefaultRoom('Гостиная', { area: '20,5', perimeter: 18, lights_count: '6', pipe_count: 'abc' });
 
     expect(first).toMatchObject({ roomName: 'Гостиная', area: 20.5, perimeter: 18, height: 2.7, paramValues: { lights: '6' } });
     expect(createDefaultRoom('Спальня')).toMatchObject({ area: 0, perimeter: 0, paramValues: {} });

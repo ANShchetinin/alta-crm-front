@@ -19,14 +19,6 @@ export interface ContractPromptData {
   passportDepartmentCode: string;
   registrationAddress: string;
   installationAddress: string;
-  area: string;
-  perimeter: string;
-  canvasesCount: string;
-  insertLength: string;
-  pipeCount: string;
-  lightsCount: string;
-  timberLength: string;
-  canvasArticle: string;
   discount: string;
   handoverDate: string;
 }

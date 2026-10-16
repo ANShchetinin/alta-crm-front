@@ -55,24 +55,25 @@ export interface ActChecklistItem {
   checked: boolean;
 }
 
+/** Договорные параметры, которые вводятся вручную; параметры потолка и спецификация — в {@link ContractSummary}. */
 export interface ContractParams {
-  area?: string;
-  perimeter?: string;
-  canvasesCount?: string;
-  insertLength?: string;
-  pipeCount?: string;
-  lightsCount?: string;
-  timberLength?: string;
-  canvasArticle?: string;
   contractDate?: string;
   handoverDate?: string;
   discount?: string;
   secondPhone?: string;
-  specItems?: ContractSpecItem[];
   actChecklist?: ActChecklistItem[];
   customParams?: Record<string, string>;
-  /** Теги из параметров помещений замера (тег договора → сведённое значение); только просмотр. */
-  measuredParams?: Record<string, string>;
+}
+
+/** Параметры потолка и спецификация договора, вычисленные бэкендом по замеру и смете (не хранятся). */
+export interface ContractSummary {
+  area: string | null;
+  perimeter: string | null;
+  canvasesCount: string | null;
+  canvasArticle: string | null;
+  /** Теги из параметров помещений замера (тег договора → сведённое значение). */
+  measuredParams: Record<string, string>;
+  specItems: ContractSpecItem[];
 }
 
 export interface Order {
@@ -333,6 +334,11 @@ export const downloadContractPdf = async (orderId: number): Promise<Blob> => {
   const response = await api.get(`/orders/${orderId}/contract/pdf`, {
     responseType: 'blob'
   });
+  return response.data;
+};
+
+export const getContractSummary = async (orderId: number): Promise<ContractSummary> => {
+  const response = await api.get<ContractSummary>(`/orders/${orderId}/contract/summary`);
   return response.data;
 };
 

@@ -24,7 +24,8 @@ vi.mock('../../../api/kanban', async () => {
     archiveOrder: vi.fn(),
     getAiSummary: vi.fn(),
     getOrderComments: vi.fn(),
-    getNextOrderNumber: vi.fn()
+    getNextOrderNumber: vi.fn(),
+    getContractSummary: vi.fn()
   };
 });
 vi.mock('../../../api/clients', () => ({
@@ -182,7 +183,10 @@ describe('OrderDrawer', () => {
       rooms: [{ roomName: 'Зал' }],
       items: [{ name: 'Полотно', type: 'MATERIAL', quantity: 20, unit: 'м²', unitSalePrice: 2500, totalSalePrice: 50000 }]
     } as unknown as MeasurementDto);
-    await renderOpenOrder({ ...baseOrder, contractParams: { area: '20.00' } });
+    vi.mocked(kanbanApi.getContractSummary).mockResolvedValue({
+      area: '20.00', perimeter: '18.00', canvasesCount: '1', canvasArticle: null, measuredParams: {}, specItems: []
+    });
+    await renderOpenOrder(baseOrder);
 
     expect(await screen.findByText(/Сумма заказа посчитана по смете/)).toBeInTheDocument();
     expect(screen.getByDisplayValue('30000')).toHaveAttribute('readonly');
@@ -192,8 +196,9 @@ describe('OrderDrawer', () => {
     expect(screen.getByText('50 000 ₽')).toBeInTheDocument();
 
     clickTab('Договор');
-    expect(screen.getByText(/Параметры посчитаны по замеру/)).toBeInTheDocument();
-    expect(screen.getByDisplayValue('20.00')).toHaveAttribute('readonly');
+    expect(screen.getByText(/Параметры посчитаны по помещениям замера/)).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('20.00')).toHaveAttribute('readonly');
+    expect(kanbanApi.getContractSummary).toHaveBeenCalledWith(5);
   });
 
   it('saves edited fields with the full payload', async () => {
@@ -219,7 +224,9 @@ describe('OrderDrawer', () => {
       prepaymentPaid: false,
       remainderPaid: false
     });
-    expect(payload.contractParams).toMatchObject({ area: '', specItems: [] });
+    expect(payload.contractParams).toMatchObject({ discount: '', customParams: {} });
+    expect(payload.contractParams).not.toHaveProperty('area');
+    expect(payload.contractParams).not.toHaveProperty('specItems');
     expect(payload.installedAt).toBeUndefined();
   });
 

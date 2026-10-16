@@ -34,14 +34,6 @@ const EMPTY_PROMPT: ContractPromptData = {
   passportDepartmentCode: '',
   registrationAddress: '',
   installationAddress: '',
-  area: '',
-  perimeter: '',
-  canvasesCount: '',
-  insertLength: '',
-  pipeCount: '',
-  lightsCount: '',
-  timberLength: '',
-  canvasArticle: '',
   discount: '',
   handoverDate: ''
 };
@@ -90,8 +82,8 @@ interface UseOrderContractOptions {
 }
 
 /**
- * Договор заказа: параметры спецификации, чек-лист акта, позиции сметы (только просмотр — правятся в замере)
- * и формирование договора Word с уточнением данных клиента в модальном окне.
+ * Договор заказа: договорные параметры, чек-лист акта и формирование договора Word с уточнением данных клиента
+ * в модальном окне. Параметры потолка и спецификацию бэкенд считает по замеру и смете.
  */
 export const useOrderContract = ({ orderId, formData, setFormData, currentOrder, clients, actChecklistTemplate }: UseOrderContractOptions) => {
   const [isPromptOpen, setIsPromptOpen] = useState(false);
@@ -102,7 +94,6 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
   const actChecklist = contractParams.actChecklist && contractParams.actChecklist.length > 0
     ? contractParams.actChecklist
     : mergeActChecklist([], actChecklistTemplate);
-  const specItems = contractParams.specItems || [];
   const selectedClient = clients.find(c => c.id.toString() === formData.clientId);
 
   const setContractParams = (patch: Partial<ContractParams>) => {
@@ -132,11 +123,7 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
     }
   };
 
-  /**
-   * Данные для договора из карточки клиента, заказа и сохраненных параметров договора.
-   * Незаполненные параметры потолка остаются пустыми: окно договора их не показывает, и подстановка
-   * значений по умолчанию незаметно сохранила бы в заказ и договор выдуманные цифры.
-   */
+  /** Данные для договора из карточки клиента, заказа и сохраненных параметров договора. */
   const buildPromptData = (): ContractPromptData => ({
     clientId: selectedClient?.id || 0,
     isLegal: selectedClient?.clientType === 'LEGAL_ENTITY',
@@ -150,14 +137,6 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
     passportDepartmentCode: selectedClient?.passportDepartmentCode || '',
     registrationAddress: selectedClient?.registrationAddress || '',
     installationAddress: formData.address || '',
-    area: contractParams.area || '',
-    perimeter: contractParams.perimeter || '',
-    canvasesCount: contractParams.canvasesCount || '',
-    insertLength: contractParams.insertLength || '',
-    pipeCount: contractParams.pipeCount || '',
-    lightsCount: contractParams.lightsCount || '',
-    timberLength: contractParams.timberLength || '',
-    canvasArticle: contractParams.canvasArticle || '',
     discount: contractParams.discount || '',
     handoverDate: contractParams.handoverDate || ''
   });
@@ -180,14 +159,6 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
       const updatedParams: ContractParams = {
         ...contractParams,
         secondPhone: data.secondPhone,
-        area: data.area,
-        perimeter: data.perimeter,
-        canvasesCount: data.canvasesCount,
-        insertLength: data.insertLength,
-        pipeCount: data.pipeCount,
-        lightsCount: data.lightsCount,
-        timberLength: data.timberLength,
-        canvasArticle: data.canvasArticle,
         discount: data.discount,
         handoverDate: dateForSave(data.handoverDate)
       };
@@ -267,7 +238,6 @@ export const useOrderContract = ({ orderId, formData, setFormData, currentOrder,
   return {
     contractParams,
     actChecklist,
-    specItems,
     selectedClient,
     updateContractParam,
     updateCustomContractParam,

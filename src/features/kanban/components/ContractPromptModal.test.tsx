@@ -15,14 +15,6 @@ const initialData: ContractPromptData = {
   passportDepartmentCode: '123-456',
   registrationAddress: 'г. Москва',
   installationAddress: 'г. Москва',
-  area: '20',
-  perimeter: '18',
-  canvasesCount: '1',
-  insertLength: '18',
-  pipeCount: '1',
-  lightsCount: '4',
-  timberLength: '0',
-  canvasArticle: 'MSD Premium',
   discount: '0',
   handoverDate: '05.09.2026'
 };

@@ -87,31 +87,6 @@ export const OrderEstimateSection = ({ order, measurement, loading }: { order: O
       );
     }
 
-    const specItems = order.contractParams?.specItems;
-    if (specItems && specItems.length > 0) {
-      return (
-        <SpecTable headers={(
-          <>
-            <th style={NUM_TH}>№</th>
-            <th style={TH}>Наименование</th>
-            <th style={{ ...TH, ...RIGHT }}>Кол-во</th>
-            <th style={{ ...TH, ...RIGHT }}>Цена</th>
-            <th style={{ ...TH, ...RIGHT }}>Сумма</th>
-          </>
-        )}>
-          {specItems.map((item, i) => (
-            <tr key={i} style={ROW}>
-              <td style={NUM_TD}>{item.idx || i + 1}</td>
-              <td style={{ ...TD, color: 'var(--text-primary)', fontWeight: 500 }}>{item.name}</td>
-              <td style={{ ...TD, ...RIGHT, color: 'var(--text-primary)' }}>{item.quantity} {item.unit || 'шт.'}</td>
-              <td style={{ ...TD, ...RIGHT, color: 'var(--text-secondary)' }}>{item.price?.toLocaleString('ru-RU')} ₽</td>
-              <td style={{ ...TD, ...RIGHT, fontWeight: 600, color: '#22c55e' }}>{item.total?.toLocaleString('ru-RU')} ₽</td>
-            </tr>
-          ))}
-        </SpecTable>
-      );
-    }
-
     if (order.materials && order.materials.length > 0) {
       return (
         <SpecTable headers={(
